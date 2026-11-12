@@ -7,12 +7,42 @@ This repository holds the rule files and a viewer for them. There is no game eng
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The rule viewer. One self-contained page, no install needed. |
-| `rules/index.yaml` | The list of rule files the viewer loads. |
-| `rules/world_v0.3.yaml` | The laws of physics and the parts catalogue. |
-| `rules/map_open_space.yaml` | The board, zones and terrain. |
-| `rules/fleets_v0.3.yaml` | What each player built and where it starts. |
-| `rules/archive/` | Older versions, kept for reference. |
+| `play.html` | The game. Play both sides on one screen, or on two phones by swapping turn codes. |
+| `index.html` | The rule viewer. One self-contained page that shows the rule files. |
+| `rules/` | The rule files: the world (physics and parts), the map, and the fleets. `rules/index.yaml` lists which ones are loaded. |
+| `engine/` | The game logic. No screen code in here. |
+| `ui/` | The play screen. No game rules in here. |
+| `tests/` | Automated tests for the engine. |
+| `lib/` | The YAML reader used by both pages. |
+
+## Playing
+
+Open `play.html` from GitHub Pages. It needs to be served from a website, so it will not run by double-clicking the file.
+
+- **One screen:** leave the seat on "Both players" and take turns.
+- **Two phones:** one player starts a new game, taps "Show game code" and sends it. The other pastes it under "Load a game code". Each of you picks your seat. From then on, ending a turn gives a short turn code to send; the other player pastes it to play that turn on their phone.
+
+Each phone holds the whole game, so the fog of war relies on neither player looking at the other seat.
+
+## How the engine is laid out
+
+| File | Job |
+| --- | --- |
+| `engine/hex.js` | Hex geometry: distance, steps, lines. A different kind of space would replace this file. |
+| `engine/rules.js` | Reads the rule files, prices fleets, and reports every problem it finds. |
+| `engine/state.js` | The game state and helpers to read it. |
+| `engine/detect.js` | Sensors, stealth, flare, comms networks, and what each player knows. |
+| `engine/damage.js` | Hits, explosions, ship death, the win check. |
+| `engine/actions.js` | Move, fire, launch, scan, detonate. |
+| `engine/flight.js` | The flight phase: missiles and drones. |
+| `engine/turn.js` | The turn loop. |
+| `engine/view.js` | Cuts the full state down to what one player may see. |
+| `engine/query.js` | "Where can this ship go? What can it shoot?" |
+| `engine/codec.js`, `engine/sync.js` | Turn codes and game codes. |
+
+The engine reads the numbers on each part, not its name. Add a part with `hits` and `range` to the world file and it is a beam weapon; give one `thrust` and it is an engine.
+
+To run the tests: `node --test` (Node 20 or newer, nothing to install).
 
 ## Using the viewer
 

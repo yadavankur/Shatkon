@@ -1,0 +1,23 @@
+// The engine's front door. Screens, AI players and tests import from here only.
+//
+//   const { rules, problems } = buildRules(world, map, fleets);   // parsed YAML in
+//   let game = start(rules, seed);
+//   game = apply(game, { type: 'move', ship: '1a', path: [2, 2] });
+//   const mine = view(game, 0);            // what player 1 is allowed to see
+//   const code = turnCode(game);           // after 'end': send this to the other player
+
+import { newGame } from './state.js';
+import { begin } from './turn.js';
+
+export { buildRules, shipStats } from './rules.js';
+export { apply, attempt } from './turn.js';
+export { view } from './view.js';
+export { reach, beamTargets, launchOptions } from './query.js';
+export { turnCode, readTurnCode, applyTurnCode, exportGame, importGame } from './sync.js';
+export { hashState, actionText, parseAction } from './codec.js';
+export { Illegal } from './state.js';
+export * as hex from './hex.js';
+
+export function start(rules, seed = 1) {
+  return begin(newGame(rules, seed));
+}

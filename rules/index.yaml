@@ -1,6 +1,6 @@
 # The viewer loads the files listed here, in this order.
 # To add a new rule file: put it in this folder and add its name below.
 files:
-  - world_v0.3.yaml
+  - world_v0.4.yaml
   - map_open_space.yaml
-  - fleets_v0.3.yaml
+  - fleets_v0.4.yaml
