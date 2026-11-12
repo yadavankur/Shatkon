@@ -33,7 +33,7 @@ export function signatureOf(state, x) {
 export const linkRange = (state, ship) => maxAttr(state, ship, 'link_range');
 
 // How far something can see: ships by their sensors, drones by their own number, the rest not at all.
-function eyes(state, o) {
+export function eyes(state, o) {
   if (o.segs) return sensorOf(state, o);
   const m = state.rules.munitions[o.kind];
   return typeof m.sensor_range === 'number' ? m.sensor_range : null;
@@ -58,6 +58,20 @@ export function visibleTo(state, p) {
     if (m.reveals_itself_on_detect && typeof m.sensor_range === 'number' && myShips.some((s) => sees(state, o, s))) out.add(o.id);
   }
   return out;
+}
+
+// The plain reason a player can see something: who spotted it and the numbers behind it.
+export function whySeen(state, p, t) {
+  if (isLit(state, t)) return { lit: true };
+  let best = null;
+  const mine = state.ships.filter((s) => !s.dead && s.owner === p).concat(state.objs.filter((o) => o.owner === p && state.rules.munitions[o.kind].reports));
+  for (const o of mine) {
+    const r = eyes(state, o);
+    if (r === null) continue;
+    const d = gap(o, t), sig = signatureOf(state, t);
+    if (d <= r + sig && (!best || d < best.d)) best = { by: o.id, d, range: r, sig, flare: flareOf(state, t) };
+  }
+  return best || { drone: true };
 }
 
 // Ships linked by comms form networks; a ship can only shoot at what its own network sees.
@@ -85,10 +99,14 @@ export function refreshSight(state) {
     const pl = state.players[p], now = visibleTo(state, p), before = new Set(pl.vis);
     for (const id of now) {
       const x = thing(state, id);
-      if (!before.has(id)) emit(state, { t: 'sighted', id, kind: x.segs ? 'ship' : x.kind, at: x.pos.slice() }, [p]);
-      pl.seen[id] = { pos: x.pos.slice(), round: state.round, kind: x.segs ? 'ship' : x.kind, cells: cellsOf(x).map((c) => c.slice()) };
+      const why = whySeen(state, p, x);
+      if (!before.has(id)) emit(state, { t: 'sighted', id, kind: x.segs ? 'ship' : x.kind, at: x.pos.slice(), why }, [p]);
+      pl.seen[id] = { pos: x.pos.slice(), round: state.round, kind: x.segs ? 'ship' : x.kind, cells: cellsOf(x).map((c) => c.slice()), glow: !!(why.lit || why.flare) };
     }
-    for (const id of before) if (!now.has(id) && thing(state, id)) emit(state, { t: 'lost', id }, [p]);
+    for (const id of before) if (!now.has(id) && thing(state, id)) {
+      const x = thing(state, id), was = pl.seen[id];
+      emit(state, { t: 'lost', id, faded: !!(was && was.glow && !isLit(state, x) && !flareOf(state, x)) }, [p]);
+    }
     // drop a ghost once the thing is gone, or once we can see its old spot and it is not there
     const myShips = state.ships.filter((s) => !s.dead && s.owner === p);
     for (const id of Object.keys(pl.seen)) {

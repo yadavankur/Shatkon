@@ -62,6 +62,7 @@ function stepObj(state, o, m, turnsLeft) {
 
 export function runFlight(state) {
   const T = state.rules.ticks;
+  for (const o of state.objs) o.last = o.pos.slice();   // where each thing started this flight, for drawing trails
   for (let t = 0; t < T && state.phase === 'play'; t++) {
     for (const id of state.objs.map((o) => o.id)) {
       const o = objById(state, id);

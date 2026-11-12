@@ -72,15 +72,14 @@ segments:
 #  Moving a ship 1 hex costs 1 thrust per segment of that ship.
 #  You choose which ships move and how far. Unspent thrust is banked.
 movement:
-  needs_average_of: 1         # the fleet can only move in a turn that starts with at least
-                              # this much thrust per segment (1 = "three engines for four
-                              # segments is a sitting duck until it has banked enough").
-                              # Set to 0 to let a weak fleet move one ship at a time.
+  needs_average_of: 0         # 0 = a weak fleet may still move one ship at a time.
+                              # Set to 1 to make a fleet with less than 1 thrust per segment
+                              # sit still until it has banked enough.
   max_above_average: 1        # no ship may move further in a turn than the fleet average
                               # (engines / segments, rounded down) plus this
   bank_turns: 2               # most thrust you can carry over, counted in turns of engine output
   examples:
-    - "two 2-segment ships, 3 engines: 3 thrust a turn, 4 segments. Turn 1: banked. Turn 2: 6 thrust, each ship may move 1 hex"
+    - "two 2-segment ships, 3 engines: 3 thrust a turn. One ship moves 1 hex (2 thrust) and 1 is banked; next turn both can move"
     - "two 2-segment ships, 9 engines: 9 thrust. Each ship moves 2 hexes (8 thrust), 1 banked. A ship may move up to 3"
 
 
@@ -98,6 +97,7 @@ detection:
     launch: 2
     point_defence_shot: 2
   detonation_lights_up: 4     # everything within this many hexes of a blast is revealed to everyone
+  shown_enemy_sensor: 4       # only for display: the play screen says "an enemy with this sensor sees you from N hexes"
 
 
 # ------------------------------------------------------------

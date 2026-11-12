@@ -81,6 +81,7 @@ export function nearestCell(x, from) {
 // Every change is announced as an event. "seenBy" lists the players who get to know.
 export function emit(state, ev, seenBy) {
   ev.r = state.round;
+  ev.n = state.seq++;
   state.events.push({ ...ev, seenBy });
   for (const p of seenBy) {
     const feed = state.players[p].feed;
@@ -98,12 +99,12 @@ export function makeObj(state, kind, owner, pos, dir, extra) {
 export function newGame(rules, seed = 1) {
   const state = {
     v: 1, rules, rid: fnv(stable(rules)).toString(36), rng: seed | 0,
-    round: 1, order: [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1,
+    round: 1, order: [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1, seq: 0,
     players: [], ships: [], objs: [], lit: {},
     events: [], history: [], pending: [], pre: '', lastTurn: null,
   };
   rules.fleets.forEach((fl, p) => {
-    state.players.push({ name: fl.name, cp: 0, cpBank: 0, thrust: 0, thrustBank: 0, canMove: false, moved: {}, vis: [], seen: {}, intel: {}, feed: [] });
+    state.players.push({ name: fl.name, cp: 0, cpBank: 0, thrust: 0, thrustBank: 0, canMove: false, moved: {}, vis: [], seen: {}, intel: {}, feed: [], readSeq: 0, turnSeq: 0 });
     fl.ships.forEach((sh, i) => {
       const dep = fl.deployment.find((d) => d.ship === sh.name);
       if (!dep) return;

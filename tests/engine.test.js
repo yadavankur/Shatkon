@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
+import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, shipStatus, forecast, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
 import { sensorOf, signatureOf, visibleTo } from '../engine/detect.js';
 import { shippedFiles, battle, scout, pod } from './helpers.js';
@@ -45,21 +45,25 @@ test('hex maths: distance, lines and turning', () => {
   assert.equal(hex.disc([0, 0], 2).length, 19);
 });
 
-test('movement: three engines for four segments is a sitting duck until it has banked enough', () => {
+test('movement: three engines for four segments can move one ship now, or both after banking', () => {
   const two = (name, at, engines, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core'].concat(Array(Math.min(2, engines)).fill('engine')) }, { at: [1, 0], bays: ['coupling'].concat(Array(Math.max(0, engines - 2)).fill('engine')) }] });
-  let { game: g, problems } = battle({ p1: [two('A', [0, 5], 2, true), two('B', [0, 7], 1, false)], p2: [scout('X', [0, -8])] });
+  const fleets = { p1: [two('A', [0, 5], 2, true), two('B', [0, 7], 1, false)], p2: [scout('X', [0, -8])] };
+  let { game: g, problems } = battle(fleets);
   assert.deepEqual(problems, []);
   let v = view(g, 0);
-  assert.deepEqual([v.income, v.segments, v.thrust, v.canMove, v.moveCap], [3, 4, 3, false, 1]);
-  assert.equal(attempt(g, { type: 'move', ship: '1a', path: [0] }).ok, false);
-  g = end(end(g));                 // round 2: player 2 goes first, then player 1
-  g = end(g);
-  v = view(g, 0);
-  assert.deepEqual([v.thrust, v.canMove], [6, true]);
+  assert.deepEqual([v.income, v.segments, v.thrust, v.canMove, v.moveCap], [3, 4, 3, true, 1]);
   g = apply(g, { type: 'move', ship: '1a', path: [0] });
-  g = apply(g, { type: 'move', ship: '1b', path: [0] });
-  assert.equal(view(g, 0).thrust, 2);
-  assert.equal(attempt(g, { type: 'move', ship: '1a', path: [0] }).ok, false, 'no ship moves more than average + 1');
+  assert.equal(view(g, 0).thrust, 1);
+  assert.equal(attempt(g, { type: 'move', ship: '1b', path: [0] }).why, 'not enough thrust');
+  g = end(end(end(g)));
+  assert.equal(view(g, 0).thrust, 4, '1 banked + 3 new: now both ships can move');
+  // the optional rule: no movement at all until the fleet has a full hex per segment banked
+  const strict = structuredClone(shippedFiles().world); strict.movement.needs_average_of = 1;
+  let s = battle({ ...fleets, world: strict }).game;
+  assert.equal(view(s, 0).canMove, false);
+  assert.equal(attempt(s, { type: 'move', ship: '1a', path: [0] }).ok, false);
+  s = end(end(end(s)));
+  assert.equal(view(s, 0).canMove, true);
 });
 
 test('movement: thrust is shared, so one ship can take more than its share', () => {
@@ -319,4 +323,33 @@ test('a game code taken in the middle of a turn still lines up with that turn\'s
   b = applyTurnCode(b, turnCode(a));
   assert.equal(hashState(a), hashState(b));
   assert.deepEqual(b.ships[0].pos, [0, 5]);
+});
+
+test('the game explains why something came into view and why it was lost', () => {
+  let { game: g } = battle({ radius: 12, p1: [pod('A', [0, 6], ['core', 'engine', 'sensor'])], p2: [pod('X', [0, 0], ['core', 'engine', 'engine'], ['laser'])] });
+  assert.equal(view(g, 0).ships.length, 1);
+  g = apply(g, { type: 'move', ship: '1a', path: [2] });
+  const seen = g.players[0].feed.find((e) => e.t === 'sighted');
+  assert.deepEqual([seen.why.by, seen.why.d, seen.why.range, seen.why.sig], ['1a', 5, 4, 1]);
+  assert.deepEqual(view(g, 0).ships.find((s) => !s.mine).why.by, '1a');
+  g = end(g);
+  g = apply(g, { type: 'move', ship: '2a', path: [2] });
+  const lost = g.players[0].feed.find((e) => e.t === 'lost');
+  assert.equal(lost.faded, false, 'it moved away; nothing faded');
+  assert.equal(view(g, 0).ghosts.length, 1, 'a last-seen marker stays behind');
+});
+
+test('ship status and missile forecasts tell the player what to expect', () => {
+  let { game: g } = battle({ p1: [carrier('C', [0, 3])], p2: [pod('X', [0, -2], ['core', 'engine', 'sensor'], ['armour'])] });
+  let st = shipStatus(g, '1a');
+  assert.deepEqual([st.launchers, st.launchersReady, st.ammo.missile, st.beams], [1, 1, 2, 0]);
+  const plan = forecast(g, { type: 'launch', ship: '1a', kind: 'missile', start: [0, 2], target: '2a', route: [] });
+  assert.deepEqual([plan.ends, plan.hit, plan.path.length, plan.rounds], ['hit', '2a', 4, 1]);
+  g = apply(g, { type: 'launch', ship: '1a', kind: 'missile', start: [0, 2], target: '2a', route: [] });
+  st = shipStatus(g, '1a');
+  assert.deepEqual([st.launchersReady, st.ammo.missile], [0, 1]);
+  const flying = forecast(g, g.objs[0].id);
+  assert.equal(flying.hit, '2a');
+  const blind = forecast(g, { type: 'launch', ship: '1a', kind: 'missile', start: [1, 3], target: null, route: [0] });
+  assert.equal(blind.ends, 'edge');
 });

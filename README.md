@@ -11,7 +11,7 @@ This repository holds the rule files and a viewer for them. There is no game eng
 | `index.html` | The rule viewer. One self-contained page that shows the rule files. |
 | `rules/` | The rule files: the world (physics and parts), the map, and the fleets. `rules/index.yaml` lists which ones are loaded. |
 | `engine/` | The game logic. No screen code in here. |
-| `ui/` | The play screen. No game rules in here. |
+| `ui/` | The play screen (`play.js`) and the board drawing (`board.js`). No game rules in here. |
 | `tests/` | Automated tests for the engine. |
 | `lib/` | The YAML reader used by both pages. |
 
@@ -19,10 +19,14 @@ This repository holds the rule files and a viewer for them. There is no game eng
 
 Open `play.html` from GitHub Pages. It needs to be served from a website, so it will not run by double-clicking the file.
 
-- **One screen:** leave the seat on "Both players" and take turns.
+- **One screen:** leave the seat on "Both players" and take turns. Enemy pieces the player to move cannot see are drawn faded.
 - **Two phones:** one player starts a new game, taps "Show game code" and sends it. The other pastes it under "Load a game code". Each of you picks your seat. From then on, ending a turn gives a short turn code to send; the other player pastes it to play that turn on their phone.
 
 Each phone holds the whole game, so the fog of war relies on neither player looking at the other seat.
+
+On the board: tap a ship (or its card above the board) to select it and zoom in. Green markers are places it can move; tap one to preview the move, tap again to go. The turn ends by itself when the command points run out. Zoomed in, each segment shows its three bays and three mounts, coloured by part. The darker part of the board is outside your sensor range.
+
+The default map is `rules/map_skirmish.yaml`, a small board where the fleets meet within a round or two. `rules/map_open_space.yaml` is the big one; the fleets file says which starting positions to use for it.
 
 ## How the engine is laid out
 

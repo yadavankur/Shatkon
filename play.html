@@ -7,64 +7,80 @@
 <link rel="icon" href="data:,">
 <style>
 :root{
-  --bg:#0a0f1e; --panel:#111930; --panel2:#0e1529; --line:#243051; --text:#e7ecf6; --muted:#8f9cba;
-  --accent:#f5b942; --good:#58d6a0; --bad:#ff7a7a; --p0:#f5b942; --p1:#5cc8ff; --rock:#6f7890; --haze:#b07cf0; --grid:#1b2542; --hl:#58d6a0;
+  --bg:#070b16; --panel:#101830; --panel2:#0c1326; --line:#25325a; --text:#e7ecf6; --muted:#8f9cba;
+  --accent:#f5b942; --good:#58d6a0; --bad:#ff7a7a; --p0:#f5b942; --p1:#5cc8ff; --hl:#58d6a0;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: light){
-  :root{ --bg:#f3f4f8; --panel:#fff; --panel2:#f7f8fb; --line:#dadfeb; --text:#161b2a; --muted:#5b6580;
-    --accent:#a86a00; --good:#12805a; --bad:#c0392b; --p0:#c98a00; --p1:#0a84d6; --rock:#7b8397; --haze:#8a4fd0; --grid:#e1e5ef; --hl:#12805a; }
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-button,textarea,select{font:inherit;color:inherit}
+button,textarea{font:inherit;color:inherit}
 header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-header h1{margin:0;font-size:17px}
+header h1{margin:0;font-size:17px;letter-spacing:.04em}
 header a{color:var(--muted);font-size:13px}
-main{max-width:900px;margin:0 auto;padding:10px 14px 40px}
+main{max-width:860px;margin:0 auto;padding:10px 14px 40px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{border:0;background:transparent;padding:7px 11px;cursor:pointer;color:var(--muted);min-height:38px}
 .seg button[aria-pressed="true"]{background:var(--panel);color:var(--text)}
-.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;cursor:pointer;min-height:40px}
-.btn[aria-pressed="true"]{border-color:var(--hl);color:var(--hl)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;cursor:pointer;min-height:42px;line-height:1.15;text-align:left}
+.btn small{display:block;color:var(--muted);font-size:11.5px}
+.btn[aria-pressed="true"]{border-color:var(--hl);box-shadow:inset 0 0 0 1px var(--hl)}
 .btn.go{border-color:var(--accent);color:var(--accent)}
-.btn:disabled{opacity:.4;cursor:default}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin:8px 0}
 .sp{flex:1}
-#status{font-size:14px;margin:8px 0 0}
-#status b{font-family:var(--mono);color:var(--accent);font-weight:600}
-.who0{color:var(--p0)} .who1{color:var(--p1)}
-#wrap{border:1px solid var(--line);background:var(--panel);border-radius:12px;overflow:auto;max-height:68vh;margin-top:8px}
+.who0{--me:var(--p0)} .who1{--me:var(--p1)}
+#turnbar{border:1px solid var(--me,var(--line));border-left-width:5px;border-radius:10px;background:var(--panel);padding:8px 12px;margin:0 0 8px}
+#turnbar .big{font-size:18px;font-weight:700;color:var(--me,var(--text))}
+#turnbar .line{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;font-size:13.5px;margin-top:4px}
+.stepchip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--muted)}
+.stepchip.now{color:var(--bg);background:var(--me,var(--text));border-color:transparent;font-weight:700}
+.pips{letter-spacing:2px;color:var(--accent);font-size:15px}
+.pips i{font-style:normal;color:var(--line)}
+b.n{font-family:var(--mono);color:var(--accent)}
+#fleet{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin:0 0 8px}
+.shipchip{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:6px 10px;cursor:pointer;text-align:left;min-width:132px}
+.shipchip[aria-pressed="true"]{border-color:var(--me);box-shadow:inset 0 0 0 1px var(--me)}
+.shipchip .nm{font-weight:700;color:var(--me)}
+.shipchip .st{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:2px}
+.shipchip .st b{color:var(--text);font-family:var(--mono)}
+.shipchip .st .zero b{color:var(--bad)}
+#boardbox{position:relative}
+#wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#04070f;height:min(100vw,58vh);max-height:640px}
+#wrap svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+#camera{display:flex;gap:6px;justify-content:flex-end;margin:6px 0 0}
+#camera button{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-width:44px;min-height:36px;padding:0 12px;cursor:pointer;color:var(--muted)}
 #hint{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13.5px;min-height:38px}
 #hint.err{border-color:var(--bad)}
 .card{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:10px 12px;margin:10px 0}
 .card h2{margin:0 0 6px;font-size:14px}
 .card p{margin:4px 0;font-size:13.5px}
+.card.news{border-left:4px solid var(--accent)}
 .muted{color:var(--muted);font-size:13px}
 .parts{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 6px}
-.chip{font:12.5px var(--mono);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:var(--panel2)}
+.chip{font:12.5px var(--mono);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:var(--panel2);display:inline-flex;align-items:center;gap:5px}
+.chip i{width:9px;height:9px;border-radius:2px;display:inline-block}
 .chip.dead{text-decoration:line-through;color:var(--muted)}
 .chip.hurt{border-color:var(--bad)}
 textarea{width:100%;min-height:64px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px var(--mono);word-break:break-all}
 .feed{margin:0;padding-left:18px;font-size:13px}
-.feed li{margin:1px 0}
+.feed li{margin:2px 0}
 .warn{border-left:3px solid var(--bad)}
-.grid{fill:none;stroke:var(--grid);stroke-width:.6}
-svg text{font:6px var(--mono);fill:var(--text);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;pointer-events:none}
 </style>
 </head>
 <body>
 <header>
-  <h1>Shatkon</h1>
+  <h1>SHATKON</h1>
   <div class="seg" id="seat" role="group" aria-label="Who is at this screen"></div>
   <a href="index.html">Rule viewer</a>
 </header>
 <main>
   <div id="problems"></div>
-  <div id="status"></div>
+  <div id="turnbar"></div>
+  <div id="fleet"></div>
+  <div id="boardbox"><div id="wrap"></div><div id="camera"></div></div>
   <div class="row" id="tools"></div>
-  <div id="wrap"></div>
   <div id="hint"></div>
   <div id="panels"></div>
 </main>

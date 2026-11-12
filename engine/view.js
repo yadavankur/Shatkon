@@ -3,7 +3,8 @@
 // Pass "all" instead of a player number for a referee's view of everything.
 
 import { current, footprint, workingParts } from './state.js';
-import { sensorOf, signatureOf, linkRange } from './detect.js';
+import { sensorOf, signatureOf, linkRange, flareOf, whySeen, eyes } from './detect.js';
+import { cellsOf } from './state.js';
 import { thrustIncome, fleetSegs, moveCap } from './actions.js';
 
 export function view(state, who) {
@@ -16,7 +17,7 @@ export function view(state, who) {
     if (!open && !vis.has(s.id)) continue;
     const intel = pl.intel[s.id] || {};
     ships.push({
-      id: s.id, owner: s.owner, mine, pos: s.pos.slice(), cells: footprint(s),
+      id: s.id, owner: s.owner, mine, seen: mine || vis.has(s.id), pos: s.pos.slice(), cells: footprint(s),
       name: open ? s.name : null, flagship: open ? s.flagship : null,
       segs: s.segs.map((sg, i) => ({
         off: sg.off.slice(), wrecked: sg.wrecked,
@@ -26,6 +27,8 @@ export function view(state, who) {
       load: open ? { ...s.load } : null,
       sensor: open ? sensorOf(state, s) : null,
       signature: open ? signatureOf(state, s) : null,
+      flare: open ? flareOf(state, s) : null,
+      why: mine ? null : whySeen(state, p, s),
       link: open ? linkRange(state, s) : null,
       thrust: open ? workingParts(state, s).reduce((n, x) => n + (x.c.thrust || 0), 0) : null,
       moved: open ? state.players[s.owner].moved[s.id] || 0 : null,
@@ -36,7 +39,7 @@ export function view(state, who) {
   for (const o of state.objs) {
     const mine = o.owner === p, open = mine || all;
     if (!open && !vis.has(o.id)) continue;
-    objs.push({ id: o.id, kind: o.kind, owner: o.owner, mine, pos: o.pos.slice(), dir: o.dir, fuel: open ? o.fuel : null, target: open ? o.target : null });
+    objs.push({ id: o.id, kind: o.kind, owner: o.owner, mine, seen: mine || vis.has(o.id), pos: o.pos.slice(), dir: o.dir, last: o.last || null, fuel: open ? o.fuel : null, target: open ? o.target : null });
   }
   const ghosts = all ? [] : Object.keys(pl.seen).filter((id) => !vis.has(id)).map((id) => ({ id, ...pl.seen[id] }));
   return {
@@ -45,5 +48,10 @@ export function view(state, who) {
     board: { radius: rules.board.radius }, terrain: rules.terrain, zones: rules.zones,
     cp: pl.cp, thrust: pl.thrust, canMove: pl.canMove, income: thrustIncome(state, p), segments: fleetSegs(state, p), moveCap: moveCap(state, p),
     ships, objs, ghosts, feed: pl.feed.slice(),
+    news: pl.feed.filter((e) => e.n >= pl.readSeq && e.n < pl.turnSeq),   // what happened since this player's last turn
+    // everything of this player's that can see, and how far: used to draw the edge of the fog
+    eyes: state.ships.filter((s) => !s.dead && s.owner === p).concat(state.objs.filter((o) => o.owner === p && rules.munitions[o.kind].reports))
+      .map((o) => ({ id: o.id, cells: cellsOf(o), range: eyes(state, o) })),
+    shownSensor: rules.det.shownSensor,
   };
 }

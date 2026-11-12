@@ -37,9 +37,9 @@ export function buildRules(world, mapFile, fleetsFile) {
     turnLimit: num(t.turn_limit, 30),
     cost: {},
     seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false },
-    move: { needsAverage: num(mv.needs_average_of, 1), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
+    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
     det: {
-      smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4),
+      smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
       flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2) },
     },
     deadWhen: Array.isArray(dmg.ship_dead_when) ? dmg.ship_dead_when : ['core_destroyed'],

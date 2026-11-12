@@ -8,7 +8,7 @@
 # ============================================================
 
 world: world_v0.4.yaml
-map: map_open_space.yaml
+map: map_skirmish.yaml
 budget: 200
 
 player_1:
@@ -42,12 +42,13 @@ player_1:
   # FLEET: 10 engines for 10 segments = 10 thrust a turn. Average 1, so a ship may move up to 2 hexes.
   # FLEET TOTAL: 59 + 131 + 2 mines 10 = 200 of 200
 
-  # Starting positions for this map (board coordinates).
+  # Starting positions for map_skirmish.yaml (board coordinates).
+  # For the big map_open_space.yaml use: Blob A [2, 16], Blob B [-2, 18], mines [0, 12] and [-5, 13].
   deployment:
-    - { ship: "Blob A", at: [2, 16] }
-    - { ship: "Blob B", at: [-2, 18] }
-    - { mine: [0, 12] }
-    - { mine: [-5, 13] }
+    - { ship: "Blob A", at: [1, 6] }
+    - { ship: "Blob B", at: [-2, 7] }
+    - { mine: [1, 4] }
+    - { mine: [-3, 4] }
 
 
 # Player 2 uses an exact copy of player 1, mirrored to the other side.

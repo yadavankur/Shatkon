@@ -16,6 +16,7 @@ export function startTurn(state) {
   pl.canMove = segs > 0 && pl.thrust >= segs * R.move.needsAverage;
   pl.moved = {};
   for (const s of state.ships) if (s.owner === p) s.used = {};
+  pl.turnSeq = state.seq;       // events before this happened while the player was away
   state.pending = [];
   state.pre = hashState(state);
 }
@@ -36,6 +37,7 @@ function endTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
   pl.cpBank = Math.min(pl.cp, R.cp.bankCap);
   pl.thrustBank = pl.thrust;
+  pl.readSeq = state.seq;       // everything up to here the player has watched happen
   const rec = { round: state.round, player: p, actions: state.pending.slice(), pre: state.pre };
   if (state.turn === 0) state.turn = 1;
   else {
