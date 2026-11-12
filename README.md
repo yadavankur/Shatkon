@@ -9,9 +9,9 @@ This repository holds the rule files and a viewer for them. There is no game eng
 | --- | --- |
 | `index.html` | The rule viewer. One self-contained page, no install needed. |
 | `rules/index.yaml` | The list of rule files the viewer loads. |
-| `rules/world_v0.2.yaml` | The laws of physics and the parts catalogue. |
+| `rules/world_v0.3.yaml` | The laws of physics and the parts catalogue. |
 | `rules/map_open_space.yaml` | The board, zones and terrain. |
-| `rules/fleets_v0.2.yaml` | What each player built and where it starts. |
+| `rules/fleets_v0.3.yaml` | What each player built and where it starts. |
 | `rules/archive/` | Older versions, kept for reference. |
 
 ## Using the viewer
