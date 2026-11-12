@@ -22,7 +22,7 @@ map:
     secret: true
     ships: own_home_zone
     drones: own_home_zone
-    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+    mines: { own_home_zone: true, rows_into_no_mans_land: 6 }   # mines can go out into no man's land
 
   # Terrain is mirrored so neither side has an advantage.
   terrain:

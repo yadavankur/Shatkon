@@ -40,7 +40,18 @@ export function buildRules(world, mapFile, fleetsFile) {
     move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
     det: {
       smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
-      flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2) },
+      flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2), scan: num(fl.scan, 2) },
+      // scans: [clear, faint] rings near home / mid-field / centre line and beyond
+      scanClear: num(det.scan_clear_bonus, 2),
+      scanTiers: Array.isArray(det.scan_tiers) && det.scan_tiers.length === 3 ? det.scan_tiers.map((x) => [num(x[0], 0), num(x[1], 0)]) : [[2, 4], [4, 7], [6, 10]],
+      scanMidAhead: num(det.scan_mid_rows_past_home, 2),
+      scanFuzzy: num(det.scan_fuzzy_extra, 4),
+      // stealth from motion and the stealth floor
+      stillSig: num(det.still_signature_bonus, -1), wakeSig: num(det.move_signature_penalty, 1), wakeFrom: num(det.move_signature_from_hexes, 2),
+      stealthFloorDiv: num(det.stealth_floor_segments_per_point, 3),
+      // fuzzy contacts
+      fuzzR: num(det.fuzzy_contact_radius, 2), passiveFuzzy: num(det.passive_fuzzy_extra, 3),
+      attackRun: num(det.attack_run_bonus, 0),
     },
     deadWhen: Array.isArray(dmg.ship_dead_when) ? dmg.ship_dead_when : ['core_destroyed'],
     friendlyFire: dmg.friendly_fire !== false,
@@ -160,7 +171,8 @@ export function shipStats(rules, ship) {
     thrust += num(p.thrust, 0); sensor += num(p.sensor_range, 0) + num(p.adds_range, 0); hides += num(p.hides, 0);
     link = Math.max(link, num(p.link_range, 0));
   }
-  return { segments: ship.segs.length, thrust, sensor, signature: ship.segs.length - hides, link, cost: ship.cost };
+  const floor = Math.ceil(ship.segs.length / num((rules.det || {}).stealthFloorDiv, 3));
+  return { segments: ship.segs.length, thrust, sensor, signature: Math.max(floor, ship.segs.length - hides), link, cost: ship.cost };
 }
 
 export { dist };

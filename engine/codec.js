@@ -13,7 +13,18 @@ export function fnv(str) {
 }
 
 // Things that are bookkeeping, not part of the position on the board.
-const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events']);
+const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events', 'flight']);
+// A small seeded random number generator (mulberry32). Same seed, same sequence, on every device.
+export function seededRandom(seed) {
+  let t = seed | 0;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let x = Math.imul(t ^ (t >>> 15), t | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export function hashState(state) {
   const o = {};
   for (const k of Object.keys(state)) if (!SKIP.has(k)) o[k] = state[k];
@@ -24,7 +35,7 @@ export function hashState(state) {
 //   m1a.0012          move ship 1a along directions 0,0,1,2
 //   f1a.2.1.4,-3      ship 1a fires the weapon in segment 2, part 1, at hex [4,-3]
 //   l1b.missile.3,15.2a.01   ship 1b launches a missile from hex [3,15], locked on 2a, route 0,1
-//   s2a.3             scan segment 3 of enemy ship 2a
+//   s1a               ship 1a sends an active scan around itself
 //   do7               detonate own object o7
 //   e                 end turn
 export function actionText(a) {
@@ -32,7 +43,7 @@ export function actionText(a) {
     case 'move': return 'm' + a.ship + '.' + a.path.join('');
     case 'fire': return 'f' + a.ship + '.' + a.seg + '.' + a.part + '.' + a.at.join(',');
     case 'launch': return 'l' + a.ship + '.' + a.kind + '.' + a.start.join(',') + '.' + (a.target || '') + '.' + (a.route || []).join('');
-    case 'scan': return 's' + a.target + '.' + a.seg;
+    case 'scan': return 's' + a.ship;
     case 'detonate': return 'd' + a.obj;
     case 'end': return 'e';
   }
@@ -46,7 +57,7 @@ export function parseAction(text) {
     case 'm': return { type: 'move', ship: f[0], path: dirs(f[1]) };
     case 'f': return { type: 'fire', ship: f[0], seg: Number(f[1]), part: Number(f[2]), at: coord(f[3]) };
     case 'l': return { type: 'launch', ship: f[0], kind: f[1], start: coord(f[2]), target: f[3] || null, route: dirs(f[4]) };
-    case 's': return { type: 'scan', target: f[0], seg: Number(f[1]) };
+    case 's': return { type: 'scan', ship: f[0] };
     case 'd': return { type: 'detonate', obj: f[0] };
     case 'e': return { type: 'end' };
   }

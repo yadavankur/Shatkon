@@ -18,6 +18,14 @@ export { hashState, actionText, parseAction } from './codec.js';
 export { Illegal } from './state.js';
 export * as hex from './hex.js';
 
+// Building blocks the play screen, the Lab and the computer player use to explain
+// and simulate the rules. They read the state; only apply() changes the game.
+export { sigBreak, signatureOf, sensorOf, eyes, detectRange, passiveRange, sees, visibleTo, contactsFor, netMoved, motionSig, refreshSight, addFlare } from './detect.js';
+export { scanInfo } from './scan.js';
+export { moveCap } from './actions.js';
+export { hullPct, num, footprint, workingParts, sumAttr, gap } from './state.js';
+export { fnv, seededRandom } from './codec.js';
+
 export function start(rules, seed = 1) {
   return begin(newGame(rules, seed));
 }

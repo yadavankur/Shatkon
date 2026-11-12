@@ -60,9 +60,19 @@ function stepObj(state, o, m, turnsLeft) {
   return turnsLeft;
 }
 
+// A snapshot of every object after each tick, so screens can replay the flight hex by hex.
+function flightFrame(state) {
+  return {
+    objs: state.objs.map((o) => ({ id: o.id, kind: o.kind, owner: o.owner, pos: o.pos.slice(), dir: o.dir })),
+    ev: state.events.length,
+    vis: state.players.map((p) => p.vis.slice()),
+  };
+}
+
 export function runFlight(state) {
   const T = state.rules.ticks;
   for (const o of state.objs) o.last = o.pos.slice();   // where each thing started this flight, for drawing trails
+  state.flight = [flightFrame(state)];
   for (let t = 0; t < T && state.phase === 'play'; t++) {
     for (const id of state.objs.map((o) => o.id)) {
       const o = objById(state, id);
@@ -74,6 +84,7 @@ export function runFlight(state) {
     }
     refreshSight(state);
     checkWin(state);
+    state.flight.push(flightFrame(state));
   }
   // end of the round: fuel burns down, shields come back, point defence reloads
   for (const o of state.objs.slice()) {

@@ -3,7 +3,7 @@
 
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
 import { geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
-import { networkSees } from './detect.js';
+import { networkSees, netMoved } from './detect.js';
 import { moveCap } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
@@ -46,6 +46,7 @@ export function beamTargets(state, shipId) {
   if (!ship || ship.owner !== p || state.players[p].cp < state.rules.cost.fire) return out;
   const g = geom(state.rules);
   const enemies = state.ships.filter((s) => !s.dead && s.owner !== p).concat(state.objs.filter((o) => o.owner !== p)).filter((t) => networkSees(state, ship, t));
+  const occ = occupancy(state);
   for (const w of workingParts(state, ship)) {
     if (!num(w.c.range) || !num(w.c.hits) || ship.used[w.si + '.' + w.pi]) continue;
     const src = segHex(ship, w.si);
@@ -55,7 +56,10 @@ export function beamTargets(state, shipId) {
       if (d < 1 || d > w.c.range) return;
       const cells = line(src, c);
       for (let j = 1; j < cells.length - 1; j++) if (g.blockSight.has(key(cells[j]))) return;
-      const hits = Math.max(0, w.c.hits - (w.c.loses_1_hit_every ? Math.floor((d - 1) / w.c.loses_1_hit_every) : 0));
+      // never offer a shot whose beam would hit one of your own ships first
+      for (let j = 1; j < cells.length - 1; j++) { const o = occ.get(key(cells[j])); if (o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked) return; }
+      let hits = Math.max(0, w.c.hits - (w.c.loses_1_hit_every ? Math.floor((d - 1) / w.c.loses_1_hit_every) : 0));
+      if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
   }
@@ -90,6 +94,8 @@ export function shipStatus(state, shipId) {
     costPerHex: n,
     beams: beams.length, beamsReady: ready(beams),
     launchers: launchers.length, launchersReady: ready(launchers),
+    scanReady: !ship.used.scan && pl.cp >= state.rules.cost.scan && netMoved(state, ship) >= 1,
+    scanMoved: netMoved(state, ship),
     ammo: { ...ship.load },
   };
 }

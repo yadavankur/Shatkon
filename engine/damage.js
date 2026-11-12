@@ -2,7 +2,7 @@
 // Also explosions, ship death and the win check.
 
 import { dist } from './hex.js';
-import { rand, num, emit, segHex, workingParts, sumAttr, cellsOf, objById } from './state.js';
+import { rand, num, emit, segHex, workingParts, sumAttr, cellsOf, objById, hullPct } from './state.js';
 import { addFlare, visibleTo } from './detect.js';
 
 const others = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
@@ -54,10 +54,12 @@ export function applyHits(state, ship, si, n, cause) {
     x.p.hp--;
     lost.push(x.p.t + (x.p.hp > 0 ? ' damaged' : x.c.recharges ? ' down' : ' destroyed'));
   }
+  const hull = hullPct(state, ship), at = segHex(ship, si);
   clampLoad(state, ship);
-  emit(state, { t: 'damage', ship: ship.id, seg: si, hits: n, lost, cause }, [ship.owner]);
+  emit(state, { t: 'damage', ship: ship.id, seg: si, hits: n, lost, cause, hull, at }, [ship.owner]);
+  // the shooter sees what the hit knocked off
   for (const q of others(state, ship.owner))
-    if (visibleTo(state, q).has(ship.id)) emit(state, { t: 'hit', ship: ship.id, seg: si, hits: n, wrecked: sg.wrecked, cause }, [q]);
+    if (visibleTo(state, q).has(ship.id)) emit(state, { t: 'hit', ship: ship.id, seg: si, hits: n, wrecked: sg.wrecked, cause, lost, hull, at }, [q]);
   if (isDead(state, ship)) {
     ship.dead = true;
     for (const pl of state.players) delete pl.seen[ship.id];

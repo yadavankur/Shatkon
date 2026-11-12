@@ -57,6 +57,18 @@ export function workingParts(state, ship) {
 export const sumAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => n + num(x.c[attr]), 0);
 export const maxAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => Math.max(n, num(x.c[attr])), 0);
 
+// What is left of a ship's hull, as a percentage of its starting hit points (shields not counted).
+export function hullPct(state, ship) {
+  let left = 0, full = 0;
+  for (const sg of ship.segs) for (const p of sg.parts) {
+    const c = state.rules.parts[p.t];
+    if (c.recharges) continue;
+    full += c.hp;
+    left += sg.wrecked ? 0 : Math.max(0, p.hp);
+  }
+  return full ? Math.round((100 * left) / full) : 0;
+}
+
 // Which ship segment sits on each hex.
 export function occupancy(state) {
   const m = new Map();
@@ -99,6 +111,7 @@ export function makeObj(state, kind, owner, pos, dir, extra) {
 export function newGame(rules, seed = 1) {
   const state = {
     v: 1, rules, rid: fnv(stable(rules)).toString(36), rng: seed | 0,
+    fzSalt: fnv('fz:' + (seed | 0)) | 0,   // secret per-game salt for where fuzzy contact circles sit
     round: 1, order: [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1, seq: 0,
     players: [], ships: [], objs: [], lit: {},
     events: [], history: [], pending: [], pre: '', lastTurn: null,

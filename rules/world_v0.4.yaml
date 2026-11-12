@@ -6,7 +6,7 @@
 #     3 bays (inner hexagons) and 3 mounts (corner diamonds).
 #   - Hits destroy a random part, outer layers first.
 #   - The whole fleet shares one pool of thrust. No dice on movement.
-#   - No cap on stealth.
+#   - Stealth has a floor: a ship's hull signature never drops below segments / 3 (rounded up).
 #
 #  The engine reads the NUMBERS on each part, not its name. A new part
 #  with "hits" and "range" is a beam weapon; one with "thrust" is an engine.
@@ -44,7 +44,7 @@ actions:
   move:     { cost: 1, note: "one ship moves; you choose how far (see movement)" }
   fire:     { cost: 1, note: "fire one beam weapon; each weapon fires once a turn" }
   launch:   { cost: 1, note: "launch one missile or drone; each launcher launches once a turn" }
-  scan:     { cost: 1, note: "reveal the parts in one segment of an enemy ship you can see" }
+  scan:     { cost: 1, note: "active scan around one of your ships, once per ship per turn and only after it has moved this turn; rings grow the further forward it is" }
   detonate: { cost: 1, note: "blow up one of your own drones" }
   end:      { cost: 0, note: "end your turn; unspent points go to the bank" }
 
@@ -89,13 +89,24 @@ movement:
 detection:
   rule: "you see a target if distance <= your sensor range + its signature + its flare"
   sensor_rule: "sensor range = the numbers on the ship's working parts (core 2, each sensor +2)"
-  signature_rule: "signature = number of segments minus 1 for every working stealth part. It can go below zero"
+  signature_rule: "signature = segments - 1 per working stealth part (never below segments / 3, rounded up), + flare, -1 if it sat still, +1 after a big move, -2 in a nebula"
+  stealth_floor_segments_per_point: 3   # floor = ceil(segments / this): a 7-segment flagship bottoms out at 3, a 3-segment scout at 1
   small_object_signature: 1   # missiles and drones; a mine sets its own below
   flare:                      # temporary extra visibility, lasts until the end of the next round
     fire_beam: 0              # silent...
     beam_hit: 3               # ...unless it hits
     launch: 2
     point_defence_shot: 2
+    scan: 2                   # an active scan lights up the ship that sends it
+  scan_clear_bonus: 2         # a scan fully reveals everything within (sensor range + this)
+  scan_fuzzy_extra: 4         # (old flat scan; replaced by scan_tiers)
+  scan_tiers: [[2, 4], [4, 7], [6, 10]]   # [clear, faint] rings: near home / mid-field / centre line and beyond
+  scan_mid_rows_past_home: 2  # mid-field starts this many rows past your home zone; full strength from the centre line
+  still_signature_bonus: -1   # a ship that did nothing on its turn (no move, fire, launch or scan) runs silent
+  move_signature_penalty: 1   # a big move leaves an engine wake...
+  move_signature_from_hexes: 2  # ...from this many hexes of net movement
+  passive_fuzzy_extra: 3      # targets this close to your detection range show up as fuzzy contacts
+  fuzzy_contact_radius: 2     # a rough contact is a circle this many hexes across from its centre; the real position is equally likely to be any hex inside
   detonation_lights_up: 4     # everything within this many hexes of a blast is revealed to everyone
   shown_enemy_sensor: 4       # only for display: the play screen says "an enemy with this sensor sees you from N hexes"
 
@@ -150,10 +161,10 @@ bay_parts:
     layer: 4
     cost: 5
   stealth:
-    note: "hides one segment's worth of signature"
+    note: "-1 signature while it works (down to the floor of segments / 3). Free: it only costs a bay slot"
     hides: 1
     layer: 4
-    cost: 6
+    cost: 0
   flare_mask:
     note: "shrinks the flash when this ship fires, launches or uses point defence"
     flare_reduction: 1
@@ -239,7 +250,7 @@ munitions:
     speed: 0
     hits: 4
     blast_radius: 0
-    signature: -1             # hard to spot: seen only from (sensor range - 1) hexes
+    signature: -6             # very stealthy: practically invisible unless an active scan sweeps over it
     setup_only: true          # placed secretly before the game
     max_per_player: 6
     cost: 5

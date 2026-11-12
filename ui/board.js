@@ -5,9 +5,14 @@ import { hex } from '../engine/index.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const S = 10, W = Math.sqrt(3) * S;
-const X = (c) => W * (c[0] + c[1] / 2), Y = (c) => 1.5 * S * c[1];
-const f1 = (n) => n.toFixed(1);
-function s(tag, attrs, ...kids) {
+// FL is -1 when the board is drawn upside down, so the player at the top
+// (Player 2) still sees their own side at the bottom.
+export let FL = 1;
+export function setFlip(v) { FL = v < 0 ? -1 : 1; }
+export const X = (c) => FL * W * (c[0] + c[1] / 2), Y = (c) => FL * 1.5 * S * c[1];
+export const f1 = (n) => n.toFixed(1);
+const animSeen = new Set();      // explosions that have already played their burst
+export function s(tag, attrs, ...kids) {
   const e = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs || {})) if (v != null && v !== false) e.setAttribute(k, v);
   for (const k of kids.flat()) if (k != null) e.appendChild(k.nodeType ? k : document.createTextNode(String(k)));
@@ -45,7 +50,9 @@ function diamond(cx, cy, k) {
   return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + f1(cx + S * (mx + (x - mx) * 0.8)) + ',' + f1(cy + S * (my + (y - my) * 0.8))).join('') + 'Z', x: cx + S * mx, y: cy + S * my };
 }
 
-export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap }) {
+export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false }) {
+  // nothing to draw while the board has no size (Lab tab open, mid-resize)
+  if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
   const svg = s('svg', { viewBox: [cam.x - vw / 2, cam.y - vh / 2, vw, vh].map(f1).join(' '), role: 'img', 'aria-label': 'Game board' });
   const px = box.clientWidth / vw;              // screen pixels per drawing unit
@@ -55,6 +62,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
 
   svg.appendChild(s('defs', null,
     s('radialGradient', { id: 'space', cx: '50%', cy: '45%', r: '75%' }, s('stop', { offset: '0', 'stop-color': '#131c3a' }), s('stop', { offset: '1', 'stop-color': '#04070f' })),
+    s('radialGradient', { id: 'fuzz' }, s('stop', { offset: '0', 'stop-color': '#ff7a7a', 'stop-opacity': '.35' }), s('stop', { offset: '.7', 'stop-color': '#ff7a7a', 'stop-opacity': '.12' }), s('stop', { offset: '1', 'stop-color': '#ff7a7a', 'stop-opacity': '0' })),
     s('radialGradient', { id: 'haze' }, s('stop', { offset: '0', 'stop-color': '#b07cf0', 'stop-opacity': '.55' }), s('stop', { offset: '1', 'stop-color': '#6a3fd0', 'stop-opacity': '0' })),
     s('linearGradient', { id: 'rock', x1: '0', y1: '0', x2: '1', y2: '1' }, s('stop', { offset: '0', 'stop-color': '#9aa1b5' }), s('stop', { offset: '1', 'stop-color': '#4a5065' })),
     s('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, s('feGaussianBlur', { stdDeviation: '1.6' }))));
@@ -76,7 +84,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     const cells = all.filter((c) => hex.EDGE[z.edge](c, R) < z.depth);
     svg.appendChild(s('path', { d: cells.map((c) => cellPath(c)).join(''), fill: col(owner), 'fill-opacity': 0.07 }));
     const mid = cells.reduce((a, c) => [a[0] + X(c) / cells.length, a[1] + Y(c) / cells.length], [0, 0]);
-    if (cam.w >= W * (2 * R + 1) * 0.8) svg.appendChild(s('text', { x: f1(mid[0]), y: f1(mid[1] + (hex.EDGE[z.edge]([0, R], R) === 0 ? 1 : -1) * S * 1.5 * (z.depth / 2 + 0.2)), 'font-size': fs(10), fill: col(owner), 'fill-opacity': 0.55, 'letter-spacing': f1(1.5 / px) },
+    if (cam.w >= W * (2 * R + 1) * 0.8) svg.appendChild(s('text', { x: f1(mid[0]), y: f1(mid[1] + (hex.EDGE[z.edge]([0, R], R) === 0 ? 1 : -1) * FL * S * 1.5 * (z.depth / 2 + 0.2)), 'font-size': fs(10), fill: col(owner), 'fill-opacity': 0.55, 'letter-spacing': f1(1.5 / px) },
       me === null ? 'PLAYER ' + (owner + 1) + ' START' : owner === me ? 'YOUR START' : 'ENEMY START'));
   }
 
@@ -110,13 +118,22 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const e of recent) if (e.t === 'blast' || e.t === 'stopped') {
     let d = '';
     for (let i = 0; i < 16; i++) { const a = (i / 16) * 2 * Math.PI, rad = S * (i % 2 ? 0.55 : 1.15); d += (i ? 'L' : 'M') + f1(X(e.at) + rad * Math.cos(a)) + ',' + f1(Y(e.at) + rad * Math.sin(a)); }
-    svg.appendChild(s('path', { d: d + 'Z', fill: 'none', stroke: e.t === 'blast' ? '#ff8a5c' : '#f5d142', 'stroke-width': 0.9, 'stroke-opacity': e.r === v.round ? 0.9 : 0.45 }));
+    svg.appendChild(s('path', { d: d + 'Z', fill: 'none', stroke: e.t === 'blast' ? '#ff8a5c' : '#f5d142', 'stroke-width': 0.9, 'stroke-opacity': e.r === v.round ? 0.9 : 0.45,
+      class: e.r >= v.round - 1 && !animSeen.has(e.n) && !hidden ? (animSeen.add(e.n), 'boom') : null }));
   }
 
   // last-seen markers
   for (const g of v.ghosts) {
     svg.appendChild(s('path', { d: g.cells.map((c) => cellPath(c, 0.9)).join(''), fill: '#8f9cba', 'fill-opacity': 0.08, stroke: '#8f9cba', 'stroke-width': 0.8, 'stroke-dasharray': '2 2' }));
     svg.appendChild(s('text', { x: f1(X(g.pos)), y: f1(Y(g.pos)), 'font-size': fs(13), fill: '#c5cee6' }, '?'));
+  }
+
+  // tier 1: fuzzy contacts, "something is roughly here"
+  for (const x of v.contacts || []) {
+    const cx = X(x.at), cy = Y(x.at), rr = W * ((x.r || 2) + 0.5);
+    svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr), fill: 'url(#fuzz)', class: 'fuzz' }));
+    svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr), fill: 'none', stroke: '#ff7a7a', 'stroke-width': f1(1 / px + 0.3), 'stroke-dasharray': '2 3', 'stroke-opacity': 0.7 }));
+    svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffb3b3', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
   }
 
   // ships
@@ -150,7 +167,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     });
     // name tag under the ship
     const low = x.cells.reduce((a, c) => (Y(c) > Y(a) || (Y(c) === Y(a) && Math.abs(X(c) - X(x.pos)) < Math.abs(X(a) - X(x.pos))) ? c : a), x.cells[0]);
-    const label = (x.flagship ? '★ ' : '') + x.id, tw = (label.length * 7.2 + 8) / px, th = 15 / px;
+    const label = (x.flagship ? '★ ' : '') + x.id + (x.mine || v.me === 'all' ? '' : x.tier >= 3 ? ' ▣' : ' ◆'), tw = (label.length * 7.2 + 8) / px, th = 15 / px;
     const lx = X(x.pos), ly = Y(low) + S + th * 0.7;
     g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: c0, 'stroke-width': f1(1 / px) }));
     g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: c0 }, label));
@@ -169,9 +186,9 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     } else if (m.patrol) {
       svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 4.2, fill: '#0b1020', stroke: c0, 'stroke-width': 1.3, opacity: fade }));
       svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.5, fill: c0 }));
-      svg.appendChild(s('path', { d: 'M4.2,0L7.5,0', stroke: c0, 'stroke-width': 1.1, transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir})` }));
+      svg.appendChild(s('path', { d: 'M4.2,0L7.5,0', stroke: c0, 'stroke-width': 1.1, transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir + (FL < 0 ? 180 : 0)})` }));
     } else {
-      const g = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir})`, opacity: fade });
+      const g = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir + (FL < 0 ? 180 : 0)})`, opacity: fade });
       g.appendChild(s('path', { d: 'M-4,0L-9,2L-7,0L-9,-2Z', fill: '#ff9d4d', opacity: 0.85 }));
       g.appendChild(s('path', { d: 'M7,0L1,3L-4,3L-4,-3L1,-3Z', fill: c0, stroke: '#060a14', 'stroke-width': 0.6 }));
       svg.appendChild(g);
@@ -179,11 +196,25 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     }
   }
 
+  // scan preview: full readout inside the green ring, faint contacts inside the amber one
+  if (pending && pending.type === 'scan') {
+    const me0 = v.ships.find((x) => x.id === pending.ship);
+    if (me0 && me0.scanR) {
+      const [r1, r2] = me0.scanR, dd = (c) => Math.min(...me0.cells.map((x) => hex.dist(x, c)));
+      const inner = all.filter((c) => dd(c) <= r1), outer = all.filter((c) => dd(c) > r1 && dd(c) <= r2);
+      svg.appendChild(s('path', { d: outer.map((c) => cellPath(c, 1)).join(''), fill: '#f5b942', 'fill-opacity': 0.17, stroke: '#f5b942', 'stroke-opacity': 0.45, 'stroke-width': 0.4, class: 'scanprev' }));
+      svg.appendChild(s('path', { d: inner.map((c) => cellPath(c, 1)).join(''), fill: '#58d6a0', 'fill-opacity': 0.16, stroke: '#58d6a0', 'stroke-opacity': 0.5, 'stroke-width': 0.4, class: 'scanprev' }));
+      const top = me0.cells.reduce((a, b) => (Y(b) < Y(a) ? b : a));
+      for (const [r, colr, txt] of [[r1, '#58d6a0', 'CLEAR ' + r1], [r2, '#f5b942', 'FAINT ' + r2]])
+        svg.appendChild(s('text', { x: f1(X(top)), y: f1(Y(top) - 1.5 * S * r - S * 0.4), 'font-size': fs(11), fill: colr, 'font-weight': 700 }, txt));
+    }
+  }
+
   // expected flight paths: own missiles in the air, and the launch being considered
   const drawPlan = (f, strong) => {
     if (!f || !f.path.length) return;
     const pts = [f.from].concat(f.path), seg = (a, b, op) => s('polyline', { points: pts.slice(a, b + 1).map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' '), fill: 'none', stroke: '#ffffff',
-      'stroke-width': strong ? 1.6 : 1, 'stroke-opacity': op, 'stroke-dasharray': '3 2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+      'stroke-width': strong ? 1.6 : 1, 'stroke-opacity': op, 'stroke-dasharray': '3 2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'flow' });
     const first = Math.min(f.perRound, f.path.length);
     svg.appendChild(seg(0, first, strong ? 0.95 : 0.6));
     if (f.path.length > first) svg.appendChild(seg(first, f.path.length, strong ? 0.5 : 0.3));
@@ -242,6 +273,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     if (dragged) { dragged = false; return; }
     const m = svg.getScreenCTM(); if (!m) return;
     let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
+    p.x *= FL; p.y *= FL;               // back to unflipped board coordinates
     const c = hex.cubeRound(((Math.sqrt(3) / 3) * p.x - p.y / 3) / S, ((2 / 3) * p.y) / S);
     if (hex.inHexagon(c, R)) onTap(c);
   });

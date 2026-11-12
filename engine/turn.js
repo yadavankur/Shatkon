@@ -15,7 +15,7 @@ export function startTurn(state) {
   pl.thrust = Math.min(pl.thrustBank, income * R.move.bankTurns) + income;
   pl.canMove = segs > 0 && pl.thrust >= segs * R.move.needsAverage;
   pl.moved = {};
-  for (const s of state.ships) if (s.owner === p) s.used = {};
+  for (const s of state.ships) if (s.owner === p) { s.used = {}; s.turnStart = s.pos.slice(); }
   pl.turnSeq = state.seq;       // events before this happened while the player was away
   state.pending = [];
   state.pre = hashState(state);
@@ -64,6 +64,7 @@ export function apply(state, action) {
   const s = structuredClone(rest);
   s.rules = rules;
   s.events = [];
+  s.flight = null;   // the flight replay, filled in by the flight phase
   const rec = { round: s.round, player: current(s), pre: s.pre };
   if (action.type !== 'end') DO[action.type](s, action);
   s.pending.push(actionText(action));

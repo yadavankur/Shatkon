@@ -2,21 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, shipStatus, forecast, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
-import { sensorOf, signatureOf, visibleTo } from '../engine/detect.js';
+import { sensorOf, signatureOf, visibleTo, sigBreak, detectRange, passiveRange } from '../engine/detect.js';
+import { scanInfo } from '../engine/scan.js';
+import { computerMove } from '../engine/ai.js';
 import { shippedFiles, battle, scout, pod } from './helpers.js';
 
 const end = (g) => apply(g, { type: 'end' });
 const ship = (g, id) => g.ships.find((s) => s.id === id);
 
-test('the shipped rule files are valid and the fleets cost exactly the budget', () => {
+test('the shipped rule files are valid and the fleets fit the budget', () => {
   const f = shippedFiles();
   const { rules, problems } = buildRules(f.world, f.map, f.fleets);
   assert.deepEqual(problems, []);
   assert.equal(rules.fleets.length, 2);
-  assert.equal(rules.fleets[0].cost, 200);
-  assert.equal(rules.fleets[1].cost, 200);
+  // stealth parts are free (they only cost a bay), so both fleets come in under the 200 budget
+  assert.equal(rules.fleets[0].cost, 188);
+  assert.equal(rules.fleets[1].cost, 188);
   const a = shipStats(rules, rules.fleets[0].ships[0]);
-  assert.deepEqual([a.segments, a.thrust, a.sensor, a.signature, a.cost], [3, 3, 4, 1, 59]);
+  assert.deepEqual([a.segments, a.thrust, a.sensor, a.signature, a.cost], [3, 3, 4, 1, 47]);
+  const b = shipStats(rules, rules.fleets[0].ships[1]);
+  assert.deepEqual([b.segments, b.thrust, b.sensor, b.signature, b.cost], [7, 7, 4, 3, 131], 'the flagship: 7 segments - 4 stealth = 3, its floor');
   const g = start(rules, 1);
   assert.equal(g.ships.length, 4);
   assert.equal(g.objs.length, 4);
@@ -109,16 +114,39 @@ test('a hit with nothing left to damage wrecks the segment; losing the core kill
   assert.equal(s.dead, true);
 });
 
-test('detection: sensor + signature decides who sees whom, and stealth can go below zero', () => {
+test('detection: sensor + signature decides who sees whom, and stealth stops at a floor', () => {
   const quiet = pod('Q', [0, 0], ['core', 'stealth', 'stealth']);
-  const { game: g } = battle({ p1: [scout('A', [0, 5])], p2: [quiet] });
+  const { game: g } = battle({ p1: [scout('A', [0, 6])], p2: [quiet] });
   const a = ship(g, '1a'), q = ship(g, '2a');
   assert.equal(sensorOf(g, a), 4);
-  assert.equal(signatureOf(g, q), -1);
-  assert.equal(visibleTo(g, 0).has('2a'), false, 'range 5 needs sensor 4 + signature -1 = 3');
-  q.pos = [0, 2];
+  assert.equal(signatureOf(g, q), 1, '1 segment: 2 stealth parts cannot take it below its floor of 1');
+  assert.deepEqual(sigBreak(g, q), { base: 1, stealth: 2, used: 0, floor: 1, hull: 1, haze: 0, flare: 0, motion: 0, total: 1 });
+  assert.equal(visibleTo(g, 0).has('2a'), false, 'range 6 needs sensor 4 + signature 1 = 5');
+  q.pos = [0, 4];
   assert.equal(visibleTo(g, 0).has('2a'), true);
-  assert.equal(visibleTo(g, 1).has('1a'), true, 'the quiet ship has only its core sensor (2) but the scout has signature 1');
+  assert.equal(signatureOf(g, a), 0, 'the scout has not moved yet this turn, so it runs silent: 1 - 1');
+  assert.equal(visibleTo(g, 1).has('1a'), true, 'the quiet ship has only its core sensor (2): 2 hexes <= 2 + 0');
+});
+
+test('stealth from motion: sitting still hides a ship a little, a big move leaves a wake', () => {
+  let { game: g } = battle({ radius: 12, p1: [pod('A', [0, 6], ['core', 'engine', 'engine'])], p2: [scout('X', [0, -6])] });
+  const det = g.rules.det;
+  assert.equal(signatureOf(g, ship(g, '1a')), 1 + det.stillSig, 'has not moved or acted this turn');
+  g = apply(g, { type: 'move', ship: '1a', path: [2] });
+  assert.equal(signatureOf(g, ship(g, '1a')), 1, 'a 1-hex move: no bonus, no wake');
+  g = apply(g, { type: 'move', ship: '1a', path: [2] });
+  assert.equal(signatureOf(g, ship(g, '1a')), 1 + det.wakeSig, '2 hexes from where it started: engine wake');
+});
+
+test('fuzzy contacts sit in a circle that does not move while the target sits still', () => {
+  const { game: g } = battle({ radius: 12, p1: [scout('A', [0, 6])], p2: [scout('X', [0, -1])] });
+  const d = hex.dist([0, 6], [0, -1]);
+  const exact = detectRange(g, ship(g, '1a'), ship(g, '2a'));
+  assert.ok(d > exact && d <= passiveRange(g, ship(g, '1a'), ship(g, '2a')), 'just outside exact range, inside the fuzzy band');
+  const c1 = view(g, 0).contacts, c2 = view(g, 0).contacts;
+  assert.equal(c1.length, 1);
+  assert.deepEqual(c1, c2, 'looking again tells you nothing new');
+  assert.ok(hex.dist(c1[0].at, ship(g, '2a').pos) <= c1[0].r, 'the target is inside its circle');
 });
 
 test('fog: a player view holds only what that player can see', () => {
@@ -134,8 +162,23 @@ test('fog: a player view holds only what that player can see', () => {
   assert.ok(foe, 'the enemy is in range');
   assert.equal(foe.name, null);
   assert.equal(foe.segs[0].parts, null, 'its parts stay hidden until scanned');
-  const scanned = view(apply(near, { type: 'scan', target: '2a', seg: 0 }), 0).ships.find((s) => !s.mine);
+  assert.equal(attempt(near, { type: 'scan', ship: '1a' }).ok, false, 'a ship can only scan on a turn it has moved');
+  const moved = apply(near, { type: 'move', ship: '1a', path: [0] });
+  const scanned = view(apply(moved, { type: 'scan', ship: '1a' }), 0).ships.find((s) => !s.mine);
   assert.deepEqual(scanned.segs[0].parts.map((p) => p.t), ['core', 'engine', 'sensor', 'laser']);
+  assert.equal(scanned.tier, 3, 'a fresh scan gives the full readout');
+});
+
+test('scans get stronger the further forward the ship is', () => {
+  const f = shippedFiles();
+  const { rules } = buildRules(f.world, f.map, f.fleets);
+  const g = start(rules, 1), s = ship(g, '1a');
+  const home = scanInfo(g, s);
+  assert.equal(home.tier, 0);
+  s.pos = [0, 0];
+  const centre = scanInfo(g, s);
+  assert.equal(centre.tier, 2);
+  assert.ok(centre.r[0] > home.r[0] && centre.r[1] > home.r[1]);
 });
 
 test('lasers: range, falloff, asteroids, and firing lights the shooter up when it hits', () => {
@@ -209,7 +252,9 @@ test('a mine goes off under a ship that moves onto it and stops the move', () =>
 
 test('running into an unseen ship stops the move and reveals both', () => {
   let { game: g } = battle({ p1: [pod('A', [0, 2], ['core', 'engine', 'engine'])], p2: [pod('Q', [0, 0], ['core', 'stealth', 'stealth'])] });
-  ship(g, '2a').segs[0].parts.push({ t: 'stealth', hp: 1 }, { t: 'stealth', hp: 1 });   // signature -3: invisible even next door
+  ship(g, '2a').segs[0].parts.push({ t: 'stealth', hp: 1 }, { t: 'stealth', hp: 1 });
+  ship(g, '1a').segs[0].parts.find((p) => p.t === 'core').hp = 1;
+  g.rules.parts.core = { ...g.rules.parts.core, sensor_range: 0 };   // a blind ship: it cannot see even next door
   g.players[0].vis = [];
   assert.equal(visibleTo(g, 0).has('2a'), false);
   g = apply(g, { type: 'move', ship: '1a', path: [2, 2] });
@@ -250,7 +295,8 @@ function randomTurn(g, pick) {
     if (spots.length && pick(4)) g = apply(g, { type: 'move', ship: s.id, path: spots[pick(spots.length)].path });
     if (g.phase !== 'play') break;
     const foes = view(g, p).ships.filter((x) => !x.mine);
-    if (foes.length && !pick(4) && g.players[p].cp >= 1) g = apply(g, { type: 'scan', target: foes[0].id, seg: 0 });
+    const st = shipStatus(g, s.id);
+    if (st && st.scanReady && !pick(4)) g = apply(g, { type: 'scan', ship: s.id });
   }
   const drone = g.objs.find((o) => o.owner === p && g.rules.munitions[o.kind].remote_detonate);
   if (g.phase === 'play' && drone && !pick(5) && g.players[p].cp >= 1) g = apply(g, { type: 'detonate', obj: drone.id });
@@ -352,4 +398,23 @@ test('ship status and missile forecasts tell the player what to expect', () => {
   assert.equal(flying.hit, '2a');
   const blind = forecast(g, { type: 'launch', ship: '1a', kind: 'missile', start: [1, 3], target: null, route: [0] });
   assert.equal(blind.ends, 'edge');
+});
+
+test('the computer only plays legal moves and games against itself finish', () => {
+  const f = shippedFiles();
+  const { rules } = buildRules(f.world, f.map, f.fleets);
+  for (const seed of [1, 2, 3]) {
+    let g = start(rules, seed), steps = 0;
+    while (g.phase === 'play' && steps < 2000) {
+      const seat = g.order[g.turn];
+      const a = computerMove(g, seat, seed === 3 ? 'easy' : 'normal');
+      assert.ok(a, 'it always has an action on its own turn');
+      const r = attempt(g, a);
+      assert.ok(r.ok, 'illegal action ' + JSON.stringify(a) + ': ' + r.why);
+      g = r.state; steps++;
+    }
+    assert.equal(g.phase, 'over', 'seed ' + seed + ' finished');
+    // not its turn: no action
+    assert.equal(computerMove(g, 0), null);
+  }
 });

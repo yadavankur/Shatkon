@@ -59,7 +59,7 @@ async function squeeze(bytes, how) {
 // The whole game as text. It holds everything, including both fleets, so only use
 // it to start a game or to recover one.
 export async function exportGame(state) {
-  const { events, ...rest } = state;
+  const { events, flight, ...rest } = state;
   const raw = enc.encode(JSON.stringify(rest));
   if (typeof CompressionStream === 'function') return 'SKG1:' + pack(await squeeze(raw, 'in'));
   return 'SKJ1:' + pack(raw);

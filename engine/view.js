@@ -2,8 +2,9 @@
 // is allowed to know. Screens and AI players are given this, never the raw state.
 // Pass "all" instead of a player number for a referee's view of everything.
 
-import { current, footprint, workingParts } from './state.js';
-import { sensorOf, signatureOf, linkRange, flareOf, whySeen, eyes } from './detect.js';
+import { current, footprint, workingParts, hullPct } from './state.js';
+import { sensorOf, signatureOf, linkRange, flareOf, whySeen, eyes, sigBreak, netMoved, motionSig, contactsFor } from './detect.js';
+import { scanInfo, scanRadii } from './scan.js';
 import { cellsOf } from './state.js';
 import { thrustIncome, fleetSegs, moveCap } from './actions.js';
 
@@ -33,6 +34,13 @@ export function view(state, who) {
       thrust: open ? workingParts(state, s).reduce((n, x) => n + (x.c.thrust || 0), 0) : null,
       moved: open ? state.players[s.owner].moved[s.id] || 0 : null,
       used: open ? { ...s.used } : null,
+      // detection tier for enemies: 2 = located, 3 = full readout (from a fresh scan)
+      tier: open ? 3 : s.segs.every((_, i) => intel[i] && intel[i].round >= state.round - 1) ? 3 : 2,
+      hull: open ? hullPct(state, s) : null,
+      scan: mine ? scanInfo(state, s) : null,
+      scanR: mine && netMoved(state, s) >= 1 ? scanRadii(state, s) : null,
+      motionSig: open ? motionSig(state, s) : null,
+      sigBreak: open ? sigBreak(state, s) : null,
     });
   }
   const objs = [];
@@ -48,6 +56,7 @@ export function view(state, who) {
     board: { radius: rules.board.radius }, terrain: rules.terrain, zones: rules.zones,
     cp: pl.cp, thrust: pl.thrust, canMove: pl.canMove, income: thrustIncome(state, p), segments: fleetSegs(state, p), moveCap: moveCap(state, p),
     ships, objs, ghosts, feed: pl.feed.slice(),
+    contacts: all ? [] : contactsFor(state, p, vis),   // fuzzy contacts: "something is roughly here"
     news: pl.feed.filter((e) => e.n >= pl.readSeq && e.n < pl.turnSeq),   // what happened since this player's last turn
     // everything of this player's that can see, and how far: used to draw the edge of the fog
     eyes: state.ships.filter((s) => !s.dead && s.owner === p).concat(state.objs.filter((o) => o.owner === p && rules.munitions[o.kind].reports))

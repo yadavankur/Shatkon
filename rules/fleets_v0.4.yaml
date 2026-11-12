@@ -20,8 +20,8 @@ player_1:
         - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [armour] }
         - { at: [0, 0],  bays: [core, engine, coupling] }
         - { at: [1, 0],  bays: [sensor, engine, stealth], mounts: [laser] }
-      # cost:   3 segments 9 + 3 engines 18 + 2 stealth 12 + sensor 5 + armour 5 + laser 10 = 59
-      # result: sensor 4, signature 3 - 2 = 1
+      # cost:   3 segments 9 + 3 engines 18 + 2 stealth 0 + sensor 5 + armour 5 + laser 10 = 59
+      # result: sensor 4, signature 3 - 2 = 1 (its floor)
 
     # ---- A big flagship: 7 segments, centre plus a ring of six ----
     - name: "Blob B"
@@ -31,13 +31,14 @@ player_1:
         - { at: [0, 0],  bays: [core, magazine, comms] }
         - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, shield] }
         - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
-        - { at: [0, -1], bays: [engine, coupling], mounts: [armour] }
-        - { at: [-1, 0], bays: [engine, coupling] }
-        - { at: [-1, 1], bays: [engine, coupling], mounts: [armour] }
-        - { at: [0, 1],  bays: [engine, coupling] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1],  bays: [engine, coupling, stealth] }
       # cost:   7 segments 21 + 7 engines 42 + sensor 5 + magazine 3 + comms 5 + laser 10 + shield 8
       #         + launcher 4 + point defence 7 + 2 armour 10 + 2 missiles 16 = 131
-      # result: sensor 4, signature 7
+      # + 4 stealth parts in the empty bays (free)
+      # result: sensor 4, signature 7 - 4 = 3 (its floor): seen by sensor 4 from 7 hexes, not 11
 
   # FLEET: 10 engines for 10 segments = 10 thrust a turn. Average 1, so a ship may move up to 2 hexes.
   # FLEET TOTAL: 59 + 131 + 2 mines 10 = 200 of 200
@@ -47,8 +48,8 @@ player_1:
   deployment:
     - { ship: "Blob A", at: [1, 6] }
     - { ship: "Blob B", at: [-2, 7] }
-    - { mine: [1, 4] }
-    - { mine: [-3, 4] }
+    - { mine: [2, 1] }        # mines default to no man's land, not your own doorstep
+    - { mine: [-2, 2] }
 
 
 # Player 2 uses an exact copy of player 1, mirrored to the other side.

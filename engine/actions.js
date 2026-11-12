@@ -2,8 +2,9 @@
 // Each function checks the action is allowed, then changes the state.
 
 import { key, add, step, dist, line, turnDiff, dirToward } from './hex.js';
-import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, emit, makeObj, nearestCell } from './state.js';
-import { refreshSight, networkSees, addFlare, visibleTo } from './detect.js';
+import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell } from './state.js';
+import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
+import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
 
 const foe = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
@@ -119,9 +120,13 @@ export function doFire(state, a) {
     const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1]);
     if (ob) { hitObj = ob; hd = i; }
   }
-  const hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
+  let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
+  if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
   addFlare(state, ship, hd && hits > 0 ? 'beamHit' : 'fire');
-  emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits }, [p]);
+  const end = cells[hd || cells.length - 1].slice();
+  emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);
+  // anyone who can see the shooter sees the beam
+  state.players.forEach((_, q) => { if (q !== p && visibleTo(state, q).has(ship.id)) emit(state, { t: 'enemy_fire', ship: ship.id, from: src.slice(), end, hits }, [q]); });
   if (hitShip && hits > 0) applyHits(state, hitShip, hitSeg, hits, part.t);
   else if (hitObj && hits > 0) { removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, at: hitObj.pos.slice() }, state.players.map((_, i) => i)); }
 }
@@ -157,16 +162,36 @@ export function doLaunch(state, a) {
   emit(state, { t: 'launch', ship: ship.id, kind: a.kind, obj: obj.id, target: obj.target }, [p]);
 }
 
+// An active scan around one of your ships. Everything inside the clear ring is revealed
+// (with a full readout of enemy ships) until the end of next round; the faint ring only
+// gives fuzzy contacts. Once per ship per turn, only after it has moved, and it flares the ship.
 export function doScan(state, a) {
   const p = current(state), pl = state.players[p], spend = pay(state, p, 'scan');
-  const t = shipById(state, a.target);
-  if (!t || t.owner === p) no('that is not an enemy ship');
-  if (!pl.vis.includes(t.id)) no('you cannot see that ship');
-  const sg = t.segs[a.seg];
-  if (!sg) no('that ship has no such segment');
+  const sh = ownShip(state, a.ship, p);
+  if (sh.used.scan) no('this ship has already scanned this turn');
+  if (netMoved(state, sh) < 1) no('move this ship first: a ship can only scan on a turn it has moved');
+  const [r1, r2] = scanRadii(state, sh);
   spend();
-  (pl.intel[t.id] = pl.intel[t.id] || {})[a.seg] = { round: state.round, wrecked: sg.wrecked, parts: sg.parts.map((x) => ({ t: x.t, hp: x.hp })) };
-  emit(state, { t: 'scan', target: t.id, seg: a.seg }, [p]);
+  sh.used.scan = 1;
+  pl.revealed = pl.revealed || {};
+  pl.pings = pl.pings || {};
+  let found = 0, pinged = 0;
+  for (const t of state.ships.filter((x) => !x.dead && x.owner !== p).concat(state.objs.filter((x) => x.owner !== p))) {
+    const d = gap(sh, t);
+    if (d <= r1) {
+      pl.revealed[t.id] = state.round + 1;
+      found++;
+      if (t.segs) {
+        const intel = (pl.intel[t.id] = pl.intel[t.id] || {});
+        t.segs.forEach((g, i) => { intel[i] = { round: state.round, wrecked: g.wrecked, parts: g.parts.map((x) => ({ t: x.t, hp: x.hp })) }; });
+      }
+    } else if (d <= r2) {
+      pinged++;
+      pl.pings[t.id] = { round: state.round, at: fuzzAt(state, p, t), r: state.rules.det.fuzzR, kind: t.segs ? 'ship' : t.kind };
+    }
+  }
+  addFlare(state, sh, 'scan');
+  emit(state, { t: 'scan', ship: sh.id, r1, r2, found, pinged, cells: footprint(sh) }, [p]);
 }
 
 export function doDetonate(state, a) {
