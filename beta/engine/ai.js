@@ -233,6 +233,14 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
             const dd = H.dist(c, tc);
             if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 5 : 2);
           }
+        // no clear line on the target: a clear line on any other foe still beats sitting blind
+        if (!shot)
+          for (const f of foes) {
+            if (f === target) continue;
+            for (const c of cells) for (const tc of f.cells) { const dd = H.dist(c, tc); if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 3 : 1.5); }
+          }
+        // nothing to shoot from here at all: don't wait, look for a line (cornered defence gains little)
+        if (!shot && d <= want + 2) score -= 2.5;
         score += shot;
       }
       if (d <= 1 && pr.stance !== 'charge') score -= 4; // don't ram

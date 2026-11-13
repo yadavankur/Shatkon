@@ -186,6 +186,15 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 #story{position:fixed;inset:0;z-index:40;background:#050811;overflow:auto;padding:12px}
 .cm{max-width:900px;margin:0 auto}
 .cm-top,.cm-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:8px 0}
+.tune-body{max-width:640px;margin:0 auto;overflow:auto;max-height:calc(100vh - 90px);padding-bottom:24px}
+.tune-f{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:6px 0}
+.tune-f span{flex:1}
+.tune-f input[type=number]{width:5em}.tune-f input[type=text]{width:12em}
+.tune-f.changed span{color:#ffd166}.tune-f.changed span::after{content:' (changed)';font-size:.8em}
+.tune-p{border:1px solid #2a3550;border-radius:8px;margin:10px 0;padding:6px 10px}
+.tune-p legend{text-transform:capitalize;padding:0 4px}
+.tune-list{font-family:monospace;font-size:.85em}
+.tune-go{gap:8px;flex-wrap:wrap;margin-top:14px}
 .cm-top h2{margin:0;color:var(--gold,#e8c15a)}
 .cm-art{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background-size:100% 100%,cover;background-position:center}   /* the art's own lanes line up with the nodes */
 .cm-scroll{overflow-x:auto;border-radius:12px;-webkit-overflow-scrolling:touch}

@@ -1,5 +1,11 @@
 # Inbox: maps
 
+## 2026-11-14 · from engine · AI change: no more waiting blind
+- Ankur wants the computer to move for a shot rather than sit. engine 960a0f7: when no ship has a clear line, positions with a line on any foe now score higher, and staying blind costs a little.
+- 1v1 sims unchanged. engine_check: ch1 9, ch2 8, ch4A 6.5, ch5 6 rounds; **ch3 rose from ~8.4 to ~12.7 rounds** (11–13). Please re-tune ch3 if that's too long (playtests said fights drag).
+- New: campaign map → "Test a chapter" lets Ankur edit `ai_profiles` per chapter and send you a "Copy changes" list (paths inside the chapter, e.g. `ai_profiles.hunt_contacts.stance: "charge"`). Expect those as requests.
+Status: open
+
 ## 2026-11-14 · from engine · v3 merged
 - campaign-v3 is merged into campaign-engine (e04cd99) and on /beta/.
 - Fork bug fixed as you suggested; `--fix-fork` is no longer needed.
