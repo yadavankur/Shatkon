@@ -69,7 +69,8 @@ function drawMap() {
   const { h } = hooks, box = document.getElementById('story'), C = data.campaign.campaign;
   const open = new Set(E.nextNodes(data.campaign, progress).map((n) => n.id)), done = new Set(progress.completed);
   const chosen = progress.choices && progress.choices.fork;
-  const nodeState = (n) => done.has(n.id) ? 'done' : n.locked || (chosen && n.id !== chosen && open.has(n.id)) ? 'locked' : open.has(n.id) ? 'open' : 'later';
+  const forkKids = new Set(C.nodes.filter((p) => p.fork_scene).flatMap((p) => p.next || []));   // only the fork's own branches lock
+  const nodeState = (n) => done.has(n.id) ? 'done' : n.locked || (chosen && forkKids.has(n.id) && n.id !== chosen && open.has(n.id)) ? 'locked' : open.has(n.id) ? 'open' : 'later';
   const art = h('div', { class: 'cm-art' });
   const bg = STORY_DIR + 'img/stages/' + (C.map_art || 'campaign_map') + '.webp';
   art.style.backgroundImage = 'url(' + bg + '), radial-gradient(ellipse at 50% 60%, #1a2550 0%, #070b18 70%)';
