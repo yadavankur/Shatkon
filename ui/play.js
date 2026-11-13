@@ -34,7 +34,8 @@ let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
 let pendingFx = null;             // animations held back until the curtain lifts
 let ledgerOpen = false, sfxOn = true, actx = null;
-export const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
+export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 
 async function loadRules() {
   let texts = window.SHATKON_RULES || null;
@@ -1237,6 +1238,7 @@ function initExtras() {
   else if (savedSeat === 'all' || savedSeat === 'pass' || savedSeat === 'cpu') seat = savedSeat;
   sfxOn = store.get('shatkon.sfx') !== '0';
   aiLevel = store.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
+  if (/\/beta\//.test(location.pathname)) { const bb = $('#betabadge'); if (bb) bb.hidden = false; document.title = 'Shatkon BETA'; }
   initExtras();
   initStory({ h, startStoryGame, render, say, toast });
   const saved = store.get('shatkon.game');
