@@ -59,7 +59,14 @@ chapter:
         - protect: { ship: tern,    until: end }
         - protect: { ship: sparrow, until: end }
         - protect: { ship: halcyon, until: end }
-        - objective: "Ashfall Outpost is calling for help. Reach the outpost."
+        - objective: "Ashfall Outpost is calling for help. Reach the outpost."   # fallback (GUIDE_PROPOSAL.md §7)
+      guide:
+        ship: kestrel
+        clear: gift
+        steps:
+          - label: "Reach the outpost"
+            move_to: { zone: outpost }
+            done: reached
 
     - id: too_easy
       flavor: true
@@ -90,8 +97,18 @@ chapter:
         - ai: { side: enemy, profile: dark }
         - scene: ch4a_graft_found
         - unlock: graft
-        - objective: "Bring Tern alongside Kestrel and Graft them"
+        - objective: "Bring Tern alongside Kestrel and Graft them"   # fallback (GUIDE_PROPOSAL.md §7)
         - bark: b4_graft_hint
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: tern
+        clear: { any: [ tow, { grafted: [kestrel, tern] } ] }
+        steps:
+          - label: "Bring Tern here"
+            move_to: { near: kestrel, within: 1 }   # touching: the Graft order needs touching ships
+            done: reached
+          - label: "Graft"
+            graft: kestrel
+            done: grafted
 
     # Fallback for grafted: 2 rounds after the gift, Tern is towed toward Kestrel each turn and
     # both ships stop answering the helm (so the player cannot pull them apart).
