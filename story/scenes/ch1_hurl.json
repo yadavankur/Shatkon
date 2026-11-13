@@ -1,0 +1,86 @@
+{
+ "id": "ch1_hurl",
+ "stage": "vista_corridor",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "wren_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "shake"
+  },
+  {
+   "speaker": "kite_pilot",
+   "expression": "hurt",
+   "text": "Kite's guns are gone. It sheared them right off the hull.",
+   "via": "comms"
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "determined",
+   "text": "Wren too. No guns left. Just engines and a lot of hull.",
+   "via": "comms"
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "determined",
+   "text": "Dov, take the stern. I'll take the bow. Its shield can't cover both ends at once.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "shock",
+   "text": "Negative! Fall back on Kestrel. Sefa, Dov, that's an order!"
+  },
+  {
+   "speaker": "kite_pilot",
+   "expression": "smile",
+   "text": "Respectfully, Captain: no. Get Teo and Moss home.",
+   "via": "comms"
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "smile",
+   "text": "You've got a promise waiting at Meridian, Vey. Go and keep it.",
+   "via": "comms"
+  },
+  {
+   "show_ship": "wren"
+  },
+  {
+   "show_ship": "kite"
+  },
+  {
+   "show_ship": "seed"
+  },
+  {
+   "effect": "flash"
+  },
+  {
+   "effect": "shake"
+  },
+  {
+   "hide_ship": true
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "Sefa! Dov!"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "hurt",
+   "text": "Bow and stern. They hit both ends. Its shield is down, Captain. It's open."
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "mid_battle",
+ "added": true
+}

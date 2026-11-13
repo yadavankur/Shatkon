@@ -1,0 +1,109 @@
+{
+ "id": "ch4_fork",
+ "stage": "campaign_map",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "li",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Two routes lead out of Meridian."
+  },
+  {
+   "speaker": "li",
+   "expression": "neutral",
+   "text": "The Long Dark runs east. Slow, empty, no Weave sightings. We'd lose them in a week."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "And west is Ashfall Outpost. A mining station, fourteen people. Captain... it's transmitting.",
+   "via": "comms"
+  },
+  {
+   "speaker": "mimic",
+   "expression": "worried",
+   "text": "Ashfall Outpost to any human ship. This is Warden Cole. Our hull is open. Our people are... we are fourteen. Please come. We have room for you.",
+   "via": "comms"
+  },
+  {
+   "effect": "glitch"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "That's a distress call. A bad one.",
+   "via": "comms"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "Odd phrasing. \"We have room for you.\"",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "worried",
+   "text": "People in shock say odd things, Hollis."
+  }
+ ],
+ "choice": {
+  "prompt": "Where does the fleet go?",
+  "options": [
+   {
+    "id": "ch4a",
+    "label": "West to Ashfall: answer the distress call"
+   },
+   {
+    "id": "ch4b",
+    "label": "East into the Long Dark: keep the fleet safe",
+    "then": [
+     {
+      "speaker": "sparrow_pilot",
+      "expression": "worried",
+      "text": "Captain... you heard the call. Fourteen people.",
+      "via": "comms"
+     },
+     {
+      "speaker": "engineer",
+      "expression": "hurt",
+      "text": "We couldn't reach Finch, Wren or Kite in time. We can still reach Ashfall.",
+      "via": "comms"
+     },
+     {
+      "speaker": "li",
+      "expression": "determined",
+      "text": "I know you're trying to protect us. I love that about you. But not while people are dying, Vey."
+     },
+     {
+      "speaker": "engineer",
+      "expression": "neutral",
+      "text": "The Long Dark isn't going anywhere. Ashfall might be.",
+      "via": "comms"
+     },
+     {
+      "effect": "glitch"
+     },
+     {
+      "speaker": "tern_pilot",
+      "expression": "worried",
+      "text": "...And the eastern relay just dropped. The Long Dark's nav signal is gone. We couldn't fly it blind if we wanted to.",
+      "via": "comms"
+     }
+    ],
+    "lock_after": true,
+    "locked_label": "Signal lost"
+   }
+  ],
+  "repeat_until": "ch4a"
+ },
+ "chapter": 4,
+ "kind": "fork"
+}

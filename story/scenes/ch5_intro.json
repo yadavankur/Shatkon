@@ -1,0 +1,76 @@
+{
+ "id": "ch5_intro",
+ "stage": "halcyon_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "li",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "The Channels, three days west of Ashfall. The strongest fleet the frontier has ever seen. Probably."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "You're doing the thing."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "What thing?"
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "The thing where you stare at the tactical map like it owes you money."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "It does owe me money."
+  },
+  {
+   "speaker": "li",
+   "expression": "neutral",
+   "text": "When this is done and Meridian is safe, I want a month somewhere with weather. Real rain."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "I'll bring the good tea."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "You always say that. You never bring the tea."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Bridge, the seam's purring like a cat. Best ship I've ever worked on.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "Bring on the Weave. Missiles, mines, shields, a turret, drones, and a ship that hums. What could go wrong?",
+   "via": "comms"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "Never say that, kid.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "intro"
+}
