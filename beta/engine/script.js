@@ -10,9 +10,9 @@
 // Player actions added here: dock, graft (see doJoin).
 
 import { add, key, dist, step } from './hex.js';
-import { no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById } from './state.js';
+import { no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater } from './state.js';
 import { visibleTo, refreshSight } from './detect.js';
-import { applyHits, removeObj } from './damage.js';
+import { applyHits, removeObj, strikeEngines } from './damage.js';
 import { doMove, doFire, doLaunch } from './actions.js';
 import { reach, beamTargets, aimLaunch } from './query.js';
 import { buildRules } from './rules.js';
@@ -31,7 +31,7 @@ export function startScript(state) {
   state.script = {
     fired: {}, flags: {}, unlocked: {}, ai: {}, locks: [], forces: [], protect: {}, doom: [],
     objective: null, stopped: [0, 0], firedAt: {}, mineHit: [0, 0], via: {}, hits: {}, turns: 0,
-    started: false, spawned: {}, gone: {}, disables: [], plans: {}, auto: [], result: null,
+    started: false, spawned: {}, gone: {}, disables: [], plans: {}, auto: [], guides: [], result: null,
   };
   for (const [k, v] of Object.entries(C.unlocked || {})) state.script.unlocked[k] = v;
   for (const s of state.ships) if (C.seams && C.seams[s.name]) s.seams = structuredClone(C.seams[s.name]);
@@ -98,7 +98,9 @@ function run(state) {
       any = true;
       emit(state, { t: 'beat', id: e.id }, everyone(state));
       for (const a of e.do || []) act(state, a);
+      if (e.guide) startGuide(state, e);
     }
+    evalGuides(state);
     if (checkEnd(state)) return;
     if (!any) break;
   }
@@ -145,7 +147,7 @@ export function test(state, t) {
     case 'flag': return !!sc.flags[v];
     case 'alive': return !!live(state, v);
     case 'rammed': return !!sc.flags['rammed:' + v];
-    case 'engines_out': { const s = live(state, v); return !!s && !s.segs.some((sg) => !sg.wrecked && sg.parts.some((p) => p.t === 'engine' && p.hp > 0)); }
+    case 'engines_out': { const s = live(state, v); return !!s && deadInWater(state, s); }
     default: return false;
   }
 }
@@ -163,6 +165,14 @@ function noteEvents(state) {
       if (by && tgt) sc.firedAt[by.name + '>' + tgt.name] = true;
     }
     if (ev.t === 'stopped') { const d = state.ships.find((s) => s.id === ev.ship); if (d) sc.stopped[1 - d.owner]++; }
+    if ((ev.t === 'fire' || ev.t === 'launch') && sc.guides) for (const gd of sc.guides) {
+      const st = gd.steps[gd.i], by = state.ships.find((s) => s.id === ev.ship);
+      if (!st || !by || by.name !== gd.ship) continue;
+      let tgt = ev.target ? state.ships.find((s) => s.id === ev.target) : null;
+      if (!tgt && ev.at) { const o = occ.get(key(ev.at)); tgt = o && o.ship; }
+      if (ev.t === 'fire' && st.fire_at && tgt && tgt.name === st.fire_at) gd.fired = true;
+      if (ev.t === 'launch' && st.launch_at) gd.launched = true;
+    }
     if (ev.t === 'damage') {
       const s = state.ships.find((x) => x.id === ev.ship);
       if (s && /mine/.test(String(ev.cause))) sc.mineHit[s.owner]++;
@@ -195,8 +205,13 @@ function act(state, a) {
     case 'ai': sc.ai[v.ship || ('side:' + sideOf(v.side))] = v.profile; break;
     case 'protect': sc.protect[v.ship || ('side:' + sideOf(v.side))] = v.until || 'end'; break;
     case 'damage': scriptedDamage(state, v); break;
-    case 'orders': sc.plans[v.ship] = (v.do || []).map((o) => structuredClone(o)); break;
-    case 'ram': { const s1 = live(state, v.ship), t = live(state, v.target); if (s1 && t) free(state, s1.owner, () => ram(state, s1, t, !!v.force)); break; }
+    case 'orders': {
+      const add = (v.do || []).map((o) => structuredClone(o)), old = sc.plans[v.ship] || [];
+      // append: keep the old plan; otherwise replace it, but never drop a one-shot launch that hasn't fired
+      sc.plans[v.ship] = v.append ? old.concat(add) : old.filter((o) => !o.done && 'launch_at' in o).concat(add);
+      break;
+    }
+    case 'ram': { const s1 = live(state, v.ship), t = live(state, v.target); if (s1 && t) free(state, s1.owner, () => ram(state, s1, t, !!v.force, v.seg)); break; }
     case 'unprotect': delete sc.protect[v.ship || v]; break;
     case 'doom': sc.doom.push({ ship: v.ship, by_round: v.by_round, done: false }); break;
     case 'lock': sc.locks.push({ ...v, from: state.round, fromTurn: sc.turns }); emit(state, { t: 'locked', ship: v.ship || null, side: v.side ?? null, actions: v.actions }, all); break;
@@ -248,6 +263,7 @@ function scriptedDamage(state, v) {
     if (mines[0]) { cause = mines[0].kind; removeObj(state, mines[0]); }
     emit(state, { t: 'blast', kind: cause, owner: 1 - s.owner, at }, everyone(state));
   }
+  if (v.from_mine && state.rules.munitions.mine && state.rules.munitions.mine.strikes === 'engines') return strikeEngines(state, { ship: s, seg: si }, num(v.hits, 1), cause);
   applyHits(state, s, si, num(v.hits, 1), cause);
 }
 
@@ -270,7 +286,11 @@ export function checkLocked(state, action) {
     const hit = (l.ship && s && s.name === l.ship) || (l.side !== undefined && sideOf(l.side) === current(state));
     if (!hit) continue;
     const acts = l.actions === 'all' || !l.actions ? 'all' : l.actions;
-    if (acts === 'all' || acts.includes(action.type)) no((s ? s.name : 'that ship') + ' is not answering the helm');
+    if (acts === 'all' || acts.includes(action.type)) {
+      if (l.reason) no(l.reason);
+      if (acts === 'all') no((s ? s.name : 'that ship') + ' is not answering the helm');
+      no((s ? s.name : 'that ship') + ' can\'t ' + action.type + ' right now');
+    }
   }
   if ((action.type === 'graft' || action.type === 'dock') && !sc.unlocked[action.type]) no('you do not have ' + action.type + ' technology');
 }
@@ -409,12 +429,13 @@ function stepTo(state, s, cell) {
 // The sacrificial hurl. The ship flies into the target (if it can reach: its move this turn plus
 // the reach bonus, unless forced) and is destroyed; the impact lands hitsPerSeg x its living
 // segments on the target, starting with the target segment nearest the rammer, piercing shields.
-export function ram(state, s, t, force) {
+export function ram(state, s, t, force, seg) {
   const R = state.rules.ram, d = gap(s, t);
   const reachD = reach(state, s.id).reduce((m, r) => Math.max(m, r.path.length), 0);
   if (!force && d > reachD + R.reachBonus) return false;
   const near = (i) => Math.min(...footprint(s).map((c) => dist(c, add(t.pos, t.segs[i].off))));
   const order = t.segs.map((_, i) => i).sort((a, b) => near(a) - near(b));
+  if (Number.isInteger(seg) && seg >= 0 && seg < t.segs.length) { order.splice(order.indexOf(seg), 1); order.unshift(seg); }   // the script picked the end to strike
   const impact = add(t.pos, t.segs[order[0]].off), total = R.hitsPerSeg * s.segs.filter((sg) => !sg.wrecked).length;
   emit(state, { t: 'ram', ship: s.id, name: s.name, target: t.id, targetName: t.name, at: impact, hits: total }, everyone(state));
   if (state.script) state.script.flags['rammed:' + s.name] = true;
@@ -438,7 +459,7 @@ function runPlan(state, s, plan) {
       if (o.done || s.dead) continue;
       const [k] = Object.keys(o).filter((x) => x !== 'done' && x !== 'i'), v = o[k];
       try {
-        if (k === 'fire_at' || k === 'launch_at') { forced(state, s, { [k]: v }); if (k === 'launch_at') o.done = true; continue; }
+        if (k === 'fire_at' || k === 'launch_at') { const ok = forced(state, s, { [k]: v }); if (k === 'launch_at' && ok) o.done = true; continue; }
         if (moved) continue;
         moved = true;
         if (k === 'hold') continue;
@@ -452,7 +473,7 @@ function runPlan(state, s, plan) {
         else if (k === 'ram') {
           const t = live(state, v);
           if (!t) { o.done = true; moved = false; continue; }
-          if (ram(state, s, t, false)) o.done = true; else forced(state, s, { move_toward: v });
+          if (ram(state, s, t, false, o.seg)) o.done = true; else forced(state, s, { move_toward: v });
         }
       } catch (e) { /* an order that can't be carried out this turn waits */ }
     }
@@ -464,15 +485,15 @@ function forced(state, s, order) {
   const [k] = Object.keys(order), v = order[k];
   try {
     if (k === 'move_to') return stepTo(state, s, v);
-    if (k === 'ram') { const t = live(state, v); if (t && !ram(state, s, t, false)) forced(state, s, { move_toward: v }); return; }
+    if (k === 'ram') { const t = live(state, v); if (t && !ram(state, s, t, false, order.seg)) forced(state, s, { move_toward: v }); return true; }
     if (k === 'launch_at') {
       const t = typeof v === 'string' ? live(state, v) : null, aimAt = t ? t.pos : v;
       if (!aimAt) return;
       const lo = launchKind(state, s);
       if (!lo) return;
       const a = aimLaunch(state, s.id, lo, aimAt, t ? t.id : null);
-      if (a) { doLaunch(state, a); emit(state, { t: 'forced', ship: s.id, order: 'launch' }, everyone(state)); }
-      return;
+      if (a) { doLaunch(state, a); emit(state, { t: 'forced', ship: s.id, order: 'launch' }, everyone(state)); return true; }
+      return false;
     }
     if (k === 'move_toward') {
       const t = live(state, v);
@@ -509,6 +530,62 @@ export function setPath(obj, path, value) {
   o[ks[ks.length - 1]] = value;
 }
 
+// ---------------------------------------------------------------- move guides
+// A beat with a `guide:` shows the player a suggested move on the map (see campaign/GUIDE_PROPOSAL.md).
+// The engine tracks which step is active; engine/guide.js (guideView) works out what to draw.
+function startGuide(state, e) {
+  const g = e.guide, sc = state.script, s = live(state, g.ship);
+  if (!s || !Array.isArray(g.steps) || !g.steps.length) return;
+  for (const old of sc.guides.filter((x) => x.ship === g.ship)) emit(state, { t: 'guide_clear', id: old.id, ship: old.ship, why: 'replaced' }, [old.owner]);
+  sc.guides = sc.guides.filter((x) => x.ship !== g.ship);
+  const gd = { id: g.id || e.id, ship: g.ship, owner: s.owner, steps: structuredClone(g.steps), clear: g.clear || null, i: 0, stepFrom: state.round, fired: false, launched: false };
+  sc.guides.push(gd);
+  emit(state, { t: 'guide', id: gd.id, ship: gd.ship, step: 1, steps: gd.steps.length }, [gd.owner]);
+}
+
+// Does the guided ship meet this step's move_to? (Its own position against the target's true cells:
+// only the step advancing shows, so nothing leaks.)
+export function guideReached(state, s, mv) {
+  if (!mv) return true;
+  if (Array.isArray(mv) && typeof mv[0] === 'number') return s.pos[0] === mv[0] && s.pos[1] === mv[1];
+  if (Array.isArray(mv)) return mv.some((c) => s.pos[0] === c[0] && s.pos[1] === c[1]);
+  if (mv.zone) { const z = new Set(zoneCells(state, mv.zone).map(key)); return footprint(s).some((c) => z.has(key(c))); }
+  if (mv.near) { const t = live(state, mv.near); return !t || gap(s, t) <= num(mv.within, 1); }
+  return false;
+}
+
+function stepDone(state, gd, st, s) {
+  const tgtName = st.fire_at || (typeof st.launch_at === 'string' && st.launch_at) || st.graft || st.dock || (st.move_to && st.move_to.near);
+  if (tgtName && !live(state, tgtName) && !(st.graft || st.dock)) return true;          // the target is gone
+  const d = st.done !== undefined ? st.done : st.fire_at ? 'fired' : st.launch_at ? 'launched' : st.graft ? 'grafted' : st.dock ? 'docked' : 'reached';
+  if (d === 'reached') return guideReached(state, s, st.move_to);
+  if (d === 'fired') return gd.fired;
+  if (d === 'launched') return gd.launched;
+  if (d === 'grafted' || d === 'docked') return !!state.script.flags[d + ':' + [gd.ship, st[d === 'grafted' ? 'graft' : 'dock']].sort().join('+')];
+  return test(state, d);
+}
+
+function evalGuides(state) {
+  const sc = state.script;
+  if (!sc.guides || !sc.guides.length) return;
+  for (const gd of sc.guides.slice()) {
+    const s = live(state, gd.ship), end = (why) => { sc.guides.splice(sc.guides.indexOf(gd), 1); emit(state, { t: 'guide_clear', id: gd.id, ship: gd.ship, why }, [gd.owner]); };
+    if (!s) { if (!(sc.flags['grafted:' + gd.ship] || Object.keys(sc.flags).some((f) => f.startsWith('grafted:') && f.includes(gd.ship)))) { end('ship_lost'); continue; } }
+    if (gd.clear && test(state, gd.clear)) { end('clear'); continue; }
+    if (!s) { end('done'); continue; }
+    let moved = false;
+    for (let guard = 0; guard < gd.steps.length + 1; guard++) {
+      const st = gd.steps[gd.i];
+      if (!st) break;
+      const timedOut = st.timeout && state.round - gd.stepFrom >= num(st.timeout.rounds, 99);
+      if (!stepDone(state, gd, st, s) && !timedOut) break;
+      gd.i++; gd.stepFrom = state.round; gd.fired = false; gd.launched = false; moved = true;
+      if (gd.i >= gd.steps.length) { end(timedOut ? 'timeout' : 'done'); break; }
+    }
+    if (moved && sc.guides.includes(gd)) emit(state, { t: 'guide', id: gd.id, ship: gd.ship, step: gd.i + 1, steps: gd.steps.length }, [gd.owner]);
+  }
+}
+
 // ---------------------------------------------------------------- the end
 function finish(state, result, by) {
   if (state.phase !== 'play') return;
@@ -516,6 +593,8 @@ function finish(state, result, by) {
   state.phase = 'over';
   state.winner = result === 'win' ? 0 : result === 'lose' ? 1 : result;
   state.script.result = result;
+  for (const gd of state.script.guides || []) emit(state, { t: 'guide_clear', id: gd.id, ship: gd.ship, why: 'chapter_end' }, [gd.owner]);
+  state.script.guides = [];
   const sc = (C.scenes || {})[result === 'win' ? 'win' : result === 'lose' ? 'lose' : 'tbc'];
   for (const id of [].concat(sc || [])) emit(state, { t: 'scene', id, at: 'outro' }, everyone(state));
   emit(state, { t: 'game_over', winner: state.winner, by, result }, everyone(state));

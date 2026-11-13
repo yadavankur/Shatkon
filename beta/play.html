@@ -156,6 +156,9 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .flow{animation:flow 1s linear infinite}
 @keyframes flow{to{stroke-dashoffset:-11}}
 .scanprev{animation:scanprev 1.6s ease-in-out infinite}
+.guidepulse{animation:guidepulse 1.8s ease-in-out infinite}
+@keyframes guidepulse{0%,100%{stroke-opacity:.45}50%{stroke-opacity:1}}
+@media (prefers-reduced-motion:reduce){.guidepulse{animation:none}}
 @keyframes scanprev{0%,100%{opacity:.7}50%{opacity:1}}
 .lastpill{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bg);background:var(--bad);border-radius:999px;padding:1px 9px;animation:fuzz 1.6s ease-in-out infinite}
 .btn.go.last{border-color:var(--bad);color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}

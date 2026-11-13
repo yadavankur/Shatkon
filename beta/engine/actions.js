@@ -2,7 +2,7 @@
 // Each function checks the action is allowed, then changes the state.
 
 import { key, add, step, dist, line, turnDiff, dirToward } from './hex.js';
-import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell } from './state.js';
+import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater } from './state.js';
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
@@ -40,6 +40,7 @@ function touches(state, o, ship) {
 export function doMove(state, a) {
   const p = current(state), pl = state.players[p], ship = ownShip(state, a.ship, p), spend = pay(state, p, 'move');
   if (!pl.canMove) no('the fleet does not have enough thrust banked to move this turn');
+  if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
   const n = ship.segs.length, cap = moveCap(state, p), done = pl.moved[ship.id] || 0;

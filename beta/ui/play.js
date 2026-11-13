@@ -738,6 +738,7 @@ function tap(c, v, opts) {
       return render();
     }
   }
+  if (!o && guideTap(c, v, guideNow())) return;
   if (pending && pending.type !== 'move') return;
   pending = null;
   const ship = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
@@ -750,6 +751,36 @@ function tap(c, v, opts) {
     if (!obj && !gh) { sel = null; look = null; mode = 'move'; }
   }
   render();
+}
+
+// the move guide for whoever is looking at the board (story chapters only)
+let guideSeen = '';
+function guideNow() {
+  if (!game || !game.rules.campaign || game.phase !== 'play') return null;
+  const w = who();
+  return E.guideView(game, typeof w === 'number' ? w : 0);
+}
+
+function guideTap(c, v, gv) {
+  if (!gv || !myTurn()) return false;
+  const gs = v.ships.find((x) => x.id === gv.ship);
+  if (!gs) return false;
+  if (gv.reticle && hex.same(c, gv.reticle.at)) {
+    selectShip(gs.id, v);
+    if (gv.reticle.kind === 'fire') { mode = 'fire'; say('Fire mode for ' + gs.id + ': tap the red target to shoot.'); }
+    else {
+      const kind = ['missile', 'seeker_drone'].find((k) => E.aimLaunch(game, gs.id, k, c));
+      if (kind) { mode = kind; pending = E.aimLaunch(game, gs.id, kind, c); say('Aimed at the marked target. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.'); }
+    }
+    render(); return true;
+  }
+  if (gv.dest.some((d) => hex.same(d, c))) {
+    selectShip(gs.id, v);
+    const r = E.reach(game, gs.id), go = r.find((x) => hex.same(x.at, c)) || (gv.turnEnd && r.find((x) => hex.same(x.at, gv.turnEnd)));
+    if (go) { pending = { type: 'move', ship: gs.id, path: go.path }; say('The dashed outline shows where ' + gs.id + ' will end up' + (hex.same(go.at, c) ? '' : ' this turn, on the way') + '. Tap it again or press Move here.'); }
+    render(); return true;
+  }
+  return false;
 }
 
 function selectShip(id, v) {
@@ -1053,7 +1084,7 @@ export function render() {
     mine ? h('div', { class: 'line' },
       h('span', null, 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
       h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), ' (moving costs 1 per segment per hex)'), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
-    v.story && storyObjective() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
+    v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
 
   // fleet strip: every ship of the player to move, with what it has left
@@ -1075,8 +1106,14 @@ export function render() {
     ghost = { from: ship.pos, to, cells: ship.segs.map((sg) => [to[0] + sg.off[0], to[1] + sg.off[1]]), owner: ship.owner };
   }
   const plans = v.objs.filter((o) => o.mine && game.phase === 'play').map((o) => ({ id: o.id, f: E.forecast(game, o.id) })).filter((x) => x.f);
+  const guide = guideNow(), gkey = guide ? guide.id + ':' + guide.step : '';
+  if (guide && gkey !== guideSeen) {          // first show: bring the ship and where it should go into view
+    const gs = v.ships.find((x) => x.id === guide.ship);
+    if (gs) frame(gs.cells.concat(guide.best ? [guide.best] : guide.reticle ? [guide.reticle.at] : []), selZoom());
+  }
+  guideSeen = gkey;
   wrap.textContent = '';
-  wrap.appendChild(drawBoard({ view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c) => tap(c, v, opts), pending, hidden: curtainUp() }));
+  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c) => tap(c, v, opts), pending, hidden: curtainUp() }));
   fill(camEl, [h('button', { 'aria-label': 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '−'), h('button', { 'aria-label': 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'),
     h('button', { onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, 'Whole map')]);
 
@@ -1089,7 +1126,10 @@ export function render() {
     const help = { move: 'Tap a green marker to see where the ship would end up, then tap it again to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
-    const btn = (m, label, sub, on, cells) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on), disabled: !on, onclick: () => { mode = m; pending = null; say(help[m]); if (cells && cells.length) frame(cells, selZoom()); render(); } }, label, h('small', null, sub));
+    // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
+    const lim = v.story && me ? (v.story.limits || {})[me.name] : null;
+    const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
+    const btn = (m, label, sub, on, cells) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on && !barred(m)), disabled: !on || barred(m), title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); if (cells && cells.length) frame(cells, selZoom()); render(); } }, label, h('small', null, barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub));
     const launchWhy = (kind) => !st ? 'select a ship' : !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const foes = v.ships.filter((x) => !x.mine && x.seen);
     fill(tools, [
