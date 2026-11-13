@@ -1,0 +1,147 @@
+# ============================================================
+#  CHAPTER 3  -  THE SPLITTING        map: ch3_splitting (radius 9)
+#  Meridian is dark. A six-cell Twin hunts Kestrel, splits in two and swats our missiles
+#  with point defence. When hope runs out, li arrives behind the enemy with Halcyon and Tern.
+#
+#  Key numbers (see CHECKS.md):
+#   - Start: Twin [3,-7] to Kestrel [-4,8] = 13 hexes (nearest cells). Twin sensor 6 + Kestrel signature 4
+#     = sees it at 10; fuzzy contact at 13 from the first turn. Twin moves 1 hex a turn
+#     (6 thrust, 6 segments): natural sighting in round 3-4, split fallback round 4.
+#   - Kestrel sees the Twin at 11 (sensor 6 + signature 5).
+#   - The cluster ([-2,5] disc + [-1,3] disc + 3 singles) blocks every straight line from
+#     the north to Kestrel's start cells: lasers and missiles from the north hit rock.
+#   - Twin point defence stops 2 missiles a round (1 per half after the split). Kestrel
+#     has 4 missiles: two launches into point defence = Despair. Fallback round 6.
+#   - li_wing spawns at the north-east edge, behind the Twin's start (twin_a has walked
+#     ~3-5 hexes south by round 6-7). PR #2 sims: split r3, despair r6, li r6, win r9-10.
+# ============================================================
+
+chapter:
+  id: ch3
+  title: "The Splitting"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 24
+  map: maps/ch3_splitting.yaml
+  # Turn limit 24: the engine scores a time-out as a draw (story intent: retry).
+
+  player:
+    ships: [kestrel, sparrow]          # hulls kestrel@ch3 (flagship), sparrow@ch3
+    deployment:
+      - { ship: kestrel, at: [-4, 8] }   # cells [-4,7] [-5,8] [-4,8] [-3,8], tucked under the cluster
+      - { ship: sparrow, at: [-1, 7] }
+  # Fleet thrust 5 for 5 segments: average 1, up to 2 hexes a turn. Kestrel costs 4 a hex.
+  # After li arrives: 11 thrust for 10 segments.
+
+  enemy:
+    ships: [twin]                      # hull twin@ch3 (flagship)
+    deployment:
+      - { ship: twin, at: [3, -7] }      # A: [3,-7] [4,-7] [3,-6]   B: [4,-8] [5,-8] [5,-9]
+    ai: { default: hunt_contacts }
+
+  groups:
+    li_wing:
+      side: player
+      ships: [halcyon, tern]           # hulls halcyon@ch3, tern@ch3; held in reserve until spawned
+      zone: li_arrival                 # used only if an `at` spot is missing
+      at:
+        halcyon: [6, -9]               # cells [6,-9] [7,-9] [6,-8]
+        tern:    [8, -9]               # cells [8,-9] [9,-9]
+
+  ai_profiles:
+    # Follows fuzzy contacts and ghosts, scans once it has moved (stock normal AI does this).
+    hunt_contacts:    { level: normal, stance: hunt, target: flagship, scans: true, launch_range: 5 }
+    # twin_b after li arrives: keeps the pressure on Kestrel.
+    press_kestrel:    { level: normal, stance: hunt, target: [kestrel], stand_off: 4, scans: true, launch_range: 5 }
+    # twin_a after li arrives: turns to the newcomers (and so shows Kestrel its flank).
+    turn_on_newcomer: { level: normal, stance: hunt, target: [halcyon, tern], scans: false, launch_range: 5 }
+    charge:           { level: normal, stance: charge, target: [kestrel], stand_off: 1 }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: kestrel_exposed }   # 2 rounds after li arrives
+        - protect: { ship: sparrow, until: end }   # assumption: needed in ch4A-5
+        - bark: b3_cover
+        - objective: "Meridian is silent. Stay behind the rocks and survive."
+
+    - id: split
+      when: { any: [ { sees: { side: enemy, ship: kestrel } }, { hull_below: { ship: twin, pct: 75 } }, { round: 4 } ] }
+      do:
+        # cells are the Twin's own offsets. twin_b's first cell [1,-1] has the free bay where
+        # the engine grows its core; twin_b gets all 3 missiles (only it has a magazine).
+        # Resulting shapes: twin_a@ch3 and twin_b@ch3 in ships.yaml.
+        - split:
+            ship: twin
+            into:
+              - { id: twin_a, flagship: true, cells: [[0, 0], [1, 0], [0, 1]] }
+              - { id: twin_b, cells: [[1, -1], [2, -1], [2, -2]] }
+        - scene: ch3_split
+        - ai: { ship: twin_a, profile: hunt_contacts }
+        - ai: { ship: twin_b, profile: hunt_contacts }
+
+    - id: pd_stopped
+      flavor: true
+      when: { stopped: { side: player, count: 1 } }
+      do:
+        - bark: b3_pd_stopped
+
+    - id: hull_low
+      flavor: true
+      when: { hull_below: { ship: kestrel, pct: 80 } }
+      do:
+        - bark: b3_hull_low
+
+    - id: despair
+      when:
+        any:
+          - all: [ split, { any: [ { stopped: { side: player, count: 2 } }, { hull_below: { ship: kestrel, pct: 60 } } ] } ]
+          - { round: 6 }
+      do:
+        - scene: ch3_despair
+        - objective: "Hold on."
+
+    - id: li_arrives
+      # the start of the player's next turn after Despair (at least one turn later), or round 7
+      when:
+        any:
+          - all: [ { after: { beat: despair, turns: 1 } }, { turn: { round: 1, side: player } } ]
+          - { round: 7 }
+      do:
+        - spawn: li_wing
+        - protect: { ship: halcyon, until: end }
+        - protect: { ship: tern, until: end }      # assumption: Tern is grafted in ch4A
+        - scene: ch3_li_arrives
+        - ai: { ship: twin_a, profile: turn_on_newcomer }
+        - ai: { ship: twin_b, profile: press_kestrel }
+        - objective: "Li is here. Hit twin_a while it turns."
+
+    - id: kestrel_exposed                          # ends Kestrel's protection
+      when: { after: { beat: li_arrives, rounds: 2 } }
+      do: []
+
+    - id: flank_open
+      when: { after: { beat: li_arrives, turns: 1 } }
+      do:
+        - bark: b3_flank_open
+
+    - id: charge
+      when: { round: 18 }
+      do:
+        - ai: { ship: twin_a, profile: charge }
+        - doom: { ship: twin_a, by_round: 23 }   # safety net (PR #2 sims: 5 of 40 games reached the turn limit)
+
+    - id: twin_b_leaves
+      outcome: true                                # part of the win itself; needs no fallback
+      when: { destroyed: twin_a }
+      do:
+        - remove: { ship: twin_b, as: withdraw }   # off the north edge; not a kill
+
+  win:  [ { destroyed: twin_a } ]
+  lose: [ { destroyed: kestrel } ]                 # possible only from 2 rounds after li arrives
+  scenes: { intro: ch3_intro, win: [ch3_victory, ch3_reunion], lose: ch3_defeat }
+  rewards:
+    capabilities: [point_defence, comms, seeker_drone, docking]
+    roster_add: [halcyon, tern]
+    # next chapter the loader picks kestrel@ch4a; halcyon@ch3, tern@ch3, sparrow@ch3 carry on
