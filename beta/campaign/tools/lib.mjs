@@ -34,15 +34,12 @@ export function getPath(obj, dotted) {
 // World settings added by PR #2 (campaign-engine) that main's world file does not have yet.
 // An override of one of these is reported as a note on main, not a failure.
 export const PR2_WORLD_SETTINGS = ['damage.beams_pass_mines'];
-// Combat v2 world settings the engine reads (engine/damage.js) but rules/world_v0.4.yaml does not list.
-export const COMBAT_V2_WORLD_SETTINGS = ['munitions.mine.strikes'];
 
 export function worldFor(ch) {
   const w = structuredClone(rule(ch.world || 'world_v0.4.yaml'));
   const notes = [], infos = [];
   for (const [p, v] of Object.entries(ch.world_overrides || {})) if (!setPath(w, p, v)) {
     if (PR2_WORLD_SETTINGS.includes(p)) infos.push(`world_overrides: "${p}" is a PR #2 world setting (not in main's world file; main's engine ignores it)`);
-    else if (COMBAT_V2_WORLD_SETTINGS.includes(p)) infos.push(`world_overrides: "${p}" is a Combat v2 world setting (read by engine/damage.js; not listed in the world file)`);
     else notes.push(`world_overrides: "${p}" is not in the world file`);
   }
   return { world: w, notes, infos };

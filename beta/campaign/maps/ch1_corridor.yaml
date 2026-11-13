@@ -21,7 +21,6 @@ map:
     player_1_home:  { edge: south, depth: 7 }
     player_2_home:  { edge: north, depth: 3 }
     no_mans_land:   { everything_else: true }
-    narrows:      [[-1, -1]]       # ch1: where the Seed takes station for the duel (its bow cell)
     corridor_mid: [[-2, 1], [-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1], [2, -1]]
 
   setup:
