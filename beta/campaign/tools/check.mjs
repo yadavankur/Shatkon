@@ -10,7 +10,7 @@ import { sensorOf, signatureOf } from '../../engine/detect.js';
 import { gap } from '../../engine/state.js';
 import { camp, worldFor, fleetShip, sideFleet, hullKeyFor, H, render, terrainSets } from './lib.mjs';
 
-const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_hurl ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff'.split(' ');
+const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_hurl ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff ch5_defeat'.split(' ');
 const BARKS = 'b1_scouts_ahead b1_contact_glyphs b1_finch_hit b1_seed_shield b1_seed_closing b1_weapons_gone b1_hurl_wren b1_hurl_kite b2_mines_set b2_choke b2_mine_boom b2_second_seed b2_dead_in_water b3_cover b3_pd_stopped b3_hull_low b3_flank_open b4_too_easy b4_graft_hint b4_seam_hums b5_jammed b5_kestrel_unresponsive b5_li_coming'.split(' ');
 const SHIP_IDS = 'kestrel sparrow finch wren kite halcyon tern seed seed_a seed_b twin twin_a twin_b husk_1 husk_2 husk_3 bloom'.split(' ');
 const ZONES = ['choke', 'minefield', 'li_arrival', 'outpost', 'bloom_entry'];
@@ -252,11 +252,47 @@ for (const node of campaign.nodes) {
     if (guar(e.when, seen)) return true;
     return ch.script.some((f) => f.fallback_for === id && guar(f.when, seen));
   };
+  // guide: on-map move guides (campaign/GUIDE_PROPOSAL.md). The engine's script runner reads only
+  // `when` and `do`, so it ignores them; this is the format lint.
+  const GUIDE_TARGETS = ['fire_at', 'launch_at', 'graft', 'dock'], GUIDE_DONE = ['reached', 'fired', 'launched', 'grafted', 'docked'];
+  const commanded = new Set((ch.player.ships || []).filter((x) => typeof x === 'string' || !x.helm).map((x) => (typeof x === 'string' ? x : x.id)));
+  const checkGuide = (g, where) => {
+    const w = `${where}: guide`;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return fail(`${w} must be a map`);
+    for (const k of Object.keys(g)) if (!['id', 'ship', 'clear', 'steps'].includes(k)) fail(`${w}: unknown field ${k}`);
+    if (!commanded.has(g.ship)) fail(`${w}: ship ${g.ship} is not a ship the player commands`);
+    if (g.clear !== undefined) walk(g.clear, `${w} clear`);
+    if (!Array.isArray(g.steps) || !g.steps.length) return fail(`${w} needs steps`);
+    const hex = (c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger);
+    const open = (c) => H.inHexagon(c, R) && !ast.has(H.key(c));
+    g.steps.forEach((st, i) => {
+      const ws = `${w} step ${i + 1}`;
+      for (const k of Object.keys(st)) if (!['label', 'move_to', 'path', 'done', 'timeout', ...GUIDE_TARGETS].includes(k)) fail(`${ws}: unknown field ${k}`);
+      if (typeof st.label !== 'string' || !st.label || st.label.length > 24) fail(`${ws}: label must be text of 1-24 characters`);
+      const tg = GUIDE_TARGETS.filter((k) => k in st);
+      if (tg.length > 1) fail(`${ws}: one target part at most (${tg.join(', ')})`);
+      if (!tg.length && st.move_to === undefined) fail(`${ws}: needs move_to or a target part`);
+      const m = st.move_to;
+      if (m !== undefined) {
+        if (hex(m)) { if (!open(m)) fail(`${ws}: move_to hex ${m} is off the open map`); }
+        else if (Array.isArray(m)) { if (!m.length || !m.every(hex)) fail(`${ws}: move_to list must be hexes`); else if (m.some((c) => !open(c))) fail(`${ws}: move_to hex off the open map`); }
+        else if (m && m.zone !== undefined) { if (!zones[m.zone]) fail(`${ws}: zone ${m.zone} not on the map`); }
+        else if (m && m.near !== undefined) { checkShip(m.near, ws); if (!(Number.isInteger(m.within) && m.within > 0)) fail(`${ws}: near needs within: n`); }
+        else fail(`${ws}: move_to is a hex, a list of hexes, { zone } or { near, within }`);
+      }
+      if (st.path !== undefined && !(Array.isArray(st.path) && st.path.length && st.path.every((c) => hex(c) && open(c)))) fail(`${ws}: path must be open hexes`);
+      for (const k of ['fire_at', 'graft', 'dock']) if (k in st) { if (typeof st[k] !== 'string') fail(`${ws}: ${k} needs a ship`); else checkShip(st[k], ws); }
+      if ('launch_at' in st && !(typeof st.launch_at === 'string' ? allIds.has(st.launch_at) : hex(st.launch_at))) fail(`${ws}: launch_at needs a ship or a hex`);
+      if (st.done !== undefined) { if (typeof st.done === 'string' && GUIDE_DONE.includes(st.done)) { if (st.done === 'reached' && m === undefined) fail(`${ws}: done: reached needs move_to`); if (st.done !== 'reached' && !(({ fired: 'fire_at', launched: 'launch_at', grafted: 'graft', docked: 'dock' })[st.done] in st)) fail(`${ws}: done: ${st.done} needs its target part`); } else walk(st.done, ws); }
+      if (st.timeout !== undefined && !(st.timeout && Number.isInteger(st.timeout.rounds) && st.timeout.rounds > 0)) fail(`${ws}: timeout is { rounds: n }`);
+    });
+  };
   for (const e of ch.script) for (const a of actionsOf(e)) if (a.doom) dooms.set(a.doom.ship, e.id);
   for (const e of ch.script) {
     const where = `${ch.id}/${e.id}`;
-    for (const k of Object.keys(e)) if (!['id', 'when', 'do', 'flavor', 'outcome', 'fallback_for'].includes(k)) fail(`${where}: unknown entry field ${k}`);
+    for (const k of Object.keys(e)) if (!['id', 'when', 'do', 'flavor', 'outcome', 'fallback_for', 'guide'].includes(k)) fail(`${where}: unknown entry field ${k}`);
     walk(e.when, where);
+    if (e.guide !== undefined) checkGuide(e.guide, where);
     for (const a of actionsOf(e)) {
       const keys = Object.keys(a);
       if (keys.length !== 1 || !ACTIONS.includes(keys[0])) fail(`${where}: cannot read action ${JSON.stringify(a)}`);

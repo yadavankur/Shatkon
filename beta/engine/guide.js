@@ -41,7 +41,10 @@ export function guideView(state, player) {
   if (mv && !deadInWater(state, s) && !(sc.locks || []).some((l) => l.ship === gd.ship && (l.actions === 'all' || (Array.isArray(l.actions) && l.actions.includes('move'))))) {
     if (Array.isArray(mv) && typeof mv[0] === 'number') cand = [mv];
     else if (Array.isArray(mv)) cand = mv;
-    else if (mv.zone) cand = ((R.campaign && R.campaign.zones) || {})[mv.zone] || [];
+    else if (mv.zone) {                            // like `reached`: any cell of the ship in the zone
+      const z = new Set((((R.campaign && R.campaign.zones) || {})[mv.zone] || []).map(key));
+      cand = board.filter((a) => s.segs.some((sg) => z.has(key(add(a, sg.off)))));
+    }
     else if (mv.near) {
       const t = known(mv.near);
       if (t) {

@@ -38,6 +38,23 @@ async function campaignRun() {
     await page.selectOption('#seat select', 'story');
     await page.waitForSelector('#story .cm', { timeout: 10000 });
   };
+  // story/player.js (story pack v2) plays scenes in a .story-stage overlay: pick a choice (the
+  // fork: Ashfall) or press Skip. Returns true if it acted. The text fallback (.story-card) is
+  // handled where it was.
+  const playerStep = async () => {
+    const opts = await page.$$('.story-stage .sk-opt:not([disabled])');
+    if (opts.length) {
+      let pick = opts[0];
+      for (const o of opts) if ((await o.getAttribute('data-option')) === 'ch4a') pick = o;
+      scenes.push('choice:' + (await pick.getAttribute('data-option')));
+      await pick.click(); return true;
+    }
+    const skip = await page.$('.story-stage .sk-skip');
+    if (skip) { scenes.push('scene'); await skip.click().catch(() => {}); return true; }
+    if (await page.$('.story-stage .sk-box')) { await page.click('.story-stage .sk-box').catch(() => {}); return true; }
+    return false;
+  };
+  const drain = async () => { for (let i = 0; i < 200; i++) { await page.waitForTimeout(60); if (!(await playerStep()) && !(await page.$('.story-stage'))) return; } };
   await openMap();
   const nodes = await page.$$eval('#story .cm-node', (bs) => bs.map((b) => b.className + ' | ' + b.getAttribute('aria-label')));
   log('map nodes:', JSON.stringify(nodes, null, 1));
@@ -49,7 +66,7 @@ async function campaignRun() {
       // UI bug workaround (test only): the fork choice greys out every other open node, ch5 too
       log('WORKAROUND: clearing progress.choices.fork so', title, 'opens');
       await page.evaluate(() => { const p = JSON.parse(localStorage.getItem('shatkon.story')); delete p.choices.fork; localStorage.setItem('shatkon.story', JSON.stringify(p)); });
-      await page.click('#story .cm-top button'); await openMap();
+      await drain(); await page.click('#story .cm-top button'); await openMap();
       node = await page.$(`#story .cm-node.open:has-text("${title}")`);
     }
     if (!node) { log('NO OPEN NODE', title, await page.$$eval('#story .cm-node', (bs) => bs.map((b) => b.className + ' ' + b.textContent))); break; }
@@ -57,6 +74,7 @@ async function campaignRun() {
     let steps = 0, last = '';
     while (steps++ < 4000) {
       await page.waitForTimeout(40);
+      if (await playerStep()) continue;
       const card = await page.$('.story-stage .story-card');
       if (card) {
         const id = (await card.$eval('.muted', (e) => e.textContent)).replace('Scene · ', '');
@@ -71,7 +89,7 @@ async function campaignRun() {
       if (st.obj) objectives.add(st.id + ': ' + st.obj);
       if (st.phase === 'over') {
         await page.waitForTimeout(300);
-        if (await page.$('.story-stage .story-card')) continue;
+        if (await page.$('.story-stage')) continue;
         log(`${st.id} over: ${st.result} in round ${st.round}`);
         if (st.id === 'ch1') await page.screenshot({ path: SHOTS + '/story-ch1-over.png' });
         if (st.id === 'ch5') await page.screenshot({ path: SHOTS + '/story-ch5-over.png' });
@@ -87,6 +105,7 @@ async function campaignRun() {
     }
     const prog = await page.evaluate(() => JSON.parse(localStorage.getItem('shatkon.story') || 'null'));
     log('  saved progress: completed', JSON.stringify(prog && prog.completed), 'roster', JSON.stringify(prog && prog.roster.map((r) => r.id + (r.hull ? '(hull ' + r.hull.length + ')' : ''))), 'choices', JSON.stringify(prog && prog.choices));
+    await drain();
     const back = await page.$('button:has-text("Campaign map")');
     if (back) await back.click(); else await openMap();
     await page.waitForSelector('#story .cm', { timeout: 10000 });

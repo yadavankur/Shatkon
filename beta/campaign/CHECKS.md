@@ -1,16 +1,17 @@
 # CHECKS: Shatkon: The Weave, chapters 1-5 (campaign-v2, Combat v2)
 
-All results are on branch `campaign-v2` = `origin/campaign-engine` **1afc785** (Combat v2) plus
-campaign/ changes. Run on 14 Nov 2026 (Sydney time).
+All results are on branch `campaign-v2`: `origin/campaign-engine` **1afc785** (Combat v2), with
+**7f90ce7** (story pack v2; `engine/` unchanged) merged in, plus campaign/ changes. The engine
+checkout used is 7f90ce7. Run on 14 Nov 2026 (Sydney time).
 
 - **[static]** `node campaign/tools/check.mjs`: buildRules per chapter on this branch's engine,
   plus the campaign lint (ids, names, order shapes, fallbacks). **ALL CHECKS PASSED**, with one
   note (`munitions.mine.strikes` is read by engine/damage.js but is not listed in the world file).
-- **[engine]** `node campaign/tools/engine_check.mjs --engine <1afc785 checkout> --games 40`:
+- **[engine]** `node campaign/tools/engine_check.mjs --engine <7f90ce7 checkout> --games 40`:
   every chapter through `buildChapter` / `applyResult`, 40 scripted AI-vs-AI games each (seeds
   1-40). The Weave follow the chapter's AI profiles; the human stand-in plays the stock normal AI.
 - **[browser]** `campaign/tools/browser_story.cjs` on this tree, served over http.
-- `node --test`: **64/64** pass.
+- `node --test` (repo root): **64/64** pass.
 
 Combat v2 numbers (rules/world_v0.4.yaml at 1afc785):
 - **Laser:** 3 hits to 4 hexes, 2 from 5-8. +1 hit if the ship moved this turn
@@ -37,7 +38,7 @@ like a sensible player rather than throwing games:
 
 | ch | result (40 games) | rounds | fallbacks needed | killing blows |
 |---|---|---|---|---|
-| 1 First Contact | 40 wins | 10 (all) | none (0/40 each: doom, disarm, ram, finish) | Finch by missile 40, Kite and Wren rammed 40, Seed by Kestrel's laser 40 |
+| 1 First Contact | 40 wins | 10 (all) | none (0/40 each: doom, disarm, hurl, ram, finish) | Finch by missile 40; Wren rammed the bow 40, Kite the stern 40; Seed by Kestrel's laser 40 |
 | 2 Quiet Water | 40 wins | 8 (all) | none (a/b fallbacks 0, finish 0) | both Seeds by laser, after a mine left them dead in the water (40/40 each) |
 | 3 The Splitting | 40 wins | 8 (34), 11 (6); avg 8.4 | despair r6 40/40 (as v1); pinned 0 | twin_a by laser 40; twin_b withdraws 40 |
 | 4A Ashfall | 40 wins (grafted) | 5-9, avg 7.0 | husks_dark 17/40; tow 40/40 (23/40 with `--graft`) | husks by laser / missile |
@@ -46,40 +47,55 @@ like a sensible player rather than throwing games:
 No `script_unknown` or `script_failed` event in any run (rails, `--no-rails`, `--sloppy`,
 `--graft`).
 
-**Small ships under focused fire (`--no-rails`, first hit to destroyed):** Finch 2 rounds,
+**Small ships under focused fire (`--no-rails`, first hit to destroyed):** Finch 1 round (one missile),
 Sparrow 2 (ch3), Sparrow and Halcyon 2 (ch5), the Seeds 3-4 once dead in the water (ch2). That
 meets the 2-3 round target.
 
 ## Chapter 1: First Contact
 
-Fleets: Kestrel (player; 3 lasers) and three script-flown escorts:
-- Finch: the unarmed scout, 2 plates;
-- Wren: 2 hexes, its laser exposed;
-- Kite: 1 hex, its laser the only mount.
+No invented rules (no lock, no hold-fire): the pacing comes from deployment, hull layout, AI
+targeting, `orders` and fallbacks.
 
-Against them, the Seed: 2 hexes, 2 missiles.
-- Bow: core, sensor, magazine | shield, shield, launcher.
-- Stern: coupling, 2 engines | shield, armour, laser.
+Fleets: Kestrel (player; 3 lasers; deployed at the rear, [-3,7]) and three script-flown escorts
+in a line across row 5, the corridor's full width (Kestrel cannot fire or pass through them):
+- Wren: 1 hex, [-4,5]; a plate, then its laser.
+- Finch: 1 hex, [-3,5]; the unarmed, unplated scout (3 bays).
+- Kite: 2 hexes, [-2,5]-[-1,5]; a plate, then its laser on the front cell.
+
+Against them, the Seed ([1,-5]): 2 hexes, 2 missiles, gun only at Wren and Kite
+(`only_targets`), 9 hexes off Kestrel.
+- Bow: core, sensor, engine | shield, shield, armour (faces the escorts).
+- Stern: coupling, engine, magazine | shield, launcher, laser.
 
 | beat | condition | fallback | 40 games |
 |---|---|---|---|
-| rails | start | - | protects; doom Finch r6; Kestrel guns cold until finch_down; Finch scouts ahead (`orders: move_toward`) |
-| contact | player sees the Seed | round 2 | r1.6 (r1-2) |
-| missile_away (flavor) | Finch inside 7 hexes, or r3 | - | r2 40/40: the Seed gets `orders: [launch_at: finch]` |
-| second_missile (flavor) | 2 rounds after missile_away, Finch alive | - | r4 40/40 |
-| **finch_down** | Finch destroyed | doom r6 | **r5 40/40, by missile 40/40** (doom 0); Finch under fire 2 rounds |
-| wren_disarmed / kite_disarmed | laser lost (or the fallback flag) | disarm_fallback r9 | r4 / r6 40/40, natural |
+| rails | start | - | protects; doom Finch r6; escorts `hold` (+ `fire_at: seed` for Wren and Kite) |
+| contact | player sees the Seed | round 2 | r2 40/40 |
+| missile_away (flavor) | Finch inside 7 hexes | - | r4 40/40: the Seed gets `orders: [launch_at: finch]`; lands the same round |
+| **finch_down** | Finch destroyed | doom r6 | **r6 40/40, by missile 40/40** (doom 0); one missile, 1 round under fire |
+| kite_disarmed / wren_disarmed | laser lost (or the fallback flag) | disarm_fallback r9 | r4 / r6 40/40, natural |
 | disarm_fallback | r9, weapons not gone | - | 0/40 |
-| weapons_gone | finch_down + both disarmed | (disarm_fallback) | r6 40/40; bark b1_weapons_gone; the escorts fall back on Kestrel |
-| hurl | 2 rounds after weapons_gone | - | r8 40/40; scene ch1_hurl; `orders: ram` |
-| ram_kite / ram_wren | `rammed: kite` / `rammed: wren` | ram_fallback (3 rounds after the hurl, `ram force`) | r9 / r10 40/40, natural. Kite strikes the **bow** (seg 0, 4 hits); Wren strikes the **stern** (seg 1, 8 hits: armour, laser, coupling, both engines) |
+| weapons_gone | finch_down + both disarmed | (disarm_fallback) | r6 40/40; bark; Seed `duel` (hold) + `orders: move_to [-1,-1]` |
+| seed_on_station (flavor) | weapons_gone + Seed in zone `narrows` | - | r7 40/40 |
+| hurl | seed_on_station, or 3 rounds after weapons_gone | - | r7 40/40 (on station); scene ch1_hurl; Wren `ram`, Kite `[move_to: [0,1], ram]` |
+| ram_wren / ram_kite | `rammed: wren` / `rammed: kite` | ram_fallback (4 rounds after the hurl, `ram force`) | r9 / r10 40/40, natural. **Wren hits the bow (seg 0) 40/40; Kite hits the stern (seg 1) 40/40** |
 | ram_fallback | - | - | 0/40 |
-| crippled | both rammed | (ram_fallback) | r10 40/40; Seed unprotected, engine/laser/launcher off, hold |
-| finish_fallback | 3 rounds after crippled | - | 0/40: Kestrel kills the hulk the same round |
-| flavor | - | - | seed_shield r5, finch_hit r4, retarget_kite r5; seed_closing 0 |
+| crippled | both rammed | (ram_fallback) | r10 40/40; Seed unprotected, engine/laser/launcher off, hold; objective + **guide** (Close to 4 hexes, then Fire on the Seed) |
+| finish_fallback | 4 rounds after crippled | - | 0/40: Kestrel kills the hulk the same round |
+| flavor | - | - | seed_shield r2, retarget_wren r4, seed_closing r8.5; finch_hit and retarget_kite 0 |
 
-`--sloppy`: identical. `--no-rails`: 40 wins at r5. Without protect, Kestrel kills the Seed in 1
-round once weapons are free, so the rails are what make room for the hurl.
+Other seeds (`--seed 101`): identical. `--sloppy` (the stand-in may shoot its own ships): 10-13
+rounds (avg 11.3); disarm_fallback 20/40, ram_fallback 11/40 (then Kite hits the bow); Finch by
+missile 20, by the stand-in's own laser 20. `--no-rails`: 40 wins at r3 (unprotected, the Seed
+dies to the escorts' and Kestrel's fire), so the rails are what make room for the story.
+
+How the earlier attempts failed (traces, for the record):
+- Escorts in row 1 (near the Seed): both disarmed r1-2 and over by r7.
+- Launcher (then magazine) in the bow: the escorts' first volleys strip it before the launch.
+- A missile launched at 8 hexes did not land that round and Wren's beam shot it down; the
+  Seed's own beam stopped on a second missile.
+- Kite's swing to [-1,3] ties the bow and stern (its west cell is in the bow's column): both
+  rams hit the bow.
 
 ## Chapter 2: Quiet Water
 
@@ -152,22 +168,18 @@ under Combat v2 lasers; ch4A stays the breather chapter.
 
 `NODE_PATH=<playwright> node campaign/tools/browser_story.cjs http://localhost:8766/play.html --fix-fork`,
 on this tree served with `python3 -m http.server`, in Chromium. The player's side is driven by
-`campaignMove`.
+`campaignMove`. Scenes now play in story/player.js (story pack v2); the script presses Skip and
+picks Ashfall at the fork.
 - **Map, fresh save:** First Contact open; Quiet Water, The Splitting, Ashfall and The Bloom
   "not yet"; The Long Dark locked ("Signal lost").
-- **Results:** ch1 win r9, ch2 win r8, ch3 win r8, ch4A win r9 (grafted), ch5 to_be_continued r7.
+- **Results:** ch1 win r10, ch2 win r8, ch3 win r8, ch4A win r5 (grafted with the Graft
+  button), ch5 to_be_continued r7.
 - **Saved progress:** after ch1 the roster is `[kestrel, sparrow]` (escorts gone, Sparrow
   added); after ch3 Halcyon and Tern join; after ch4A Kestrel carries the 6-segment hull and
   Tern is gone.
-- **Scenes shown (26):** ch1_intro ch1_contact ch1_finch_down **ch1_hurl** ch1_victory
-  ch1_salvage ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch3_intro ch3_split
-  ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch4_fork ch4a_intro ch4a_graft_found
-  ch4a_outro ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff.
-- **Objectives:** each `objective:` string appeared in the banner, including "Guns cold:
-  first-contact protocol.", "Wren and Kite are going in. Cover them." and "It's dead in the
-  water. Finish it."
-- **Console:** no script errors. The only errors are 34 "404 Not Found" loads under `story/`
-  (player.js, bark.js, scene JSON, map art), which the story developer has not delivered yet.
+- **Objectives** (fallback lines until the guide overlay exists): ch1 shows only "It's dead in
+  the water. Close to 4 hexes and fire on the Seed."
+- **Console:** no errors or warnings.
 
 **UI bug found (not fixable in campaign/):** after ch4A, **The Bloom shows as locked**.
 `drawMap`'s `nodeState` treats *every* open node other than `progress.choices.fork` as locked,
@@ -191,26 +203,26 @@ and `(chosen && forkKids.has(n.id) && n.id !== chosen && open.has(n.id))`.
   ok: buildRules: 0 problems
   ships:
     P kestrel  segs 3  thrust 4  sensor 6  signature 3  link 4  hull hp 24  lasers 3  shields 0  PD 0  load {}  FLAGSHIP
-    P finch    segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 7  lasers 0  shields 0  PD 0  load {}
-    P wren     segs 2  thrust 3  sensor 4  signature 2  link 4  hull hp 13  lasers 1  shields 0  PD 0  load {}
-    P kite     segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 4  lasers 1  shields 0  PD 0  load {}
+    P finch    segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 3  lasers 0  shields 0  PD 0  load {}
+    P wren     segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 6  lasers 1  shields 0  PD 0  load {}
+    P kite     segs 2  thrust 3  sensor 4  signature 2  link 4  hull hp 15  lasers 1  shields 0  PD 0  load {}
     W seed     segs 2  thrust 2  sensor 4  signature 2  link 4  hull hp 10  lasers 1  shields 3  PD 0  load {"missile":2}  FLAGSHIP
     Human fleet: thrust 9 for 7 segments -> move cap 2 hexes a turn
     Weave fleet: thrust 2 for 2 segments -> move cap 2 hexes a turn
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     seed - kestrel: 12 / 7 / 8
-    seed - finch: 9 / 5 / 6
-    seed - wren: 9 / 6 / 6
-    seed - kite: 9 / 5 / 6
-  ok: zones: corridor_mid (11)
-  ok: script: 20 entries; every beat has a condition and a guaranteed fallback: rails, contact, finch_down, kite_disarmed, wren_disarmed, disarm_fallback, weapons_gone, hurl, ram_wren, ram_kite, ram_fallback, crippled, finish_fallback
+    seed - finch: 10 / 5 / 6
+    seed - wren: 10 / 5 / 6
+    seed - kite: 10 / 6 / 6
+  ok: zones: narrows (1), corridor_mid (11)
+  ok: script: 20 entries; every beat has a condition and a guaranteed fallback: rails, contact, finch_down, wren_disarmed, kite_disarmed, disarm_fallback, weapons_gone, hurl, ram_wren, ram_kite, ram_fallback, crippled, finish_fallback
   win {"destroyed":"seed"}: must be earned in play (or ends through a scripted end)
 
-  Board (# asteroid, ~ nebula, M mine, X Weave, capitals = human ships by initial; lower case = zones: :=corridor_mid; ships drawn over zones)
+  Board (# asteroid, ~ nebula, M mine, X Weave, capitals = human ships by initial; lower case = zones: z=narrows, :=corridor_mid; ships drawn over zones)
 ```
  -7        # . . . . . . #
- -6       # # . X X . . # #
- -5      # # # . . . . # # #
+ -6       # # . . . . . # #
+ -5      # # # X X . . # # #
  -4     # # # # . . . # # # #
  -3    # # # # . . . . # # # #
  -2   # # # # # . . . # # # # #
@@ -218,11 +230,11 @@ and `(chosen && forkKids.has(n.id) && n.id !== chosen && open.has(n.id))`.
   0 # # # # # # : : : # # # # # #
   1  # # # # # : : : : # # # # #
   2   # # # # # . . . # # # # #
-  3    # # # # K F W W # # # #
+  3    # # # # . . . . # # # #
   4     # # # # . . . # # # #
-  5      # # # . . . . # # #
-  6       # # . K K K . # #
-  7        # . . . . . . #
+  5      # # # W F K K # # #
+  6       # # . . . . . # #
+  7        # . . K K K . #
 ```
 
 ## ch2 "Quiet Water"  (maps/ch2_quiet_water.yaml, radius 8)
@@ -411,7 +423,7 @@ and `(chosen && forkKids.has(n.id) && n.id !== chosen && open.has(n.id))`.
 ```
 
 ## Shared ids
-  ok: all 30 shared scene ids are used
+  ok: all 31 shared scene ids are used
   ok: all 23 shared bark ids are used
   final roster: ["kestrel","sparrow","halcyon"]
   final capabilities: core, engine, sensor, laser, armour, coupling, launcher, magazine, missile, mine, shield, point_defence, comms, seeker_drone, docking, graft
@@ -422,7 +434,7 @@ ALL CHECKS PASSED
 ## Appendix B: `engine_check.mjs --games 40` (rails on)
 
 ```
-engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40)
+engine: campaign-engine 7f90ce7 checkout  (games per chapter 40, seeds 1..40)
 
 ## ch1: buildChapter problems: none
   progress in: roster ["kestrel","finch","wren","kite"], capabilities 6, completed []
@@ -430,28 +442,29 @@ engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40)
   results: {"win":40}; rounds played avg 10.0 (min 10, max 10)
   beats fired (games / 40, round avg / min / max):
     rails             40  1.0 / 1 / 1
-    contact           40  1.6 / 1 / 2
-    missile_away      40  2.0 / 2 / 2  (flavor)
-    second_missile    40  4.0 / 4 / 4  (flavor)
-    seed_shield       40  5.0 / 5 / 5  (flavor)
-    finch_hit         40  4.0 / 4 / 4  (flavor)
-    finch_down        40  5.0 / 5 / 5
-    kite_disarmed     40  6.0 / 6 / 6
-    wren_disarmed     40  4.0 / 4 / 4
-    retarget_wren      0  -  (flavor)
-    retarget_kite     40  5.0 / 5 / 5  (flavor)
+    contact           40  2.0 / 2 / 2
+    missile_away      40  4.0 / 4 / 4  (flavor)
+    seed_shield       40  2.0 / 2 / 2  (flavor)
+    finch_hit          0  -  (flavor)
+    finch_down        40  6.0 / 6 / 6
+    wren_disarmed     40  6.0 / 6 / 6
+    kite_disarmed     40  4.0 / 4 / 4
+    retarget_kite      0  -  (flavor)
+    retarget_wren     40  4.0 / 4 / 4  (flavor)
     disarm_fallback    0  -
     weapons_gone      40  6.0 / 6 / 6
-    hurl              40  8.0 / 8 / 8
-    ram_wren          40  10.0 / 10 / 10
-    ram_kite          40  9.0 / 9 / 9
+    seed_on_station   40  7.0 / 7 / 7  (flavor)
+    hurl              40  7.0 / 7 / 7
+    ram_wren          40  9.0 / 9 / 9
+    ram_kite          40  10.0 / 10 / 10
     ram_fallback       0  -
-    seed_closing      40  9.0 / 9 / 9  (flavor)
+    seed_closing      40  8.5 / 8 / 9  (flavor)
     crippled          40  10.0 / 10 / 10
     finish_fallback    0  -
   destroyed / removed (games): {"finch":40,"wren":40,"kite":40,"seed":40}; of those by a doom fallback: {}
-  killing blow (ship:cause, games): {"finch:missile":40,"kite:rammed":40,"wren:rammed":40,"seed:laser":40}
-  rounds under fire before death (first hit to destroyed, avg / min / max): finch 2.0 / 2 / 2 (40 games); kite 4.0 / 4 / 4 (40 games); wren 7.0 / 7 / 7 (40 games); seed 6.0 / 6 / 6 (40 games)
+  killing blow (ship:cause, games): {"finch:missile":40,"wren:rammed":40,"kite:rammed":40,"seed:laser":40}
+  rams (rammer->target:segment hit, games; seg0 = bow, seg1 = stern on the Seeds): {"wren->seed:seg0":40,"kite->seed:seg1":40}
+  rounds under fire before death (first hit to destroyed, avg / min / max): finch 1.0 / 1 / 1 (40 games); wren 4.0 / 4 / 4 (40 games); kite 7.0 / 7 / 7 (40 games); seed 9.0 / 9 / 9 (40 games)
   rounds played (round: games): {"10":40}
   enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
   script_unknown / script_failed events: none
@@ -546,26 +559,26 @@ engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40)
 ## Appendix C: `--no-rails`
 
 ```
-engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40, NO protect actions)
+engine: campaign-engine 7f90ce7 checkout  (games per chapter 40, seeds 1..40, NO protect actions)
 
 ## ch1: buildChapter problems: none
   progress in: roster ["kestrel","finch","wren","kite"], capabilities 6, completed []
   fleets: kestrel* finch wren kite  vs  seed*
-  results: {"win":40}; rounds played avg 5.0 (min 5, max 5)
+  results: {"win":40}; rounds played avg 3.0 (min 3, max 3)
   beats fired (games / 40, round avg / min / max):
     rails             40  1.0 / 1 / 1
-    contact           40  1.6 / 1 / 2
-    missile_away      40  2.0 / 2 / 2  (flavor)
-    second_missile    40  4.0 / 4 / 4  (flavor)
-    seed_shield       40  5.0 / 5 / 5  (flavor)
-    finch_hit         40  4.0 / 4 / 4  (flavor)
-    finch_down        40  5.0 / 5 / 5
+    contact           40  2.0 / 2 / 2
+    missile_away       0  -  (flavor)
+    seed_shield       40  2.0 / 2 / 2  (flavor)
+    finch_hit          0  -  (flavor)
+    finch_down         0  -
+    wren_disarmed      0  -
     kite_disarmed      0  -
-    wren_disarmed     40  4.0 / 4 / 4
+    retarget_kite      0  -  (flavor)
     retarget_wren      0  -  (flavor)
-    retarget_kite     40  5.0 / 5 / 5  (flavor)
     disarm_fallback    0  -
     weapons_gone       0  -
+    seed_on_station    0  -  (flavor)
     hurl               0  -
     ram_wren           0  -
     ram_kite           0  -
@@ -573,10 +586,10 @@ engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40, NO
     seed_closing       0  -  (flavor)
     crippled           0  -
     finish_fallback    0  -
-  destroyed / removed (games): {"finch":40,"seed":40}; of those by a doom fallback: {}
-  killing blow (ship:cause, games): {"finch:missile":40,"seed:laser":40}
-  rounds under fire before death (first hit to destroyed, avg / min / max): finch 2.0 / 2 / 2 (40 games); seed 1.0 / 1 / 1 (40 games)
-  rounds played (round: games): {"5":40}
+  destroyed / removed (games): {"seed":40}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {"seed:laser":40}
+  rounds under fire before death (first hit to destroyed, avg / min / max): seed 2.0 / 2 / 2 (40 games)
+  rounds played (round: games): {"3":40}
   enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
   script_unknown / script_failed events: none
   progress out (from a won game): roster ["kestrel","sparrow"]
@@ -670,37 +683,38 @@ engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40, NO
 ## Appendix D: `--sloppy`
 
 ```
-engine: campaign-engine 1afc785 checkout  (games per chapter 40, seeds 1..40, human stand-in may shoot its own mines)
+engine: campaign-engine 7f90ce7 checkout  (games per chapter 40, seeds 1..40, human stand-in may shoot its own mines)
 
 ## ch1: buildChapter problems: none
   progress in: roster ["kestrel","finch","wren","kite"], capabilities 6, completed []
   fleets: kestrel* finch wren kite  vs  seed*
-  results: {"win":40}; rounds played avg 10.0 (min 10, max 10)
+  results: {"win":40}; rounds played avg 11.3 (min 10, max 13)
   beats fired (games / 40, round avg / min / max):
     rails             40  1.0 / 1 / 1
-    contact           40  1.6 / 1 / 2
-    missile_away      40  2.0 / 2 / 2  (flavor)
-    second_missile    40  4.0 / 4 / 4  (flavor)
-    seed_shield       40  5.0 / 5 / 5  (flavor)
-    finch_hit         40  4.0 / 4 / 4  (flavor)
-    finch_down        40  5.0 / 5 / 5
-    kite_disarmed     40  6.0 / 6 / 6
-    wren_disarmed     40  4.0 / 4 / 4
-    retarget_wren      0  -  (flavor)
-    retarget_kite     40  5.0 / 5 / 5  (flavor)
-    disarm_fallback    0  -
-    weapons_gone      40  6.0 / 6 / 6
-    hurl              40  8.0 / 8 / 8
-    ram_wren          40  10.0 / 10 / 10
-    ram_kite          40  9.0 / 9 / 9
-    ram_fallback       0  -
-    seed_closing      40  9.0 / 9 / 9  (flavor)
-    crippled          40  10.0 / 10 / 10
+    contact           40  2.0 / 2 / 2
+    missile_away      40  4.0 / 4 / 4  (flavor)
+    seed_shield       40  2.0 / 2 / 2  (flavor)
+    finch_hit          0  -  (flavor)
+    finch_down        40  5.0 / 4 / 6
+    wren_disarmed     40  7.5 / 6 / 9
+    kite_disarmed     40  4.0 / 4 / 4
+    retarget_kite      0  -  (flavor)
+    retarget_wren     40  4.0 / 4 / 4  (flavor)
+    disarm_fallback   20  9.0 / 9 / 9
+    weapons_gone      40  7.5 / 6 / 9
+    seed_on_station   40  8.0 / 7 / 9  (flavor)
+    hurl              40  8.0 / 7 / 9
+    ram_wren          40  10.6 / 9 / 13
+    ram_kite          40  11.3 / 10 / 13
+    ram_fallback      11  13.0 / 13 / 13
+    seed_closing      40  9.8 / 9 / 11  (flavor)
+    crippled          40  11.3 / 10 / 13
     finish_fallback    0  -
   destroyed / removed (games): {"finch":40,"wren":40,"kite":40,"seed":40}; of those by a doom fallback: {}
-  killing blow (ship:cause, games): {"finch:missile":40,"kite:rammed":40,"wren:rammed":40,"seed:laser":40}
-  rounds under fire before death (first hit to destroyed, avg / min / max): finch 2.0 / 2 / 2 (40 games); kite 4.0 / 4 / 4 (40 games); wren 7.0 / 7 / 7 (40 games); seed 6.0 / 6 / 6 (40 games)
-  rounds played (round: games): {"10":40}
+  killing blow (ship:cause, games): {"finch:missile":20,"wren:rammed":40,"kite:rammed":40,"seed:laser":40,"finch:laser":20}
+  rams (rammer->target:segment hit, games; seg0 = bow, seg1 = stern on the Seeds): {"wren->seed:seg0":40,"kite->seed:seg1":29,"kite->seed:seg0":11}
+  rounds under fire before death (first hit to destroyed, avg / min / max): finch 1.0 / 1 / 1 (40 games); wren 3.6 / 3 / 4 (31 games); kite 8.3 / 7 / 10 (40 games); seed 10.3 / 9 / 12 (40 games)
+  rounds played (round: games): {"10":20,"12":9,"13":11}
   enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
   script_unknown / script_failed events: none
   progress out (from a won game): roster ["kestrel","sparrow"]
