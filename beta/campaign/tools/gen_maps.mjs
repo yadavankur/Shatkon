@@ -104,9 +104,9 @@ const ring = (c, r) => H.disc(c, r).filter((x) => H.dist(x, c) === r);
   const R = 7;
   const open = (c) => Math.abs(xOf(c)) <= 1.5 || (Math.abs(c[1]) >= 6 && Math.abs(xOf(c)) <= 2.5);
   writeMap({
-    id: 'ch1_corridor', name: 'The Corridor', chapter: 'chapter 1', radius: R, homeSouth: 5, homeNorth: 3, mineRows: 0,
+    id: 'ch1_corridor', name: 'The Corridor', chapter: 'chapter 1', radius: R, homeSouth: 7, homeNorth: 3, mineRows: 0,
     notes: ['A narrow asteroid corridor, 3-4 hexes wide, running the length of the board.',
-      'Humans deploy in the south (rows 3-7), the Seed in the north (rows -7 to -5).',
+      'Humans deploy in the south (rows 1-7), the Seed in the north (rows -7 to -5).',
       'Asteroids block movement and lasers, not sensors: you can see through the walls but not shoot.'],
     asteroid: where(R, (c) => !open(c)), nebula: [],
     zones: { corridor_mid: where(R, (c) => open(c) && Math.abs(c[1]) <= 1) },
@@ -114,25 +114,29 @@ const ring = (c, r) => H.disc(c, r).filter((x) => H.dist(x, c) === r);
 }
 
 // ---------------- ch2_quiet_water ----------------
-// A two-row asteroid wall across the middle (rows 0 and 1). The only gap a 2-hex ship fits
-// through is in the centre: 3 hexes on row 0, 2 hexes on row 1. A 1-hex slot hugs the
-// west edge: only Sparrow fits. A nebula bank sits on the north mouth of the gap.
+// A great asteroid mass fills the middle of the board (rows -3 to 1, |x| <= 4.5): no ship gets
+// from the north half to the humans in the south except down one of two flank lanes, west and
+// east (2-4 hexes wide). Lasers do not cross the mass either. Each lane is crossed at its south
+// end, row 1, by a belt of 3 survey charges (zones belt_w / belt_e): every hex of the lane's
+// row 1 is mined, so anything that comes south down a lane sets one off.
+// A nebula bank on the south mouth of each lane hides the humans' waiting position a little.
 {
   const R = 8;
-  const gap = new Set(['-1,0', '0,0', '1,0', '-1,1', '0,1', '-8,0', '-8,1']);
-  const wall = where(R, (c) => (c[1] === 0 || c[1] === 1) && !gap.has(K(c)));
-  const scatter = [[4, 3], [-4, 4], [3, -4], [-5, -2], [6, -5], [-2, 7]];
-  const nebula = H.disc([0, -2], 1).concat([[2, -3], [-1, -3], [2, -4]]);
+  const mass = where(R, (c) => c[1] >= -3 && c[1] <= 1 && Math.abs(xOf(c)) <= 4.5);
+  const scatter = [[-2, 4], [3, 3], [0, -6], [-4, -5], [5, -6], [-7, 6]];
+  const belt = (side) => where(R, (c) => c[1] === 1 && side * xOf(c) >= 5);
+  const nebula = H.disc([-5, 3], 1).concat(H.disc([3, 3], 1)).filter((c) => !scatter.some((a) => K(a) === K(c)));
   writeMap({
-    id: 'ch2_quiet_water', name: 'Quiet Water', chapter: 'chapter 2', radius: R, homeSouth: 4, homeNorth: 3, mineRows: 6,
-    notes: ['An asteroid wall across rows 0-1 with one gap in the middle: the only way south for a 2-hex ship.',
-      'A nebula bank (-2 signature, -3 sensor) covers the gap\'s north mouth. Mines go in zone minefield.',
-      'The west-edge slot ([-8,0], [-8,1]) is 1 hex wide: Sparrow can use it, nothing bigger.'],
-    asteroid: wall.concat(scatter), nebula,
+    id: 'ch2_quiet_water', name: 'Quiet Water', chapter: 'chapter 2', radius: R, homeSouth: 6, homeNorth: 6, mineRows: 8,
+    notes: ['An asteroid mass across the middle (rows -3 to 1): the only ways south are the west and east lanes.',
+      'Each lane is mined right across at its south end, row 1 (zones belt_w, belt_e): 3 charges per lane, 6 in all.',
+      'Lasers do not cross the mass: the Seeds must come down a lane to fight.'],
+    asteroid: mass.concat(scatter), nebula,
     zones: {
-      choke: [...H.disc([0, -2], 1), [2, -3], [-1, -3], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [-1, 2], [0, 2], [1, 2]],
-      minefield: [[0, -1], [-1, 0], [1, 0], [0, 1]],
-      west_slot: [[-8, 0], [-8, 1]],
+      belt_w: belt(-1),
+      belt_e: belt(1),
+      lane_w: where(R, (c) => c[1] >= -3 && c[1] <= 1 && xOf(c) <= -5),
+      lane_e: where(R, (c) => c[1] >= -3 && c[1] <= 1 && xOf(c) >= 5),
     },
   });
 }

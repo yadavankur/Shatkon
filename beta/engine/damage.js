@@ -110,7 +110,7 @@ export function explode(state, obj, struck) {
 
 // A blast that goes for the engines: each hit lands on the working engine nearest the impact,
 // anywhere on the ship, so a strong enough mine leaves a ship dead in the water.
-function strikeEngines(state, struck, n, cause) {
+export function strikeEngines(state, struck, n, cause) {
   const s = struck.ship, at = segHex(s, struck.seg);
   for (let k = 0; k < n && !s.dead; k++) {
     let best = -1, bd = Infinity;
