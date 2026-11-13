@@ -10,7 +10,7 @@ import { sensorOf, signatureOf } from '../../engine/detect.js';
 import { gap } from '../../engine/state.js';
 import { camp, worldFor, fleetShip, sideFleet, hullKeyFor, H, render, terrainSets } from './lib.mjs';
 
-const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_hurl ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff'.split(' ');
+const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_hurl ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff ch5_defeat'.split(' ');
 const BARKS = 'b1_scouts_ahead b1_contact_glyphs b1_finch_hit b1_seed_shield b1_seed_closing b1_weapons_gone b1_hurl_wren b1_hurl_kite b2_mines_set b2_choke b2_mine_boom b2_second_seed b2_dead_in_water b3_cover b3_pd_stopped b3_hull_low b3_flank_open b4_too_easy b4_graft_hint b4_seam_hums b5_jammed b5_kestrel_unresponsive b5_li_coming'.split(' ');
 const SHIP_IDS = 'kestrel sparrow finch wren kite halcyon tern seed seed_a seed_b twin twin_a twin_b husk_1 husk_2 husk_3 bloom'.split(' ');
 const ZONES = ['choke', 'minefield', 'li_arrival', 'outpost', 'bloom_entry'];
