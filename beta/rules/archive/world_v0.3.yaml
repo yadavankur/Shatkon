@@ -1,0 +1,278 @@
+# ============================================================
+#  WORLD FILE v0.3  -  the laws of physics + the parts catalogue
+#
+#  What changed from v0.2: ships are now built from SEGMENTS,
+#  and every segment has six slots (3 bays + 3 mounts).
+#  Damage is counted in whole "hits" that knock out one slot each.
+#
+#  Companion files:
+#    map_open_space.yaml  - the board, zones and terrain
+#    fleets_v0.3.yaml     - what each player built and where it starts
+#
+#  Lines starting with # are notes. Change any number freely.
+# ============================================================
+
+meta:
+  name: "Shatkon"
+  version: "0.3"
+
+
+# ------------------------------------------------------------
+# 1. TURNS
+# ------------------------------------------------------------
+turns:
+  command_points:
+    per_turn: 3
+    bank_cap: 6               # most unspent points you can carry over
+    bank_hidden: true         # opponent never sees your bank
+  round_structure:
+    - player_turn             # first player spends command points
+    - player_turn             # second player spends command points
+    - flight_phase            # missiles and drones all move together
+  first_player: alternate     # swaps every round
+  flight_phase:
+    ticks: 6                  # the flight phase is cut into 6 small steps.
+                              # A speed-6 missile moves 1 hex every step.
+  turn_limit: 30
+  win_conditions:
+    - destroy_enemy_flagship
+
+
+# ------------------------------------------------------------
+# 2. ACTIONS  (what a command point buys)
+# ------------------------------------------------------------
+actions:
+  move:     { cost: 1, note: "one ship moves up to its speed (see movement)" }
+  fire:     { cost: 1, note: "fire one beam weapon into its own arc" }
+  launch:   { cost: 1, note: "launch one missile or drone and secretly plot its route" }
+  scan:     { cost: 1, note: "reveal the six slots of one enemy segment you can see" }
+  detonate: { cost: 1, note: "blow up one of your own drones" }
+  pass:     { cost: 0, note: "end your turn; unspent points go to the bank" }
+
+
+# ------------------------------------------------------------
+# 3. SEGMENTS AND SLOTS  (how a ship is put together)
+# ------------------------------------------------------------
+#  A ship is 1 to 7 SEGMENTS. Each segment fills one hex of the board.
+#  Each segment has six slots:
+#    3 BAYS   - the inner hexagons. The guts: engines, sensors, stealth.
+#    3 MOUNTS - the corner diamonds. The skin: weapons and defences.
+#  Each mount sits between two bays and faces outward, covering
+#  one third of the directions around the segment (its "arc").
+#  A slot may be left empty. Empty slots cost nothing.
+segments:
+  max_per_ship: 7
+  must_be_connected: true
+  cost: 3                     # budget points per segment, before parts
+
+  # Ships do not rotate in v0.3. A ship points either up or down,
+  # chosen when it is built. Player 2's mirrored ships point down.
+  orientation:
+    up:
+      bays:   [north_west, north_east, south]
+      mounts:
+        north:      { covers_edges: [north_west, north_east], behind_it: [north_west, north_east] }
+        south_west: { covers_edges: [west, south_west],       behind_it: [north_west, south] }
+        south_east: { covers_edges: [east, south_east],       behind_it: [north_east, south] }
+    down:
+      bays:   [south_east, south_west, north]
+      mounts:
+        south:      { covers_edges: [south_east, south_west], behind_it: [south_east, south_west] }
+        north_east: { covers_edges: [east, north_east],       behind_it: [south_east, north] }
+        north_west: { covers_edges: [west, north_west],       behind_it: [south_west, north] }
+
+  buried_mount: >
+    If both edges a mount covers touch other segments of the same ship,
+    the mount is buried: a weapon there cannot fire and a defence there
+    does nothing. Outside shots can never reach it either.
+
+
+# ------------------------------------------------------------
+# 4. MOVEMENT
+# ------------------------------------------------------------
+movement:
+  speed_rule: "speed = working engines / segments (wrecked segments still count as weight)"
+  fraction_rule: bank         # what to do with the part after the decimal point
+  fraction_rule_options:
+    bank: "the fraction fills a meter each time the ship moves; when the meter reaches 1 the ship gets 1 extra hex (no dice)"
+    chance: "the fraction is the chance of 1 extra hex, rolled each time the ship moves"
+  examples:
+    - "1 segment, 1 engine  = speed 1"
+    - "2 segments, 1 engine = speed 0.5: bank = 1 hex every second move; chance = 50% to move 1 hex"
+    - "3 segments, 4 engines = speed 1.33: always 1 hex, plus a third of an extra hex"
+  ships_rotate: false
+
+
+# ------------------------------------------------------------
+# 5. DETECTION
+# ------------------------------------------------------------
+detection:
+  rule: "you see a target if distance <= your sensor range + its signature + its flare"
+  sensor_rule: "sensor range = 2 from the core, plus 2 for every working sensor part"
+  signature_rule: "signature = number of segments, minus 0.5 for every working stealth part, rounded up"
+  small_object_signature: 1   # default for missiles, drones, mines
+  flare:                      # temporary extra visibility, lasts until the end of the next round
+    fire_beam: 0              # silent...
+    beam_hit: 3               # ...unless it hits
+    launch: 2
+    point_defence_shot: 2
+    detonation_lights_up: 4   # everything within this many hexes of a blast is revealed
+  lost_contact: ghost         # an enemy that slips out of view leaves a "last seen here" marker
+  information: "a player sees everything any of their ships or drones can see"
+
+
+# ------------------------------------------------------------
+# 6. COMMS NETWORK
+# ------------------------------------------------------------
+comms:
+  core_link_range: 4          # every ship can link to friends this close
+  rule: >
+    Ships within link range of each other form a network (links chain).
+    A ship may lock a missile onto any target seen by its network.
+    A ship outside the network can only lock onto what it sees itself.
+
+
+# ------------------------------------------------------------
+# 7. DAMAGE  (whole hits, no arithmetic)
+# ------------------------------------------------------------
+#  Every weapon delivers a number of HITS. Resolve them one at a time.
+damage:
+  arrives_through: "the mount whose arc covers the edge the shot comes in through"
+  each_hit:                   # work down this list until one line applies
+    - "shield in that mount with charge left: the shield soaks it"
+    - "armour in that mount with plates left: one plate is lost"
+    - "any other working part in that mount: that part is destroyed"
+    - "otherwise the hit gets inside: one bay behind that mount is breached, and any part in it is destroyed"
+    - "if both bays behind the mount are already breached: the third bay is breached"
+    - "if all three bays are breached: the segment is wrecked"
+  which_bay: defender_chooses # options: defender_chooses, attacker_chooses, random
+  wrecked_segment: stays_attached   # still takes up space and still weighs the ship down;
+                                    # further hits on it pass through to the next segment in line
+  blast:
+    rule: "a blast gives its full hits to the segment it touches and 1 hit to every other segment or small object within its radius"
+    friendly_fire: true
+  small_objects: "missiles, drones and mines are destroyed by 1 hit"
+  ship_destroyed_options: [core_lost, all_segments_wrecked]   # chosen per ship
+
+
+# ------------------------------------------------------------
+# 8. BAY PARTS  (go in the inner hexagons)
+# ------------------------------------------------------------
+bay_parts:
+  core:
+    note: "the ship's brain; every ship needs exactly one. Gives sensor range 2 and a short comms link"
+    per_ship: 1
+    cost: 0
+  engine:
+    note: "each working engine adds 1 thrust"
+    thrust: 1
+    cost: 6
+  sensor:
+    note: "each working sensor adds 2 to sensor range"
+    adds_range: 2
+    cost: 5
+  stealth:
+    note: "damper: hides half a segment"
+    hides: 0.5
+    max_per_segment: 1        # stops a ship from becoming fully invisible
+    cost: 6
+  flare_mask:
+    note: "hides the flash when this ship fires, launches or uses point defence"
+    flare_reduction: 1
+    cost: 5
+  magazine:
+    note: "stores missiles and drones for the ship's launchers"
+    holds: 3
+    cost: 3
+  comms:
+    note: "long-range link and relay; lose it and your fleet may split into islands"
+    link_range: 12
+    cost: 5
+
+
+# ------------------------------------------------------------
+# 9. MOUNT PARTS  (go in the corner diamonds; each works only in its own arc)
+# ------------------------------------------------------------
+mount_parts:
+  laser:
+    note: "instant, straight line, needs a clear line of sight to a target you can see"
+    hits: 2
+    range: 8
+    loses_1_hit_every: 4      # 2 hits out to 4 hexes, 1 hit from 5 to 8
+    cost: 10
+  launcher:
+    note: "launches missiles and drones stored in the ship's magazines"
+    cost: 4
+  shield:
+    note: "soaks hits coming through its arc; recharges at the end of every round"
+    soaks_per_round: 1
+    cost: 8
+  armour:
+    note: "plates that soak hits coming through its arc; they do not come back"
+    plates: 2
+    cost: 5
+  point_defence:
+    note: "automatic: stops missiles and drones arriving through its arc; costs no command points but lights the ship up"
+    stops_per_round: 1
+    cost: 7
+
+
+# ------------------------------------------------------------
+# 10. MUNITIONS  (real pieces on the board)
+# ------------------------------------------------------------
+munitions:
+  missile:
+    speed: 6                  # hexes per round
+    fuel: 3                   # rounds before it burns out
+    turn_rate: 1              # 60-degree turns allowed per tick
+    hits: 3
+    blast_radius: 1
+    seeker_range: 2
+    guidance:
+      locked: "chases its target while the target is seen by the missile or the launcher's network"
+      unlocked: "flies the plotted route, then goes for the first enemy within seeker_range"
+    cost: 8
+
+  seeker_drone:
+    speed: 3
+    fuel: 6
+    sensor_range: 3
+    patrol: random            # options: line, circle, random
+    hits: 2
+    blast_radius: 1
+    reports: true             # what it sees, you see
+    reveals_itself_on_detect: true
+    remote_detonate: true
+    can_place_at_setup: true
+    cost: 6
+
+  mine:
+    speed: 0
+    hits: 4
+    blast_radius: 0
+    setup_only: true          # placed secretly before the game
+    max_per_player: 6
+    cost: 5
+
+
+# ------------------------------------------------------------
+# 11. TERRAIN TYPES  (placed by the map file)
+# ------------------------------------------------------------
+terrain:
+  asteroid: { blocks_movement: true, blocks_sight: true }
+  nebula:   { sensor_penalty: 3, signature_bonus: -2, note: "inside you see less and are harder to see" }
+
+
+# ------------------------------------------------------------
+# 12. PARKED FOR LATER  (not in the engine yet)
+# ------------------------------------------------------------
+# - Ships that rotate (the arcs would turn with them)
+# - Upgrade levels for parts (engine mk2 = 1.5 thrust, and so on)
+# - Cutting a wrecked segment loose to shed its weight
+# - Compound / twin ships that split apart (speed changes by itself: engines / segments)
+# - Tractor (large ship swallows a small one)
+# - Tunnel / wormhole devices
+# - Distortion stealth (appear bigger or smaller than you are)
+# - Space rivers, gravity wells, warped hexes, sphere / doughnut boards
+# - Campaign: branching map, unlocks and upgrades, salvage collectors,
+#   raw materials between battles, planet-sized final boss

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shatkon - Play</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#070b16; --panel:#101830; --panel2:#0c1326; --line:#25325a; --text:#e7ecf6; --muted:#8f9cba;
+  --accent:#f5b942; --good:#58d6a0; --bad:#ff7a7a; --p0:#f5b942; --p1:#5cc8ff; --hl:#58d6a0;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,textarea{font:inherit;color:inherit}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{margin:0;font-size:17px;letter-spacing:.04em}
+header a{color:var(--muted);font-size:13px}
+main{max-width:860px;margin:0 auto;padding:10px 14px 40px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 11px;cursor:pointer;color:var(--muted);min-height:38px}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--text)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;cursor:pointer;min-height:42px;line-height:1.15;text-align:left}
+.btn small{display:block;color:var(--muted);font-size:11.5px}
+.btn[aria-pressed="true"]{border-color:var(--hl);box-shadow:inset 0 0 0 1px var(--hl)}
+.btn.go{border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin:8px 0}
+.sp{flex:1}
+.who0{--me:var(--p0)} .who1{--me:var(--p1)}
+#turnbar{border:1px solid var(--me,var(--line));border-left-width:5px;border-radius:10px;background:var(--panel);padding:8px 12px;margin:0 0 8px}
+#turnbar .big{font-size:18px;font-weight:700;color:var(--me,var(--text))}
+#turnbar .line{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;font-size:13.5px;margin-top:4px}
+.stepchip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--muted)}
+.stepchip.now{color:var(--bg);background:var(--me,var(--text));border-color:transparent;font-weight:700}
+.pips{letter-spacing:2px;color:var(--accent);font-size:15px}
+.pips i{font-style:normal;color:var(--line)}
+b.n{font-family:var(--mono);color:var(--accent)}
+#fleet{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin:0 0 8px}
+.shipchip{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:6px 10px;cursor:pointer;text-align:left;min-width:132px}
+.shipchip[aria-pressed="true"]{border-color:var(--me);box-shadow:inset 0 0 0 1px var(--me)}
+.shipchip .nm{font-weight:700;color:var(--me)}
+.shipchip .st{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:2px}
+.shipchip .st b{color:var(--text);font-family:var(--mono)}
+.shipchip .st .zero b{color:var(--bad)}
+#boardbox{position:relative}
+#wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#04070f;height:min(100vw,58vh);max-height:640px}
+#wrap svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+#camera{display:flex;gap:6px;justify-content:flex-end;margin:6px 0 0}
+#camera button{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-width:44px;min-height:36px;padding:0 12px;cursor:pointer;color:var(--muted)}
+#hint{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13.5px;min-height:38px}
+#hint.err{border-color:var(--bad)}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:10px 12px;margin:10px 0}
+.card h2{margin:0 0 6px;font-size:14px}
+.card p{margin:4px 0;font-size:13.5px}
+.card.news{border-left:4px solid var(--accent)}
+.muted{color:var(--muted);font-size:13px}
+.parts{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 6px}
+.chip{font:12.5px var(--mono);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:var(--panel2);display:inline-flex;align-items:center;gap:5px}
+.chip i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.chip.dead{text-decoration:line-through;color:var(--muted)}
+.chip.hurt{border-color:var(--bad)}
+textarea{width:100%;min-height:64px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px var(--mono);word-break:break-all}
+.feed{margin:0;padding-left:18px;font-size:13px}
+.feed li{margin:2px 0}
+.warn{border-left:3px solid var(--bad)}
+svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.hdr-l{display:flex;align-items:center;gap:14px}
+#tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#tabs a{padding:7px 14px;color:var(--muted);text-decoration:none;font-size:14px;min-height:22px}
+#tabs a[aria-current="page"]{background:var(--panel);color:var(--text)}
+#labbanner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px dashed var(--accent);border-radius:10px;padding:6px 10px;margin:4px 0 8px;font-size:13px}
+#labbanner[hidden]{display:none}
+#lab{max-width:1180px;margin:0 auto;padding:10px 14px 60px}
+#lab .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+#lab h3{margin:0 0 6px;font-size:16px}
+#lab .muted{color:var(--muted);font-size:13px}
+#lab .btn.sm{min-height:34px;padding:4px 10px;font-size:13px}
+#lab .btn.primary{border-color:var(--accent);color:var(--accent)}
+#lab select,#lab input{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit;font-size:13px;min-height:30px}
+.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lab-grid>.card{margin:0}
+.lab-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.lab-btns,.lab-wrap{flex-wrap:wrap}
+.lab-name{flex:1;min-width:6em}
+.lab-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.lab-two{display:grid;grid-template-columns:minmax(150px,1fr) 1.3fr;gap:10px;align-items:start}
+.lab-hull{width:100%;max-width:260px;display:block;margin:auto}
+.lab-hex{cursor:default}.lab-hex.on,.lab-hex.add{cursor:pointer}.lab-hex.add:hover polygon{stroke:var(--accent)}
+.lab-hex:focus{outline:none}.lab-hex:focus polygon{stroke:#fff}
+.lab-slots{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:4px;align-items:center;margin:4px 0}
+.lab-slots small{color:var(--muted);width:4em}
+.lab-stats{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}
+.lab-stats th{text-align:left;color:var(--muted);font-weight:500;padding:3px 8px 3px 0;vertical-align:top;white-space:nowrap}
+.lab-stats td{padding:3px 6px 3px 0;vertical-align:top}
+.lab-stats tr+tr{border-top:1px solid #1a2442}
+.lab-warn{color:var(--bad);font-size:13px;margin:6px 0}
+.lab-situ{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:6px 0}
+.lchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:12.5px;cursor:pointer;user-select:none}
+.lchip.on{border-color:var(--accent);background:#2a2412}
+.lchip input[type=checkbox]{margin:0}
+#lab svg text{text-anchor:start;dominant-baseline:auto;pointer-events:none}#lab svg text.mid{text-anchor:middle}
+.lab-chart,.lab-strip{width:100%;display:block;margin:6px 0;background:#0a0f1d;border-radius:8px}
+.lab-what ul{margin:4px 0 8px;padding-left:20px;font-size:13.5px}
+.lab-win{display:flex;border-radius:8px;overflow:hidden;font-weight:700;font-size:13px;color:#10131c;margin:6px 0}
+.lab-win>div{padding:6px 8px;white-space:nowrap;overflow:hidden;min-width:0}
+.lab-bar{display:grid;grid-template-columns:7.5em 1fr 3em;gap:6px;align-items:center;font-size:12.5px;margin:2px 0}
+.lab-bar i{display:block;height:8px;border-radius:4px;background:var(--good)}
+.lab-bar em{font-style:normal;color:var(--muted);text-align:right}
+.lab-ev{font-size:13px;background:#0a0f1d;border-radius:8px;padding:6px 10px;min-height:3.2em}
+.lab-kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
+.lab-knob{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;border:1px solid transparent;border-radius:6px;padding:2px 6px}
+.lab-knob.changed{border-color:var(--accent);background:#2a2412}
+.lab-pick{display:flex;flex-wrap:wrap;gap:5px;align-content:flex-start}
+.lab-pick>b{width:100%}
+.lab-beam{animation:labbeam .45s ease-out}
+@keyframes labbeam{from{stroke-opacity:1;stroke-width:5}to{stroke-opacity:.5}}
+.lab-hit{animation:labhit .45s ease-out}
+@keyframes labhit{0%{r:15}100%{r:9}}
+#labtoast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);border-radius:999px;padding:6px 14px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}
+#labtoast.show{opacity:1}
+#lab select{min-width:0;max-width:100%}.lab-slots select{padding:4px 2px;font-size:12px}.lab-grid>*,.lab-two>*{min-width:0}#labbanner a.btn{color:var(--text);text-decoration:none}
+@media (max-width:760px){.lab-grid,.lab-two{grid-template-columns:minmax(0,1fr)}.lab-slots{grid-template-columns:repeat(3,minmax(0,1fr))}.lab-name{min-width:0}.lab-slots small{grid-column:1/-1}#lab{padding:8px 10px 50px}}
+@media (prefers-reduced-motion:reduce){.lab-beam,.lab-hit{animation:none}}
+
+/* computer opponent, animations, scan preview, Lab */
+.hdr-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#seat select{background:var(--panel);color:var(--text);border:0;padding:7px 10px;min-height:38px;font:inherit;cursor:pointer;border-radius:8px}
+.iconbtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-width:40px;min-height:38px;cursor:pointer;color:var(--text);font-size:16px;line-height:1}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(4,7,15,.82);display:flex;align-items:center;justify-content:center;padding:14px}
+.modal[hidden]{display:none}
+.modal-box{max-width:560px;max-height:calc(100vh - 28px);overflow:auto;margin:0;border-color:var(--accent)}
+.modal-box h2{font-size:17px;color:var(--accent)}
+#help ol{margin:6px 0 4px;padding-left:20px;font-size:13.5px}
+#help li{margin:3px 0}
+#help b{color:var(--accent)}
+.card.over{border:1px solid var(--me);border-left-width:5px}
+.card.over h2{font-size:17px;color:var(--me)}
+#curtain{position:fixed;inset:0;z-index:50;background:rgba(4,7,15,.97);display:flex;align-items:center;justify-content:center;padding:20px}
+#curtain[hidden]{display:none}
+.curtain-box{max-width:420px;text-align:center;border:1px solid var(--me);border-radius:14px;background:var(--panel);padding:22px}
+.curtain-box .big{font-size:22px;font-weight:700;color:var(--me);margin-bottom:6px}
+.curtain-box .btn{margin-top:10px;text-align:center}
+#hint{transition:background-color .4s}
+#fx{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
+#toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-30px);opacity:0;pointer-events:none;z-index:4;padding:8px 18px;border-radius:999px;background:rgba(6,10,20,.92);border:1px solid var(--line);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:14px;white-space:nowrap}
+#toast.show{animation:toast 1.9s ease-out both}
+#toast.p0{color:var(--p0);border-color:var(--p0)} #toast.p1{color:var(--p1);border-color:var(--p1)} #toast.flight{color:#ff9d4d;border-color:#ff9d4d} #toast.over{color:var(--good);border-color:var(--good);font-size:20px}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-30px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-10px)}}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-6px,2px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-4px,1px)}80%{transform:translate(3px,0)}}
+.fuzz{animation:fuzz 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes fuzz{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1.06)}}
+.flow{animation:flow 1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-11}}
+.scanprev{animation:scanprev 1.6s ease-in-out infinite}
+@keyframes scanprev{0%,100%{opacity:.7}50%{opacity:1}}
+.lastpill{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bg);background:var(--bad);border-radius:999px;padding:1px 9px;animation:fuzz 1.6s ease-in-out infinite}
+.btn.go.last{border-color:var(--bad);color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+.ledger{margin-top:6px;font-size:12.5px}
+.ledger summary{cursor:pointer;color:var(--muted)}
+.ledger table{border-collapse:collapse;margin-top:4px}
+.ledger td{padding:1px 8px 1px 0;vertical-align:top}
+.ledger td:first-child{font-family:var(--mono);text-align:right;min-width:3.2em}
+.ledger tr.info td{color:var(--muted);font-size:12px} .ledger tr.plus td:first-child{color:var(--good)} .ledger tr.minus td:first-child{color:var(--bad)} .ledger tr.tot td{border-top:1px solid var(--line);font-weight:700;color:var(--accent)}
+.card.report{border-left:4px solid var(--bad);animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.97);opacity:.3}to{transform:none;opacity:1}}
+.rep{padding:6px 0;border-top:1px solid var(--line)} .rep:first-of-type{border-top:0}
+.rephead{font-size:13.5px;font-weight:700} .rep.mine .rephead{color:var(--bad)} .rep.theirs .rephead{color:var(--accent)}
+.hullbar{position:relative;height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;max-width:320px}
+.hullbar span{display:block;height:100%;transition:width .8s}
+.hullbar em{position:absolute;left:8px;top:-1px;font:11px var(--mono);font-style:normal;color:#fff;text-shadow:0 0 3px #000}
+.destroyed{color:var(--bad);font-weight:800;letter-spacing:.15em;margin-top:4px}
+.btn small.warnnote{color:var(--accent)}
+.boom{animation:boom 1.1s ease-out 1;transform-box:fill-box;transform-origin:center}
+@keyframes boom{0%{transform:scale(.3);stroke-width:3px}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.boom,.fuzz,.flow,.scanprev,.lastpill,.shake{animation:none}}
+.btn:focus-visible,.shipchip:focus-visible,.iconbtn:focus-visible,#seat select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* story campaign */
+#story{position:fixed;inset:0;z-index:40;background:#050811;overflow:auto;padding:12px}
+.cm{max-width:900px;margin:0 auto}
+.cm-top,.cm-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:8px 0}
+.cm-top h2{margin:0;color:var(--gold,#e8c15a)}
+.cm-art{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background-size:100% 100%,cover;background-position:center}   /* the art's own lanes line up with the nodes */
+.cm-scroll{overflow-x:auto;border-radius:12px;-webkit-overflow-scrolling:touch}
+@media (max-width:760px){.cm-art{width:760px}}   /* phones: a bigger map you can swipe sideways */
+.cm-lanes{position:absolute;inset:0;width:100%;height:100%}
+.cm-lanes line{stroke:#3a4a7a;stroke-width:.5;stroke-dasharray:1.5 1.5;vector-effect:non-scaling-stroke}
+.cm-lanes line.lit{stroke:#e8c15a;stroke-dasharray:none}
+.cm-node{position:absolute;transform:translate(-50%,-50%);background:none;border:0;color:#cfd8f5;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit}
+.cm-node .dot{width:22px;height:22px;border-radius:50%;border:2px solid #5d6b99;background:#0b1020;box-shadow:0 0 0 4px rgba(0,0,0,.35)}
+.cm-node.open .dot{border-color:#e8c15a;background:#3a2e0b;animation:cmPulse 1.6s ease-in-out infinite}
+.cm-node.done .dot{border-color:#e8c15a;background:#e8c15a}
+.cm-node.locked{opacity:.45;cursor:default}.cm-node.later{opacity:.55;cursor:default}
+.cm-node .lbl{font-size:13px;text-align:center;background:rgba(5,8,17,.75);padding:2px 6px;border-radius:6px;white-space:nowrap}
+.cm-node .lbl small{display:block;font-size:11px;color:#9aa6c8}
+@keyframes cmPulse{50%{box-shadow:0 0 0 9px rgba(232,193,90,.15)}}
+@media (prefers-reduced-motion:reduce){.cm-node.open .dot{animation:none}}
+.story-stage{position:fixed;inset:0;z-index:60}
+.story-stage:has(.story-card){background:rgba(4,7,15,.92);display:flex;align-items:center;justify-content:center;padding:16px}
+.story-card{max-width:560px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.story-lines p{margin:.5em 0}
+#barks{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:45;pointer-events:none}
+.objective{border-left:3px solid #e8c15a;padding-left:8px}
+.lockedchip{opacity:.6}
+#betabadge{font-size:.55em;color:#0b1020;background:#e8c15a;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-l"><h1>SHATKON<span id="betabadge" hidden> BETA</span></h1><nav id="tabs" aria-label="Views"><a href="#play" aria-current="page">Play</a><a href="#lab">Lab</a></nav></div>
+  <div class="hdr-r"><div class="seg" id="seat" role="group" aria-label="Game mode"></div><button class="iconbtn" id="sfx" aria-label="Sound">&#128266;</button><button class="iconbtn" id="helpbtn" aria-label="How to play">?</button><a href="index.html">Rule viewer</a></div>
+</header>
+<main>
+  <div id="labbanner" hidden></div>
+  <div id="problems"></div>
+  <div id="turnbar"></div>
+  <div id="fleet"></div>
+  <div id="boardbox"><div id="wrap"></div><canvas id="fx" aria-hidden="true"></canvas><div id="toast" aria-live="polite"></div><div id="camera"></div></div>
+  <div class="row" id="tools"></div>
+  <div id="hint" role="status" aria-live="polite"></div>
+  <div id="panels"></div>
+</main>
+<section id="lab" hidden aria-label="Ship Lab"></section>
+<div id="labtoast" role="status" aria-live="polite"></div>
+<div id="curtain" hidden></div>
+<section id="story" hidden aria-label="Story campaign"></section>
+<div id="barks" aria-live="polite"></div>
+  <div id="help" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="helpt"><div class="card modal-box">
+    <h2 id="helpt">How to play Shatkon</h2>
+    <ol>
+      <li><b>Goal:</b> destroy the enemy <b>flagship</b> (marked &#9733;). Each player has a small scout and a big flagship, built from hex segments full of parts.</li>
+      <li><b>Your turn:</b> you get <b>3 command points</b>. Moving one ship, firing one laser, launching one missile or scanning costs 1 point each. Unspent points are banked (up to 6).</li>
+      <li><b>Moving:</b> tap your ship, tap a green marker to preview, then tap it again. Your fleet shares one pool of <b>thrust</b>; a bigger ship costs more thrust per hex.</li>
+      <li><b>Fog of war:</b> you only see what your ships can detect. Big ships are easier to spot, stealth parts and the purple nebula hide you, and firing or launching makes you flare up. A "?" marks where an enemy was last seen.</li>
+      <li><b>Lasers</b> hit instantly in a straight line (2 hits up to 4 hexes, 1 hit up to 8) and asteroids block them. <b>Missiles</b> fly during the <b>Flight</b> step after both players have moved, so lock on and plan ahead. Point defence can stop one missile a round.</li>
+      <li><b>Detection tiers:</b> a red fuzzy circle means <i>something</i> is somewhere inside it (any hex in the circle is equally likely, and the circle doesn't move while the target sits still, so looking again tells you nothing new); &#9670; means you know exactly where a ship is; &#9635; means a fresh scan shows every part and its hull.</li>
+      <li><b>Scan</b> (1 point, once per ship per turn): <b>a ship can only scan on a turn it has moved</b> (at least 1 hex away from where it started the turn; moving there and back doesn't count). The further forward the ship is, the stronger the scan: near your home edge it sees 2 hexes clearly and 4 faintly, in mid-field 4 / 7, and from the centre line onwards 6 / 10. Before sending it you see both rings and how much further forward the next tier is. Everything in the green ring is fully revealed, hidden mines included; the amber ring only picks up faint contacts. Scanning lights your ship up.</li>
+      <li><b>Stealth &amp; signature</b> work like engines and thrust: a ship's signature starts at its size (1 per segment) and each <i>working</i> stealth part takes 1 off, down to a floor of segments&nbsp;&divide;&nbsp;3 (rounded up). Firing, launching or scanning adds a flare. You're spotted when an enemy is within <i>their sensor range + your signature</i>, so the flagship (7 segments, 4 stealth = 3) is seen from 7 hexes instead of 11. Stealth parts are free; lose one to damage and you lose its &minus;1.</li>
+      <li><b>Engine wake:</b> a big move (2+ hexes) leaves a wake (signature +1), so creeping 1 hex at a time is quieter. It lasts until that ship's next turn.</li>
+      <li><b>Damage</b> strips the outer layers first: shields, then armour, then weapons, then the guts. Lose the core and the ship is gone. Every hit shows an impact report. Mines sit hidden in no man's land: only a scan finds them.</li>
+      <li>On maps with a <b>beacon</b> (gold star): start your turn with a ship touching it and no enemy ship touching it, and you score 1. First to the map's target wins; at the round limit the higher score wins. Holding it lights your ship up for everyone, so stealth won't hide you there.</li>
+      <li>Your turn <b>ends by itself</b> when you run out of points or moves. Tap "Why these points?" to see where every point came from.</li>
+    </ol>
+    <p class="muted">Modes (top right): play the computer, pass one device around, or play on two devices by swapping short turn codes. Desktop: mouse wheel zooms, Esc cancels, Ctrl+Z undoes a move that revealed nothing.</p>
+    <div class="row"><button class="btn go" id="helpclose">Got it, let's play</button></div>
+  </div></div>
+<script src="lib/yaml.min.js"></script>
+<script type="module" src="ui/play.js"></script>
+</body>
+</html>

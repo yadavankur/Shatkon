@@ -1,0 +1,109 @@
+# ============================================================
+#  CHAPTER 1  -  FIRST CONTACT        map: ch1_corridor (radius 7)
+#  A lone Weave Seed in a narrow asteroid corridor picks off Finch, then overreaches
+#  and dies to three human ships. Tutorial difficulty: Kestrel and Sparrow cannot die.
+#
+#  Key numbers (see CHECKS.md for the working):
+#   - Start: Finch [-2,3] is 9 hexes from the Seed, Sparrow 10, Kestrel 12.
+#   - Scouts see the Seed at 6 (sensor 4 + signature 2), Kestrel at 8 (6 + 2);
+#     fuzzy contact 3 further. The Seed sees a scout at 5, Kestrel at 7.
+#   - Closing speed ~3 hexes a round (scout 2 + Seed 1): contact in round 1-2, fallback 2.
+#   - Finch dies to 4 hits: one missile (3) + one laser hit. Doom fallback round 4.
+#   - Kestrel's 3 lasers do 2 hits each out to 4 hexes: the Seed (6 shield/armour/weapon
+#     layers on its core cell, 1 shield back each round) dies in ~2 turns inside 4 hexes.
+# ============================================================
+
+chapter:
+  id: ch1
+  title: "First Contact"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 20
+  map: maps/ch1_corridor.yaml
+  # Turn limit: never reached, the Seed is doomed in round 19 (see script).
+
+  player:                           # seat 0, south
+    ships: [kestrel, sparrow, finch]     # hulls kestrel@ch1 (flagship), sparrow@ch1, finch@ch1
+    deployment:
+      - { ship: kestrel, at: [-3, 6] }   # cells [-4,6] [-3,6] [-2,6]
+      - { ship: sparrow, at: [-3, 4] }   # 2 hexes ahead of Kestrel
+      - { ship: finch,   at: [-2, 3] }   # 3 hexes ahead: the nearest ship to the Seed
+  # Fleet thrust 6 for 5 segments: average 1, so a ship moves up to 2 hexes a turn.
+  # Kestrel costs 3 thrust a hex, a scout 1.
+
+  enemy:                            # seat 1, north
+    ships: [seed]                        # hull seed@ch1 (flagship)
+    deployment:
+      - { ship: seed, at: [2, -6] }      # cells [2,-6] [3,-6]
+    ai: { default: skirmisher }
+
+  ai_profiles:
+    # Before and after contact: hunt the smallest human ship (ties: the nearest, so Finch),
+    # never come within 6 hexes of Kestrel. Missiles only when locked and within 5.
+    skirmisher: { level: normal, stance: hunt, target: smallest, stand_off: { from: kestrel, hexes: 6 }, launch_range: 5, scans: false }
+    # After Finch falls: goes for Sparrow, closes to 2 hexes and stops caring about Kestrel.
+    overreach:  { level: normal, stance: hunt, target: [sparrow], stand_off: 2, scans: false }
+    # Round 15 fallback: straight at Kestrel's guns.
+    charge:     { level: normal, stance: charge, target: [kestrel], stand_off: 1, scans: false }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: end }
+        - protect: { ship: sparrow, until: end }   # superset of "after Finch falls": Sparrow is needed for the salvage
+        - doom: { ship: finch, by_round: 4 }
+        - objective: "Scout the corridor. Keep the scouts ahead of Kestrel."
+        - bark: b1_scouts_ahead
+
+    - id: contact
+      when: { any: [ { sees: { side: player, ship: seed } }, { round: 2 } ] }
+      do:
+        - reveal: { ship: seed, to: player, rounds: 1 }   # no-op if already seen
+        - scene: ch1_contact
+        - bark: b1_contact_glyphs
+        - ai: { ship: seed, profile: skirmisher }
+        - objective: "Unknown contact. Bring it down."
+
+    - id: seed_shield
+      flavor: true                                       # a bark only; may never fire
+      # the first human shot at the Seed: its shield soaks the first hit on a cell every round
+      when: { any: [ { fired_at: { by: sparrow, target: seed } }, { fired_at: { by: finch, target: seed } }, { fired_at: { by: kestrel, target: seed } } ] }
+      do:
+        - bark: b1_seed_shield
+
+    - id: finch_hit
+      flavor: true
+      when: { all: [ contact, { hull_below: { ship: finch, pct: 100 } } ] }
+      do:
+        - bark: b1_finch_hit
+
+    # Fallback: the doom set at start destroys Finch at the start of round 4 if the Seed has
+    # not; this entry then fires in the same check.
+    - id: finch_down
+      when: { any: [ { destroyed: finch }, { round: 4 } ] }
+      do:
+        - scene: ch1_finch_down
+        - ai: { ship: seed, profile: overreach }
+        - objective: "Finch is down. Lure the Seed onto Kestrel's lasers."
+
+    - id: seed_closing
+      flavor: true
+      when: { all: [ finch_down, { distance_below: { a: seed, b: kestrel, hexes: 6 } } ] }
+      do:
+        - bark: b1_seed_closing
+
+    - id: charge
+      when: { round: 15 }
+      do:
+        - ai: { ship: seed, profile: charge }
+        - bark: b1_seed_closing
+        - doom: { ship: seed, by_round: 19 }   # safety net: the chapter cannot be lost on time
+
+  win:  [ { destroyed: seed } ]
+  lose: [ { destroyed: kestrel } ]  # unreachable (protected) but kept, with a retry scene
+  scenes: { intro: ch1_intro, win: [ch1_victory, ch1_salvage], lose: ch1_defeat }
+  rewards:
+    capabilities: [launcher, magazine, missile, mine]   # mine = the survey charges the engineer rigs in ch2
+    roster_remove: [finch]                               # the pilot lives; the ship does not
+    # Kestrel flies kestrel@ch2 next chapter (the loader picks hulls by <id>@<chapter>)

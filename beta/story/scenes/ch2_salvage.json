@@ -1,0 +1,60 @@
+{
+ "id": "ch2_salvage",
+ "stage": "salvage_wreck",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "There's a big shiny web in here. It keeps knitting itself back together every time I cut it.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "shock",
+   "text": "Teo, don't cut it! That's a shield. A shield that repairs itself."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Do you know what I'd give for a shield that repairs itself? I'd stop sleeping. Again."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "worried",
+   "text": "It's growing toward the airlock. Slowly. Like a plant toward light.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "neutral",
+   "text": "Pack it in a cold box. We'll fit it properly at Meridian."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Vey, a quick one. The relay's patchy out here. Meridian's very quiet tonight. Bring me a story.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "I've got a few. Not all of them are good."
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "salvage",
+ "unlocks": [
+  "shield"
+ ]
+}

@@ -1,0 +1,66 @@
+{
+ "id": "ch4a_intro",
+ "stage": "ashfall_outpost",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Ashfall Outpost. The distress call loops: the same words, the same pauses, the same cough."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "No life signs. No heat. Just the transmitter."
+  },
+  {
+   "speaker": "mimic",
+   "expression": "neutral",
+   "text": "This is Warden Cole. Our hull is open. We have room for you.",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "worried",
+   "text": "Maybe they're down in the lower shafts, shielded.",
+   "via": "comms"
+  },
+  {
+   "show_ship": "husk_2"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "Contacts. Weave... I think? They look chewed.",
+   "via": "comms"
+  },
+  {
+   "speaker": "weave",
+   "expression": "calm",
+   "glyphs": true,
+   "text": "[partial translation] ...COLD... OPEN... ROOM..."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "The translator is starting to catch words. About one in three.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "Husks. Whatever hit Ashfall hurt them too. Let's finish it."
+  }
+ ],
+ "choice": null,
+ "chapter": 4,
+ "kind": "intro"
+}

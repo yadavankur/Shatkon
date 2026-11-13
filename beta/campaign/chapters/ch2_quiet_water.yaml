@@ -1,0 +1,124 @@
+# ============================================================
+#  CHAPTER 2  -  QUIET WATER          map: ch2_quiet_water (radius 8)
+#  Two Seeds hunt the humans through the only gap in an asteroid wall. The crew's survey
+#  charges wait in the gap as mines. The Weave never scan and never see them.
+#
+#  Key numbers (see CHECKS.md):
+#   - Start: Kestrel to the nearer Seed 11 hexes; the Seeds are 5-6 rows from the gap.
+#   - Seeds: 4 engines for 4 segments, average 1: 1 hex a turn each (2 with banked thrust).
+#   - Every 2-hex path through the gap crosses row 0 on {-1,0} or {0,1}: the mines at
+#     [-1,0] and [1,0] guarantee one hit on the first pass; [0,1] is on every row-1 path;
+#     [0,-1] sits on 3 of the 4 approaches. A mine is 4 hits to one segment.
+#   - Mine signature -12 (world -6): invisible to any sensor, and the Weave never scan.
+#   - Kestrel sees a Seed at 8 (sensor 6 + signature 2), 6 inside the nebula.
+#     The gap exit [0,1] is 4 hexes from Kestrel's start: 2-hit laser range.
+# ============================================================
+
+chapter:
+  id: ch2
+  title: "Quiet Water"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 22
+    "munitions.mine.signature": -12      # far below the default -6: effectively unseeable
+    "damage.beams_pass_mines": true      # lasers fly over the charges, so nobody shoots them by accident
+  map: maps/ch2_quiet_water.yaml
+  # Turn limit: never reached, seed_a is doomed in round 21.
+
+  player:
+    ships: [kestrel, sparrow]          # hulls kestrel@ch2 (flagship), sparrow@ch1
+    deployment:
+      - { ship: kestrel, at: [-2, 5] }   # cells [-3,5] [-2,5] [-1,5]: 4 hexes from the gap exit
+      - { ship: sparrow, at: [-5, 6] }   # west, near the 1-hex slot
+      # survey charges, pre-placed in zone minefield (the player does not place them in v1)
+      - { mine: [-1, 0] }
+      - { mine: [1, 0] }
+      - { mine: [0, 1] }
+      - { mine: [0, -1] }
+  # Fleet thrust 4 for 4 segments: average 1, up to 2 hexes a turn. Kestrel costs 3 a hex.
+
+  enemy:
+    ships: [seed_a, seed_b]            # hulls seed_a@ch2 (flagship), seed_b@ch2
+    deployment:
+      - { ship: seed_a, at: [3, -7] }    # cells [3,-7] [4,-7]
+      - { ship: seed_b, at: [1, -6] }    # cells [1,-6] [2,-6]
+    ai: { default: advance }
+
+  ai_profiles:
+    # Head for the choke, go through it, then hunt. Never scan, never route round mines.
+    advance: { level: easy, stance: advance, path_via: choke, scans: false, avoid_mines: false, launch_range: 4 }
+    # After the first mine: keep pushing through (they still cannot see the mines).
+    press:   { level: normal, stance: hunt, target: flagship, path_via: choke, scans: false, avoid_mines: false, launch_range: 5 }
+    charge:  { level: normal, stance: charge, target: [kestrel], stand_off: 1, scans: false, avoid_mines: false }
+    # Fallback herd: march (ignoring the humans) into the minefield, then on south to the human
+    # edge, which is also through the gap. Stance advance never stops to snipe.
+    herd:    { level: normal, stance: advance, path_via: minefield, scans: false, avoid_mines: false, launch_range: 4 }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: end }
+        - protect: { ship: sparrow, until: end }   # assumption: Sparrow is needed in ch3-5
+        - bark: b2_mines_set
+        - objective: "Hold south of the wall. Let them come through the gap."
+
+    - id: contact
+      when: { any: [ { sees: { side: player, ship: seed_a } }, { sees: { side: player, ship: seed_b } }, { round: 3 } ] }
+      do:
+        - reveal: { ship: seed_a, to: player, rounds: 1 }
+        - reveal: { ship: seed_b, to: player, rounds: 1 }
+        - scene: ch2_contact
+
+    - id: choke
+      flavor: true
+      when: { in_zone: { side: enemy, zone: choke } }
+      do:
+        - bark: b2_choke
+
+    # Fallback for first_mine: from round 6 both Seeds switch to the herd profile and march
+    # through the minefield. (first_mine then switches them to press.)
+    - id: herd
+      fallback_for: first_mine
+      when: { all: [ { round: 6 }, { not: first_mine } ] }
+      do:
+        - ai: { side: enemy, profile: herd }
+
+    # Round 10 hard fallback: a charge really goes off under seed_a (uses up the nearest mine).
+    - id: mine_fallback
+      fallback_for: first_mine
+      when: { all: [ { round: 10 }, { not: first_mine } ] }
+      do:
+        - damage: { ship: seed_a, hits: 4, from_mine: true }
+
+    - id: first_mine
+      when: { any: [ { mine_hit: { side: enemy } }, { round: 11 } ] }
+      do:
+        - scene: ch2_first_mine
+        - bark: b2_mine_boom
+        - ai: { side: enemy, profile: press }
+
+    - id: second_seed
+      flavor: true
+      when: { all: [ first_mine, { sees: { side: player, ship: seed_b } }, { not: { destroyed: seed_b } } ] }
+      do:
+        - bark: b2_second_seed
+
+    - id: charge
+      when: { round: 16 }
+      do:
+        - ai: { side: enemy, profile: charge }
+        - doom: { ship: seed_a, by_round: 21 }   # safety net
+
+    - id: seed_b_leaves
+      outcome: true                                # part of the win itself
+      when: { destroyed: seed_a }
+      do:
+        - remove: { ship: seed_b, as: withdraw }
+
+  win:  [ { destroyed: seed_a } ]
+  lose: [ { destroyed: kestrel } ]
+  scenes: { intro: ch2_intro, win: [ch2_victory, ch2_salvage], lose: ch2_defeat }
+  rewards:
+    capabilities: [shield]
+    # next chapter the loader picks kestrel@ch3 and sparrow@ch3 (<id>@<chapter> hulls)

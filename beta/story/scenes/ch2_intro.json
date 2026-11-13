@@ -1,0 +1,84 @@
+{
+ "id": "ch2_intro",
+ "stage": "kestrel_engine_bay",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Two days later. A nebula bank the charts call Quiet Water."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Behold. One alien launcher: bolted, wired, and only slightly on fire."
+  },
+  {
+   "speaker": "captain",
+   "expression": "worried",
+   "text": "Slightly?"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "It's a decorative fire."
+  },
+  {
+   "show_ship": "kestrel"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "And these are our own survey charges. Retune the fuses and they stop mapping rock. They burn out the engines of whatever bumps into them."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "neutral",
+   "text": "I went through Finch's last logs. Weave ships hunt by heat and motion. A cold charge sitting still is invisible to them."
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "Logging everything. That was Nanda."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "neutral",
+   "text": "Then let's make it count. Teo's already in Sparrow."
+  },
+  {
+   "stage": "vista_quiet_water"
+  },
+  {
+   "show_ship": "sparrow"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "Sparrow's out of the cradle. First real sortie. I'm flying this one for Nanda, Sefa and Dov.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "The passage ahead is narrow. One way in, one way out. Perfect place for an ambush.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Good. Let's be the ones setting it."
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "intro"
+}

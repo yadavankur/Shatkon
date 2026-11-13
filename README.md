@@ -89,3 +89,7 @@ The viewer knows no game rules. It only looks at the shape of the data:
 - Any list of things with an `at: [q, r]` position is drawn on the board, except lists called `hull`, which are a ship's own layout.
 - An entry with an `edge` and a `depth` is shaded as a zone.
 - `copy_of: <name>` shows the named entry's pieces again, mirrored when a `mirror...` setting is true.
+
+## Beta page
+
+`beta/` is a full copy of a work-in-progress branch (currently the story campaign, `campaign-engine`), served next to the live game: `play.html` is the stable game, `beta/play.html` the beta. The beta keeps its own saves (`shatkon.beta.*`), so it can't break a game in progress on the live page. Refresh it with `sh tools/sync-beta.sh` (or `sh tools/sync-beta.sh <branch>`); `beta/VERSION.txt` says which commit it holds.

@@ -1,0 +1,30 @@
+# ============================================================
+#  CAMPAIGN  -  "Shatkon: The Weave", chapters 1-5
+#  The graph of chapters on the campaign map, and the state a new campaign starts with.
+#  Hulls live in ships.yaml, keyed <ship>@<chapter>; the chapter loader picks each ship's hull
+#  by that key (see ships.yaml), so the roster here is just ship ids.
+# ============================================================
+
+campaign:
+  id: the_weave
+  title: "Shatkon: The Weave"
+  map_art: campaign_map              # stage id from the story bot
+  start: ch1
+  start_state:
+    # roster: the ships the crew has. Rewards change it (roster_add / roster_remove);
+    # a grafted ship is carried over with its new hull by the engine (applyResult).
+    roster: [kestrel, sparrow, finch]
+    capabilities: [core, engine, sensor, laser, armour, coupling]
+    flags: {}
+  nodes:
+    - { id: ch1,  title: "First Contact", file: chapters/ch1_first_contact.yaml, at: [0.50, 0.90], next: [ch2] }
+    - { id: ch2,  title: "Quiet Water",   file: chapters/ch2_quiet_water.yaml,   at: [0.50, 0.72], next: [ch3] }
+    - { id: ch3,  title: "The Splitting", file: chapters/ch3_splitting.yaml,     at: [0.50, 0.55], next: [ch4a, ch4b], fork_scene: ch4_fork }
+    - { id: ch4a, title: "Ashfall",       file: chapters/ch4a_ashfall.yaml,      at: [0.30, 0.38], next: [ch5] }
+    - { id: ch4b, title: "The Long Dark", locked: true, locked_text: "Signal lost", at: [0.72, 0.38], next: [] }
+    - { id: ch5,  title: "The Bloom",     file: chapters/ch5_bloom.yaml,         at: [0.50, 0.20], next: [] }
+  # The fork (ch3 -> ch4a | ch4b): after ch3 is won, scene ch4_fork plays on the campaign map.
+  # Its choice resolves to "ch4a" (picking ch4b plays the crew's objection, greys ch4b out as
+  # "Signal lost" and asks again). ch4b stays locked on the map for a later chapter.
+  # ch5 ends with result to_be_continued: the campaign screen shows "To be continued" and
+  # saves the state (the engine marks ch5 completed; its rewards are empty).

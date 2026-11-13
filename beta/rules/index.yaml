@@ -1,0 +1,8 @@
+# The viewer loads the files listed here, in this order.
+# To add a new rule file: put it in this folder and add its name below.
+files:
+  - world_v0.4.yaml
+  - map_skirmish.yaml
+  - fleets_v0.4.yaml
+  # Extra maps: the fleets file's `map:` line picks which one is played.
+  - map_beacon_story.yaml
