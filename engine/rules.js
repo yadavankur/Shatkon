@@ -66,6 +66,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     friendlyFire: dmg.friendly_fire !== false,
     ownMissilesPass: dmg.own_munitions_pass_own_ships === true,   // your missiles and drones fly through your own hulls
     beamsPassOwnMunitions: dmg.beams_pass_own_munitions === true, // your beams fly past your own missiles and drones
+    beamsPassMines: dmg.beams_pass_mines === true,               // anyone's beams fly over mines (they sit too low / too dark to block)
     parts, munitions,
     terrainTypes: w.terrain || {},
     board: { radius: num((m.board || {}).radius, 10) },

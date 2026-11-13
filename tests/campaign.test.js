@@ -319,3 +319,52 @@ test('path_via: an advancing ship heads for its zone first', () => {
   const d = (p) => Math.max(Math.abs(p[0]), Math.abs(p[1]), Math.abs(p[0] + p[1]));
   assert.ok(d(ship(g, 'seed').pos) < d(before), 'closer to the outpost in the middle');
 });
+
+test('scripted damage from a mine is a real hit: it uses up a mine and counts as a mine hit', () => {
+  const ch = chapter({
+    player: { ships: ['kestrel', 'sparrow'], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }, { mine: [0, 3] }, { mine: [3, 1] }] },
+    script: [
+      { id: 'boom', when: { round: 2 }, do: [{ damage: { ship: 'seed', hits: 2, from_mine: true } }] },
+      { id: 'first_mine', when: { mine_hit: { side: 'enemy' } }, do: [{ scene: 'ch2_first_mine' }] }] });
+  let g = start(load(ch), 3);
+  assert.equal(g.objs.length, 2);
+  g = ends(g, 2);
+  assert.ok(g.script.fired.first_mine, 'the mine_hit trigger saw it');
+  assert.equal(g.objs.filter((o) => o.kind === 'mine').length, 1, 'one mine was used up');
+  assert.ok(ship(g, 'seed').segs.some((sg) => sg.parts.some((p) => p.hp < g.rules.parts[p.t].hp)));
+});
+
+test('protect a whole side, ships that arrive later included', () => {
+  const ch = chapter({ groups: { li_wing: { side: 'player', ships: ['halcyon'], zone: 'li_arrival' } },
+    script: [{ id: 'rails', when: 'start', do: [{ protect: { side: 'player', until: 'end' } }] },
+      { id: 'arrive', when: { round: 2 }, do: [{ spawn: 'li_wing' }] }] });
+  let g = start(load(ch), 3);
+  g = ends(g, 2);
+  for (const n of ['sparrow', 'halcyon']) { const s = ship(g, n); for (let i = 0; i < 4; i++) applyHits(g, s, 0, 10, 'test'); assert.equal(s.dead, false, n); }
+});
+
+test('a scripted graft on ships that are apart reports it instead of breaking the chapter', () => {
+  const ch = chapter({ player: { ships: ['kestrel', 'tern'], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'tern', at: [-5, 7] }] },
+    script: [{ id: 'force_graft', when: { round: 2 }, do: [{ graft: ['kestrel', 'tern'] }, { flag: 'after' }] }] });
+  let g = start(load(ch), 3);
+  g = ends(g, 2);
+  assert.ok(g.script.flags.after, 'the rest of the beat still ran');
+  assert.ok(ship(g, 'tern'));
+});
+
+test('beams_pass_mines: lasers fly over mines instead of stopping on them', () => {
+  const run = (pass) => {
+    const ch = chapter({ world_overrides: { 'damage.beams_pass_mines': pass },
+      player: { ships: ['kestrel', 'sparrow'], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }, { mine: [2, 4] }] },
+      enemy: { ships: ['seed'], deployment: [{ ship: 'seed', at: [1, -7] }] } });
+    let g = start(load(ch), 3);
+    const sp = ship(g, 'sparrow');
+    ship(g, 'seed').pos = [2, 2];                         // straight up the line, behind the mine
+    const laser = sp.segs[0].parts.findIndex((p) => p.t === 'laser');
+    g.players[0].revealed = { [ship(g, 'seed').id]: 9 };
+    g = apply(g, { type: 'fire', ship: sp.id, seg: 0, part: laser, at: [2, 2] });
+    return { mine: g.objs.some((o) => o.kind === 'mine'), hurt: ship(g, 'seed').segs[0].parts.some((p) => p.hp < g.rules.parts[p.t].hp) };
+  };
+  assert.deepEqual(run(false), { mine: false, hurt: false }, 'off: the beam stops on the mine');
+  assert.deepEqual(run(true), { mine: true, hurt: true }, 'on: it passes over and hits');
+});

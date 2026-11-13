@@ -53,6 +53,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     if (typeof pr.fire_chance === 'number' && rnd() > pr.fire_chance) continue;
     for (const t of E.beamTargets(state, s.id)) {
       const tgt = shipById(t.target);
+      if (Array.isArray(pr.only_targets) && !(tgt && pr.only_targets.includes(nameOf(tgt.id)))) continue;   // story: shoot these and nothing else
       let score = t.hits * 10;
       if (tgt && Array.isArray(pr.target) && pr.target.includes(nameOf(tgt.id))) score += 15;
       if (tgt && pr.target === 'smallest') score += 8 - tgt.segs.length;
@@ -90,6 +91,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     const targets = lo.locks
       .map(shipById)
       .filter(Boolean)
+      .filter((t) => !Array.isArray(prof(s).only_targets) || prof(s).only_targets.includes(nameOf(t.id)))
       .map((t) => ({ t, d: minDist(s.cells, t.cells) }))
       .filter((x) => x.d <= (prof(s).launch_range ?? (easy ? 3 : 5))) // close range: little time to react, point defence gets fewer shots
       .sort((a, b) => (prof(s).target === 'smallest' ? a.t.segs.length - b.t.segs.length : b.t.segs.length - a.t.segs.length) || a.d - b.d);

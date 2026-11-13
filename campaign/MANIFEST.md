@@ -169,3 +169,20 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
 5. **Campaign-screen logic that is not engine logic:** the ch3 fork (ch4_fork, the ch4b
    objection) and the "To be continued" save after ch5. PR #2's `applyResult` marks ch5
    completed.
+
+## Resolved during integration (engine branch campaign-engine)
+
+- **Scripted damage** (request 1): `damage: { ship, hits, seg?, cause?, from_mine? }`. With
+  `from_mine: true` it uses up the nearest mine of the other side, shows the blast and counts as
+  a mine hit. ch2's round-10 fallback (`mine_fallback`) now sets off a real charge under seed_a;
+  `first_mine` then fires from the `mine_hit` trigger (round 11 is the last resort).
+- **Exclusive targets** (request 2): AI knob `only_targets: [ids]`. The computer shoots and
+  locks only those ships. Not used yet; available for the ch5 Bloom.
+- **Protecting a whole side** (request 3): `protect: { side: player, until }`, including ships
+  that arrive later.
+- **Scripted graft on ships that are apart** (request 6): emits `script_failed` and the beat
+  carries on, instead of breaking the chapter.
+- **Lasers stopping on mines** (risk 1): new world setting `damage.beams_pass_mines`
+  (default false). ch2 turns it on, so nobody destroys the survey charges by firing through
+  the gap.
+- `check.mjs` knows the new `damage` action and the `only_targets` knob.

@@ -57,8 +57,10 @@ export function workingParts(state, ship) {
 // Story campaigns can protect a ship until a story beat has happened (see engine/script.js).
 export function isProtected(state, ship) {
   const sc = state.script;
-  if (!sc || !sc.protect || !(ship.name in sc.protect)) return false;
-  const until = sc.protect[ship.name];
+  if (!sc || !sc.protect) return false;
+  const k = ship.name in sc.protect ? ship.name : 'side:' + ship.owner;
+  if (!(k in sc.protect)) return false;
+  const until = sc.protect[k];
   return until === 'end' || !sc.fired[until];
 }
 export const sumAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => n + num(x.c[attr]), 0);

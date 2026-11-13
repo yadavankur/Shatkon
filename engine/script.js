@@ -12,6 +12,7 @@
 import { add, key, dist, step } from './hex.js';
 import { no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById } from './state.js';
 import { visibleTo, refreshSight } from './detect.js';
+import { applyHits, removeObj } from './damage.js';
 import { doMove, doFire } from './actions.js';
 import { reach, beamTargets } from './query.js';
 import { buildRules } from './rules.js';
@@ -81,6 +82,7 @@ function run(state) {
   const C = state.rules.campaign, sc = state.script;
   for (let pass = 0; pass < 12 && state.phase === 'play'; pass++) {
     let any = false;
+    noteEvents(state);
     for (const e of C.script || []) {
       if (state.phase !== 'play') break;
       if (sc.fired[e.id] && !e.repeat) continue;
@@ -183,7 +185,8 @@ function act(state, a) {
     case 'flag': sc.flags[v] = true; break;
     case 'unlock': sc.unlocked[v] = true; emit(state, { t: 'unlocked', what: v }, all); break;
     case 'ai': sc.ai[v.ship || ('side:' + sideOf(v.side))] = v.profile; break;
-    case 'protect': sc.protect[v.ship] = v.until || 'end'; break;
+    case 'protect': sc.protect[v.ship || ('side:' + sideOf(v.side))] = v.until || 'end'; break;
+    case 'damage': scriptedDamage(state, v); break;
     case 'unprotect': delete sc.protect[v.ship || v]; break;
     case 'doom': sc.doom.push({ ship: v.ship, by_round: v.by_round, done: false }); break;
     case 'lock': sc.locks.push({ ...v, from: state.round, fromTurn: sc.turns }); emit(state, { t: 'locked', ship: v.ship || null, side: v.side ?? null, actions: v.actions }, all); break;
@@ -208,10 +211,34 @@ function act(state, a) {
     case 'spawn': spawn(state, v.group || v); break;
     case 'remove': { const s = live(state, v.ship || v); if (s) { s.dead = true; s.removed = v.as || 'withdraw'; emit(state, { t: 'removed', ship: s.id, name: s.name, as: s.removed }, all); } break; }
     case 'split': split(state, v); break;
-    case 'graft': case 'dock': { const [x, y] = v; const s1 = live(state, x), s2 = live(state, y); if (s1 && s2) join(state, s1, s2, k === 'graft' ? 'weave' : 'dock', true); break; }
+    case 'graft': case 'dock': {
+      const [x, y] = v, s1 = live(state, x), s2 = live(state, y);
+      if (!s1 || !s2) break;
+      try { join(state, s1, s2, k === 'graft' ? 'weave' : 'dock', true); }
+      catch (e) { emit(state, { t: 'script_failed', action: k, why: e.message }, all); }   // e.g. not touching: the beat still counts
+      break;
+    }
     case 'end': finish(state, v.result || v, 'script'); break;
     default: emit(state, { t: 'script_unknown', action: k }, all);
   }
+}
+
+// Scripted damage: { ship, hits, seg?, cause?, from_mine? }. from_mine uses up the nearest mine of
+// the other side and shows the blast, so a "the mines got them" fallback is a real explosion.
+function scriptedDamage(state, v) {
+  const s = live(state, v.ship);
+  if (!s) return;
+  const si = typeof v.seg === 'number' ? Math.min(v.seg, s.segs.length - 1) : s.segs.findIndex((sg) => !sg.wrecked);
+  if (si < 0) return;
+  let cause = v.cause || 'scripted';
+  if (v.from_mine) {
+    const at = footprint(s)[si];
+    const mines = state.objs.filter((o) => o.owner !== s.owner && !num(state.rules.munitions[o.kind].speed));
+    mines.sort((a, b) => dist(a.pos, at) - dist(b.pos, at));
+    if (mines[0]) { cause = mines[0].kind; removeObj(state, mines[0]); }
+    emit(state, { t: 'blast', kind: cause, owner: 1 - s.owner, at }, everyone(state));
+  }
+  applyHits(state, s, si, num(v.hits, 1), cause);
 }
 
 // Is a lock / force still in effect?

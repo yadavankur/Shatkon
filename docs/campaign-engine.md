@@ -38,7 +38,7 @@ As in the plan, plus: a bare string (`when: contact`) means "that beat has fired
 
 ## Actions
 
-As in the plan, plus: `unprotect: ship`, `unlock_controls: { ship }`, `release: ship` (ends forced
+As in the plan, plus: `damage: { ship, hits, seg?, cause?, from_mine? }` (scripted hits; `from_mine` uses up the nearest enemy mine, shows a blast and counts as a mine hit), `protect: { side, until }` (a whole side, later arrivals too), `unprotect: ship`, `unlock_controls: { ship }`, `release: ship` (ends forced
 orders), and `disable: { ship, parts, until }` re-enables the parts when `until` passes.
 `until` can be a beat id, a number of rounds, `{ rounds: N }` or `end`.
 
@@ -51,6 +51,8 @@ orders), and `disable: { ship, parts, until }` re-enables the parts when `until`
 - `force` orders: `move_toward: ship` (the reachable spot closest to it) and `fire_at: ship`.
   They run at the start of the owner's turn and spend that player's points and thrust.
 - `protect`: hits never destroy the core and the ship can't die while protected.
+- A scripted `graft` / `dock` on ships that aren't touching emits `script_failed`; the rest of the beat still runs.
+- World setting `damage.beams_pass_mines` (default false): lasers fly over mines.
 - `end: { result }` with `win`, `lose` or `to_be_continued`. Scenes: `scenes.win` (list),
   `scenes.lose`, `scenes.tbc`.
 
@@ -75,5 +77,5 @@ with randomness seeded from the game state. Knobs: `level`, `stance` (`hold` nev
 `charge` closes to 1, `advance` marches on its `path_via` zone then the enemy home, `flee`
 keeps away, `hunt` / `patrol` are the normal behaviour), `target` (`smallest`, `nearest`,
 `flagship`, or a list of ids), `stand_off` (hexes, or `{ from, hexes }`), `path_via`, `scans`,
-`avoid_mines`, `launch_range`, `fire_chance`, `max_hits_per_round`. `ignore_flank` is accepted
+`avoid_mines`, `launch_range`, `fire_chance`, `max_hits_per_round`, `only_targets` (shoot and lock only these ids). `ignore_flank` is accepted
 and does nothing.

@@ -141,6 +141,7 @@ damage:
   friendly_fire: true         # your own blasts and mines can hurt you
   own_munitions_pass_own_ships: true   # your missiles and drones fly through your own hulls
                                        # instead of exploding on them (blasts still hurt)
+  beams_pass_mines: false              # true: every laser flies over mines instead of stopping on them
   beams_pass_own_munitions: false      # true: your lasers fly past your own missiles and drones
                                        # (not mines). false: a beam stops at the first thing it
                                        # meets, yours included
