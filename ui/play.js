@@ -5,6 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1 } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
+import { initStory, openCampaign, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
 
 // ---------- tiny DOM helpers ----------
@@ -522,6 +523,7 @@ function anyAction() {
     (ship) =>
       !ship.dead &&
       ship.owner === t &&
+      !(game.script && game.script.locks.some((l) => l.ship === ship.name)) &&
       (E.reach(game, ship.id).length ||
         E.beamTargets(game, ship.id).length ||
         E.launchOptions(game, ship.id) ||
@@ -532,9 +534,10 @@ function anyAction() {
 function aiStep() {
   aiTimer = null;
   if (!aiTurn()) return;
+  if (storyBusy()) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing
   let a;
   try {
-    a = aiSteps++ > 30 ? { type: 'end' } : computerMove(game, 1, aiLevel) || { type: 'end' };
+    a = aiSteps++ > 30 ? { type: 'end' } : (game.rules.campaign ? E.campaignMove(game, 1) : computerMove(game, 1, aiLevel)) || { type: 'end' };
   } catch (err) {
     console.warn('AI error', err);
     a = { type: 'end' };
@@ -555,12 +558,25 @@ export function newGame() {
   save(); render();
 }
 
+// A story chapter (from ui/campaign.js): always against the computer.
+export function startStoryGame(chRules, title) {
+  game = E.start(chRules, (Date.now() % 2147483647) | 0);
+  looks = partLooks(game.rules);
+  seat = 'cpu';
+  sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
+  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null;
+  say(title + '. Tap one of your ships to begin.');
+  save(); render();
+  storyEvents(game);
+}
+
 function act(action, quiet, byAI) {
   const p = turnOf(), prev = game;
   const viewer = seat === 'cpu' ? 0 : p;      // the computer's view must never reach the hint
   const r = E.attempt(game, action);
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
   game = r.state; pending = null;
+  if (game.rules.campaign) storyEvents(game);   // cutscenes, barks, objectives, chapter end
   const mine = game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost').map(describe);
   // an action can be undone only if it told the player nothing new
   if (!byAI && game.phase === 'play' && (action.type === 'move' || action.type === 'launch')
@@ -636,6 +652,18 @@ function describe(e) {
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
+    case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': return null;
+    case 'spawned': return e.ships.length ? 'New ships have arrived: ' + e.ships.join(', ') + '.' : null;
+    case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
+    case 'grafted': return e.name + ' and ' + e.other + ' are grafted into one ship.';
+    case 'docked': return e.name + ' and ' + e.other + ' are clamped together.';
+    case 'removed': return e.ship + (e.as === 'dark' ? ' went dark and drifted away.' : ' withdrew.');
+    case 'locked': return (e.ship || 'Your ships') + ' stopped answering the helm.';
+    case 'forced': return e.ship + (e.order === 'move' ? ' moved on its own.' : ' fired on its own.');
+    case 'disabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' went offline.';
+    case 'enabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' back online.';
+    case 'rule_changed': return /link_range/.test(e.path) ? 'Comms are jammed: your ships share less of what they see.' : null;
+    case 'script_failed': return null;
     case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
     case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
     case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
@@ -958,6 +986,7 @@ export function render() {
   const seatEl = $('#seat'); seatEl.textContent = '';
   const modeSel = h('select', { 'aria-label': 'Game mode', onchange: (ev) => {
     let val = ev.target.value;
+    if (val === 'story') { ev.target.value = seat === 'cpu' ? (aiLevel === 'easy' ? 'cpu-easy' : 'cpu') : String(seat); openCampaign(); return; }
     if (val.indexOf('cpu') === 0) { aiLevel = val === 'cpu-easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); val = 'cpu'; }
     seat = val === '0' || val === '1' ? Number(val) : val;
     sel = look = pending = null; mode = 'move'; cam.w = 0; undoStack = [];
@@ -966,9 +995,10 @@ export function render() {
       all: 'Both players: everything is visible, handy for learning or testing.' }[seat] || 'Two devices: you are Player ' + (seat + 1) + '. Send your opponent the game code (Game card below), then swap turn codes.');
     save(); render();
   } });
-  for (const [val, label] of [['cpu-easy', 'Vs computer: easy'], ['cpu', 'Vs computer: normal'], ['pass', 'Pass and play'], ['all', 'Both players (open)'], [0, 'Two devices: Player 1'], [1, 'Two devices: Player 2']]) {
+  for (const [val, label] of [['story', '\u2726 Story campaign'], ['cpu-easy', 'Vs computer: easy'], ['cpu', 'Vs computer: normal'], ['pass', 'Pass and play'], ['all', 'Both players (open)'], [0, 'Two devices: Player 1'], [1, 'Two devices: Player 2']]) {
     const op = h('option', { value: String(val) }, label);
-    if (val === 'cpu-easy' ? seat === 'cpu' && aiLevel === 'easy' : val === 'cpu' ? seat === 'cpu' && aiLevel !== 'easy' : seat === val) op.selected = true;
+    const story = !!(game && game.rules.campaign);
+    if (val === 'story' ? story : story ? false : val === 'cpu-easy' ? seat === 'cpu' && aiLevel === 'easy' : val === 'cpu' ? seat === 'cpu' && aiLevel !== 'easy' : seat === val) op.selected = true;
     modeSel.appendChild(op);
   }
   seatEl.appendChild(modeSel);
@@ -1012,13 +1042,15 @@ export function render() {
     mine ? h('div', { class: 'line' },
       h('span', null, 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
       h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), ' (moving costs 1 per segment per hex)'), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
+    v.story && storyObjective() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
 
   // fleet strip: every ship of the player to move, with what it has left
   if (mine) for (const x of v.ships.filter((s) => s.mine)) {
     const st = E.shipStatus(game, x.id), stat = (label, val, zero) => h('span', { class: zero ? 'zero' : '' }, label + ' ', h('b', null, val));
-    fleet.appendChild(h('button', { class: 'shipchip who' + x.owner, 'aria-pressed': String(sel === x.id), onclick: () => { selectShip(x.id, v); render(); } },
-      h('div', { class: 'nm' }, (x.flagship ? '★ ' : '') + x.id + ' ' + x.name),
+    const seized = v.story && v.story.locked.includes(x.name);
+    fleet.appendChild(h('button', { class: 'shipchip who' + x.owner + (seized ? ' lockedchip' : ''), 'aria-pressed': String(sel === x.id), onclick: () => { selectShip(x.id, v); render(); } },
+      h('div', { class: 'nm' }, (x.flagship ? '★ ' : '') + x.id + ' ' + (v.story ? x.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : x.name) + (seized ? ' \u00b7 not answering' : '')),
       h('div', { class: 'st' }, stat('Move', st.moveLeft, !st.moveLeft), st.beams ? stat('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady) : null,
         Object.entries(st.ammo).map(([k, n]) => stat(nice(k) + 's', n, !n)))));
   }
@@ -1064,6 +1096,12 @@ export function render() {
       } }, 'Scan', h('small', null, !st ? 'select a ship' : st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now'),
         st && !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan) && v.cp ? h('small', null, 'then ' + me.scan.r[0] + ' / ' + me.scan.r[1]) : null),
       v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'Detonate', 'a drone', v.cp >= R.cost.detonate, null) : null,
+      ...(v.story && me ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
+        const a = game.ships.find((z) => z.id === me.id);
+        return game.ships.filter((z) => !z.dead && z.owner === a.owner && z.id !== a.id && E.gap(a, z) === 1).map((z) =>
+          h('button', { class: 'btn', disabled: v.cp < 1, onclick: () => act({ type: k, ship: a.id, with: z.id }) }, (k === 'graft' ? 'Graft' : 'Dock') + ' ' + z.name,
+            h('small', null, k === 'graft' ? 'fuse into one ship' : 'clamp together (costs a point a turn)')));
+      }) : []),
       h('span', { class: 'sp' }),
       undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
       h('button', { class: 'btn go' + (v.cp === 1 ? ' last' : ''), onclick: () => act({ type: 'end' }) }, v.cp === 1 ? 'Last action' : 'End turn',
@@ -1073,7 +1111,12 @@ export function render() {
 
   const rc = reportCard();
   if (rc) panels.appendChild(rc);
-  if (game.phase === 'over') {
+  if (game.phase === 'over' && game.rules.campaign) {
+    panels.appendChild(h('div', { class: 'card over who' + (game.winner === 0 ? 0 : 1) }, h('h2', null, storyOverText(game)),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn go', onclick: () => openCampaign() }, 'Campaign map'),
+        game.script && game.script.result === 'lose' ? h('button', { class: 'btn', onclick: () => retryChapter(game) }, 'Retry chapter') : null)));
+  } else if (game.phase === 'over') {
     const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
     panels.appendChild(h('div', { class: 'card over who' + (v.winner === 'draw' ? turn : v.winner) },
       h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins'),
@@ -1195,6 +1238,7 @@ function initExtras() {
   sfxOn = store.get('shatkon.sfx') !== '0';
   aiLevel = store.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
   initExtras();
+  initStory({ h, startStoryGame, render, say, toast });
   const saved = store.get('shatkon.game');
   if (saved) {
     try {
@@ -1204,7 +1248,7 @@ function initExtras() {
     } catch (e) { game = null; }
   }
   // a small hook for automated tests
-  window.__shatkon = { get game() { return game; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
+  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
   labRoute();
   if (!game) newGame(); else render();
   window.addEventListener('resize', () => { if (game) render(); });

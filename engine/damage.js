@@ -44,7 +44,7 @@ export function applyHits(state, ship, si, n, cause) {
   for (let i = 0; i < n && !sg.wrecked; i++) {
     let live = sg.parts.map((p) => ({ p, c: state.rules.parts[p.t] })).filter((x) => x.p.hp > 0 && !x.p.off);
     // a protected ship (story rails) never loses its core: the hit lands elsewhere or is shrugged off
-    if (guard) { live = live.filter((x) => !(x.c.required && x.p.hp <= 1)); if (!live.length) { lost.push('held together'); continue; } }
+    if (guard) { live = live.filter((x) => !(x.c.required && x.p.hp <= 1)); if (!live.length) continue; }   // nothing said: the rails stay invisible
     if (!live.length) {
       sg.wrecked = true;
       for (const p of sg.parts) p.hp = 0;
