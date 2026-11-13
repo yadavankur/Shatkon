@@ -205,6 +205,8 @@ for (const node of campaign.nodes) {
   const byId = Object.fromEntries(ch.script.map((e) => [e.id, e]));
   const dooms = new Map();
   const checkShip = (id, where) => { if (id && !allIds.has(id)) fail(`${where}: unknown ship ${id}`); };
+  // ram seg: a segment index of the target's starting hull
+  const checkSeg = (target, seg, where) => { const t = g.ships.find((x) => x.name === target); if (!Number.isInteger(seg) || seg < 0 || (t && seg >= t.segs.length)) fail(`${where}: ram seg ${seg} is not a segment of ${target}${t ? ` (0..${t.segs.length - 1})` : ''}`); };
   const checkBeat = (id, where) => { if (id !== 'start' && !byId[id]) fail(`${where}: unknown beat ${id}`); };
   const walk = (t, where) => {
     if (typeof t === 'string') return checkBeat(t, where);
@@ -307,9 +309,12 @@ for (const node of campaign.nodes) {
       if (k === 'force' || k === 'orders') {
         if (!v.ship) fail(`${where}: ${k} needs a ship`);
         if (!Array.isArray(v.do) || !v.do.length) fail(`${where}: ${k} needs a do list`);
+        if (v.append !== undefined && (k !== 'orders' || typeof v.append !== 'boolean')) fail(`${where}: append is an orders option (true or false)`);
         for (const d of v.do || []) {
           const [o, ...more] = Object.keys(d), x = d[o];
-          if (more.length) fail(`${where}: one order per entry (${Object.keys(d).join(', ')})`);
+          // one order per entry; a ram order may name the target segment: { ram: seed, seg: 1 }
+          if (o === 'ram' && more.length === 1 && more[0] === 'seg') checkSeg(x, d.seg, where);
+          else if (more.length) fail(`${where}: one order per entry (${Object.keys(d).join(', ')})`);
           if (!FORCE_ORDERS.includes(o)) { fail(`${where}: order ${o} is not one the engine runs`); continue; }
           const hex = (c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger);
           if (['move_toward', 'fire_at', 'ram'].includes(o)) checkShip(x, where);
@@ -319,7 +324,8 @@ for (const node of campaign.nodes) {
           else if (o === 'hold' && x !== true) fail(`${where}: hold: true`);
         }
       }
-      if (k === 'ram') { checkShip(v.ship, where); checkShip(v.target, where); if (v.force !== undefined && typeof v.force !== 'boolean') fail(`${where}: ram force must be true or false`); }
+      if (k === 'ram') { checkShip(v.ship, where); checkShip(v.target, where); if (v.force !== undefined && typeof v.force !== 'boolean') fail(`${where}: ram force must be true or false`); if (v.seg !== undefined) checkSeg(v.target, v.seg, where); }
+      if (k === 'lock' && v.reason !== undefined && (typeof v.reason !== 'string' || !v.reason)) fail(`${where}: lock reason must be text`);
       if (k === 'protect') { if (!v.ship) fail(`${where}: protect needs a ship`); if (typeof v.until !== 'string' || (v.until !== 'end' && !byId[v.until])) fail(`${where}: protect until must be a beat id or end`); }
       if (k === 'doom' && typeof v.by_round !== 'number') fail(`${where}: doom needs by_round`);
       if (['lock', 'force', 'disable'].includes(k) && v.until !== undefined && !(v.until === 'end' || typeof v.until === 'number' || (typeof v.until === 'object' && typeof v.until.rounds === 'number') || byId[v.until])) fail(`${where}: ${k} until ${JSON.stringify(v.until)}`);
