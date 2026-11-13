@@ -1,0 +1,167 @@
+{
+ "captain_a": {
+  "name": "Captain Vey",
+  "title": "Captain, survey cutter Kestrel",
+  "color": "#e8c15a",
+  "portraits": {
+   "neutral": "img/portraits/captain_a_neutral.webp",
+   "determined": "img/portraits/captain_a_determined.webp",
+   "worried": "img/portraits/captain_a_worried.webp",
+   "smile": "img/portraits/captain_a_smile.webp",
+   "shock": "img/portraits/captain_a_shock.webp",
+   "hurt": "img/portraits/captain_a_hurt.webp"
+  }
+ },
+ "captain_b": {
+  "name": "Captain Vey",
+  "title": "Captain, survey cutter Kestrel",
+  "color": "#e8c15a",
+  "portraits": {
+   "neutral": "img/portraits/captain_b_neutral.webp",
+   "determined": "img/portraits/captain_b_determined.webp",
+   "worried": "img/portraits/captain_b_worried.webp",
+   "smile": "img/portraits/captain_b_smile.webp",
+   "shock": "img/portraits/captain_b_shock.webp",
+   "hurt": "img/portraits/captain_b_hurt.webp"
+  }
+ },
+ "li": {
+  "name": "Li",
+  "title": "Pilot, courier-gunship Halcyon",
+  "color": "#6fd3c8",
+  "portraits": {
+   "neutral": "img/portraits/li_neutral.webp",
+   "determined": "img/portraits/li_determined.webp",
+   "worried": "img/portraits/li_worried.webp",
+   "smile": "img/portraits/li_smile.webp",
+   "shock": "img/portraits/li_shock.webp",
+   "hurt": "img/portraits/li_hurt.webp"
+  }
+ },
+ "engineer": {
+  "name": "Moss Okafor",
+  "title": "Chief engineer, Kestrel",
+  "color": "#f08a4b",
+  "portraits": {
+   "neutral": "img/portraits/engineer_neutral.webp",
+   "determined": "img/portraits/engineer_determined.webp",
+   "worried": "img/portraits/engineer_worried.webp",
+   "smile": "img/portraits/engineer_smile.webp",
+   "shock": "img/portraits/engineer_shock.webp",
+   "hurt": "img/portraits/engineer_hurt.webp"
+  }
+ },
+ "sparrow_pilot": {
+  "name": "Teo Marsh",
+  "title": "Scout pilot, Sparrow (Kestrel's helm in ch1)",
+  "color": "#5cc8ff",
+  "portraits": {
+   "neutral": "img/portraits/sparrow_pilot_neutral.webp",
+   "determined": "img/portraits/sparrow_pilot_determined.webp",
+   "worried": "img/portraits/sparrow_pilot_worried.webp",
+   "smile": "img/portraits/sparrow_pilot_smile.webp",
+   "shock": "img/portraits/sparrow_pilot_shock.webp",
+   "hurt": "img/portraits/sparrow_pilot_hurt.webp"
+  }
+ },
+ "finch_pilot": {
+  "name": "Priya \"Nanda\" Nandakumar",
+  "short": "Nanda",
+  "title": "Captain, escort Finch (newly appointed)",
+  "color": "#9fb4ff",
+  "portraits": {
+   "neutral": "img/portraits/finch_pilot_neutral.webp",
+   "determined": "img/portraits/finch_pilot_determined.webp",
+   "worried": "img/portraits/finch_pilot_worried.webp",
+   "smile": "img/portraits/finch_pilot_smile.webp",
+   "shock": "img/portraits/finch_pilot_shock.webp",
+   "hurt": "img/portraits/finch_pilot_hurt.webp"
+  },
+  "bio": "Youngest escort captain in the flotilla; Finch is the first command. Nervous, meticulous, logs everything. Killed in ch1_finch_down."
+ },
+ "wren_pilot": {
+  "name": "Sefa Lowe",
+  "short": "Sefa",
+  "title": "Pilot, escort Wren",
+  "color": "#d4a373",
+  "portraits": {
+   "neutral": "img/portraits/wren_pilot_neutral.webp",
+   "determined": "img/portraits/wren_pilot_determined.webp",
+   "worried": "img/portraits/wren_pilot_worried.webp",
+   "smile": "img/portraits/wren_pilot_smile.webp",
+   "shock": "img/portraits/wren_pilot_shock.webp",
+   "hurt": "img/portraits/wren_pilot_hurt.webp"
+  },
+  "bio": "Late-forties Samoan veteran escort pilot; grey-streaked braid, laugh lines, small chin scar; tan shoulder stripe. Warm, teasing, mothers the young pilots. Rams the Seed's bow in ch1_hurl."
+ },
+ "kite_pilot": {
+  "name": "Dov Ancell",
+  "short": "Dov",
+  "title": "Pilot, escort Kite",
+  "color": "#c7a0f0",
+  "portraits": {
+   "neutral": "img/portraits/kite_pilot_neutral.webp",
+   "determined": "img/portraits/kite_pilot_determined.webp",
+   "worried": "img/portraits/kite_pilot_worried.webp",
+   "smile": "img/portraits/kite_pilot_smile.webp",
+   "shock": "img/portraits/kite_pilot_shock.webp",
+   "hurt": "img/portraits/kite_pilot_hurt.webp"
+  },
+  "bio": "Mid-thirties, shaved head, short dark beard, silver earring; violet shoulder stripe. Laconic, bone-dry humour, Sefa's wingmate for years. Rams the Seed's stern in ch1_hurl."
+ },
+ "tern_pilot": {
+  "name": "Hollis Brandt",
+  "title": "Pilot, Tern (Li's wingmate)",
+  "color": "#8fd18b",
+  "portraits": {
+   "neutral": "img/portraits/tern_pilot_neutral.webp",
+   "determined": "img/portraits/tern_pilot_determined.webp",
+   "worried": "img/portraits/tern_pilot_worried.webp",
+   "smile": "img/portraits/tern_pilot_smile.webp",
+   "shock": "img/portraits/tern_pilot_shock.webp",
+   "hurt": "img/portraits/tern_pilot_hurt.webp"
+  }
+ },
+ "meridian": {
+  "name": "Controller Abara",
+  "title": "Traffic control, Meridian Station",
+  "color": "#c9d3e8",
+  "portraits": {
+   "neutral": "img/portraits/meridian_neutral.webp",
+   "determined": "img/portraits/meridian_determined.webp",
+   "worried": "img/portraits/meridian_worried.webp",
+   "smile": "img/portraits/meridian_smile.webp",
+   "shock": "img/portraits/meridian_shock.webp",
+   "hurt": "img/portraits/meridian_hurt.webp"
+  }
+ },
+ "mimic": {
+  "name": "Warden Cole",
+  "title": "Ashfall Outpost (so it claims)",
+  "color": "#d9a7a0",
+  "portraits": {
+   "neutral": "img/portraits/mimic_neutral.webp",
+   "determined": "img/portraits/mimic_determined.webp",
+   "worried": "img/portraits/mimic_worried.webp",
+   "smile": "img/portraits/mimic_smile.webp",
+   "shock": "img/portraits/mimic_shock.webp",
+   "hurt": "img/portraits/mimic_hurt.webp"
+  }
+ },
+ "weave": {
+  "name": "The Weave",
+  "title": "Builder species",
+  "color": "#ff5a8a",
+  "portraits": {
+   "calm": "img/portraits/weave_calm.webp",
+   "pulse": "img/portraits/weave_pulse.webp",
+   "hostile": "img/portraits/weave_hostile.webp"
+  }
+ },
+ "narrator": {
+  "name": "",
+  "title": "Caption (no portrait)",
+  "color": "#8f9cba",
+  "portraits": {}
+ }
+}
