@@ -1,0 +1,36 @@
+{
+ "id": "ch5_li_moves",
+ "stage": "halcyon_bridge",
+ "cast": [
+  {
+   "id": "li",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "li",
+   "expression": "worried",
+   "text": "Kestrel, respond. Kestrel! Vey, why are you drifting?"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "shock",
+   "text": "Kestrel's heading straight for the Bloom! The engines aren't even lit!",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "Halcyon, full burn. Bring us about."
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "Hold on, Vey. I'm coming."
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "mid_battle"
+}

@@ -1,0 +1,63 @@
+{
+ "id": "ch1_finch_down",
+ "stage": "vista_corridor",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "show_ship": "finch"
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "shock",
+   "text": "Missile inbound on Finch! It went straight through my shield. Captain—",
+   "via": "comms"
+  },
+  {
+   "effect": "flash"
+  },
+  {
+   "effect": "shake"
+  },
+  {
+   "hide_ship": true
+  },
+  {
+   "speaker": "captain",
+   "expression": "shock",
+   "text": "Nanda!"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "shock",
+   "text": "Finch is gone. No pod. Captain, there's no pod."
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "hurt",
+   "text": "Oh, Nanda. Oh, kiddo.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "It hit Finch from outside our sensor range. It's picking off the small ships first."
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Wren, Kite: close on Kestrel. Nobody else goes alone."
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "mid_battle"
+}

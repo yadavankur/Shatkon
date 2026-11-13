@@ -1,0 +1,30 @@
+{
+ "id": "ch2_defeat",
+ "stage": "vista_quiet_water",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "They found our heat. Pull back into the nebula!"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "They can't see the charges. Sit still and let them drift into the passage. Again, Captain.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "defeat"
+}

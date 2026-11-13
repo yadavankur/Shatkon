@@ -1,0 +1,370 @@
+{
+ "kestrel": {
+  "name": "Kestrel",
+  "side": "player",
+  "segments": [
+   [
+    -1,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/kestrel.webp",
+  "note": "3-segment line cutter (campaign kestrel@ch1 and kestrel@ch2; the ch2 launcher replaces a mount, no new segment)"
+ },
+ "kestrel_refit": {
+  "name": "Kestrel (refit)",
+  "side": "player",
+  "segments": [
+   [
+    -1,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    0,
+    -1
+   ]
+  ],
+  "img": "img/ships/kestrel_refit.webp",
+  "note": "ch3-4 refit (campaign kestrel@ch3 / kestrel@ch4a): 4 segments, +[0,-1] SHIELD segment from the ch2 salvage. The ch2 launcher is bolted onto the existing 3-hex hull (see kestrel)"
+ },
+ "kestrel_grafted": {
+  "name": "Kestrel (grafted)",
+  "side": "player",
+  "segments": [
+   [
+    -1,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    0,
+    -1
+   ],
+   [
+    -1,
+    1
+   ],
+   [
+    0,
+    1
+   ]
+  ],
+  "img": "img/ships/kestrel_grafted.webp",
+  "note": "Kestrel refit + Tern fused at [-1,1],[0,1]; glowing Weave seam (ch4a)"
+ },
+ "sparrow": {
+  "name": "Sparrow",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ]
+  ],
+  "img": "img/ships/sparrow.webp"
+ },
+ "finch": {
+  "name": "Finch",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ]
+  ],
+  "img": "img/ships/finch.webp",
+  "note": "ch1 escort (Nanda); destroyed in ch1_finch_down"
+ },
+ "wren": {
+  "name": "Wren",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ]
+  ],
+  "img": "img/ships/wren.webp",
+  "note": "v2: ch1 AI escort (Sefa Lowe), 1 hex gunboat; not yet in campaign-v1 (25992f1)"
+ },
+ "kite": {
+  "name": "Kite",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/kite.webp",
+  "note": "v2: ch1 AI escort (Dov Ancell), 2 hexes: cockpit + gun; not yet in campaign-v1 (25992f1)"
+ },
+ "halcyon": {
+  "name": "Halcyon",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    0,
+    1
+   ]
+  ],
+  "img": "img/ships/halcyon.webp"
+ },
+ "tern": {
+  "name": "Tern",
+  "side": "player",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/tern.webp"
+ },
+ "seed": {
+  "name": "Seed",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/seed.webp"
+ },
+ "seed_a": {
+  "name": "Seed",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/seed.webp",
+  "note": "alias of seed (campaign seed_a@ch2)"
+ },
+ "seed_b": {
+  "name": "Seed",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/seed.webp",
+  "note": "alias of seed (campaign seed_b@ch2)"
+ },
+ "twin": {
+  "name": "Twin",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    0,
+    1
+   ],
+   [
+    1,
+    -1
+   ],
+   [
+    2,
+    -1
+   ],
+   [
+    2,
+    -2
+   ]
+  ],
+  "img": "img/ships/twin.webp",
+  "note": "two 3-cell triangles joined; twin_a matches PR #2 split fixture"
+ },
+ "twin_a": {
+  "name": "Twin (A half)",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    0,
+    1
+   ]
+  ],
+  "img": "img/ships/twin_a.webp"
+ },
+ "twin_b": {
+  "name": "Twin (B half)",
+  "side": "weave",
+  "segments": [
+   [
+    1,
+    -1
+   ],
+   [
+    2,
+    -1
+   ],
+   [
+    2,
+    -2
+   ]
+  ],
+  "img": "img/ships/twin_b.webp",
+  "note": "unsplit-frame offsets (as cells sit inside twin). Campaign twin_b@ch3 re-centres on [1,-1] -> [0,0],[1,0],[1,-1]"
+ },
+ "husk": {
+  "name": "Husk",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/husk.webp",
+  "note": "generic alias, same shape as husk_2"
+ },
+ "husk_1": {
+  "name": "Husk (1 cell)",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ]
+  ],
+  "img": "img/ships/husk_1.webp"
+ },
+ "husk_2": {
+  "name": "Husk (2 cells)",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ]
+  ],
+  "img": "img/ships/husk_2.webp"
+ },
+ "husk_3": {
+  "name": "Husk (1 cell)",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ]
+  ],
+  "img": "img/ships/husk_3.webp"
+ },
+ "bloom": {
+  "name": "Bloom",
+  "side": "weave",
+  "segments": [
+   [
+    0,
+    0
+   ],
+   [
+    1,
+    0
+   ],
+   [
+    1,
+    -1
+   ],
+   [
+    0,
+    -1
+   ],
+   [
+    -1,
+    0
+   ],
+   [
+    -1,
+    1
+   ],
+   [
+    0,
+    1
+   ]
+  ],
+  "img": "img/ships/bloom.webp",
+  "note": "centre + full ring"
+ }
+}

@@ -98,12 +98,14 @@ function drawMap() {
   box.textContent = '';
   box.appendChild(h('div', { class: 'cm' },
     h('div', { class: 'cm-top' }, h('h2', null, C.title || 'Campaign'), h('button', { class: 'btn', onclick: () => closeCampaign() }, 'Back to skirmish')),
-    art,
+    h('div', { class: 'cm-scroll' }, art),
     h('div', { class: 'cm-foot' },
       h('label', null, 'Captain ', h('select', { onchange: (ev) => setSettings({ captain: ev.target.value }) },
         h('option', { value: 'captain_a', selected: s.captain !== 'captain_b' }, 'Look A'), h('option', { value: 'captain_b', selected: s.captain === 'captain_b' }, 'Look B'))),
       h('span', { class: 'muted' }, player ? '' : 'Cutscenes show as text until the story files arrive.'),
       h('button', { class: 'btn', onclick: () => { if (confirm('Start the campaign again from chapter 1? Progress is lost.')) { progress = E.newCampaign(data.campaign); saveProgress(); drawMap(); } } }, 'Restart campaign'))));
+  const sc = box.querySelector('.cm-scroll');
+  if (sc) sc.scrollLeft = (sc.scrollWidth - sc.clientWidth) / 2;   // the chapters sit in the middle
 }
 
 // The fork after a chapter: the node's fork_scene plays (with its choice) before the next chapter.

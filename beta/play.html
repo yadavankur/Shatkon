@@ -184,8 +184,9 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .cm{max-width:900px;margin:0 auto}
 .cm-top,.cm-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:8px 0}
 .cm-top h2{margin:0;color:var(--gold,#e8c15a)}
-.cm-art{position:relative;width:100%;aspect-ratio:16/10;max-height:72vh;border-radius:12px;border:1px solid var(--line);background-size:cover,cover;background-position:center}
-@media (max-width:600px){.cm-art{aspect-ratio:9/14}}
+.cm-art{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);background-size:100% 100%,cover;background-position:center}   /* the art's own lanes line up with the nodes */
+.cm-scroll{overflow-x:auto;border-radius:12px;-webkit-overflow-scrolling:touch}
+@media (max-width:760px){.cm-art{width:760px}}   /* phones: a bigger map you can swipe sideways */
 .cm-lanes{position:absolute;inset:0;width:100%;height:100%}
 .cm-lanes line{stroke:#3a4a7a;stroke-width:.5;stroke-dasharray:1.5 1.5;vector-effect:non-scaling-stroke}
 .cm-lanes line.lit{stroke:#e8c15a;stroke-dasharray:none}

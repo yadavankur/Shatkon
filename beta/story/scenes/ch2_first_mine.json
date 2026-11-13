@@ -1,0 +1,58 @@
+{
+ "id": "ch2_first_mine",
+ "stage": "vista_quiet_water",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "flash"
+  },
+  {
+   "effect": "shake"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "shock",
+   "text": "Whoa! It flew right into it! Didn't even flinch!",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "The charge cooked its engine cells. No burn, no steering. It's just drifting."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "It's dead in the water! Sit there and think about what you did.",
+   "via": "comms"
+  },
+  {
+   "speaker": "weave",
+   "expression": "hostile",
+   "glyphs": true,
+   "text": "(untranslated: broken pulses, three, then two)"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "And it never saw the charge. Heat and motion, nothing else. Nanda called it."
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Then we stay cold, let the passage stop them, and finish them where they float."
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "mid_battle"
+}
