@@ -112,5 +112,5 @@ chapter:
 
   win:  []
   lose: []                               # nothing can die before the cliff
-  scenes: { intro: ch5_intro, win: [], lose: null, tbc: ch5_cliff }
+  scenes: { intro: ch5_intro, win: [], lose: ch5_defeat, tbc: ch5_cliff }   # ch5_defeat: new in story pack v2 (unreachable while the rails hold)
   rewards: {}

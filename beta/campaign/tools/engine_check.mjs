@@ -113,7 +113,7 @@ function closeFirst(g, seat, fire) {
 // One AI-vs-AI game. Returns the final state.
 function play(rules, seed, chId) {
   let g = E.start(rules, seed);
-  const doomed = [], lastCause = {}, killedBy = {}, firstHit = {}, ttk = {};
+  const doomed = [], lastCause = {}, killedBy = {}, firstHit = {}, ttk = {}, rams = {};
   for (let steps = 0; g.phase === 'play' && steps < 6000; steps++) {
     const seat = S.current(g);
     let act = null;
@@ -142,12 +142,15 @@ function play(rules, seed, chId) {
       if (e.t === 'damage') { const sh = g.ships.find((x) => x.id === e.ship); if (sh) { lastCause[sh.name] = e.cause; if (!(sh.name in firstHit)) firstHit[sh.name] = g.round; } }
       if (e.t === 'destroyed' && e.name in firstHit && !(e.name in ttk)) ttk[e.name] = g.round - firstHit[e.name] + 1;
       if (e.t === 'destroyed') killedBy[e.name] = e.cause || lastCause[e.name] || '?';
+      // which target segment a ram landed on (impact hex = the target segment's cell)
+      if (e.t === 'ram') { const t = g.ships.find((x) => x.id === e.target); const i = t ? t.segs.findIndex((sg) => t.pos[0] + sg.off[0] === e.at[0] && t.pos[1] + sg.off[1] === e.at[1]) : -1; rams[e.name] = e.targetName + ':seg' + i; }
       if (e.t === 'destroyed' && e.cause === 'scripted') doomed.push(e.name);
       if (e.t === 'script_unknown' || e.t === 'script_failed') doomed.problems = (doomed.problems || []).concat(e.t + ':' + (e.action || '') + (e.why ? ' (' + e.why + ')' : ''));
     }
   }
   g.doomed = doomed;
   g.killedBy = killedBy;
+  g.rams = rams;
   g.ttk = ttk;
   return g;
 }
@@ -166,7 +169,7 @@ for (const node of C.nodes) {
   log(`  fleets: ${rules.fleets.map((f) => f.ships.map((s) => s.name + (s.flagship ? '*' : '') + (s.reserve ? '(reserve)' : '')).join(' ')).join('  vs  ')}`);
   if (ONLY && ONLY !== ch.id) { progress = E.applyResult(progress, chDoc, { script: { result: 'win', flags: {} }, ships: [], winner: 0 }); continue; }
   const beats = ch.script.map((e) => e.id), stats = Object.fromEntries(beats.map((b) => [b, []]));
-  const results = {}, rounds = [], deaths = {}, unknown = new Set(), extra = { mineHits: 0, stopped: 0, forced: 0, grafted: 0, scriptedGraft: 0, doomed: {}, killedBy: {}, ttk: {} };
+  const results = {}, rounds = [], deaths = {}, unknown = new Set(), extra = { mineHits: 0, stopped: 0, forced: 0, grafted: 0, scriptedGraft: 0, doomed: {}, killedBy: {}, ttk: {}, rams: {} };
   let firstWin = null;
   for (let i = 0; i < GAMES; i++) {
     const g = play(rules, SEED0 + i, ch.id);
@@ -178,6 +181,7 @@ for (const node of C.nodes) {
     for (const n of g.doomed) extra.doomed[n] = (extra.doomed[n] || 0) + 1;
     for (const [n, r] of Object.entries(g.ttk)) (extra.ttk[n] = extra.ttk[n] || []).push(r);
     for (const [n, c] of Object.entries(g.killedBy)) { const k = n + ':' + c; extra.killedBy[k] = (extra.killedBy[k] || 0) + 1; }
+    for (const [n, c] of Object.entries(g.rams)) { const k = n + '->' + c; extra.rams[k] = (extra.rams[k] || 0) + 1; }
     extra.mineHits += g.script.mineHit[1] || 0;
     extra.stopped += g.script.stopped[0] || 0;
     if (g.script.flags['grafted:kestrel+tern']) extra.grafted++;
@@ -193,6 +197,7 @@ for (const node of C.nodes) {
   }
   log(`  destroyed / removed (games): ${JSON.stringify(deaths)}; of those by a doom fallback: ${JSON.stringify(extra.doomed)}`);
   log(`  killing blow (ship:cause, games): ${JSON.stringify(extra.killedBy)}`);
+  if (Object.keys(extra.rams).length) log(`  rams (rammer->target:segment hit, games; seg0 = bow, seg1 = stern on the Seeds): ${JSON.stringify(extra.rams)}`);
   log(`  rounds under fire before death (first hit to destroyed, avg / min / max): ${Object.entries(extra.ttk).map(([n, rs]) => n + ' ' + avg(rs) + ' / ' + Math.min(...rs) + ' / ' + Math.max(...rs) + ' (' + rs.length + ' games)').join('; ') || '-'}`);
   const hist = {}; for (const r of rounds) hist[r] = (hist[r] || 0) + 1;
   log(`  rounds played (round: games): ${JSON.stringify(hist)}`);

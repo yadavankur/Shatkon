@@ -1,28 +1,36 @@
 # ============================================================
 #  CHAPTER 1  -  FIRST CONTACT        map: ch1_corridor (radius 7)
-#  Kestrel leads three escorts up a narrow asteroid corridor. A lone Weave Seed kills Finch
-#  with a missile, shoots the lasers off Wren and Kite, and turns on Kestrel. Wren and Kite,
-#  with nothing left to fight with, throw themselves at the two ends of the Seed. The crippled
-#  Seed is Kestrel's to finish. The player commands Kestrel only.
+#  Kestrel brings three escorts home up a narrow asteroid corridor (the Throat). A lone Weave
+#  Seed kills Finch (Captain Nanda, newly appointed) with a missile and shears the guns off
+#  Wren and Kite. Knowing they cannot survive it, Wren and Kite hurl themselves at the two ends
+#  of the Seed (Wren the bow, Kite the stern: ch1_hurl). The Seed was not built for that: it is
+#  left dead in the water, and an on-map move guide (campaign/GUIDE_PROPOSAL.md; the objective
+#  line is its fallback) brings Kestrel in to finish it. The player commands Kestrel only.
 #
-#  Combat v2 (campaign-engine 1afc785): Finch, Wren and Kite are `helm: script` (the engine
-#  locks them for the whole battle and the fleet strip says "flying itself"); the script flies
-#  them with `orders` (hold / move_toward / fire_at / ram), which spend their own budget, not the
-#  player's command points or thrust. The hurl is the engine's `ram`, with a forced-ram fallback.
+#  No special rules. The pacing comes from what is on the board:
+#   - The escorts (helm: script, flown by `orders`) hold a line right across row 5, the
+#     corridor's full 4-hex width, 2 rows ahead of Kestrel. A laser cannot fire through your
+#     own ships and a 3-hex Kestrel cannot pass the line, so Kestrel stays behind the screen
+#     until the escorts move (Finch's gap is one hex: a line of fire, not a way through).
+#   - The Seed plays competently: its missile for the scout, its gun for the escorts' guns
+#     (only_targets), 9 hexes off Kestrel; with both guns gone it takes station in the narrows
+#     ([-1,-1], an `orders: move_to`) to wait for the cutter.
+#   - Hull layout does the rest: the Seed's bow (shields, plate) faces the escorts and soaks
+#     their fire; launcher, magazine and laser sit in the stern.
+#   - Rails: protect (Kestrel; Wren and Kite until they ram; the Seed until both have rammed)
+#     and fallbacks that use the same blocks (doom, disable, a forced ram, scripted damage).
 #
 #  Key numbers (Combat v2 world: lasers 3 hits to 4 hexes / 2 to 8, +1 after moving; see CHECKS.md):
-#   - Start: escorts on row 3, Finch scouting ahead; contact (sees) or round 2.
-#   - Finch: unarmed scout, 4-5 hits: the Seed launches (launch_at, 3 hits) once Finch is inside
-#     7 hexes and again a round later; each missile lands in that round's flight phase. Doom
-#     fallback round 6.
-#   - Wren's laser is alone on its front cell, Kite's behind one plate: one Seed shot each.
-#     Fallback round 9 switches off any laser still working.
-#   - The hurl: `orders: ram` closes in and hurls once the Seed is within this turn's move + 2.
-#     Ram hits: 4 x the rammer's living segments (Wren 8, Kite 4), piercing shields, from the
-#     Seed segment nearest the rammer. The Seed is protected until both have rammed, so the rams
-#     leave a hulk (never a kill). Fallback 3 rounds after the hurl: `ram: { force: true }`.
-#   - Rounds: contact 1, Finch 2, disarmed 2-3, the escorts fall back on Kestrel for 2 rounds,
-#     hurl (orders: ram closes in), kill +0-1: 8-10.
+#   - Finch: three bays, no mounts: one missile (3 hits) kills it. launch_at only once Finch is
+#     inside 7 hexes, so the missile lands in the same round's flight phase (a missile still in
+#     flight at the player's turn gets shot down by the escorts' beams). Doom fallback round 6.
+#   - Wren's and Kite's front cells: a plate, then the laser (about 2 Seed beams each).
+#     Fallback round 9 switches off any that still work ("heavy damage").
+#   - Rams: `orders: ram` closes in and hurls once the Seed is within this turn's move + 2.
+#     4 hits x the rammer's living segments (Wren 4, Kite 8), piercing shields, on the Seed
+#     segment nearest the rammer (ties: the bow). Fallback 4 rounds after the hurl: force: true.
+#  Sims (engine_check, 40 games): 10 rounds; Finch to the missile, Wren on the bow, Kite on the
+#  stern in 40/40, no fallback used.
 # ============================================================
 
 chapter:
@@ -40,33 +48,29 @@ chapter:
       - { id: wren,  helm: script }
       - { id: kite,  helm: script }
     deployment:
-      - { ship: kestrel, at: [-3, 6] }   # cells [-4,6] [-3,6] [-2,6]
-      - { ship: finch,   at: [-2, 3] }   # line abreast across row 3 (4 hexes wide here)
-      - { ship: kite,    at: [-3, 3] }
-      - { ship: wren,    at: [-1, 3] }   # cells [-1,3] [0,3]
-  # The escorts fly line abreast on row 3, 3 rows ahead of Kestrel (the corridor is 3-4 hexes
-  # wide; Kestrel is 3); Finch scouts ahead up the corridor from the start.
-  # Fleet thrust 4 + 1 + 1 + 3 = 9 for 7 segments: a ship moves up to 2 hexes a turn.
+      - { ship: kestrel, at: [-3, 7] }   # cells [-4,7] [-3,7] [-2,7]: the rear of the corridor
+      - { ship: wren,    at: [-4, 5] }   # the screen: row 5 is 4 hexes wide here (q -4..-1)
+      - { ship: finch,   at: [-3, 5] }   # Nanda holds the middle
+      - { ship: kite,    at: [-2, 5] }   # cells [-2,5] [-1,5]
 
   enemy:                            # seat 1, north
     ships: [seed]                        # hull seed@ch1 (flagship)
     deployment:
-      - { ship: seed, at: [2, -6] }      # cells [2,-6] [3,-6]
+      - { ship: seed, at: [1, -5] }      # cells [1,-5] [2,-5]: the front of its home zone
     ai: { default: hunter }
 
   ai_profiles:
-    # Competent throughout: the gun goes for the escorts' guns (Wren, then Kite) and keeps out of
-    # the cutter's 3-hit range (its 3 lasers are the real threat); the unarmed scout gets the
-    # missile (the script's launch_at). Missiles: launch_at only (the spare is never spent on locks).
-    hunter:    { level: normal, stance: hunt, target: [wren, kite], only_targets: [wren, kite, kestrel], stand_off: { from: kestrel, hexes: 5 }, launch_range: 0 }
-    # After Finch: the escorts that can still shoot, Kite first (the smaller), then Wren.
-    disarm:    { level: normal, stance: hunt, target: [kite, wren], stand_off: { from: kestrel, hexes: 5 }, launch_range: 5 }
-    disarm_w:  { level: normal, stance: hunt, target: [wren], stand_off: { from: kestrel, hexes: 5 }, launch_range: 5 }
-    disarm_k:  { level: normal, stance: hunt, target: [kite], stand_off: { from: kestrel, hexes: 5 }, launch_range: 5 }
-    # Escorts toothless: the only gun left is Kestrel. Trade shots from outside its 2-hit range
-    # (one laser against three: never let the cutter close).
-    duel:      { level: normal, stance: hunt, target: [kestrel], stand_off: { from: kestrel, hexes: 5 }, launch_range: 5 }
-    # Engines and stern gone: it cannot move (the engine has no per-ship immobility yet: hold).
+    # Competent throughout. Its gun goes for the escorts' guns and it keeps 9 hexes from the
+    # cutter (outside its laser reach); the missiles are fired by the script's launch_at at the
+    # scout (launch_range 0: they are not spent on whatever it locks first).
+    # Its gun is for the guns: only the two gunboats. The missile is for the scout (script).
+    hunter:    { level: normal, stance: hunt, target: [kite, wren], only_targets: [kite, wren], stand_off: { from: kestrel, hexes: 9 }, launch_range: 0 }
+    disarm_w:  { level: normal, stance: hunt, target: [wren], only_targets: [wren, kite], stand_off: { from: kestrel, hexes: 9 }, launch_range: 0 }
+    disarm_k:  { level: normal, stance: hunt, target: [kite], only_targets: [kite, wren], stand_off: { from: kestrel, hexes: 9 }, launch_range: 0 }
+    # Both escorts toothless: the only gun left is the cutter's. It takes station in the narrows
+    # (the script's orders: move_to) and waits for Kestrel to come up the Throat.
+    duel:      { level: normal, stance: hold, target: [kestrel], launch_range: 5 }
+    # Engines, laser and launcher gone: it cannot move or shoot (one thrust pool per fleet: hold).
     hulk:      { level: normal, stance: hold }
 
   script:
@@ -77,14 +81,11 @@ chapter:
         - protect: { ship: wren, until: end }          # they must live to make the rams (a ram destroys the rammer regardless)
         - protect: { ship: kite, until: end }
         - protect: { ship: seed, until: crippled }     # only the rams may open it
-        - orders: { ship: finch, do: [ { move_toward: seed } ] }   # the scout goes ahead
-        - orders: { ship: wren,  do: [ { hold: true } ] }
-        - orders: { ship: kite,  do: [ { hold: true } ] }
         - doom: { ship: finch, by_round: 6 }
-        # First-contact protocol (a human rule, not a Weave mistake): guns cold until the
-        # contact draws blood. Kestrel may move and scan; it opens fire once Finch is lost.
-        - lock: { ship: kestrel, actions: [fire, launch], until: finch_down }
-        - objective: "Scout the corridor. Guns cold: first-contact protocol."
+        # the screen holds; "weapons free": the gunboats shoot as soon as they see it
+        - orders: { ship: finch, do: [ { hold: true } ] }
+        - orders: { ship: wren,  do: [ { hold: true }, { fire_at: seed } ] }
+        - orders: { ship: kite,  do: [ { hold: true }, { fire_at: seed } ] }
         - bark: b1_scouts_ahead
 
     - id: contact
@@ -93,27 +94,20 @@ chapter:
         - reveal: { ship: seed, to: player, rounds: 1 }   # no-op if already seen
         - scene: ch1_contact
         - bark: b1_contact_glyphs
-        - objective: "Unknown contact. Bring it down."
 
-    # The Seed's answer to the scout: a straight-line launch (Combat v2 launch_at) once Finch is
-    # inside 7 hexes. Missiles fly at the end of the round, 6 hexes plus a 2-hex seeker, so it
-    # lands the same round, before Kestrel's next turn could put a beam across its path.
+    # The Seed's missile goes for the scout in the middle: a straight-line launch (launch_at) once
+    # Finch is inside 7 hexes, so the missile (6 hexes a round plus a 2-hex seeker) lands in the
+    # same round's flight phase ("straight through my shield"); its gun (target list: Finch
+    # first) finishes the job. No second scripted missile: the Seed's own beam stops on a
+    # missile still in its line of fire.
     - id: missile_away
       flavor: true                                       # finch_down has the doom fallback
-      when: { all: [ { any: [ { distance_below: { a: finch, b: seed, hexes: 8 } }, { round: 3 } ] }, { alive: finch } ] }
+      when: { all: [ { distance_below: { a: finch, b: seed, hexes: 8 } }, { alive: finch } ] }   # 7 hexes or less: never earlier
       do:
         - orders: { ship: seed, do: [ { launch_at: finch } ] }
-
-    # and the second missile a round later if the scout is still flying
-    - id: second_missile
-      flavor: true
-      when: { all: [ { after: { beat: missile_away, rounds: 2 } }, { alive: finch } ] }   # 2: a new orders replaces a plan that has not run yet
-      do:
-        - orders: { ship: seed, do: [ { launch_at: finch } ] }
-
     - id: seed_shield
       flavor: true                                       # a bark only; may never fire
-      when: { any: [ { fired_at: { by: finch, target: seed } }, { fired_at: { by: wren, target: seed } }, { fired_at: { by: kite, target: seed } }, { fired_at: { by: kestrel, target: seed } } ] }
+      when: { any: [ { fired_at: { by: wren, target: seed } }, { fired_at: { by: kite, target: seed } }, { fired_at: { by: kestrel, target: seed } } ] }
       do:
         - bark: b1_seed_shield
 
@@ -123,71 +117,69 @@ chapter:
       do:
         - bark: b1_finch_hit
 
-    # Beat 3. The Seed's missiles kill Finch; the doom set in rails is the fallback.
+    # Beat 3. The Seed's missile kills Finch; the doom set in rails is the fallback. ("Wren,
+    # Kite: close on Kestrel": they already screen it, one row ahead, and hold there.)
     - id: finch_down
       when: { any: [ { destroyed: finch }, { round: 6 } ] }
       do:
         - scene: ch1_finch_down
-        - ai: { ship: seed, profile: disarm }
-        - objective: "Finch is gone. Weapons free."
-        # weapons free: Wren and Kite open fire (orders). Not before: their beams would stop on the
-        # Seed's missiles in flight and Finch's duel would never end on a missile.
-        - orders: { ship: kite, do: [ { hold: true }, { fire_at: seed } ] }   # hold the line, fire every turn
-        - orders: { ship: wren, do: [ { hold: true }, { fire_at: seed } ] }
 
-    # Beat 4. The Seed shoots the lasers off Kite and Wren (targeted fire: disarm profiles).
-    # Fallback round 9: whatever laser is still working is switched off (a Seed hit "through
-    # the plating"); part_lost or the disable both count.
-    - id: kite_disarmed
-      when: { any: [ { part_lost: { ship: kite, part: laser } }, { flag: kite_laser_off } ] }
-      do: []
+    # Beat 4. The Seed shears the guns off Wren and Kite (its target list), "heavy damage".
+    # Fallback round 9: whatever laser still works is switched off; part_lost or the flag counts.
     - id: wren_disarmed
       when: { any: [ { part_lost: { ship: wren, part: laser } }, { flag: wren_laser_off } ] }
       do: []
+    - id: kite_disarmed
+      when: { any: [ { part_lost: { ship: kite, part: laser } }, { flag: kite_laser_off } ] }
+      do: []
     # a competent gunner moves on to whichever escort can still shoot back
-    - id: retarget_wren
-      flavor: true
-      when: { all: [ finch_down, kite_disarmed, { not: wren_disarmed } ] }
-      do:
-        - ai: { ship: seed, profile: disarm_w }
     - id: retarget_kite
       flavor: true
-      when: { all: [ finch_down, wren_disarmed, { not: kite_disarmed } ] }
+      when: { all: [ wren_disarmed, { not: kite_disarmed } ] }
       do:
         - ai: { ship: seed, profile: disarm_k }
+    - id: retarget_wren
+      flavor: true
+      when: { all: [ kite_disarmed, { not: wren_disarmed } ] }
+      do:
+        - ai: { ship: seed, profile: disarm_w }
     - id: disarm_fallback
       fallback_for: weapons_gone
       when: { all: [ { round: 9 }, { not: weapons_gone } ] }
       do:
-        - disable: { ship: kite, parts: [laser] }
         - disable: { ship: wren, parts: [laser] }
-        - flag: kite_laser_off
+        - disable: { ship: kite, parts: [laser] }
         - flag: wren_laser_off
+        - flag: kite_laser_off
 
     - id: weapons_gone
-      when: { all: [ finch_down, kite_disarmed, wren_disarmed ] }
+      when: { all: [ finch_down, wren_disarmed, kite_disarmed ] }
       do:
         - bark: b1_weapons_gone
         - ai: { ship: seed, profile: duel }
-        # toothless, they fall back on the cutter
-        - orders: { ship: wren, do: [ { move_toward: kestrel } ] }
-        - orders: { ship: kite, do: [ { move_toward: kestrel } ] }
+        - orders: { ship: seed, do: [ { move_to: [-1, -1] } ] }   # into the narrows (cells [-1,-1] [0,-1])
 
-    # Beat 5. Nothing left to shoot with: they turn their hulls into the weapon.
+    # Beat 5. "Its shield can't cover both ends at once." Once the Seed sits in the narrows
+    # (fallback: 3 rounds after the guns go), they hurl. Each closes in and hurls itself once in
+    # reach (this turn's move + 2); the engine's ram lands on the Seed segment nearest the
+    # rammer, ties to the bow. With the Seed's bow on [-1,-1] and stern on [0,-1]:
+    #   Wren keeps to the west side (every cell q <= -1): nearer the bow, or a tie -> the bow.
+    #   Kite swings to [0,1] first (cells [0,1] [1,1]): both cells are east of the bow's column,
+    #   so the stern is strictly nearer (2 vs 3) -> the stern. (Any Kite cell in the bow's column
+    #   or west of it ties, and a tie goes to the bow.)
+    - id: seed_on_station
+      flavor: true                                       # hurl's own `after` is the fallback
+      when: { all: [ weapons_gone, { in_zone: { ship: seed, zone: narrows } } ] }
+      do: []
     - id: hurl
-      when: { after: { beat: weapons_gone, rounds: 2 } }   # two rounds of the Seed dueling Kestrel first
+      when: { any: [ seed_on_station, { after: { beat: weapons_gone, rounds: 3 } } ] }
       do:
         - scene: ch1_hurl
-        - objective: "Wren and Kite are going in. Cover them."
-        # each closes in and hurls itself once in reach (this turn's move + 2); the engine's ram
-        # lands on the Seed segment nearest the rammer. Kite goes straight in (the bow faces the
-        # south end of the corridor); Wren first swings up the east side to come at the stern.
-        - orders: { ship: kite, do: [ { ram: seed } ] }
-        - orders: { ship: wren, do: [ { move_to: [1, -1] }, { ram: seed } ] }
+        - orders: { ship: wren, do: [ { ram: seed } ] }
+        - orders: { ship: kite, do: [ { move_to: [0, 1] }, { ram: seed } ] }
 
-    # Beat 6. The two rams. The engine lands each one on the Seed segment nearest the rammer and
-    # destroys the rammer. Which end each takes is geometry (see MANIFEST.md assumptions). Fallback: 3 rounds after the
-    # hurl, a rammer still flying is hurled regardless of distance (`force: true`).
+    # Beat 6. The two rams; fallback 3 rounds after the hurl (a rammer still flying hurls
+    # regardless of distance).
     - id: ram_wren
       when: { rammed: wren }
       do:
@@ -198,7 +190,7 @@ chapter:
         - bark: b1_hurl_kite
     - id: ram_fallback
       fallback_for: crippled
-      when: { all: [ { after: { beat: hurl, rounds: 3 } }, { not: { all: [ ram_wren, ram_kite ] } } ] }
+      when: { all: [ { after: { beat: hurl, rounds: 4 } }, { not: { all: [ ram_wren, ram_kite ] } } ] }
       do:
         - ram: { ship: wren, target: seed, force: true }   # a no-op for a ship that already rammed (gone)
         - ram: { ship: kite, target: seed, force: true }
@@ -209,17 +201,29 @@ chapter:
       do:
         - bark: b1_seed_closing
 
-    # Beat 7. Crippled: the core is all that is left. Kestrel's next hit kills it.
+    # Beat 7. A sitting duck. The objective (and the guide, for a UI that draws it) brings
+    # Kestrel in to finish it.
     - id: crippled
       when: { all: [ ram_wren, ram_kite ] }
       do:
         - unprotect: seed
-        - disable: { ship: seed, parts: [engine, laser, launcher] }   # guarantee: whatever survived the rams is dead weight
+        - disable: { ship: seed, parts: [engine, laser, launcher] }   # whatever survived the rams is dead weight
         - ai: { ship: seed, profile: hulk }
-        - objective: "It's drifting. Finish it."
+        - objective: "It's dead in the water. Close to 4 hexes and fire on the Seed."   # fallback until the overlay exists (GUIDE_PROPOSAL.md §7)
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel
+        clear: { destroyed: seed }
+        steps:
+          - label: "Close to 4 hexes"          # lasers: 3 hits to 4 hexes, 2 from 5-8
+            move_to: { near: seed, within: 4 }
+            done: reached
+          - label: "Fire on the Seed"
+            fire_at: seed
+            done: { destroyed: seed }
+            timeout: { rounds: 4 }             # finish_fallback acts after 4 rounds too
     - id: finish_fallback
       fallback_for: win
-      when: { all: [ { after: { beat: crippled, rounds: 3 } }, { alive: seed } ] }
+      when: { all: [ { after: { beat: crippled, rounds: 4 } }, { alive: seed } ] }
       do:
         - damage: { ship: seed, seg: 0, hits: 3, cause: scripted }   # the core burns out
 

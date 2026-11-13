@@ -92,27 +92,26 @@ sparrow@ch1:
   hull:
     - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour, armour] }
 
-# Ch1 escort (helm: script): the unarmed scout. Core, engine, sensor and two plates: 5-6 hits
-# (it dies once only the core and engine are left: the engine's nothing_but_engines rule).
-# Two of the Seed's missiles (3 each), or a stray beam and a missile (the Seed cannot see a
-# 1-hex scout; its shots at Wren and Kite can stop on it, 2-3 hits at long range).
+# Ch1 escorts (helm: script), shapes as in story/ships.json.
+# Finch (Captain Nanda, newly appointed): the scout holding the middle. Unarmed and unplated:
+# three bays, so one of the Seed's missiles (3 hits) kills it ("straight through my shield").
+# The Seed's gun never targets it (only_targets), so the missile is what kills it.
 finch@ch1:
   hull:
-    - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, armour] }
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [] }
 
-# Ch1 escort (helm: script), 2 hexes. The laser sits alone on the front cell with no plate in
-# front of it, so the Seed's first beam on that cell takes it; the armour is all on the rear
-# cell. Thrust 3. Sensor 4, signature 2. Rams for 8 (2 living segments x 4).
+# Wren (Sefa Lowe), 1 hex gunboat. A plate in front of its laser: about two of the Seed's
+# beams to shear it off. Rams the Seed's bow for 4 (1 living segment x 4).
 wren@ch1:
   hull:
-    - { at: [0, 0], bays: [core, sensor, engine],     mounts: [laser] }
-    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [armour, armour, armour] }
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, laser] }
 
-# Ch1 escort (helm: script), 1 hex. The laser is its only mount: the Seed's first beam on Kite
-# takes it. Thrust 1. Rams for 4.
+# Kite (Dov Ancell), 2 hexes: cockpit + gun in front (a plate before the laser), engines and
+# plates behind. Rams the Seed's stern for 8 (2 living segments x 4).
 kite@ch1:
   hull:
-    - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - { at: [0, 0], bays: [core, sensor, engine],     mounts: [armour, laser] }
+    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [armour, armour, armour] }
 
 # Ch3 on: Sparrow gets a salvaged shield cell.
 sparrow@ch3:
@@ -137,19 +136,19 @@ tern@ch3:
 
 # ---------------- WEAVE ----------------
 
-# A lone advanced cell. Better per hex than anything human: 3 shields (soak 2 hits a round on the
-# bow, 1 on the stern), armour, laser, launcher with 2 missiles. Sensor 4, signature 2, thrust 2
-# (1 hex a turn, 2 with banked thrust). The laser sits behind the stern's shield and plate, so the
-# escorts' 1-hit long shots rarely reach it; only rams (or Kestrel up close) open the Seed.
+# A lone advanced cell. Better per hex than anything human: 3 shields, armour, laser, launcher
+# with 2 missiles. Sensor 4, signature 2, thrust 2 (1 hex a turn, 2 with banked thrust). The bow
+# (shields and a plate) faces the escorts and soaks their long shots; launcher and laser sit on
+# the stern behind it, so the escorts' fire rarely reaches them. Only the rams open the Seed.
 # Protected until crippled (ch1 script).
-#   bow   [0,0]: core, sensor, magazine   | shield, shield, launcher
-#   stern [1,0]: coupling, engine, engine | shield, armour, laser      (Kite's ram)
+#   bow   [0,0]: core, sensor, engine       | shield, shield, armour     (Wren's ram)
+#   stern [1,0]: coupling, engine, magazine | shield, launcher, laser    (Kite's ram)
 seed@ch1:
   flagship: true
   load: { missile: 2 }
   hull:
-    - { at: [0, 0], bays: [core, sensor, magazine],   mounts: [shield, shield, launcher] }
-    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [shield, armour, laser] }
+    - { at: [0, 0], bays: [core, sensor, engine],     mounts: [shield, shield, armour] }
+    - { at: [1, 0], bays: [coupling, engine, magazine], mounts: [shield, launcher, laser] }
 
 # Ch2: two Seeds hunting together. Same cells; seed_a (the flagship) carries 2 missiles, seed_b 1.
 seed_a@ch2:
