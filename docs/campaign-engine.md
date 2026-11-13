@@ -159,3 +159,12 @@ to `when`/`do`. It starts when the entry fires; one guide per ship (a new one re
   glowing hex to preview that move (or this turn's part of it); tap the reticle for Fire mode, or
   an aimed launch. The camera frames the step when it first shows. While a guide is up the
   objective banner is hidden.
+
+## Testing and tuning a chapter (play screen)
+
+Campaign map → **Test a chapter**: pick any chapter, change the computer's `ai_profiles` (skill,
+personality/stance, stand-off, target, launch range, scans), and **Launch test**. A test starts from
+your save just before that chapter, or else from a crew that won everything before it; it never
+changes the campaign save. Rule knobs from the Lab (`shatkon.labKnobs`) apply to story chapters as
+well as skirmish. Chapter changes are kept per browser (`shatkon.story.tweaks`, paths inside the
+chapter); **Copy changes** gives a text list of every changed path and value to hand to the file owner.
