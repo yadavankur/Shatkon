@@ -21,6 +21,7 @@ chapter:
   world_overrides:
     "turns.turn_limit": 22
     "munitions.mine.signature": -12      # far below the default -6: effectively unseeable
+    "damage.beams_pass_mines": true      # lasers fly over the charges, so nobody shoots them by accident
   map: maps/ch2_quiet_water.yaml
   # Turn limit: never reached, seed_a is doomed in round 21.
 
@@ -83,10 +84,15 @@ chapter:
       do:
         - ai: { side: enemy, profile: herd }
 
-    # Round 10 hard fallback: plays the scene even if no charge has gone off (the engine has
-    # no scripted-damage action; see MANIFEST).
+    # Round 10 hard fallback: a charge really goes off under seed_a (uses up the nearest mine).
+    - id: mine_fallback
+      fallback_for: first_mine
+      when: { all: [ { round: 10 }, { not: first_mine } ] }
+      do:
+        - damage: { ship: seed_a, hits: 4, from_mine: true }
+
     - id: first_mine
-      when: { any: [ { mine_hit: { side: enemy } }, { round: 10 } ] }
+      when: { any: [ { mine_hit: { side: enemy } }, { round: 11 } ] }
       do:
         - scene: ch2_first_mine
         - bark: b2_mine_boom
