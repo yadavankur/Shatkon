@@ -1,0 +1,44 @@
+{
+ "id": "ch3_victory",
+ "stage": "meridian_dark",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "tern_pilot",
+   "expression": "smile",
+   "text": "Both halves down. That's a first. I'll have it put on a mug.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Their point defence is still ticking. I want it. I want it so much."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Kestrel, Halcyon requests permission to dock. And a hug. In that order, or the other one.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Permission granted. Both."
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "victory",
+ "unlocks": [
+  "point_defence"
+ ]
+}

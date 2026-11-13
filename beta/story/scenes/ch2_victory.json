@@ -1,0 +1,46 @@
+{
+ "id": "ch2_victory",
+ "stage": "vista_quiet_water",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "Both dead in the water, both done. Quiet Water lives up to its name. Very quiet. Extremely quiet now.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Never lit an engine again, either of them. That launcher earned its keep. I'm naming it."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Please don't."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Too late. It's called Rosalind."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "Captain, the second wreck is still putting out power. Something in there is recharging itself.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "victory"
+}

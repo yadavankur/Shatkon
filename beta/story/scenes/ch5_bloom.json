@@ -1,0 +1,46 @@
+{
+ "id": "ch5_bloom",
+ "stage": "vista_bloom",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "tern_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "tern_pilot",
+   "expression": "shock",
+   "text": "Contact. Big. Bigger. Captain, it's seven cells. I've never seen seven."
+  },
+  {
+   "show_ship": "bloom"
+  },
+  {
+   "speaker": "weave",
+   "expression": "pulse",
+   "glyphs": true,
+   "text": "[partial translation] SEVEN. WHOLE. ...SMALL CELLS... COME HOME."
+  },
+  {
+   "effect": "glitch"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "worried",
+   "text": "Comms are jammed! I can't reach Halcyon, I can't reach Sparrow—"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Then we fight by line of sight. Everyone stay where I can see you."
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "mid_battle"
+}
