@@ -63,6 +63,10 @@ chapter:
       do:
         - protect: { ship: kestrel, until: kestrel_exposed }   # 2 rounds after li arrives
         - protect: { ship: sparrow, until: end }   # assumption: needed in ch4A-5
+        # Combat v2 lasers would let Kestrel take a half alone before Li's wing turns the fight:
+        # the halves cannot die before Li arrives (twin_a) or at all (twin_b withdraws).
+        - protect: { ship: twin_a, until: kestrel_exposed }   # Li + 2 rounds: the turn on the newcomers
+        - protect: { ship: twin_b, until: end }
         - bark: b3_cover
         - objective: "Meridian is silent. Stay behind the rocks and survive."
 

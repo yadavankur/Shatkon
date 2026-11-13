@@ -180,7 +180,7 @@ twin@ch3:
   hull:
     - { at: [0, 0],   bays: [core, sensor, stealth],     mounts: [shield, laser, point_defence] }
     - { at: [1, 0],   bays: [coupling, engine, engine],  mounts: [shield, laser, armour] }
-    - { at: [0, 1],   bays: [coupling, engine, flare_mask], mounts: [shield, armour] }   # v2: one plate fewer (ch3 ran 12-13 rounds)
+    - { at: [0, 1],   bays: [coupling, engine, flare_mask], mounts: [shield, armour, armour] }
     - { at: [1, -1],  bays: [coupling, engine],          mounts: [shield, laser, point_defence] }   # 1 bay free for twin_b's core
     - { at: [2, -1],  bays: [coupling, magazine, sensor], mounts: [shield, launcher, armour] }
     - { at: [2, -2],  bays: [coupling, engine, engine],  mounts: [shield, armour, armour] }
@@ -192,7 +192,7 @@ twin_a@ch3:
   hull:
     - { at: [0, 0], bays: [core, sensor, stealth],        mounts: [shield, laser, point_defence] }
     - { at: [1, 0], bays: [coupling, engine, engine],     mounts: [shield, laser, armour] }
-    - { at: [0, 1], bays: [coupling, engine, flare_mask], mounts: [shield, armour] }
+    - { at: [0, 1], bays: [coupling, engine, flare_mask], mounts: [shield, armour, armour] }
 
 # twin_b = Twin cells [1,-1] [2,-1] [2,-2] -> re-centred on [1,-1]. The grown core fills the
 # empty bay at [0,0]. Sensor 4, signature 3, thrust 3, 1 laser, 1 PD, launcher + 3 missiles
