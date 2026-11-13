@@ -22,7 +22,7 @@ const ships = { ships: {
   'kestrel@ch1': { flagship: true, hull: [
     { at: [-1, 0], bays: ['engine', 'coupling', 'sensor'], mounts: ['laser'] },
     { at: [0, 0], bays: ['core', 'engine', 'magazine'], mounts: ['shield', 'point_defence'] },
-    { at: [1, 0], bays: ['engine', 'coupling'], mounts: ['laser', 'armour'] }] },
+    { at: [1, 0], bays: ['engine', 'coupling'], mounts: ['laser', 'armour', 'launcher'] }] },
   sparrow: { hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser'] }] },
   tern: { hull: [{ at: [0, 0], bays: ['core', 'engine', 'coupling'], mounts: ['laser'] }, { at: [1, 0], bays: ['engine', 'sensor'], mounts: ['armour'] }] },
   halcyon: { hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser'] }, { at: [1, 0], bays: ['engine', 'coupling'] }, { at: [0, 1], bays: ['engine', 'coupling'] }] },
@@ -367,4 +367,61 @@ test('beams_pass_mines: lasers fly over mines instead of stopping on them', () =
   };
   assert.deepEqual(run(false), { mine: false, hurt: false }, 'off: the beam stops on the mine');
   assert.deepEqual(run(true), { mine: true, hurt: true }, 'on: it passes over and hits');
+});
+
+test('ram: the rammer is destroyed and the impact pierces shields at the nearest segment', () => {
+  const ch = chapter({ player: { ships: ['kestrel', { id: 'sparrow', helm: 'script' }], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'hurl', when: { round: 1 }, do: [{ ram: { ship: 'sparrow', target: 'seed', force: true } }] }] });
+  const g = start(load(ch), 3);
+  const sp = ship(g, 'sparrow'), seed = ship(g, 'seed');
+  assert.equal(sp.dead, true, 'the rammer is gone');
+  assert.ok(g.events.some((e) => e.t === 'ram' && e.hits === g.rules.ram.hitsPerSeg));
+  assert.equal(seed.segs[0].parts.find((p) => p.t === 'shield').hp, 1, 'the shield did not soak the impact');
+  assert.ok(seed.segs.some((sg) => sg.parts.some((p) => p.hp < g.rules.parts[p.t].hp)));
+});
+
+test('helm: script ships fly their orders, cost the player nothing, and close in to ram', () => {
+  const ch = chapter({
+    player: { ships: ['kestrel', { id: 'sparrow', helm: 'script' }], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'plan', when: 'start', do: [{ orders: { ship: 'sparrow', do: [{ follow: [[2, 4], [2, 2]] }, { ram: 'seed' }] } }] }] });
+  let g = start(load(ch), 3);
+  const sp = () => ship(g, 'sparrow');
+  assert.match(attempt(g, { type: 'move', ship: sp().id, path: [2] }).why, /not answering/);
+  const cpBefore = g.players[0].cp;
+  g = ends(g, 2);
+  while (g.order[g.turn] !== 0) g = ends(g, 1);
+  assert.equal(g.players[0].cp, Math.min(cpBefore, g.rules.cp.bankCap) + g.rules.cp.perTurn, 'the escort spent none of the player\'s points');
+  assert.notDeepEqual(sp().pos, [2, 6], 'it is following its waypoints');
+  for (let i = 0; i < 12 && !sp().dead; i++) g = ends(g, 2);
+  assert.equal(sp().dead, true, 'it reached the seed and hurled itself');
+  assert.ok(g.script.flags['rammed:sparrow']);
+});
+
+test('mines with strikes: engines leave a ship dead in the water', () => {
+  const ch = chapter({ world_overrides: { 'munitions.mine.strikes': 'engines', 'munitions.mine.hits': 2 },
+    player: { ships: ['kestrel', 'sparrow'], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }, { mine: [0, 0] }] },
+    script: [{ id: 'adrift', when: { engines_out: 'seed' }, do: [{ flag: 'duck' }] }] });
+  let g = start(load(ch), 3);
+  const seed = ship(g, 'seed');
+  const mine = g.objs.find((o) => o.kind === 'mine');
+  // walk the seed onto the mine
+  seed.pos = [mine.pos[0], mine.pos[1] - 1];
+  g = ends(g, 1);
+  const s2 = ship(g, 'seed');
+  const r = attempt(g, { type: 'move', ship: s2.id, path: [5] });
+  assert.ok(r.ok, r.why);
+  g = r.state;
+  assert.ok(!ship(g, 'seed').segs.some((sg) => sg.parts.some((p) => p.t === 'engine' && p.hp > 0)), 'no working engines left');
+  assert.ok(g.script.flags.duck);
+});
+
+test('launch_at: a scripted launch aims a missile at a ship', () => {
+  const ch = chapter({ player: { ships: ['kestrel', 'sparrow'], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'fire', when: 'start', do: [{ orders: { ship: 'kestrel', do: [{ launch_at: [0, -7] }] } }] }] });
+  const rules = load(ch);
+  rules.fleets[0].ships.find((s) => s.name === 'kestrel').load = { missile: 2 };
+  let g = start(rules, 3);
+  g = ends(g, 2);
+  while (g.order[g.turn] !== 0) g = ends(g, 1);
+  assert.equal(ship(g, 'kestrel').load.missile, 1);
 });

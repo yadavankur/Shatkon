@@ -65,7 +65,7 @@ export function view(state, who) {
     objective: rules.objective, scores: state.players.map((x) => x.score || 0), turnLimit: rules.turnLimit,
     // story chapters: the current objective, ships the player can't command, tech switched on mid-battle
     story: state.script ? { chapter: rules.campaign.id, objective: state.script.objective,
-      locked: state.script.locks.map((l) => l.ship || null).filter(Boolean), unlocked: Object.keys(state.script.unlocked).filter((k) => state.script.unlocked[k]),
+      locked: state.script.locks.map((l) => l.ship || null).filter(Boolean), auto: state.script.auto || [], unlocked: Object.keys(state.script.unlocked).filter((k) => state.script.unlocked[k]),
       result: state.script.result } : null,
   };
 }

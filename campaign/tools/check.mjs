@@ -15,11 +15,11 @@ const BARKS = 'b1_scouts_ahead b1_contact_glyphs b1_finch_hit b1_seed_shield b1_
 const SHIP_IDS = 'kestrel sparrow finch halcyon tern seed seed_a seed_b twin twin_a twin_b husk_1 husk_2 husk_3 bloom'.split(' ');
 const ZONES = ['choke', 'minefield', 'li_arrival', 'outpost', 'bloom_entry'];
 // Trigger, action and AI-knob names exactly as PR #2's engine/script.js and engine/ai.js read them.
-const TRIGGERS = ['start', 'round', 'turn', 'after', 'beat', 'fired', 'destroyed', 'removed', 'alive', 'hull_below', 'part_lost', 'in_zone', 'distance_below', 'sees', 'fired_at', 'stopped', 'mine_hit', 'grafted', 'docked', 'flag', 'all', 'any', 'not'];
-const ACTIONS = ['scene', 'bark', 'objective', 'flag', 'unlock', 'ai', 'protect', 'unprotect', 'doom', 'lock', 'unlock_controls', 'force', 'release', 'disable', 'enable', 'light', 'reveal', 'set_rule', 'spawn', 'remove', 'split', 'graft', 'dock', 'end', 'damage'];
+const TRIGGERS = ['start', 'round', 'turn', 'after', 'beat', 'fired', 'destroyed', 'removed', 'alive', 'hull_below', 'part_lost', 'in_zone', 'distance_below', 'sees', 'fired_at', 'stopped', 'mine_hit', 'grafted', 'docked', 'flag', 'all', 'any', 'not', 'rammed', 'engines_out'];
+const ACTIONS = ['scene', 'bark', 'objective', 'flag', 'unlock', 'ai', 'protect', 'unprotect', 'doom', 'lock', 'unlock_controls', 'force', 'release', 'disable', 'enable', 'light', 'reveal', 'set_rule', 'spawn', 'remove', 'split', 'graft', 'dock', 'end', 'damage', 'orders', 'ram'];
 const KNOBS = ['level', 'stance', 'target', 'stand_off', 'path_via', 'scans', 'avoid_mines', 'launch_range', 'fire_chance', 'max_hits_per_round', 'only_targets'];
 const STANCES = ['hold', 'charge', 'advance', 'flee', 'hunt', 'patrol'];
-const FORCE_ORDERS = ['move_toward', 'fire_at'];
+const FORCE_ORDERS = ['move_toward', 'fire_at', 'move_to', 'follow', 'hold', 'launch_at', 'ram'];
 
 const ships = camp('ships.yaml');
 const campaign = camp('campaign.yaml').campaign;

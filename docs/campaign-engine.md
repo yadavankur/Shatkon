@@ -79,3 +79,49 @@ keeps away, `hunt` / `patrol` are the normal behaviour), `target` (`smallest`, `
 `flagship`, or a list of ids), `stand_off` (hexes, or `{ from, hexes }`), `path_via`, `scans`,
 `avoid_mines`, `launch_range`, `fire_chance`, `max_hits_per_round`, `only_targets` (shoot and lock only these ids). `ignore_flank` is accepted
 and does nothing.
+
+## Combat v2 (faster fights, straight missiles, the hurl)
+
+**World numbers** (`rules/world_v0.4.yaml`, change them there):
+- Lasers do 3 hits out to 4 hexes and 2 hits out to 8 (was 2 / 1).
+- `detection.attack_run_bonus: 1`: a ship that moved at least 1 hex this turn before firing does +1 hit.
+- Shields (`recharge_if_unhit: true`) only come back after a round in which they weren't hit, so
+  sustained fire keeps them down. `recharge_every: N` makes them wait N rounds.
+- In simulations a Seed-sized ship falls to focused fire in 2 rounds at any range (was 2 up close,
+  6 at range), and a full skirmish takes about 9 rounds (was 11.5). The current chapters
+  get much shorter as a result and need rebalancing (ch1 now ends around round 2–3).
+
+**Missiles aimed at any hex.** `aimLaunch(state, ship, kind, [q, r], target?)` returns a normal launch
+action: it leaves from the launch hex nearest the aim and flies the straight hex line toward it,
+then carries straight on (its seeker can still take over). The play screen: tap any hex in
+Missile or Drone mode. Turn codes are unchanged (it's still `start` + `route`).
+
+**Mines that hit engines.** `munitions.mine.strikes: engines` (world or `world_overrides`): each
+mine hit lands on the working engine nearest the impact, anywhere on the ship; once the engines
+are gone, the rest hit the struck segment as usual. `munitions.mine.hits` sets the strength.
+Trigger `engines_out: ship` fires when a ship has no working engine left.
+
+**The sacrificial hurl (`ram`).** World settings under `actions.ram`: `hits_per_segment` (4),
+`reach_bonus` (2), `pierces_shields` (true). The rammer is destroyed; the target takes
+hits_per_segment x the rammer's living segments, one at a time, starting with its segment nearest
+the rammer and spilling to the next. A ram reaches the target if it is within the rammer's move
+this turn + reach_bonus (script action `ram: { ship, target, force: true }` skips that check).
+There is no player button. Trigger `rammed: ship` fires after that ship has rammed.
+
+**Ships that fly themselves.** In a chapter's ship list: `{ id: wren, helm: script }`. The player
+can't command it (the fleet strip says "flying itself"); it follows `orders`:
+
+```yaml
+- id: escorts
+  when: start
+  do:
+    - orders: { ship: wren, do: [ { follow: [[2, 3], [1, 0]] }, { ram: seed } ] }
+    - orders: { ship: kite, do: [ { move_to: [-2, 1] }, { hold: true } ] }
+```
+
+Each turn, on its side's turn start, the first unfinished movement order runs (`move_to: [q, r]`,
+`follow: [[q, r], ...]` one waypoint at a time, `move_toward: ship`, `hold`, `ram: ship`: it closes
+in and hurls itself once in reach), and every `fire_at: ship` / `launch_at: ship | [q, r]` order
+fires (`launch_at` once). A new `orders` action replaces that ship's plan. Orders and forced moves
+spend their own budget: the player's command points and thrust are untouched. `force` takes the
+same order kinds.

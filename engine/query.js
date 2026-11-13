@@ -82,6 +82,21 @@ export function launchOptions(state, shipId) {
   return { kinds, starts: [...starts.values()], locks };
 }
 
+// A launch aimed at any hex: the missile (or drone) leaves from the launch hex nearest the aim and
+// flies the straight hex line toward it, then carries straight on (and its seeker can take over).
+// Returns a normal launch action ({ start, route }), or null if this ship can't launch now.
+export function aimLaunch(state, shipId, kind, aim, target = null) {
+  const lo = launchOptions(state, shipId), m = state.rules.munitions[kind];
+  if (!lo || !m || !lo.kinds.includes(kind) || !lo.starts.length || !Array.isArray(aim)) return null;
+  let start = lo.starts[0];
+  for (const st of lo.starts) if (dist(st, aim) < dist(start, aim)) start = st;
+  const ship = shipById(state, shipId), cells = line(start, aim), route = [];
+  for (let i = 1; i < cells.length; i++) route.push(dirToward(cells[i - 1], cells[i]));
+  if (!route.length) { let near = footprint(ship)[0]; for (const c of footprint(ship)) if (dist(c, start) < dist(near, start)) near = c; route.push(dirToward(near, start)); }
+  const max = num(m.speed) * num(m.fuel, 1);
+  return { type: 'launch', ship: shipId, kind, start, target: target && lo.locks.includes(target) ? target : null, route: route.slice(0, max) };
+}
+
 // A plain summary of what a ship can still do this turn, and why not when it cannot.
 export function shipStatus(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
