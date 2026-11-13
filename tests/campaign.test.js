@@ -519,3 +519,10 @@ test('guide: a new guide for the same ship replaces the old; clear removes it', 
   g = ends(g, 2);
   assert.equal(guideView(g, 0), null);
 });
+
+test('guide: a zone counts any cell of a long ship, as `reached` does', () => {
+  const g = start(load(guided([{ move_to: { zone: 'outpost' }, label: 'Dock' }])), 3);
+  const v = guideView(g, 0), z = new Set(['0,0', '1,0']), k = ship(g, 'kestrel');
+  assert.ok(v.dest.length > 2 && !v.blockedFrom.length);
+  for (const a of v.dest) assert.ok(k.segs.some((sg) => z.has((a[0] + sg.off[0]) + ',' + (a[1] + sg.off[1]))));
+});
