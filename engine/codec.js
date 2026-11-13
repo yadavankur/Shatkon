@@ -45,6 +45,8 @@ export function actionText(a) {
     case 'launch': return 'l' + a.ship + '.' + a.kind + '.' + a.start.join(',') + '.' + (a.target || '') + '.' + (a.route || []).join('');
     case 'scan': return 's' + a.ship;
     case 'detonate': return 'd' + a.obj;
+    case 'graft': return 'g' + a.ship + '.' + a.with;
+    case 'dock': return 'k' + a.ship + '.' + a.with;
     case 'end': return 'e';
   }
   throw new Error('unknown action type: ' + a.type);
@@ -59,6 +61,8 @@ export function parseAction(text) {
     case 'l': return { type: 'launch', ship: f[0], kind: f[1], start: coord(f[2]), target: f[3] || null, route: dirs(f[4]) };
     case 's': return { type: 'scan', ship: f[0] };
     case 'd': return { type: 'detonate', obj: f[0] };
+    case 'g': return { type: 'graft', ship: f[0], with: f[1] };
+    case 'k': return { type: 'dock', ship: f[0], with: f[1] };
     case 'e': return { type: 'end' };
   }
   throw new Error('cannot read action "' + text + '"');

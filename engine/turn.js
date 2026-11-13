@@ -8,6 +8,7 @@ import { doMove, doFire, doLaunch, doScan, doDetonate, thrustIncome, fleetSegs }
 import { runFlight } from './flight.js';
 import { scoreObjective, markObjective, limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
+import { afterAction, onTurnStart, checkLocked, doJoin } from './script.js';
 
 export function startTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
@@ -59,10 +60,11 @@ function endTurn(state) {
   }
   if (state.phase === 'play') scoreObjective(state, current(state));   // held the beacon through the other side's turn?
   if (state.phase === 'play') { refreshSight(state); startTurn(state); }
+  if (state.phase === 'play' && state.script) onTurnStart(state);   // story scripts: dooms, forced orders, turn triggers
   closeTurn(state, rec);
 }
 
-const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonate: doDetonate };
+const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonate: doDetonate, graft: doJoin, dock: doJoin };
 
 export function apply(state, action) {
   if (state.phase !== 'play') no('the game is over');
@@ -73,9 +75,11 @@ export function apply(state, action) {
   s.events = [];
   s.flight = null;   // the flight replay, filled in by the flight phase
   const rec = { round: s.round, player: current(s), pre: s.pre };
+  if (s.script) checkLocked(s, action);
   if (action.type !== 'end') DO[action.type](s, action);
   s.pending.push(actionText(action));
   refreshSight(s);
+  if (s.script && action.type !== 'end') afterAction(s);
   checkWin(s);
   if (s.phase === 'over') { rec.actions = s.pending.slice(); closeTurn(s, rec); }
   else if (action.type === 'end') endTurn(s);

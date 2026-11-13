@@ -96,7 +96,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     const fleet = { name, ships: [], deployment: [], cost: 0 };
     for (const sh of listOf(src.ships)) {
       const label = `${name} / ${sh.name || '(unnamed ship)'}`;
-      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0 };
+      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}) };
       let couplings = 0, cores = 0, holds = 0, launchers = 0;
       for (const hx of listOf(sh.hull)) {
         if (!Array.isArray(hx.at)) { problems.push(`${label}: a hull entry has no "at".`); continue; }
@@ -122,8 +122,9 @@ export function buildRules(world, mapFile, fleetsFile) {
       if (n > rules.seg.max) problems.push(`${label}: ${n} segments; the limit is ${rules.seg.max}.`);
       if (new Set(ship.segs.map((s) => key(s.off))).size !== n) problems.push(`${label}: two segments share the same hex.`);
       if (!connected(ship.segs.map((s) => s.off))) problems.push(`${label}: the segments are not all joined together.`);
-      if (cores !== 1) problems.push(`${label}: needs exactly one core; it has ${cores}.`);
-      if (rules.seg.couplings && couplings < n - 1) problems.push(`${label}: ${n} segments need ${n - 1} couplings; it has ${couplings}.`);
+      const joined = sh.joined === true;   // docked or grafted ships keep every core and need no extra couplings
+      if (joined ? cores < 1 : cores !== 1) problems.push(`${label}: needs exactly one core; it has ${cores}.`);
+      if (!joined && rules.seg.couplings && couplings < n - 1) problems.push(`${label}: ${n} segments need ${n - 1} couplings; it has ${couplings}.`);
       let loaded = 0;
       for (const [kind, count] of Object.entries(isObj(sh.load) ? sh.load : {})) {
         const mu = munitions[kind];
@@ -164,7 +165,7 @@ export function buildRules(world, mapFile, fleetsFile) {
         else if (zone && EDGE[zone.edge](at, R) >= zone.depth + rules.mineRows) problems.push(`${name}: ${kind} at [${at}] is too far from ${zone.name}.`);
       }
     }
-    for (const s of fleet.ships) if (!fleet.deployment.some((d) => d.ship === s.name)) problems.push(`${name} / ${s.name}: has no starting position.`);
+    for (const s of fleet.ships) if (!s.reserve && !fleet.deployment.some((d) => d.ship === s.name)) problems.push(`${name} / ${s.name}: has no starting position.`);
     for (const [kind, c] of Object.entries(counts)) {
       const max = munitions[kind].max_per_player;
       if (typeof max === 'number' && c > max) problems.push(`${name}: ${c} ${kind}s; the limit is ${max}.`);

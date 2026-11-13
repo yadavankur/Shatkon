@@ -8,6 +8,7 @@
 
 import { newGame } from './state.js';
 import { begin } from './turn.js';
+import { startScript } from './script.js';
 
 export { buildRules, shipStats } from './rules.js';
 export { apply, attempt } from './turn.js';
@@ -28,5 +29,11 @@ export { hullPct, num, footprint, workingParts, sumAttr, gap } from './state.js'
 export { fnv, seededRandom } from './codec.js';
 
 export function start(rules, seed = 1) {
-  return begin(newGame(rules, seed));
+  const g = begin(newGame(rules, seed));
+  if (rules.campaign) startScript(g);   // a story chapter: its script takes over from here
+  return g;
 }
+
+// Story campaigns: build a chapter's rules, run its script, carry results to the next chapter.
+export { buildChapter, applyResult, nextNodes, newCampaign, shipToHull } from './chapter.js';
+export { campaignMove } from './ai.js';

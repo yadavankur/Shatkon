@@ -50,9 +50,16 @@ export function workingParts(state, ship) {
   const out = [];
   ship.segs.forEach((sg, si) => {
     if (sg.wrecked) return;
-    sg.parts.forEach((p, pi) => { if (p.hp > 0) out.push({ p, si, pi, c: state.rules.parts[p.t] }); });
+    sg.parts.forEach((p, pi) => { if (p.hp > 0 && !p.off) out.push({ p, si, pi, c: state.rules.parts[p.t] }); });   // p.off: switched off by a story script
   });
   return out;
+}
+// Story campaigns can protect a ship until a story beat has happened (see engine/script.js).
+export function isProtected(state, ship) {
+  const sc = state.script;
+  if (!sc || !sc.protect || !(ship.name in sc.protect)) return false;
+  const until = sc.protect[ship.name];
+  return until === 'end' || !sc.fired[until];
 }
 export const sumAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => n + num(x.c[attr]), 0);
 export const maxAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => Math.max(n, num(x.c[attr])), 0);
