@@ -108,11 +108,11 @@ wren@ch1:
     - { at: [0, 0], bays: [core, sensor, engine],     mounts: [laser] }
     - { at: [1, 0], bays: [coupling, engine, engine], mounts: [armour, armour, armour] }
 
-# Ch1 escort (helm: script), 1 hex. One plate (2 hits) in front of the laser: one or two of the
-# Seed's beams to take Kite's gun. Thrust 1. Rams for 4.
+# Ch1 escort (helm: script), 1 hex. The laser is its only mount: the Seed's first beam on Kite
+# takes it. Thrust 1. Rams for 4.
 kite@ch1:
   hull:
-    - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, laser] }
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
 
 # Ch3 on: Sparrow gets a salvaged shield cell.
 sparrow@ch3:

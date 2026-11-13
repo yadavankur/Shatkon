@@ -81,7 +81,10 @@ chapter:
         - orders: { ship: wren,  do: [ { hold: true } ] }
         - orders: { ship: kite,  do: [ { hold: true } ] }
         - doom: { ship: finch, by_round: 6 }
-        - objective: "Scout the corridor. The escorts fly ahead of Kestrel."
+        # First-contact protocol (a human rule, not a Weave mistake): guns cold until the
+        # contact draws blood. Kestrel may move and scan; it opens fire once Finch is lost.
+        - lock: { ship: kestrel, actions: [fire, launch], until: finch_down }
+        - objective: "Scout the corridor. Guns cold: first-contact protocol."
         - bark: b1_scouts_ahead
 
     - id: contact
@@ -104,7 +107,7 @@ chapter:
     # and the second missile a round later if the scout is still flying
     - id: second_missile
       flavor: true
-      when: { all: [ { after: { beat: missile_away, rounds: 1 } }, { alive: finch } ] }
+      when: { all: [ { after: { beat: missile_away, rounds: 2 } }, { alive: finch } ] }   # 2: a new orders replaces a plan that has not run yet
       do:
         - orders: { ship: seed, do: [ { launch_at: finch } ] }
 
@@ -177,9 +180,10 @@ chapter:
         - scene: ch1_hurl
         - objective: "Wren and Kite are going in. Cover them."
         # each closes in and hurls itself once in reach (this turn's move + 2); the engine's ram
-        # lands on the Seed segment nearest the rammer
+        # lands on the Seed segment nearest the rammer. Kite goes straight in (the bow faces the
+        # south end of the corridor); Wren first swings up the east side to come at the stern.
         - orders: { ship: kite, do: [ { ram: seed } ] }
-        - orders: { ship: wren, do: [ { ram: seed } ] }
+        - orders: { ship: wren, do: [ { move_to: [1, -1] }, { ram: seed } ] }
 
     # Beat 6. The two rams. The engine lands each one on the Seed segment nearest the rammer and
     # destroys the rammer. Which end each takes is geometry (see MANIFEST.md assumptions). Fallback: 3 rounds after the
