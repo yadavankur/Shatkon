@@ -1,0 +1,72 @@
+# ============================================================
+#  FLEETS FILE v0.2  -  what each player built
+#
+#  Parts and prices come from world_v0.2.yaml.
+#  Coordinates are [q, r] relative to the ship's own centre [0, 0].
+#  The opponent never sees this file's contents during play.
+# ============================================================
+
+world: world_v0.2.yaml
+map: map_open_space.yaml
+budget: 200
+
+player_1:
+  ships:
+
+    # ---- A small, fast, quiet scout: 3 hexes in a line ----
+    - name: "Blob A"
+      destroyed_when: core_lost
+      hull:                               # one line per hex; armour set per hex
+        - { at: [-1, 0], armour: 1 }
+        - { at: [0, 0],  armour: 1 }
+        - { at: [1, 0],  armour: 1 }
+      modules:
+        - { type: core,       on: [[0, 0]] }
+        - { type: engine,     tier: mk2, on: [[-1, 0]] }
+        - { type: sensor,     tier: mk2, on: [[1, 0]] }
+        - { type: stealth_a,  tier: mk2, on: [[-1, 0], [0, 0], [1, 0]] }   # covers the whole ship
+        - { type: beam_mount, on: [[1, 0]], weapon: laser }
+      # cost:  hull 9 + armour 6 + engine 7 + sensor 7 + stealth 15 + mount 2 + laser 10 = 56
+      # result: speed 3, sensor 6, signature 2
+
+    # ---- A big flagship: 7 hexes, centre plus a ring of six ----
+    - name: "Blob B"
+      flagship: true
+      destroyed_when: core_lost
+      hull:
+        - { at: [0, 0],  armour: 0 }      # the centre is protected by the ring
+        - { at: [1, 0],  armour: 2 }
+        - { at: [1, -1], armour: 2 }
+        - { at: [0, -1], armour: 2 }
+        - { at: [-1, 0], armour: 2 }
+        - { at: [-1, 1], armour: 2 }
+        - { at: [0, 1],  armour: 2 }
+      modules:
+        - { type: core,          on: [[0, 0]] }
+        - { type: sensor,        tier: mk1, on: [[0, 0]] }                 # shares a hex with the core
+        - { type: engine,        tier: mk2, on: [[1, 0], [-1, 0]] }        # split across opposite sides
+        - { type: launcher,      on: [[1, -1]], load: { missile: 4, seeker_drone: 2 } }
+        - { type: point_defence, tier: mk1, on: [[0, -1]] }
+        - { type: beam_mount,    on: [[-1, 1]], weapon: laser }
+        - { type: comms,         on: [[0, 1]] }
+      # cost:  hull 21 + armour 24 + sensor 4 + engines 14 + launcher 3 + missiles 32
+      #        + drones 12 + point defence 6 + mount 2 + laser 10 + comms 5 = 133
+      # result: speed 2 (drops to 1 if an engine hex is wrecked), sensor 4, signature 7
+
+  mines: 2                                # 2 x 5 = 10
+  # FLEET TOTAL: 56 + 133 + 10 = 199 of 200
+
+  # Optional saved starting positions for this map (board coordinates).
+  # Leave it out to place by hand at the start of the game.
+  deployment:
+    - { ship: "Blob A", at: [2, 16],  facing: north }
+    - { ship: "Blob B", at: [-2, 18], facing: north }
+    - { mine: [0, 12] }
+    - { mine: [-5, 13] }
+
+
+# Player 2 uses an exact copy of player 1, mirrored to the other side.
+# Replace this with a full block like the one above to build a different fleet.
+player_2:
+  copy_of: player_1
+  mirror_deployment: true
