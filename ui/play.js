@@ -632,7 +632,7 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
-    case 'ammo_lost': return e.ship + ' lost ' + e.n + ' stored munition(s).';
+    case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
     case 'game_over': return e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
   return e.t;

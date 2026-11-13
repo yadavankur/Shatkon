@@ -21,7 +21,7 @@ function clampLoad(state, ship) {
   for (let i = kinds.length - 1; total > cap && i >= 0; ) {
     if (ship.load[kinds[i]] > 0) { ship.load[kinds[i]]--; total--; lost++; } else i--;
   }
-  if (lost) emit(state, { t: 'ammo_lost', ship: ship.id, n: lost }, [ship.owner]);
+  if (lost) emit(state, { t: 'ammo_lost', ship: ship.id, count: lost }, [ship.owner]);
 }
 
 export function isDead(state, ship) {

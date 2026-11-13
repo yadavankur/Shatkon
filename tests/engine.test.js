@@ -418,3 +418,20 @@ test('the computer only plays legal moves and games against itself finish', () =
     assert.equal(computerMove(g, 0), null);
   }
 });
+
+test('losing a magazine reports how many munitions went with it', () => {
+  const { game, problems } = battle({
+    p1: [pod('Hauler', [0, 3], ['core', 'magazine', 'magazine'], ['launcher'], { load: { missile: 5 } })],
+    p2: [scout('Picket', [0, -3])],
+  });
+  assert.deepEqual(problems, []);
+  const g = structuredClone(game);
+  g.rules = game.rules;
+  g.events = [];
+  const ship = g.ships.find((s) => s.name === 'Hauler');
+  applyHits(g, ship, 0, 2); // the launcher (outer layer) goes first, then one magazine
+  const ev = g.events.find((e) => e.t === 'ammo_lost');
+  assert.ok(ev, 'an ammo_lost event was sent');
+  assert.equal(ev.count, 2, '5 missiles, room left for 3: 2 lost');
+  assert.equal(ship.load.missile, 3);
+});
