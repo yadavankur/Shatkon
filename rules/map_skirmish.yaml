@@ -24,15 +24,6 @@ map:
     drones: own_home_zone
     mines: { own_home_zone: true, rows_into_no_mans_land: 6 }   # mines can go out into no man's land
 
-  # The beacon in the middle. Hold it to score: at the start of your turn, if you have a
-  # ship touching it and no enemy ship touching it, you score 1. Holding it lights you up.
-  objective:
-    at: [0, 0]
-    radius: 1                 # hexes around the centre that count as touching
-    points_to_win: 5          # 0 = no instant win, the score only decides at the turn limit
-    reveals_holder: true      # the holder is visible to everyone until the end of next round
-    decides_turn_limit: true  # at the turn limit the higher score wins; a tie is a draw
-
   # Terrain is mirrored so neither side has an advantage.
   terrain:
     - { type: nebula,   at: [0, 0],   radius: 1 }

@@ -82,7 +82,7 @@ export function explode(state, obj, struck) {
       return;
     }
   }
-  emit(state, { t: 'blast', kind: obj.kind, owner: obj.owner, at: center }, everyone);
+  emit(state, { t: 'blast', kind: obj.kind, owner: obj.owner, obj: obj.id, at: center }, everyone);
   const lit = state.rules.det.lightsUp;
   for (const x of state.ships.filter((s) => !s.dead).concat(state.objs))
     if (Math.min(...cellsOf(x).map((c) => dist(c, center))) <= lit) state.lit[x.id] = state.round + 1;

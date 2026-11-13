@@ -124,7 +124,7 @@ test('detection: sensor + signature decides who sees whom, and stealth stops at 
   assert.equal(visibleTo(g, 0).has('2a'), false, 'range 6 needs sensor 4 + signature 1 = 5');
   q.pos = [0, 4];
   assert.equal(visibleTo(g, 0).has('2a'), true);
-  assert.equal(signatureOf(g, a), 0, 'the scout has not moved yet this turn, so it runs silent: 1 - 1');
+  assert.equal(signatureOf(g, a), 1 + g.rules.det.stillSig, 'the scout has not moved yet this turn: still bonus applies');
   assert.equal(visibleTo(g, 1).has('1a'), true, 'the quiet ship has only its core sensor (2): 2 hexes <= 2 + 0');
 });
 

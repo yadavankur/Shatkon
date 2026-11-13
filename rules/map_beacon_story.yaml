@@ -1,0 +1,44 @@
+# ============================================================
+#  MAP FILE  -  "Skirmish"
+#  A small board for quick test games: the fleets start close
+#  enough to find each other within a round or two.
+#  Coordinates are [q, r] hex coordinates; [0, 0] is the centre.
+# ============================================================
+
+map:
+  name: "Beacon (story map)"
+  world: world_v0.4.yaml
+
+  board:
+    shape: hexagon
+    radius: 8                 # hexes from centre to edge (217 hexes)
+
+  zones:
+    player_1_home:  { edge: south, depth: 3 }
+    player_2_home:  { edge: north, depth: 3 }
+    no_mans_land:   { everything_else: true }
+
+  setup:
+    secret: true
+    ships: own_home_zone
+    drones: own_home_zone
+    mines: { own_home_zone: true, rows_into_no_mans_land: 6 }   # mines can go out into no man's land
+
+  # STORY / CAMPAIGN MAP, not loaded by default. Point a fleets file's `map:` at this
+  # file (and list it in index.yaml) to play it.
+  # The beacon in the middle. Hold it to score: at the start of your turn, if you have a
+  # ship touching it and no enemy ship touching it, you score 1. Holding it lights you up.
+  objective:
+    at: [0, 0]
+    radius: 1                 # hexes around the centre that count as touching
+    points_to_win: 5          # 0 = no instant win, the score only decides at the turn limit
+    reveals_holder: true      # the holder is visible to everyone until the end of next round
+    decides_turn_limit: true  # at the turn limit the higher score wins; a tie is a draw
+
+  # Terrain is mirrored so neither side has an advantage.
+  terrain:
+    - { type: nebula,   at: [0, 0],   radius: 1 }
+    - { type: asteroid, at: [-4, 1],  size: 1 }
+    - { type: asteroid, at: [4, -1],  size: 1 }
+    - { type: asteroid, at: [3, 2],   size: 1 }
+    - { type: asteroid, at: [-3, -2], size: 1 }

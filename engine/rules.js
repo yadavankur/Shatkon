@@ -65,6 +65,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     deadWhen: Array.isArray(dmg.ship_dead_when) ? dmg.ship_dead_when : ['core_destroyed'],
     friendlyFire: dmg.friendly_fire !== false,
     ownMissilesPass: dmg.own_munitions_pass_own_ships === true,   // your missiles and drones fly through your own hulls
+    beamsPassOwnMunitions: dmg.beams_pass_own_munitions === true, // your beams fly past your own missiles and drones
     parts, munitions,
     terrainTypes: w.terrain || {},
     board: { radius: num((m.board || {}).radius, 10) },
