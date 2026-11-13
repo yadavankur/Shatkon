@@ -755,8 +755,12 @@ function tap(c, v, opts) {
 
 // the move guide for whoever is looking at the board (story chapters only)
 let guideSeen = '';
+// overlay off switch (tests, or a player who wants only the banner): ?guides=off, or localStorage shatkon.guides = off
+function guidesOff() {
+  try { return new URLSearchParams(location.search).get('guides') === 'off' || localStorage.getItem(KEYS('shatkon.guides')) === 'off'; } catch { return false; }
+}
 function guideNow() {
-  if (!game || !game.rules.campaign || game.phase !== 'play') return null;
+  if (!game || !game.rules.campaign || game.phase !== 'play' || guidesOff()) return null;
   const w = who();
   return E.guideView(game, typeof w === 'number' ? w : 0);
 }

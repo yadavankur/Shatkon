@@ -5,10 +5,10 @@
 #  across both lanes. A Seed that hits a charge is left dead in the water (its engines torn
 #  out); Kestrel and Sparrow finish it where it lies. The mines decide the battle.
 #
-#  Combat v2 (campaign-engine 1afc785): `munitions.mine.strikes: engines` sends each charge hit
-#  to the working engine nearest the blast; 5 hits take both of a Seed's engines and land 3 more
-#  on the struck segment. `engines_out` fires the dead-in-water beat. The engine still moves an
-#  engineless ship on its fleet's shared thrust pool, so the beat also sets its AI to hold.
+#  Combat v2: `munitions.mine.strikes: engines` sends each charge hit to the working engine
+#  nearest the blast; 5 hits take both of a Seed's engines and land 3 more on the struck
+#  segment. `engines_out` fires the dead-in-water beat; a ship with no working engine cannot
+#  move (engine fix, campaign-engine 8c9d910), so no AI change is needed: it keeps shooting.
 #
 #  Key numbers (see CHECKS.md):
 #   - Start: seed_a in the north-west, 7 rows from the west belt (row 1); seed_b in the top of
@@ -22,7 +22,8 @@
 #   - Charges: 5 hits, engines first (strikes: engines), signature -12:
 #     unseeable, and the Seeds have never met them (they do not scan for them).
 #   - Fallback round 9: a Seed still under way is crippled by a charge "walked" to it (a scripted
-#     mine blast, then its engines switched off), per Seed, so both always end dead in the water.
+#     5-hit mine blast, which follows strikes: engines), per Seed, so both always end dead in
+#     the water.
 #   - Kestrel sees a Seed at 6 (sensor 4 + signature 2); the belts are 7-8 hexes from its start.
 #     Fleet thrust 4 + 1 for 4 segments: Kestrel (3 a hex) makes 1-2 hexes a turn.
 # ============================================================
@@ -65,9 +66,6 @@ chapter:
     # 3 hexes - shielded hulls win at 2-hit range - missiles inside 5. They never scan: they
     # have not met mines.
     hunter: { level: normal, stance: hunt, stand_off: 3, scans: false, launch_range: 5 }
-    # Engines gone: it cannot move. The engine would still move it on the other Seed's thrust
-    # (one pool per fleet), so it holds. Still fires.
-    dead_in_water: { level: normal, stance: hold, scans: false, launch_range: 5 }
 
   script:
     - id: rails
@@ -98,15 +96,15 @@ chapter:
       do:
         - bark: b2_choke
 
-    # Dead in the water: a charge has torn out a Seed's engines (engines_out), or the round-9
-    # fallback. Its shields still recharge between volleys (Combat v2: only after a round unhit).
+    # Dead in the water: a charge has torn out a Seed's engines (engines_out), by a real charge or
+    # the round-9 fallback's. It cannot move, still fires, and its shields still recharge between
+    # volleys (Combat v2: only after a round unhit).
     - id: a_dead
-      when: { any: [ { engines_out: seed_a }, { flag: a_forced } ] }
+      when: { engines_out: seed_a }
       do:
-        - ai: { ship: seed_a, profile: dead_in_water }
         - bark: b2_dead_in_water
       guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
-        ship: kestrel                          # (the first_mine objective is the fallback line)
+        ship: kestrel
         clear: { destroyed: seed_a }
         steps:
           - label: "Close to 4 hexes"
@@ -116,12 +114,11 @@ chapter:
             fire_at: seed_a
             done: { destroyed: seed_a }
     - id: b_dead
-      when: { any: [ { engines_out: seed_b }, { flag: b_forced } ] }
+      when: { engines_out: seed_b }
       do:
-        - ai: { ship: seed_b, profile: dead_in_water }
         - bark: b2_dead_in_water
       guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
-        ship: kestrel                          # (the first_mine objective is the fallback line)
+        ship: kestrel
         clear: { destroyed: seed_b }
         steps:
           - label: "Close to 4 hexes"
@@ -132,30 +129,24 @@ chapter:
             done: { destroyed: seed_b }
 
     # Fallback, per Seed: round 9 and still under way -> a charge goes off under it anyway (a
-    # scripted blast that uses up the nearest charge; scripted damage does not follow
-    # strikes: engines, so the engines are switched off by hand). Both Seeds always end dead
-    # in the water.
+    # scripted blast that uses up the nearest charge and, like a real one, strikes the engines).
+    # Both Seeds always end dead in the water.
     - id: a_fallback
       fallback_for: a_dead
       when: { all: [ { round: 9 }, { not: a_dead } ] }
       do:
-        - damage: { ship: seed_a, seg: 1, hits: 1, from_mine: true }
-        - disable: { ship: seed_a, parts: [engine] }
-        - flag: a_forced
+        - damage: { ship: seed_a, seg: 1, hits: 5, from_mine: true }   # a charge's 5 hits, engines first
     - id: b_fallback
       fallback_for: b_dead
       when: { all: [ { round: 9 }, { not: b_dead } ] }
       do:
-        - damage: { ship: seed_b, seg: 1, hits: 1, from_mine: true }
-        - disable: { ship: seed_b, parts: [engine] }
-        - flag: b_forced
+        - damage: { ship: seed_b, seg: 1, hits: 5, from_mine: true }   # a charge's 5 hits, engines first
 
     - id: first_mine
       when: { any: [ a_dead, b_dead ] }
       do:
         - scene: ch2_first_mine
-        - bark: b2_mine_boom
-        - objective: "It's dead in the water. Close to 4 hexes and finish it."   # fallback until the overlay exists (GUIDE_PROPOSAL.md §7)
+        - bark: b2_mine_boom                  # the a_dead / b_dead guide shows the way (no objective line)
 
     - id: second_seed
       flavor: true
@@ -165,8 +156,7 @@ chapter:
 
     - id: both_dead_in_water
       when: { all: [ a_dead, b_dead ] }
-      do:
-        - objective: "Both Seeds are adrift. Take them apart."
+      do: []                                  # the second Seed's guide is up (no objective line)
 
     # Safety net: the chapter cannot be lost on time.
     - id: finish_fallback

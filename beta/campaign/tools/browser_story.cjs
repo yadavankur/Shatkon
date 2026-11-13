@@ -9,7 +9,9 @@
 // clicked), and reports scenes, objectives, saved progress and console errors.
 // --fix-fork: clears progress.choices.fork when a node fails to open (works around the UI bug
 // where the fork choice locks ch5). --graft-only: starts ch4A from a prepared save and presses
-// the Graft button. Screenshots go to $SHOTS (default /tmp).
+// the Graft button. --guide-ui: GUIDE_PROPOSAL.md §11 tests 10-11 on ch1's move guide, at
+// desktop and phone size (banner hidden while a guide is up; tapping the glowing hex or the
+// reticle only previews). Screenshots go to $SHOTS (default /tmp).
 const { chromium } = require('playwright');
 const SHOTS = process.env.SHOTS || '/tmp';
 async function open(file, vp, {fresh=true, help=false, seat=null}={}) {
@@ -148,4 +150,47 @@ async function graftOnly() {
   console.log('console errors:', errors.filter((e) => !/Failed to load resource/.test(e)).join('\n') || 'none (only story/ 404s)');
   await browser.close();
 }
-(process.argv.includes('--graft-only') ? graftOnly() : campaignRun()).catch((e) => { console.error('FAILED', e); process.exit(1); });
+async function guideUi(vp, tag) {
+  const { browser, page, errors } = await open(URL, vp);
+  await page.evaluate(async () => { const m = await import('/engine/index.js'); window.__E = m; });
+  await page.selectOption('#seat select', 'story');
+  await page.waitForSelector('#story .cm', { timeout: 10000 });
+  await page.click('#story .cm-node.open:has-text("First Contact")');
+  const out = { vp: tag };
+  const skipScenes = async () => { for (let i = 0; i < 50; i++) { const b = await page.$('.story-stage .sk-skip, .story-stage .story-card button:not([disabled])'); if (!b) return; await b.click().catch(() => {}); await page.waitForTimeout(80); } };
+  const guideState = () => page.evaluate(() => { const g = window.__shatkon.game, v = window.__E.guideView(g, 0); const k = g.ships.find((s) => s.name === 'kestrel' && !s.dead);
+    return { phase: g.phase, seat: g.order[g.turn], v: v && { step: v.step, label: v.label, best: v.best, reticle: v.reticle, dest: v.dest.length }, kpos: k && k.pos, obj: g.script.objective || null }; });
+  const tapEl = async (sel) => { const el = await page.$(sel); if (!el) return false; const b = await el.boundingBox(); if (!b) return false; const x = b.x + b.width / 2, y = b.y + b.height / 2; if (vp.width < 500) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); await page.waitForTimeout(250); return true; };
+  const hint = () => page.evaluate(() => document.body.innerText);
+  let stepSeen = {};
+  for (let n = 0; n < 3000; n++) {
+    await page.waitForTimeout(30);
+    if (await page.$('.story-stage')) { await skipScenes(); continue; }
+    const st = await guideState();
+    if (st.phase !== 'play') { out.over = true; break; }
+    if (st.v && process.env.DBG) console.log('  guide up', st.seat, JSON.stringify(st.v));
+    if (st.seat === 0 && st.v && !stepSeen[st.v.step]) {
+      for (let w = 0; w < 40 && (await page.evaluate(() => window.__shatkon.camBusy)); w++) await page.waitForTimeout(50);
+      stepSeen[st.v.step] = true;
+      await page.waitForTimeout(400);
+      const r = { step: st.v.step, label: st.v.label, overlay: await page.$$eval('svg g.guide', (l) => l.length), banner: await page.$$eval('.line.objective', (l) => l.length), objectiveSet: st.obj };
+      await page.screenshot({ path: `${SHOTS}/guide-${tag}-step${st.v.step}.png` });
+      if (st.v.best) { const ok = await tapEl('svg g.guide path[fill-opacity="0.28"]'); const t = await hint(); const after = await guideState();
+        r.tapDest = ok && /dashed outline shows where/.test(t) && JSON.stringify(after.kpos) === JSON.stringify(st.kpos) ? 'preview only (ship not moved)' : 'NO PREVIEW';
+        await page.screenshot({ path: `${SHOTS}/guide-${tag}-step${st.v.step}-tapped.png` }); }
+      if (st.v.reticle) { const ships = () => page.evaluate(() => JSON.stringify(window.__shatkon.game.ships)); const b0 = await ships(); const ok = await tapEl('svg g.guide circle[stroke-width="1.3"]'); const t = await hint(); const same = b0 === (await ships());
+        r.tapReticle = ok && /Fire mode for/.test(t) ? (same ? 'fire mode, nothing fired' : 'FIRE MODE BUT SHIPS CHANGED') : 'NO FIRE MODE'; }
+      (out.steps = out.steps || []).push(r);
+      if (stepSeen[2]) break;
+    }
+    if (st.seat === 0) await page.evaluate(() => { const E = window.__E, g = window.__shatkon.game, v = E.guideView(g, 0); let a = null;
+      if (v && v.step === 1 && v.turnEnd) { const go = E.reach(g, v.ship).find((x) => x.at[0] === v.turnEnd[0] && x.at[1] === v.turnEnd[1]); if (go) a = { type: 'move', ship: v.ship, path: go.path }; }
+      if (a && !E.attempt(g, a).ok) a = null;
+      a = a || E.campaignMove(g, 0); if (!E.attempt(g, a).ok) a = { type: 'end' }; window.__shatkon.act(a); });
+  }
+  console.log('guide-ui', JSON.stringify(out));
+  console.log('  console errors:', errors.filter((e) => !/Failed to load resource/.test(e)).join('\n') || 'none');
+  await browser.close();
+}
+(process.argv.includes('--guide-ui') ? (async () => { await guideUi({ width: 1280, height: 860 }, 'desktop'); await guideUi({ width: 390, height: 844 }, 'phone'); })()
+  : process.argv.includes('--graft-only') ? graftOnly() : campaignRun()).catch((e) => { console.error('FAILED', e); process.exit(1); });
