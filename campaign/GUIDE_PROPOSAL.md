@@ -2,7 +2,7 @@
 
 **To:** the engine / UI developer (`engine/`, `ui/`)
 **From:** campaign level design (`campaign/`, branch `campaign-v2`)
-**Status:** proposal. The current engine safely ignores the data, so the chapter files can carry it today (see §8). The guide data in ch1, ch2 and ch4A lands in the next campaign-v2 commit.
+**Status:** proposal. The current engine safely ignores the data, so the chapter files already carry it (ch1, ch2, ch4A; see §8 and §13).
 
 ## 1. Why
 
@@ -153,7 +153,7 @@ Once the overlay is in:
 ## 8. Compatibility with the current engine (checked)
 
 - The script runner (`engine/script.js`) reads only an entry's `when` and `do`, so the extra entry field `guide` is ignored. No `script_unknown` or `script_failed` event comes from it. `guide` must **not** be an action inside `do`: an unknown action emits `script_unknown`.
-- `campaign/tools/check.mjs` will validate guides against this format (it lands with the ch1 rework commit that adds the guide data):
+- `campaign/tools/check.mjs` validates guides against this format:
   - field names;
   - a player-commanded `ship`;
   - `label` of 24 characters or fewer;
@@ -188,7 +188,7 @@ Once the overlay is in:
 
 The harness can be `campaign/tools/engine_check.mjs`. It runs chapters with a stand-in player; use `--trace <seed>` to see each round. Or write unit tests on `guideView`.
 
-1. **Loads clean:** all chapters build, and 40 simulated games of each emit **no** `script_unknown` or `script_failed` events: `node campaign/tools/engine_check.mjs --engine . --games 40`. (Already checked against the current engine: a ch1 file carrying an entry-level `guide` ran 40 games with no such events.)
+1. **Loads clean:** all chapters build, and 40 simulated games of each emit **no** `script_unknown` or `script_failed` events: `node campaign/tools/engine_check.mjs --engine . --games 40`. (Passes today with the guide data in ch1, ch2 and ch4A.)
 2. **Inactive before its beat:** in ch1 before `crippled` fires, `guideView(state, 0)` is `null`.
 3. **Starts on the beat:** play ch1 until `crippled` fires. There's exactly one guide, for `kestrel`, on step 1/2 with label "Close to 4 hexes". `dest` is exactly the open hexes that put Kestrel within 4 hexes of the Seed's cells. `best` is the one with the shortest route from Kestrel.
 4. **Ghost path:** `route` starts at Kestrel's position and ends at `best`. `turnEnd` is the furthest hex on the route that Kestrel can reach this turn (`reach()`).
@@ -277,7 +277,8 @@ The outpost's prototype rig has been found (`gift`). The player must bring Tern 
 | chapter | beat | guided ship | steps |
 |---|---|---|---|
 | ch1 | `crippled` | kestrel | close to 4 hexes, then fire on the Seed |
-| ch2 | `first_mine` | kestrel | close on the Seed that's dead in the water, then fire |
+| ch2 | `a_dead`, `b_dead` | kestrel | close to 4 hexes of the Seed that's dead in the water, then finish it (a second dead Seed's guide replaces the first) |
+| ch4A | `rails` | kestrel | reach the outpost (`move_to: { zone: outpost }`, cleared by `gift`) |
 | ch4A | `gift` | tern | bring Tern alongside, then Graft |
 
 Other chapters may add guides later in the same format. MANIFEST.md lists this proposal under "Requested engine/UI features".

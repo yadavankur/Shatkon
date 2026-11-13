@@ -105,11 +105,31 @@ chapter:
       do:
         - ai: { ship: seed_a, profile: dead_in_water }
         - bark: b2_dead_in_water
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel                          # (the first_mine objective is the fallback line)
+        clear: { destroyed: seed_a }
+        steps:
+          - label: "Close to 4 hexes"
+            move_to: { near: seed_a, within: 4 }
+            done: reached
+          - label: "Finish it"
+            fire_at: seed_a
+            done: { destroyed: seed_a }
     - id: b_dead
       when: { any: [ { engines_out: seed_b }, { flag: b_forced } ] }
       do:
         - ai: { ship: seed_b, profile: dead_in_water }
         - bark: b2_dead_in_water
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel                          # (the first_mine objective is the fallback line)
+        clear: { destroyed: seed_b }
+        steps:
+          - label: "Close to 4 hexes"
+            move_to: { near: seed_b, within: 4 }
+            done: reached
+          - label: "Finish it"
+            fire_at: seed_b
+            done: { destroyed: seed_b }
 
     # Fallback, per Seed: round 9 and still under way -> a charge goes off under it anyway (a
     # scripted blast that uses up the nearest charge; scripted damage does not follow
@@ -135,7 +155,7 @@ chapter:
       do:
         - scene: ch2_first_mine
         - bark: b2_mine_boom
-        - objective: "It's dead in the water. Finish it."
+        - objective: "It's dead in the water. Close to 4 hexes and finish it."   # fallback until the overlay exists (GUIDE_PROPOSAL.md §7)
 
     - id: second_seed
       flavor: true
