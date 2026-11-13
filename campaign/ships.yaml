@@ -28,8 +28,9 @@ kestrel@ch1:
     - { at: [0, 0],  bays: [core, sensor, engine],     mounts: [laser, armour, armour] }
     - { at: [1, 0],  bays: [coupling, engine, sensor], mounts: [laser, armour, armour] }
 
-# Ch2: the Seed's launcher and magazine bolted on (one laser and one engine make room).
-# Sensor 6, signature 3, thrust 3, 2 lasers, launcher, 2 missiles.
+# Ch2: the Seed's launcher and magazine bolted on (one laser and one sensor make room; v2 keeps
+# all four engines so Kestrel can cross between the lanes).
+# Sensor 4, signature 3, thrust 4, 2 lasers, launcher, 2 missiles.
 kestrel@ch2:
   flagship: true
   from: kestrel@ch1
@@ -37,7 +38,7 @@ kestrel@ch2:
   hull:
     - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, armour, armour] }
     - { at: [0, 0],  bays: [core, sensor, magazine],   mounts: [launcher, armour, armour] }
-    - { at: [1, 0],  bays: [coupling, engine, sensor], mounts: [laser, armour, armour] }
+    - { at: [1, 0],  bays: [coupling, engine, engine], mounts: [laser, armour, armour] }
 
 # Ch3 refit: a 4th segment at the front [0,-1] carrying the salvaged shield lattice.
 # Sensor 6, signature 4, thrust 4, 2 lasers, launcher, 4 missiles, 4 shields.
@@ -84,15 +85,32 @@ kestrel@ch5:
     - { at: [-1, 1], bays: [coupling, engine, sensor],   mounts: [laser, shield, armour] }   # was Tern [0,0] (core fused into the seam)
     - { at: [0, 1],  bays: [coupling, engine, engine],   mounts: [laser, armour, armour] }   # was Tern [1,0]
 
-# Scouts: 1 hex. Sensor 4, signature 1, thrust 1. Dies after 4 hits (armour x2, laser, sensor:
-# then only engine + core are left, which counts as dead).
+# Scouts: 1 hex. Sensor 4, signature 1, thrust 1. Dies after 6 hits (armour 2+2, laser, sensor:
+# then only engine + core are left, which counts as dead): 3 rounds of one Seed laser at 4 hexes
+# (2 hits a round), 2 rounds when two lasers or a laser and a missile focus it.
 sparrow@ch1:
   hull:
-    - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour] }
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour, armour] }
 
+# Ch1 escort (helm: script). A lighter Sparrow: one plate, 4 hits to kill. Two rounds of the
+# Seed's focus: its laser (1-2 a round) wears the plate, its missile (3) lands the killing hits.
 finch@ch1:
   hull:
     - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour] }
+
+# Ch1 escort (helm: script), 2 hexes. The laser sits alone on the front cell with no plate in
+# front of it, so the first Seed hit on that cell shoots it off; the armour is all on the rear
+# cell (which takes the ram). Thrust 3. Sensor 4, signature 2.
+wren@ch1:
+  hull:
+    - { at: [0, 0], bays: [core, sensor, engine],     mounts: [laser] }
+    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [armour, armour, armour] }
+
+# Ch1 escort (helm: script), 1 hex. One plate (2 hits) in front of the laser: the Seed needs
+# 3 hits, 2-3 rounds of its long shots, to take Kite's gun. Thrust 1.
+kite@ch1:
+  hull:
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, laser] }
 
 # Ch3 on: Sparrow gets a salvaged shield cell.
 sparrow@ch3:
@@ -117,14 +135,19 @@ tern@ch3:
 
 # ---------------- WEAVE ----------------
 
-# A lone advanced cell. Better per hex than anything human: 2 shields, 2 armour, laser,
-# launcher with 2 missiles. Sensor 4, signature 2, thrust 2 (1 hex a turn, 2 with banked thrust).
+# A lone advanced cell. Better per hex than anything human: 3 shields (soak 2 hits a round on the
+# bow, 1 on the stern), armour, laser, launcher with 2 missiles. Sensor 4, signature 2, thrust 2
+# (1 hex a turn, 2 with banked thrust). The laser sits behind the stern's shield and plate, so the
+# escorts' 1-hit long shots rarely reach it; only rams (or Kestrel up close) open the Seed.
+# Protected until crippled (ch1 script).
+#   bow   [0,0]: core, sensor, magazine   | shield, shield, launcher   (Wren's ram)
+#   stern [1,0]: coupling, engine, engine | shield, armour, laser      (Kite's ram)
 seed@ch1:
   flagship: true
   load: { missile: 2 }
   hull:
-    - { at: [0, 0], bays: [core, sensor, magazine],   mounts: [shield, armour, laser] }
-    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [shield, armour, launcher] }
+    - { at: [0, 0], bays: [core, sensor, magazine],   mounts: [shield, shield, launcher] }
+    - { at: [1, 0], bays: [coupling, engine, engine], mounts: [shield, armour, laser] }
 
 # Ch2: two Seeds hunting together. Same cells; seed_a (the flagship) carries 2 missiles, seed_b 1.
 seed_a@ch2:
@@ -155,7 +178,7 @@ twin@ch3:
   hull:
     - { at: [0, 0],   bays: [core, sensor, stealth],     mounts: [shield, laser, point_defence] }
     - { at: [1, 0],   bays: [coupling, engine, engine],  mounts: [shield, laser, armour] }
-    - { at: [0, 1],   bays: [coupling, engine, flare_mask], mounts: [shield, armour, armour] }
+    - { at: [0, 1],   bays: [coupling, engine, flare_mask], mounts: [shield, armour] }   # v2: one plate fewer (ch3 ran 12-13 rounds)
     - { at: [1, -1],  bays: [coupling, engine],          mounts: [shield, laser, point_defence] }   # 1 bay free for twin_b's core
     - { at: [2, -1],  bays: [coupling, magazine, sensor], mounts: [shield, launcher, armour] }
     - { at: [2, -2],  bays: [coupling, engine, engine],  mounts: [shield, armour, armour] }
@@ -167,7 +190,7 @@ twin_a@ch3:
   hull:
     - { at: [0, 0], bays: [core, sensor, stealth],        mounts: [shield, laser, point_defence] }
     - { at: [1, 0], bays: [coupling, engine, engine],     mounts: [shield, laser, armour] }
-    - { at: [0, 1], bays: [coupling, engine, flare_mask], mounts: [shield, armour, armour] }
+    - { at: [0, 1], bays: [coupling, engine, flare_mask], mounts: [shield, armour] }
 
 # twin_b = Twin cells [1,-1] [2,-1] [2,-2] -> re-centred on [1,-1]. The grown core fills the
 # empty bay at [0,0]. Sensor 4, signature 3, thrust 3, 1 laser, 1 PD, launcher + 3 missiles

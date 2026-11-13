@@ -7,17 +7,22 @@ The results here come from two sources, and each one is labelled:
   (`shipStats`, `sensorOf`, `signatureOf`, `gap`) and the campaign lint. It needs nothing
   outside main.
 - **[PR #2]**: `node campaign/tools/engine_check.mjs --engine <checkout of campaign-engine>`,
-  run against PR #2 (branch `campaign-engine`, head **3692a82**) in a temporary worktree. Nothing
-  in that worktree was changed. It does two things:
+  run against PR #2 (branch `campaign-engine`, head **7f51643**, re-run on 14 Nov 2026 after the
+  campaign UI commits) in a temporary worktree. Nothing in that worktree was changed. It does
+  two things:
   - It loads every chapter with PR #2's `buildChapter()`, chaining campaign progress with
     `newCampaign()` and `applyResult()`.
   - It plays scripted AI-vs-AI games through `engine/script.js`. Both seats use
     `campaignMove()`: the Weave follow the chapter's AI profiles, and the human stand-in has no
     profile, so it plays PR #2's stock normal AI.
 
-  By default the stand-in never fires a shot that would destroy one of its own mines (see
-  ch2). Flags: `--sloppy` lets it shoot its own mines, `--no-rails` drops every `protect`, and
-  `--graft` makes it issue the Graft order itself.
+  By default the stand-in never fires a shot that would destroy one of its own mines. Since
+  ch2 now sets `damage.beams_pass_mines`, this makes almost no difference (`--sloppy` turns it
+  off). Other flags: `--no-rails` drops every `protect`, and `--graft` makes the stand-in issue
+  the Graft order itself.
+- **[browser]**: `campaign/tools/browser_story.cjs` (Playwright), on a temporary merge of
+  campaign-v1 into campaign-engine 7f51643 served over http. It plays the whole Story campaign
+  from the play screen's mode picker (see "Browser run" below).
 
 Each set has 40 games per chapter (seeds 1-40). The engine is deterministic for a given seed,
 and the stock normal AI makes few random choices, so some chapters play the same way every
@@ -38,17 +43,21 @@ Engine numbers used throughout (world_v0.4):
 | ch | map (radius) | start gap, nearest pair | first sighting (designed / PR #2 sims) | buildRules [main] | buildChapter [PR #2] | PR #2 sims (40 games) |
 |---|---|---|---|---|---|---|
 | 1 | ch1_corridor (7) | Seed-Finch 9, Seed-Kestrel 12 | r1-2, fallback r2 / **r1** (40/40) | 0 problems | 0 problems | 40 wins, r8; finch_down r4 (doom) |
-| 2 | ch2_quiet_water (8) | seed_b-Kestrel 11 | r1-3, fallback r3 / **r2.3** (r1-3) | 0 problems | 0 problems | 40 wins, r8-21 (avg 14.4); first mine 36/40 by r10 |
+| 2 | ch2_quiet_water (8) | seed_b-Kestrel 11 | r1-3, fallback r3 / **r2.3** (r1-3) | 0 problems | 0 problems | 40 wins, r6-21 (avg 13.7); 36 mine hits; first_mine 34/40 (the other 6 were won before r10) |
 | 3 | ch3_splitting (9) | Twin-Kestrel 13 | r3-4, fallback r4 / split **r3** (40/40) | 0 problems; split pieces and li_wing 0 problems | 0 problems | 40 wins, r9-23 (avg 10.8); li r6 |
 | 4A | ch4a_ashfall (8) | husks-Kestrel 9 | r1-3 / gift r3-6 | 0 problems; graft result 0 problems | 0 problems | 40 wins (grafted), r5-9 |
 | 5 | ch5_bloom (10) | Bloom-Kestrel 13 (on arrival, r2) | lit on arrival r2 / r2 | 0 problems (with the Bloom in place) | 0 problems; the Bloom held in reserve | 40 to_be_continued, cliff r6 |
 
-The [main] check prints **ALL CHECKS PASSED**. The [PR #2] loader reports **no problems** for
-any chapter. In every PR #2 game, every non-flavor beat fired, and no `script_unknown` action
-was emitted.
+The [main] check prints **ALL CHECKS PASSED**, with one note: ch2's
+`damage.beams_pass_mines` is a PR #2 world setting that main's world file lacks; main's engine
+ignores it. On the merged tree (PR #2 world) the check also passes with no note. The [PR #2] loader reports **no problems** for
+any chapter. In the PR #2 games every non-flavor beat fired in every game, with two exceptions, both in ch2.
+`first_mine` did not fire in the 6 games that were won before round 10. `herd` and
+`mine_fallback` fire only when they are needed. No `script_unknown` or `script_failed` event
+appeared.
 
-`node --test` on this branch: 35/35 pass. Campaign files are not engine code, so they cannot
-break the engine tests.
+Tests: `node --test` passes 35/35 on this branch (main's tests) and 58/58 on the merge of
+campaign-v1 and campaign-engine.
 
 ## Chapter 1: First Contact (ch1_corridor, radius 7)
 
@@ -81,17 +90,18 @@ break the engine tests.
 | rails | start | - | Kestrel and Sparrow are protected until the end. |
 | contact | player sees either Seed | round 3 | Kestrel sees a Seed at 6+2 = 8. Start gaps are 11-13, closing ~3 a round. **PR #2: avg r2.3 (r1-3).** |
 | herd | round 6 and no mine hit yet | - (it is first_mine's fallback) | Switches both Seeds to `herd`: stance advance, path_via minefield. They march through the gap and ignore the humans while moving. **PR #2: needed in 21/40 games.** |
-| first_mine | an enemy mine hit | round 10 | Every 2-hex path through the gap crosses the mines on row 0 or 1. **PR #2: 36/40 games had a real mine hit (33 hits in all), avg r5.9 (r4-10). The other games played the scene on the r10 fallback.** |
-| charge | round 16 | itself; doom seed_a by round 21 | **PR #2: reached in 13/40; the doom killed seed_a in 9/40.** |
-| seed_b_leaves (outcome) | seed_a destroyed | - | seed_b withdraws. **PR #2: 17/40 withdrew; seed_b had already been killed in 23/40.** |
-| flavor | choke (enemy in the choke zone), second_seed | - | PR #2: r3.0 and r5.8 respectively. |
+| mine_fallback | round 10 and no first_mine yet | - (it is first_mine's fallback) | A PR #2 `damage: { ship: seed_a, hits: 4, from_mine: true }` uses up the nearest charge and counts as a mine hit. **PR #2: 11/40.** |
+| first_mine | an enemy mine hit | round 11 | Every 2-hex path through the gap crosses the mines on row 0 or 1. `damage.beams_pass_mines: true` means nobody shoots the charges away. **PR #2: 34/40, avg r6.6 (r3-11), with 36 mine hits in all. The other 6 games were won before r10.** |
+| charge | round 16 | itself; doom seed_a by round 21 | **PR #2: reached in 18/40; the doom killed seed_a in 8/40.** |
+| seed_b_leaves (outcome) | seed_a destroyed | - | seed_b withdraws. **PR #2: 33/40 withdrew; seed_b had already been killed in 7/40.** |
+| flavor | choke (enemy in the choke zone), second_seed | - | PR #2: r3.3 and r6.7 respectively. |
 
-**Risk measured in [PR #2 --sloppy]:**
-- A laser stops on the first object in its line, mines included, and the stock AI does not know this. Lasers fired through the gap destroy the survey charges: the human stand-in shot all four by round 5 in most games. Only 2 mine hits in 40 games; first_mine came mostly from the r10 fallback (20/40 fired, avg r9.6).
-- Weave lasers fired through the gap can destroy charges in the same way.
-- See MANIFEST (story notes, risk 1).
+**Mines and lasers [PR #2 --sloppy]:** in the first PR #2 run (3692a82) a laser stopped on any
+mine in its line, and the stock AI shot all four charges by round 5 (only 2 mine hits in 40
+games). With `damage.beams_pass_mines` that is fixed: `--sloppy` now gives 39 mine hits in 40
+games and first_mine fires in 34/40.
 
-**Difficulty:** normal. **[PR #2 --no-rails]**: 35 wins / 5 losses. Kestrel dies 5/40 and Sparrow 32/40.
+**Difficulty:** normal. **[PR #2 --no-rails]**: 30 wins / 10 losses. Kestrel dies 10/40 and Sparrow 36/40.
 
 ## Chapter 3: The Splitting (ch3_splitting, radius 9)
 
@@ -112,7 +122,7 @@ break the engine tests.
 | kestrel_exposed | 2 rounds after li_arrives | - | Ends Kestrel's protection. **PR #2: r8.** |
 | flank_open | 1 turn after li_arrives | - | **PR #2: r7.** |
 | charge | round 18 | itself; doom twin_a by round 23 | **PR #2: reached in 5/40, and the doom ended those 5.** Before the doom was added, 5/40 games were draws on the turn limit. |
-| twin_b_leaves (outcome) | twin_a destroyed | - | **PR #2: 40/40; twin_a died r9-10 in 35 games.** |
+| twin_b_leaves (outcome) | twin_a destroyed | - | **PR #2: 40/40, avg r10.8 (r9-23); 35 by r10, 5 by the r23 doom.** |
 
 **Difficulty:** hard until li arrives, then a turn. **[PR #2 --no-rails]**: 40/40 wins and Kestrel never dies (the cover works), but Sparrow dies in 40/40.
 
@@ -131,8 +141,12 @@ break the engine tests.
 | husks_dark | round 6 and no gift yet | - (it is gift's fallback) | The husks still on the board are removed ("dark"). **PR #2: 34/40.** |
 | gift | all husks destroyed, or a player ship in the outpost ring, or husks_dark | husks_dark at r6 | Sparrow and Kestrel start 5 hexes from the ring. **PR #2: avg r5.5 (r3-6).** Unlocks graft. |
 | tow | 2 rounds after the gift and not yet grafted | - (it is grafted's fallback) | Locks Kestrel and Tern, and forces Tern `move_toward: kestrel` each turn. Tern moves 2 hexes a turn and starts 1 hex from Kestrel. **PR #2: needed in 40/40 with the stock stand-in, 9/40 with `--graft`.** |
-| grafted | the player grafted Kestrel and Tern, or tow done and the two within 1 hex | - | The scripted `graft: [kestrel, tern]` runs only once they touch, because PR #2's join() refuses ships that are not touching. **PR #2: 40/40, r5-9. With `--graft`: 40/40, r4-9 (31 by the player's own order).** It then plays the outro and ends with a win. |
+| grafted | the player grafted Kestrel and Tern, or (after the gift) docked them, or tow done and the two within 1 hex | - | The scripted `graft: [kestrel, tern]` runs only once they touch, because PR #2's join() refuses ships that are not touching. **PR #2: 40/40, r5-9. With `--graft`: 40/40, r4-9 (31 by the player's own order).** It then plays the outro and ends with a win. |
 | flavor | too_easy (a husk destroyed) | - | PR #2: 34/40, r3-5. |
+
+**Docking:** docking was earned in ch3, and the play screen offers "Dock tern". A dock now
+also ends the chapter, once the gift has played. A scripted check: dock at r1, then the gift
+and grafted beats both fire at r6, and the chapter is won. Without this the chapter stalled.
 
 **[PR #2] carry-over:**
 - `applyResult` carries Kestrel out with its 6-segment joined hull and seams, and drops Tern from the roster.
@@ -150,7 +164,7 @@ break the engine tests.
 
 | beat | condition | fallback | numbers |
 |---|---|---|---|
-| rails | start | - | Kestrel, Halcyon and Sparrow are protected until the cliff. |
+| rails | start | - | Kestrel, Halcyon and Sparrow are protected until the cliff. The siege profile uses `only_targets: [sparrow, halcyon]` (PR #2), so the Bloom never fires at Kestrel. |
 | arrival | round 2 | - | Spawns the Bloom at [4,-8], 13 from Kestrel, and lights it for 2 rounds. `set_rule` cuts comms link to 3 and core link to 2 (the rules are rebuilt). **PR #2: r2 in 40/40.** |
 | seam_wakes | Kestrel fires at the Bloom, or comes within 6 of it | round 5 | Kestrel's laser reaches 8, so it needs 5+ hexes of closing at ~1 hex a turn (6 thrust a hex). The siege profile holds still. Effects: locks Kestrel, disables its shields and PD, lights it for 99 rounds, and forces `move_toward: bloom` each turn. **PR #2: r5 in 40/40, by the fallback: the stand-in never closed in.** Forced moves were seen in r5 and r6. |
 | li_moves | Halcyon within 2 of Kestrel, at least 1 turn after the seam | 2 rounds after the seam (r7 at the latest) | Halcyon starts 4 from Kestrel, cap 2 a turn. **PR #2: r6 in 40/40.** |
@@ -158,6 +172,61 @@ break the engine tests.
 | flavor | li_coming (1 turn after the seam) | - | PR #2: r5. |
 
 **Difficulty:** scripted. Nothing can die before the cliff. The siege AI lands at most 2 hits a round.
+
+## Browser run [browser]
+
+Setup:
+- A temporary merge of campaign-v1 into campaign-engine 7f51643. It merged cleanly; only
+  campaign/tools changed.
+- Served with `python3 -m http.server`, played in Chromium through Playwright.
+- Command: `node campaign/tools/browser_story.cjs http://localhost:8765/play.html --fix-fork`,
+  plus `--graft-only`.
+
+Loading and the map:
+- **The campaign files load.** ui/campaign.js reads `campaign/campaign.yaml`, then each
+  `campaign/<node.file>`, `campaign/<chapter.map>` and `rules/<chapter.world>`. Every path
+  resolves (HTTP 200).
+- **The map from a fresh save:** First Contact is open. Quiet Water, The Splitting, Ashfall
+  and The Bloom are "not yet". The Long Dark is locked and shows "Signal lost".
+
+Playing every chapter from the map:
+- The player's side is driven by `campaignMove` through `window.__shatkon.act`.
+- Every scene arrives as a text card, in this order: ch1_intro ch1_contact ch1_finch_down
+  ch1_victory ch1_salvage ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage
+  ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion **ch4_fork**
+  ch4a_intro ch4a_graft_found ch4a_outro ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves
+  ch5_cliff. That is all 25 chapter scenes, plus the fork card.
+- Results:
+  - ch1: win, r8.
+  - ch2: win, r10 (r19-21 in earlier runs: the UI seeds each game from the clock).
+  - ch3: win, r9.
+  - ch4A: win (grafted), r8.
+  - ch5: to_be_continued, r6.
+- Saved progress after each chapter matches applyResult:
+  - Finch is gone after ch1.
+  - Halcyon and Tern join after ch3.
+  - After ch4A, Kestrel carries a 6-segment hull and Tern is gone; the fork choice is ch4a.
+- The objective banner showed each of the 13 `objective:` strings as it was set.
+
+The Graft button (`--graft-only`):
+- ch4A was started from a prepared save, and the player held still until the gift beat (r6).
+- With Kestrel selected and touching Tern, the tool bar shows **"Graft tern · fuse into one
+  ship"**, and also "Dock tern", because docking was earned in ch3.
+- Clicking Graft grafts the two ships, plays ch4a_outro and wins the chapter.
+
+**Console:** no script errors or warnings. The only console errors are 34 "404 Not Found"
+loads, all under `story/`: player.js, bark.js, scenes/<id>.json, img/stages/campaign_map.webp.
+The story developer has not delivered that folder yet, and the UI falls back to text cards as
+designed.
+
+**UI bug found (not fixable in campaign/):** after ch4A, **The Bloom shows as locked**.
+`drawMap`'s `nodeState` treats *every* open node other than `progress.choices.fork` as locked,
+not just the fork's siblings (ch4a / ch4b). ch5 is open but is not the fork choice, so it
+greys out and the campaign cannot be finished from the map. The browser run used
+`--fix-fork`, which clears `choices.fork` from the save, to reach ch5; ch5 then played to the
+cliff. Suggested fix in ui/campaign.js: lock only nodes that are in the `next` of the node with
+`fork_scene`, e.g. `const forkKids = new Set(C.nodes.filter((p) => p.fork_scene).flatMap((p) => p.next || []))`
+and `(chosen && forkKids.has(n.id) && n.id !== chosen && open.has(n.id))`.
 
 ## Appendix A: [main] `node campaign/tools/check.mjs` (full output)
 
@@ -202,7 +271,8 @@ break the engine tests.
     
     ## ch2 "Quiet Water"  (maps/ch2_quiet_water.yaml, radius 8)
       ok: hulls (loader rule <id>@<chapter>): kestrel=kestrel@ch2, sparrow=sparrow@ch1, seed_a=seed_a@ch2, seed_b=seed_b@ch2
-      world_overrides: {"turns.turn_limit":22,"munitions.mine.signature":-12}
+      note: world_overrides: "damage.beams_pass_mines" is a PR #2 world setting (not in main's world file; main's engine ignores it)
+      world_overrides: {"turns.turn_limit":22,"munitions.mine.signature":-12,"damage.beams_pass_mines":true}
       ok: buildRules: 0 problems
       ships:
         P kestrel  segs 3  thrust 3  sensor 6  signature 3  link 4  hull hp 24  lasers 2  shields 0  PD 0  load {"missile":2}  FLAGSHIP
@@ -217,7 +287,7 @@ break the engine tests.
         seed_b - kestrel: 11 / 7 / 8
         seed_b - sparrow: 12 / 5 / 6
       ok: zones: choke (17), minefield (4), west_slot (2)
-      ok: script: 8 entries; every beat has a condition and a guaranteed fallback: rails, contact, herd, first_mine, charge
+      ok: script: 9 entries; every beat has a condition and a guaranteed fallback: rails, contact, herd, mine_fallback, first_mine, charge
       win {"destroyed":"seed_a"}: guaranteed by a doom / fallback
     
       Board (# asteroid, ~ nebula, M mine, X Weave, capitals = human ships by initial; lower case = zones: c=choke, m=minefield, w=west_slot; ships drawn over zones)
@@ -392,7 +462,7 @@ break the engine tests.
     
     ALL CHECKS PASSED
 
-## Appendix B: [PR #2 3692a82] `engine_check.mjs --games 40` (disciplined human stand-in, rails on)
+## Appendix B: [PR #2 7f51643] `engine_check.mjs --games 40` (rails on)
 
     PR #2 engine: <campaign-engine worktree>  (games per chapter 40, seeds 1..40)
     
@@ -410,23 +480,26 @@ break the engine tests.
         charge             0  -
       destroyed / removed (games): {"finch":40,"seed":40}; of those by a doom fallback: {"finch":40}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
       progress out (from a won game): roster ["kestrel","sparrow"]
     
     ## ch2: buildChapter problems: none
       progress in: roster ["kestrel","sparrow"], capabilities 10, completed ["ch1"]
       fleets: kestrel* sparrow  vs  seed_a* seed_b
-      results: {"win":40}; rounds played avg 14.4 (min 8, max 21)
+      results: {"win":40}; rounds played avg 13.7 (min 6, max 21)
       beats fired (games / 40, round avg / min / max):
         rails             40  1.0 / 1 / 1
         contact           40  2.3 / 1 / 3
-        choke             40  3.0 / 2 / 6  (flavor)
-        herd              21  6.0 / 6 / 6
-        first_mine        36  5.9 / 4 / 10
-        second_seed       34  5.8 / 4 / 10  (flavor)
-        charge            13  16.0 / 16 / 16
-        seed_b_leaves     40  14.4 / 8 / 21  (outcome)
-      destroyed / removed (games): {"seed_a":40,"seed_b":23,"seed_b(withdraw)":17}; of those by a doom fallback: {"seed_a":9}
-      enemy mine hits 33; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+        choke             40  3.3 / 2 / 8  (flavor)
+        herd              26  6.0 / 6 / 6
+        mine_fallback     11  10.0 / 10 / 10
+        first_mine        34  6.6 / 3 / 11
+        second_seed       32  6.7 / 3 / 11  (flavor)
+        charge            18  16.0 / 16 / 16
+        seed_b_leaves     40  13.7 / 6 / 21  (outcome)
+      destroyed / removed (games): {"seed_a":40,"seed_b(withdraw)":33,"seed_b":7}; of those by a doom fallback: {"seed_a":8}
+      enemy mine hits 36; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
       progress out (from a won game): roster ["kestrel","sparrow"]
     
     ## ch3: buildChapter problems: none
@@ -446,6 +519,7 @@ break the engine tests.
         twin_b_leaves     40  10.8 / 9 / 23  (outcome)
       destroyed / removed (games): {"twin_a":40,"twin_b(withdraw)":40}; of those by a doom fallback: {"twin_a":5}
       enemy mine hits 0; player missiles stopped by PD 40; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
       progress out (from a won game): roster ["kestrel","sparrow","halcyon","tern"]
     
     ## ch4a: buildChapter problems: none
@@ -461,6 +535,7 @@ break the engine tests.
         grafted           40  7.6 / 5 / 9
       destroyed / removed (games): {"husk_1":28,"husk_2(dark)":5,"husk_3(dark)":34,"husk_2":30,"husk_1(dark)":6}; of those by a doom fallback: {}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 40 games
+      script_unknown / script_failed events: none
       progress out (from a won game): roster ["kestrel(carried 6-segment hull)","sparrow","halcyon"]
     
     ## ch5: buildChapter problems: none
@@ -476,6 +551,7 @@ break the engine tests.
         cliff             40  6.0 / 6 / 6
       destroyed / removed (games): {}; of those by a doom fallback: {}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
       progress out (from a won game): roster ["kestrel(carried 6-segment hull)","sparrow","halcyon"]
 
 ## Appendix C: [PR #2] `--no-rails` (difficulty without protect)
@@ -494,20 +570,23 @@ break the engine tests.
         charge             0  -
       destroyed / removed (games): {"sparrow":40,"finch":40,"seed":40}; of those by a doom fallback: {"finch":40}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
     
     ## ch2: buildChapter problems: none
-      results: {"win":35,"lose":5}; rounds played avg 12.8 (min 7, max 21)
+      results: {"lose":10,"win":30}; rounds played avg 10.8 (min 6, max 19)
       beats fired (games / 40, round avg / min / max):
         rails             40  1.0 / 1 / 1
         contact           40  2.3 / 1 / 3
-        choke             40  3.0 / 2 / 6  (flavor)
-        herd              21  6.0 / 6 / 6
-        first_mine        36  5.9 / 4 / 10
-        second_seed       34  5.7 / 4 / 10  (flavor)
-        charge            10  16.0 / 16 / 16
-        seed_b_leaves     35  12.6 / 7 / 21  (outcome)
-      destroyed / removed (games): {"sparrow":32,"seed_a":35,"seed_b":22,"seed_b(withdraw)":15,"kestrel":5}; of those by a doom fallback: {"seed_a":7}
-      enemy mine hits 33; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+        choke             40  3.2 / 2 / 8  (flavor)
+        herd              25  6.0 / 6 / 6
+        mine_fallback      6  10.0 / 10 / 10
+        first_mine        34  6.1 / 3 / 11
+        second_seed       29  5.9 / 3 / 10  (flavor)
+        charge             6  16.0 / 16 / 16
+        seed_b_leaves     30  10.0 / 6 / 19  (outcome)
+      destroyed / removed (games): {"kestrel":10,"sparrow":36,"seed_a":30,"seed_b(withdraw)":26,"seed_b":8}; of those by a doom fallback: {}
+      enemy mine hits 41; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
     
     ## ch3: buildChapter problems: none
       results: {"win":40}; rounds played avg 11.6 (min 7, max 23)
@@ -524,6 +603,7 @@ break the engine tests.
         twin_b_leaves     40  11.6 / 7 / 23  (outcome)
       destroyed / removed (games): {"sparrow":40,"twin_a":40,"twin_b(withdraw)":40}; of those by a doom fallback: {"twin_a":6}
       enemy mine hits 0; player missiles stopped by PD 6; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
     
     ## ch4a: buildChapter problems: none
       results: {"win":40}; rounds played avg 7.6 (min 5, max 9)
@@ -536,6 +616,7 @@ break the engine tests.
         grafted           40  7.6 / 5 / 9
       destroyed / removed (games): {"husk_1":28,"husk_2(dark)":5,"husk_3(dark)":34,"husk_2":30,"husk_1(dark)":6}; of those by a doom fallback: {}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 40 games
+      script_unknown / script_failed events: none
     
     ## ch5: buildChapter problems: none
       results: {"to_be_continued":40}; rounds played avg 6.0 (min 6, max 6)
@@ -548,25 +629,28 @@ break the engine tests.
         cliff             40  6.0 / 6 / 6
       destroyed / removed (games): {}; of those by a doom fallback: {}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
 
-## Appendix D: [PR #2] ch2 `--sloppy` (human stand-in shoots its own mines)
+## Appendix D: [PR #2] ch2 `--sloppy` (human stand-in may shoot its own mines)
 
     ## ch2: buildChapter problems: none
       progress in: roster ["kestrel","sparrow"], capabilities 10, completed ["ch1"]
       fleets: kestrel* sparrow  vs  seed_a* seed_b
-      results: {"win":40}; rounds played avg 11.7 (min 6, max 21)
+      results: {"win":40}; rounds played avg 13.9 (min 6, max 21)
       beats fired (games / 40, round avg / min / max):
         rails             40  1.0 / 1 / 1
         contact           40  2.3 / 1 / 3
-        choke             40  3.2 / 2 / 6  (flavor)
-        herd              40  6.0 / 6 / 6
-        first_mine        20  9.6 / 6 / 10
-        second_seed       14  9.4 / 6 / 10  (flavor)
-        charge            11  16.0 / 16 / 16
-        seed_b_leaves     40  11.7 / 6 / 21  (outcome)
-      destroyed / removed (games): {"seed_a":40,"seed_b(withdraw)":30,"seed_b":10}; of those by a doom fallback: {"seed_a":9}
-      enemy mine hits 2; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
-      progress out (from a won game): roster ["kestrel","sparrow"]
+        choke             40  3.3 / 2 / 8  (flavor)
+        herd              25  6.0 / 6 / 6
+        mine_fallback      9  10.0 / 10 / 10
+        first_mine        34  6.4 / 3 / 11
+        second_seed       33  6.6 / 3 / 11  (flavor)
+        charge            19  16.0 / 16 / 16
+        seed_b_leaves     40  13.9 / 6 / 21  (outcome)
+      destroyed / removed (games): {"seed_a":40,"seed_b(withdraw)":32,"seed_b":8}; of those by a doom fallback: {"seed_a":9}
+      enemy mine hits 39; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+      script_unknown / script_failed events: none
+      
 
 ## Appendix E: [PR #2] ch4A `--graft` (human stand-in grafts itself)
 
@@ -583,4 +667,36 @@ break the engine tests.
         grafted           40  6.2 / 4 / 9
       destroyed / removed (games): {"husk_1":28,"husk_2(dark)":5,"husk_3(dark)":34,"husk_2":30,"husk_1(dark)":6}; of those by a doom fallback: {}
       enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 40 games
-      progress out (from a won game): roster ["kestrel(carried 6-segment hull)","sparrow","halcyon"]
+      script_unknown / script_failed events: none
+      
+
+## Appendix F: [browser] `browser_story.cjs --fix-fork` and `--graft-only` output
+
+    map nodes: [
+     "cm-node open | First Contact (ready to play)",
+     "cm-node later | Quiet Water (not yet)",
+     "cm-node later | The Splitting (not yet)",
+     "cm-node later | Ashfall (not yet)",
+     "cm-node locked | The Long Dark (Signal lost)",
+     "cm-node later | The Bloom (not yet)"
+    ]
+    ch1 over: win in round 8
+      saved progress: completed ["ch1"] roster ["kestrel","sparrow"] choices {}
+    ch2 over: win in round 10
+      saved progress: completed ["ch1","ch2"] roster ["kestrel","sparrow"] choices {}
+    ch3 over: win in round 9
+      saved progress: completed ["ch1","ch2","ch3"] roster ["kestrel","sparrow","halcyon","tern"] choices {}
+    ch4a over: win in round 8
+      saved progress: completed ["ch1","ch2","ch3","ch4a"] roster ["kestrel(hull 6)","sparrow","halcyon"] choices {"fork":"ch4a"}
+    WORKAROUND: clearing progress.choices.fork so The Bloom opens
+    ch5 over: to_be_continued in round 6
+      saved progress: completed ["ch1","ch2","ch3","ch4a","ch5"] roster ["kestrel(hull 6)","sparrow","halcyon"] choices {}
+    map at the end: ["done First ContactReplay","done Quiet WaterReplay","done The SplittingReplay","done AshfallReplay","locked The Long DarkSignal lost","done The BloomReplay"]
+    scenes shown: ch1_intro ch1_contact ch1_finch_down ch1_victory ch1_salvage ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff
+    objectives: ch1: Scout the corridor. Keep the scouts ahead of Kestrel. || ch1: Unknown contact. Bring it down. || ch1: Finch is down. Lure the Seed onto Kestrel's lasers. || ch2: Hold south of the wall. Let them come through the gap. || ch3: Meridian is silent. Stay behind the rocks and survive. || ch3: Hold on. || ch3: Li is here. Hit twin_a while it turns. || ch4a: Ashfall Outpost is calling for help. Reach the outpost. || ch4a: Bring Tern alongside Kestrel and Graft them || ch4a: The rig is pulling Tern in. || ch5: Hold the line at the nebula front. || ch5: Engage the Bloom. || ch5: Kestrel isn't answering. Get Halcyon to Kestrel.
+    (plus 34 console errors "Failed to load resource: 404", all story/ files)
+
+    round 6 graft unlocked; Graft button: Graft ternfuse into one ship
+      scene Scene · ch4a_outro
+    grafted flag: true result: win
+    console errors: none (only story/ 404s)
