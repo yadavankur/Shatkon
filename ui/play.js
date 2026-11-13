@@ -43,8 +43,11 @@ async function loadRules() {
     texts = {};
     for (const n of names) texts[n] = await get(n);
   }
-  const docs = Object.values(texts).map((t) => YAML.parse(t));
-  const world = docs.find((d) => d && d.bay_parts), map = docs.find((d) => d && d.map), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
+  const parsed = Object.fromEntries(Object.entries(texts).map(([n, t]) => [n, YAML.parse(t)])), docs = Object.values(parsed);
+  const world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
+  // the fleets file names its map; with several maps listed, that one is played
+  const named = fleets && parsed[fleets.map];
+  const map = named && named.map ? named : docs.find((d) => d && d.map);
   const built = E.buildRules(world, map, fleets);
   rules = built.rules; problems = built.problems;
   setLabDocs({ world, map, fleets });   // the Lab builds its variants from the same files
@@ -635,7 +638,8 @@ function describe(e) {
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
     case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
     case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
-    case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.' : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
+    case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
+      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.') : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
   return e.t;
 }
@@ -920,7 +924,7 @@ function shipCard(x, v) {
       .concat(sb.stealth ? [sgn(-sb.used) + ' from ' + plural(sb.stealth, 'stealth part') + (sb.used < sb.stealth ? ' (floor ' + sb.floor + ': ' + plural(sb.stealth - sb.used, 'part') + ' spare)' : '')] : [])
       .concat(sb.haze ? [sgn(sb.haze) + ' nebula'] : [])
       .concat(sb.flare ? ['+' + sb.flare + ' flare from firing/launching/scanning'] : [])
-      .concat(sb.motion < 0 ? ['\u22121 sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
+      .concat(sb.motion < 0 ? ['\u2212' + -sb.motion + ' sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
     lines.push('Signature ' + x.signature + (terms.length ? ' = ' + terms.join(', ') : '') + '. An enemy with sensor ' + v.shownSensor + ' spots it from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex') + '.'
       + (x.signature < 0 ? ' Below zero means it can slip inside their sensor range unseen.' : ''));
     if (!x.mine) lines.push(x.seen ? whyText(x.why) : 'The player to move cannot see this ship.');

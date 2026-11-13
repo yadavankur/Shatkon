@@ -1,7 +1,8 @@
 # ============================================================
-#  MAP FILE  -  "Skirmish"
-#  A small board for quick test games: the fleets start close
-#  enough to find each other within a round or two.
+#  MAP FILE  -  "Beacon" (story / campaign map)
+#  The skirmish board with a beacon in the middle to hold.
+#  To play it: change the fleets file's `map:` line to
+#  map_beacon_story.yaml (it is already listed in index.yaml).
 #  Coordinates are [q, r] hex coordinates; [0, 0] is the centre.
 # ============================================================
 
@@ -24,8 +25,6 @@ map:
     drones: own_home_zone
     mines: { own_home_zone: true, rows_into_no_mans_land: 6 }   # mines can go out into no man's land
 
-  # STORY / CAMPAIGN MAP, not loaded by default. Point a fleets file's `map:` at this
-  # file (and list it in index.yaml) to play it.
   # The beacon in the middle. Hold it to score: at the start of your turn, if you have a
   # ship touching it and no enemy ship touching it, you score 1. Holding it lights you up.
   objective:

@@ -103,8 +103,9 @@ detection:
   scan_tiers: [[2, 4], [4, 7], [6, 10]]   # [clear, faint] rings: near home / mid-field / centre line and beyond
   scan_mid_rows_past_home: 2  # mid-field starts this many rows past your home zone; full strength from the centre line
   still_signature_bonus: 0    # added to a ship that did nothing on its turn (no move, fire, launch or scan).
-                              # Was -1 ("runs silent"); simulations showed it let missile-heavy fleets win
-                              # by sitting still (59-63% -> 46-51% with it at 0). Set -1 to bring it back.
+                              # Was -1 ("runs silent"). In simulations a 16-missile flagship that never moved
+                              # beat one that manoeuvred and fired back 63% of the time; at 0 it's 44%.
+                              # The current fleet is about even either way. Set -1 to bring it back.
   move_signature_penalty: 1   # a big move leaves an engine wake...
   move_signature_from_hexes: 2  # ...from this many hexes of net movement
   passive_fuzzy_extra: 3      # targets this close to your detection range show up as fuzzy contacts
@@ -141,7 +142,8 @@ damage:
   own_munitions_pass_own_ships: true   # your missiles and drones fly through your own hulls
                                        # instead of exploding on them (blasts still hurt)
   beams_pass_own_munitions: false      # true: your lasers fly past your own missiles and drones
-                                       # (false: a beam stops at the first thing it meets, yours included)
+                                       # (not mines). false: a beam stops at the first thing it
+                                       # meets, yours included
 
 
 # ------------------------------------------------------------

@@ -117,7 +117,7 @@ export function doFire(state, a) {
   for (let i = 1; i < cells.length && !hd; i++) {
     const o = occ.get(key(cells[i]));
     if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked) { hitShip = o.ship; hitSeg = o.seg; hd = i; break; }
-    const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !((x.owner === p && state.rules.beamsPassOwnMunitions)));
+    const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0));   // own mines still stop it
     if (ob) { hitObj = ob; hd = i; }
   }
   let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));

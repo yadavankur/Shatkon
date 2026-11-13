@@ -1,12 +1,12 @@
 // The turn loop: start a turn, apply one action, end a turn, run the flight phase.
 // apply() never changes the state it is given; it returns a new one.
 
-import { Illegal, no, current } from './state.js';
+import { Illegal, no, current, emit } from './state.js';
 import { refreshSight } from './detect.js';
 import { checkWin } from './damage.js';
 import { doMove, doFire, doLaunch, doScan, doDetonate, thrustIncome, fleetSegs } from './actions.js';
 import { runFlight } from './flight.js';
-import { scoreObjective, limitWinner } from './objective.js';
+import { scoreObjective, markObjective, limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
 
 export function startTurn(state) {
@@ -40,6 +40,7 @@ function endTurn(state) {
   pl.thrustBank = pl.thrust;
   pl.readSeq = state.seq;       // everything up to here the player has watched happen
   const rec = { round: state.round, player: p, actions: state.pending.slice(), pre: state.pre };
+  markObjective(state, p);
   if (state.turn === 0) state.turn = 1;
   else {
     runFlight(state);
@@ -49,10 +50,14 @@ function endTurn(state) {
       state.turn = 0;
       for (const s of state.ships) s.flares = s.flares.filter((f) => f.until >= state.round);
       for (const id of Object.keys(state.lit)) if (state.lit[id] < state.round) delete state.lit[id];
-      if (state.round > R.turnLimit) { state.phase = 'over'; state.winner = limitWinner(state); }
+      if (state.round > R.turnLimit) {
+        state.phase = 'over';
+        state.winner = limitWinner(state);
+        emit(state, { t: 'game_over', winner: state.winner, by: 'turn_limit' }, state.players.map((_, i) => i));
+      }
     }
   }
-  if (state.phase === 'play') scoreObjective(state, current(state));   // held it through the other side's turn?
+  if (state.phase === 'play') scoreObjective(state, current(state));   // held the beacon through the other side's turn?
   if (state.phase === 'play') { refreshSight(state); startTurn(state); }
   closeTurn(state, rec);
 }

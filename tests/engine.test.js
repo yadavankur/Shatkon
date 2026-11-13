@@ -1,3 +1,4 @@
+import { holders as E_holders } from '../engine/objective.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, shipStatus, forecast, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
@@ -128,7 +129,7 @@ test('detection: sensor + signature decides who sees whom, and stealth stops at 
   assert.equal(visibleTo(g, 1).has('1a'), true, 'the quiet ship has only its core sensor (2): 2 hexes <= 2 + 0');
 });
 
-test('stealth from motion: sitting still hides a ship a little, a big move leaves a wake', () => {
+test('signature from motion: the still bonus from the world file, and a wake after a big move', () => {
   let { game: g } = battle({ radius: 12, p1: [pod('A', [0, 6], ['core', 'engine', 'engine'])], p2: [scout('X', [0, -6])] });
   const det = g.rules.det;
   assert.equal(signatureOf(g, ship(g, '1a')), 1 + det.stillSig, 'has not moved or acted this turn');
@@ -138,7 +139,7 @@ test('stealth from motion: sitting still hides a ship a little, a big move leave
   assert.equal(signatureOf(g, ship(g, '1a')), 1 + det.wakeSig, '2 hexes from where it started: engine wake');
 });
 
-test('fuzzy contacts sit in a circle that does not move while the target sits still', () => {
+test('fuzzy contacts sit in a circle that does not move while the target stays put', () => {
   const { game: g } = battle({ radius: 12, p1: [scout('A', [0, 6])], p2: [scout('X', [0, -1])] });
   const d = hex.dist([0, 6], [0, -1]);
   const exact = detectRange(g, ship(g, '1a'), ship(g, '2a'));
@@ -438,26 +439,48 @@ test('losing a magazine reports how many munitions went with it', () => {
 
 const ends = (g, n = 1) => { for (let i = 0; i < n; i++) g = apply(g, { type: 'end' }); return g; };
 
-test('the beacon scores for a side that holds it through the other side\'s turn', () => {
+test('the beacon scores only after the other side has had a turn to contest it', () => {
   const objective = { at: [0, 0], radius: 1, points_to_win: 2 };
   const { game, problems } = battle({ objective, p1: [scout('Holder', [0, 1])], p2: [scout('Far', [0, -8])] });
   assert.deepEqual(problems, []);
+  const score = (g) => g.players.map((p) => p.score || 0);
   let g = ends(game, 2);                       // round 1 over; player 2 moves first in round 2
-  assert.deepEqual(g.players.map((p) => p.score), [0, 0], 'nobody scores at the start of the game');
-  g = ends(g, 1);                              // player 2 ends: player 1 starts its turn on the beacon
-  assert.deepEqual(g.players.map((p) => p.score), [1, 0]);
+  assert.deepEqual(score(g), [0, 0], 'nobody scores at the start of the game');
+  g = ends(g, 1);                              // player 2 has had a full turn: player 1 scores
+  assert.deepEqual(score(g), [1, 0]);
   assert.ok(g.lit[g.ships.find((s) => s.name === 'Holder').id], 'holding it lights the holder up');
-  g = ends(g, 1);                              // player 1 also starts round 3 (turn order alternates)
+  // player 1 goes last in round 2 and first in round 3: back-to-back turns must not score twice
+  g = ends(g, 1);
+  assert.equal(g.round, 3);
+  assert.equal(g.order[g.turn], 0);
+  assert.deepEqual(score(g), [1, 0], 'no score without an enemy turn in between');
+  g = ends(g, 3);                              // after player 2's next turn: second point, game over
   assert.equal(g.phase, 'over');
   assert.equal(g.winner, 0);
+  assert.ok(g.events.some((e) => e.t === 'game_over' && e.by === 'objective'));
+});
+
+test('stepping onto an empty beacon at the end of a round does not score at the start of the next', () => {
+  const objective = { at: [0, 0], radius: 1, points_to_win: 5 };
+  const { game } = battle({ objective, p1: [scout('A', [0, 8])], p2: [scout('Runner', [0, -2])] });
+  // round 1: player 1, then player 2 steps onto the beacon and ends
+  let g = ends(game, 1);
+  const runner = g.ships.find((s) => s.name === 'Runner');
+  g = apply(g, { type: 'move', ship: runner.id, path: [5] });   // one hex south, onto the beacon
+  assert.ok(E_holders(g)[1].length, 'the runner is on the beacon');
+  g = ends(g, 1);                              // round 2 starts with player 2 again
+  assert.equal(g.order[g.turn], 1);
+  assert.deepEqual(g.players.map((p) => p.score || 0), [0, 0]);
 });
 
 test('nobody scores while both sides touch the beacon', () => {
   const objective = { at: [0, 0], radius: 1, points_to_win: 1 };
   const { game } = battle({ objective, p1: [scout('A', [0, 1])], p2: [scout('B', [0, -1])] });
-  const g = ends(game, 6);
-  assert.deepEqual(g.players.map((p) => p.score), [0, 0]);
+  let g = game, contested = 0;
+  for (let i = 0; i < 6; i++) { g = ends(g, 1); contested += g.events.filter((e) => e.t === 'objective_contested').length; }
+  assert.deepEqual(g.players.map((p) => p.score || 0), [0, 0]);
   assert.equal(g.phase, 'play');
+  assert.equal(contested, 1, 'contested is reported once, not every turn');
 });
 
 test('at the turn limit the beacon score decides', () => {
@@ -468,6 +491,7 @@ test('at the turn limit the beacon score decides', () => {
   const g = ends(game, 6);
   assert.equal(g.phase, 'over');
   assert.equal(g.winner, 0);
+  assert.ok(g.events.some((e) => e.t === 'game_over' && e.by === 'turn_limit' && e.winner === 0), 'the limit win is announced');
 });
 
 test('your own missiles fly through your own ships when the rule says so', () => {
@@ -487,4 +511,27 @@ test('your own missiles fly through your own ships when the rule says so', () =>
   const hurt = (s) => s.segs[0].parts.some((p) => p.hp <= 0);
   assert.equal(hurt(run(false)), true, 'with the rule off, the missile blows up on the friendly ship');
   assert.equal(hurt(run(true)), false, 'with the rule on, it flies through');
+});
+
+test('with beams_pass_own_munitions on, lasers pass your own missiles but not your own mines', () => {
+  const run = (pass, withMine) => {
+    const world = structuredClone(shippedFiles().world);
+    world.damage.beams_pass_own_munitions = pass;
+    const { game, problems } = battle({ world,
+      p1: [pod('Gun', [0, 5], ['core', 'magazine', 'sensor'], ['laser', 'launcher'], { load: { missile: 1 } })],
+      p2: [pod('Target', [0, 1], ['core', 'engine', 'engine'], ['armour'])],
+      extra1: withMine ? [{ mine: [0, 3] }] : [] });
+    assert.deepEqual(problems, []);
+    let g = game;
+    if (!withMine) g = apply(g, { type: 'launch', ship: g.ships[0].id, kind: 'missile', start: [0, 4], route: [3, 3, 3] });
+    const blocker = withMine ? [0, 3] : [0, 4];
+    const laser = g.ships[0].segs[0].parts.findIndex((p) => p.t === 'laser');
+  g = apply(g, { type: 'fire', ship: g.ships[0].id, seg: 0, part: laser, at: [0, 1] });
+    const blocked = g.objs.every((o) => !(o.pos[0] === blocker[0] && o.pos[1] === blocker[1]));
+    const hurt = g.ships[1].segs[0].parts.some((p) => p.hp <= 0);
+    return { blocked, hurt };
+  };
+  assert.deepEqual(run(false, false), { blocked: true, hurt: false }, 'off: the beam stops at your own missile');
+  assert.deepEqual(run(true, false), { blocked: false, hurt: true }, 'on: it flies past your missile and hits');
+  assert.deepEqual(run(true, true), { blocked: true, hurt: false }, 'on: your own mine still stops it');
 });
