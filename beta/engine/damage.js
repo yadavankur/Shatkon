@@ -38,11 +38,13 @@ export function isDead(state, ship) {
   return false;
 }
 
-export function applyHits(state, ship, si, n, cause) {
+// opts.pierce: shields don't soak these hits. opts.prefer: a part type hit first, ignoring layers
+// (mines with strikes: engines leave a ship dead in the water).
+export function applyHits(state, ship, si, n, cause, opts = {}) {
   if (ship.dead || n <= 0) return;
   const sg = ship.segs[si], lost = [], guard = isProtected(state, ship);
   for (let i = 0; i < n && !sg.wrecked; i++) {
-    let live = sg.parts.map((p) => ({ p, c: state.rules.parts[p.t] })).filter((x) => x.p.hp > 0 && !x.p.off);
+    let live = sg.parts.map((p) => ({ p, c: state.rules.parts[p.t] })).filter((x) => x.p.hp > 0 && !x.p.off && !(opts.pierce && x.c.recharges));
     // a protected ship (story rails) never loses its core: the hit lands elsewhere or is shrugged off
     if (guard) { live = live.filter((x) => !(x.c.required && x.p.hp <= 1)); if (!live.length) continue; }   // nothing said: the rails stay invisible
     if (!live.length) {
@@ -51,10 +53,12 @@ export function applyHits(state, ship, si, n, cause) {
       lost.push('segment wrecked');
       break;
     }
+    const preferred = opts.prefer ? live.filter((x) => x.p.t === opts.prefer) : [];
     const layer = Math.min(...live.map((x) => x.c.layer));
-    const pool = live.filter((x) => x.c.layer === layer);
+    const pool = preferred.length ? preferred : live.filter((x) => x.c.layer === layer);
     const x = pool[Math.floor(rand(state) * pool.length)];
     x.p.hp--;
+    x.p.hitRound = state.round;
     lost.push(x.p.t + (x.p.hp > 0 ? ' damaged' : x.c.recharges ? ' down' : ' destroyed'));
   }
   const hull = hullPct(state, ship), at = segHex(ship, si);
@@ -89,7 +93,8 @@ export function explode(state, obj, struck) {
   const lit = state.rules.det.lightsUp;
   for (const x of state.ships.filter((s) => !s.dead).concat(state.objs))
     if (Math.min(...cellsOf(x).map((c) => dist(c, center))) <= lit) state.lit[x.id] = state.round + 1;
-  if (struck) applyHits(state, struck.ship, struck.seg, num(m.hits), obj.kind);
+  if (struck && m.strikes === 'engines') strikeEngines(state, struck, num(m.hits), obj.kind);
+  else if (struck) applyHits(state, struck.ship, struck.seg, num(m.hits), obj.kind);
   const r = num(m.blast_radius);
   for (const s of state.ships) {
     if (s.dead || (!state.rules.friendlyFire && s.owner === obj.owner)) continue;
@@ -100,6 +105,21 @@ export function explode(state, obj, struck) {
   }
   if (r > 0) for (const o of state.objs.slice()) {
     if (objById(state, o.id) && dist(center, o.pos) <= r) { removeObj(state, o); emit(state, { t: 'obj_destroyed', kind: o.kind, at: o.pos.slice() }, everyone); }
+  }
+}
+
+// A blast that goes for the engines: each hit lands on the working engine nearest the impact,
+// anywhere on the ship, so a strong enough mine leaves a ship dead in the water.
+function strikeEngines(state, struck, n, cause) {
+  const s = struck.ship, at = segHex(s, struck.seg);
+  for (let k = 0; k < n && !s.dead; k++) {
+    let best = -1, bd = Infinity;
+    s.segs.forEach((sg, i) => {
+      if (sg.wrecked || !sg.parts.some((p) => p.t === 'engine' && p.hp > 0)) return;
+      const d = dist(segHex(s, i), at);
+      if (d < bd) { bd = d; best = i; }
+    });
+    applyHits(state, s, best >= 0 ? best : struck.seg, 1, cause, best >= 0 ? { prefer: 'engine' } : {});
   }
 }
 

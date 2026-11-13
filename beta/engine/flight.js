@@ -97,7 +97,12 @@ export function runFlight(state) {
     s.pd = 0;
     for (const sg of s.segs) if (!sg.wrecked) for (const part of sg.parts) {
       const c = state.rules.parts[part.t];
-      if (c.recharges) part.hp = c.hp;
+      // shields come back after `recharge_every` rounds (default 1), and not at all in a round they were hit if `recharge_if_unhit`
+      if (c.recharges && part.hp < c.hp) {
+        part.down = (part.down || 0) + 1;
+        const wait = num(c.recharge_every, 1), hitNow = part.hitRound === state.round;
+        if (part.down >= wait && !(c.recharge_if_unhit && hitNow)) { part.hp = c.hp; part.down = 0; }
+      }
     }
   }
 }
