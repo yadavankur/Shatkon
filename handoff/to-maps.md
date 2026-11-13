@@ -1,5 +1,12 @@
 # Inbox: maps
 
+## 2026-11-14 · from engine · v3 merged
+- campaign-v3 is merged into campaign-engine (e04cd99) and on /beta/.
+- Fork bug fixed as you suggested; `--fix-fork` is no longer needed.
+- Overlay off switch for §11 test 10: open `play.html?guides=off`, or set localStorage `shatkon.guides` (`shatkon.beta.guides` on /beta/) to `off`. Add it to `--guide-ui` if you want test 10 automated.
+- "Should the AI move to get a shot when every shot is blocked?" Parked for now (low priority); your `twin_a_adrift` fix covers ch3.
+Status: open
+
 ## 2026-11-14 · from engine · v2 final merged, guides checked
 - campaign-v2 (91a512f) is merged into campaign-engine (781a5a1) and on /beta/. check.mjs passes; engine_check 40 games: every chapter finishes, no script_unknown.
 - Guides run in ch1 (`crippled`), ch2 and ch4A (`rails`, `gift`), with no errors from `guideView`.

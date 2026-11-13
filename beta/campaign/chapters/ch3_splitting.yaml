@@ -55,7 +55,6 @@ chapter:
     press_kestrel:    { level: normal, stance: hunt, target: [kestrel], stand_off: 4, scans: true, launch_range: 5 }
     # twin_a after li arrives: turns to the newcomers (and so shows Kestrel its flank).
     turn_on_newcomer: { level: normal, stance: hunt, target: [halcyon, tern], scans: false, launch_range: 5 }
-    pinned:           { level: normal, stance: hold, launch_range: 5 }   # drive burnt out: it cannot move (still fires)
 
   script:
     - id: rails
@@ -130,6 +129,26 @@ chapter:
       do:
         - bark: b3_flank_open
 
+    # twin_a dead in the water after Li's wing has hit it (its engines gone: it cannot move).
+    # twin_b abandons the dying half and withdraws, as it would at twin_a's death, so nothing
+    # stands between our guns and twin_a. (Without this, a stranded twin_a out of every line of
+    # fire, with the protected twin_b soaking the fire, ran 6/40 sims to the round-21 doom.)
+    - id: twin_a_adrift
+      flavor: true                                 # the pinned doom stays the guarantee
+      when: { all: [ li_arrives, { engines_out: twin_a }, { alive: twin_a } ] }
+      do:
+        - remove: { ship: twin_b, as: withdraw }
+      guide:                                       # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel
+        clear: { destroyed: twin_a }
+        steps:
+          - label: "Close to 4 hexes"
+            move_to: { near: twin_a, within: 4 }
+            done: reached
+          - label: "Finish twin_a"
+            fire_at: twin_a
+            done: { destroyed: twin_a }
+
     # Safety net (v2: replaces the old round-18 charge profile). Li's seeker drone locks on to
     # twin_a and burns out its drive and shields: it is pinned and lit for everyone, and the
     # doom ends it 5 rounds later if nothing else does.
@@ -137,9 +156,8 @@ chapter:
       fallback_for: twin_b_leaves
       when: { all: [ { round: 16 }, { alive: twin_a } ] }
       do:
-        - disable: { ship: twin_a, parts: [engine, shield] }
+        - disable: { ship: twin_a, parts: [engine, shield] }   # engines off: it cannot move (still fires)
         - light: { ship: twin_a, rounds: 8 }
-        - ai: { ship: twin_a, profile: pinned }
         - objective: "Li's seeker has twin_a pinned. Finish it."
         - doom: { ship: twin_a, by_round: 21 }
 
@@ -147,7 +165,7 @@ chapter:
       outcome: true                                # part of the win itself; needs no fallback
       when: { destroyed: twin_a }
       do:
-        - remove: { ship: twin_b, as: withdraw }   # off the north edge; not a kill
+        - remove: { ship: twin_b, as: withdraw }   # off the north edge; not a kill (a no-op if twin_a_adrift sent it already)
 
   win:  [ { destroyed: twin_a } ]
   lose: [ { destroyed: kestrel } ]                 # possible only from 2 rounds after li arrives
