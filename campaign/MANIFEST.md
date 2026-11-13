@@ -3,11 +3,12 @@
 Level design for the story campaign. The branch is based on `main` (8c8be0a) and adds files
 under `campaign/` only: no engine or rule file is changed.
 
-The files are written for the story engine in **PR #2** (branch `campaign-engine`, head
-3692a82, still open). They use its formats, field names, trigger and action names and AI-profile
+The files are written for the story engine and campaign UI in **PR #2** (branch
+`campaign-engine`, last checked at head 7f51643, still open). They use its formats, field names, trigger and action names and AI-profile
 knobs. Every chapter loads with its `buildChapter()` without problems, and every beat fires in
-scripted games through its `script.js` (see CHECKS.md, where each result is labelled [main] or
-[PR #2]).
+scripted games through its `script.js`. The whole campaign also plays in the browser through
+PR #2's campaign screen (`ui/campaign.js`). See CHECKS.md, where each result is labelled
+[main], [PR #2] or [browser].
 
 ## Files
 
@@ -24,6 +25,7 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
 | `CHECKS.md` | Per-chapter numbers and results: [main] buildRules, [PR #2] buildChapter and scripted sims. |
 | `tools/check.mjs` | The [main] checker. It runs buildRules per chapter (resolving hulls by the PR #2 loader's rule) and checks split pieces, the graft result, spawn groups, zones, roster/capability continuity, every shared scene/bark id, and the trigger/action/knob names PR #2 reads. It also checks that every beat has a guaranteed fallback, and draws an ASCII board. Exit code 1 on failure. Run it with `node campaign/tools/check.mjs`. |
 | `tools/engine_check.mjs` | The [PR #2] checker. It loads every chapter with PR #2's `buildChapter`, chaining progress through `newCampaign` / `applyResult`, and plays N scripted AI-vs-AI games per chapter with `campaignMove`. Run it with `node campaign/tools/engine_check.mjs --engine <checkout of campaign-engine> [--games 40] [--chapter chN] [--no-rails] [--sloppy] [--graft] [--out file]`. |
+| `tools/browser_story.cjs` | The [browser] test (Playwright). On a served merge of campaign-v1 and campaign-engine, it opens "✦ Story campaign" from the mode picker and plays every chapter from the map, clicking scene cards. It reports scenes, objectives, saved progress and console errors. `--graft-only` checks the ch4A Graft button; `--fix-fork` works around the fork bug (see Risks). |
 | `tools/gen_maps.mjs` | Regenerates the five map files: terrain compressed into the map format's disc / line / single shapes, plus the zones. |
 | `tools/lib.mjs` | Shared helpers: the repo's YAML reader, `world_overrides`, hull resolution (`hullKeyFor`, the same rule as PR #2's `hullFor`) and the ASCII board. |
 
@@ -43,7 +45,8 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
 | split | `split: { ship: twin, into: [ { id, flagship, cells } ] }`, with cells in the Twin's own offsets. The engine grows twin_b's core in its first cell ([1,-1]), where the hull keeps a bay free. |
 | graft | `unlock: graft`, the player order `{ type: graft, ship, with }`, and the script action `graft: [kestrel, tern]`. Triggers: `grafted: [kestrel, tern]`. |
 | results | `win` / `lose` lists (empty in ch5 → the engine's defaults). `end: { result: win \| to_be_continued }`. Scenes: `scenes.intro`, `win` (list), `lose`, `tbc` (ch5_cliff). |
-| AI knobs used | `level, stance (hunt/advance/hold/flee/charge), target (smallest/flagship/list), stand_off (number or { from, hexes }), path_via, scans, avoid_mines, launch_range, fire_chance, max_hits_per_round`. |
+| AI knobs used | `level, stance (hunt/advance/hold/flee/charge), target (smallest/flagship/list), only_targets (ch5 Bloom), stand_off (number or { from, hexes }), path_via, scans, avoid_mines, launch_range, fire_chance, max_hits_per_round`. |
+| PR #2 additions used | `damage: { ship, hits, from_mine: true }` (ch2 `mine_fallback`); world setting `damage.beams_pass_mines: true` (ch2); `only_targets` (ch5). `protect: { side }` is available, but the chapters keep one protect per ship. |
 
 ### Fields kept that PR #2 does not read (invented, harmless)
 
@@ -66,19 +69,23 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
    PR #2 scores a time-out as a draw, so ch1-3 put safety dooms on the enemy flagship and ch4A
    and ch5 end through the script long before their limits.
 
-### Things the design wanted that PR #2 cannot do (worked around; requests for the engine)
+### Things the design wanted from the engine (status at PR #2 7f51643)
 
-1. **Scripted damage or detonation.** ch2's `first_mine` has a round-10 fallback that plays
-   the scene without a real explosion. A `damage: { ship, hits, cause }` or
+1. **Scripted damage or detonation.** *Resolved in PR #2:* ch2's `mine_fallback` (r10) now
+   sets off a real charge with `damage: { from_mine: true }`. Original request: A `damage: { ship, hits, cause }` or
    `detonate: <mine at>` action would make the fallback honest.
-2. **Exclusive targets.** `only_targets` was dropped: `target: [list]` is only a preference.
-   The ch5 Bloom may shoot Kestrel, which is protected until the cliff.
-3. **Forcing a move into a zone, and protecting a whole side.** Replaced by the herd profile
-   and by one `protect` per ship.
+2. **Exclusive targets.** *Resolved in PR #2 and now used:* the ch5 siege profile has
+   `only_targets: [sparrow, halcyon]`, so the Bloom never fires at Kestrel.
+3. **Forcing a move into a zone, and protecting a whole side.** Protecting a side is
+   *resolved in PR #2* (`protect: { side }`); the chapters keep one protect per ship, which
+   works either way. Forcing a move into a zone is still missing; the herd profile stands in
+   for it.
 4. **Starting damaged (`broken: [part]`).** The ch4A husks are instead built with missing
    parts.
 5. **`ignore_flank`.** Accepted by PR #2 but it does nothing, so it was removed.
-6. **The scripted `graft` when the ships are apart.** PR #2's join() throws "the ships must
+6. **The scripted `graft` when the ships are apart.** *Resolved in PR #2:* it now emits
+   `script_failed` and the beat carries on. ch4A still graft only after the tow, so the
+   failure never happens (0 `script_failed` events in 200 games). Original issue: join() threw "the ships must
    be touching" from inside the script. The ch4A `grafted` beat therefore fires the scripted
    graft only once a `tow` (lock + `move_toward`) has brought Tern alongside. It would be safer
    if a script-side graft on non-touching ships emitted an event instead of throwing.
@@ -147,18 +154,17 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
 12. **The ch5 forced drift** is the engine's `move_toward`, which spends the player's thrust.
 13. **The ch4B node is shown locked** ("Signal lost") and has no chapter file. ch5 follows
     ch4A only.
-14. **The human stand-in in sims never shoots its own mines** (default). `--sloppy` shows
-    what happens when it does (CHECKS, Appendix D).
+14. **The human stand-in in sims never shoots its own mines** (default). With
+    `beams_pass_mines` on in ch2 this barely matters; `--sloppy` shows the difference
+    (CHECKS, Appendix D).
 15. **No PR #2 fields beyond what its code reads,** except the harmless ones listed above.
 
 ## Risks and open issues
 
-1. **ch2: lasers stop on mines.** A laser stops on any object in its line, mines included.
-   A player, or the Weave, firing through the gap destroys the survey charges; the stock AI
-   stand-in shot all four within 5 rounds. Possible fixes:
-   - tell the player to hold fire through the gap (b2_mines_set / objective);
-   - give the engine a rule that beams pass mines;
-   - accept the r10 fallback.
+1. **ch2: lasers stopped on mines.** *Resolved:* PR #2's `damage.beams_pass_mines` is on in
+   ch2. Sims went from 2 mine hits in 40 games (--sloppy, before) to 36-39. On **main** the
+   setting does not exist and is ignored, so this chapter needs PR #2's engine to play as
+   designed.
 2. **ch5:** with the AI stand-in the seam always wakes on the r5 fallback, because the
    stand-in never closes on the Bloom. A real player who engages should trigger it earlier
    (it needs 5+ hexes of closing).
@@ -166,11 +172,44 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
    lands at r6-7, just after.
 4. **PR #2 is still open.** If its names change, `check.mjs` (name lists at the top) and the
    files need a pass. `engine_check.mjs` pins nothing and runs against any checkout.
-5. **Campaign-screen logic that is not engine logic:** the ch3 fork (ch4_fork, the ch4b
-   objection) and the "To be continued" save after ch5. PR #2's `applyResult` marks ch5
-   completed.
+5. **Campaign screen (PR #2 ui/campaign.js), checked in the browser.** Everything our files
+   need works:
+   - the paths;
+   - the node ids, the locked ch4b with "Signal lost", and the ch3 `fork_scene` → ch4_fork card
+     → ch4a;
+   - every scene id and the `scenes.tbc` cliff;
+   - the objective strings in the banner;
+   - Kestrel shown "not answering" while locked;
+   - `unlock: graft` → a Graft button for touching ships;
+   - saved progress, including the carried grafted hull.
+
+   **One UI bug, for the engine/UI developer (it cannot be fixed in campaign/):** once the fork
+   choice is saved, `drawMap`'s `nodeState` greys out *every* open node other than the choice.
+   So after ch4A, **ch5 "The Bloom" shows as Locked** and the campaign cannot be finished from
+   the map. Fix: limit the fork lock to the `next` list of the node that has `fork_scene`.
+   CHECKS.md, "Browser run", has a one-line patch.
+6. **ui/campaign.js notes for the story developer:**
+   - With no `story/player.js`, the fallback fork card hard-codes the choice `ch4a`.
+   - A real `ch4_fork` scene must return `{ choice: 'ch4a' | 'ch4b' }`, i.e. node ids.
+   - Barks show as a toast of the bark id until `story/bark.js` exists.
+   - The map art is `story/img/stages/campaign_map.webp` (`map_art: campaign_map`).
+7. **Dock in ch4A (fixed in campaign/).** Docking was earned in ch3, and the play screen
+   offers a "Dock tern" button next to "Graft tern". Docking Tern into Kestrel removes Tern
+   without a graft, so before this fix `grafted` could never fire and the chapter would stall
+   into a draw. The `grafted` beat now also fires on `docked: [kestrel, tern]` once the gift has played
+   (an early dock just waits for the gift, r6 at the latest): the outro plays and the chapter
+   is won. Kestrel carries a dock seam instead of a weave seam, which doesn't
+   matter because ch5 flies the canonical kestrel@ch5.
+
+   A side lock on `dock` was tried and works. It was dropped because the play screen then
+   announces "Your ships stopped answering the helm" at the start of the chapter. UI request:
+   word the `locked` event by its actions when they are not `all`, and hide order buttons a
+   lock forbids.
 
 ## Resolved during integration (engine branch campaign-engine)
+
+(Written by the engine developer in campaign-engine 1f0f252. Adopted here on campaign-v1 so
+the two branches carry the same campaign files.)
 
 - **Scripted damage** (request 1): `damage: { ship, hits, seg?, cause?, from_mine? }`. With
   `from_mine: true` it uses up the nearest mine of the other side, shows the blast and counts as

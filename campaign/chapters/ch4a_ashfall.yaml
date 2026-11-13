@@ -102,6 +102,7 @@ chapter:
       when:
         any:
           - { grafted: [kestrel, tern] }
+          - all: [ gift, { docked: [kestrel, tern] } ]   # docking (earned in ch3) also joins them; without this the chapter would stall
           - all: [ tow, { distance_below: { a: kestrel, b: tern, hexes: 2 } } ]
       do:
         - graft: [kestrel, tern]                    # no-op if the player already did it (Tern is gone)

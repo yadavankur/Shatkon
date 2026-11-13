@@ -50,10 +50,9 @@ chapter:
         bloom: [4, -8]                   # centre + ring: rows -9 to -7
 
   ai_profiles:
-    # Holds position, never chases, prefers Sparrow and Halcyon and never lands more than
-    # 2 hits a round. (The engine's target list is a preference: it can still shoot Kestrel,
-    # which is protected until the cliff.)
-    siege: { level: normal, stance: hold, target: [sparrow, halcyon], max_hits_per_round: 2, launch_range: 0, scans: false }
+    # Holds position, never chases, shoots only Sparrow and Halcyon (only_targets, PR #2) and
+    # never lands more than 2 hits a round. Kestrel is not a target: it is being pulled in.
+    siege: { level: normal, stance: hold, target: [sparrow, halcyon], only_targets: [sparrow, halcyon], max_hits_per_round: 2, launch_range: 0, scans: false }
 
   script:
     - id: rails

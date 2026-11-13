@@ -55,7 +55,10 @@ function play(rules, seed, chId) {
     if (!SLOPPY && seat === 0 && r.ok && act.type === 'fire' && r.state.events.some((e) => e.t === 'obj_destroyed' && g.objs.some((o) => o.owner === 0 && o.pos[0] === e.at[0] && o.pos[1] === e.at[1])))
       r = E.attempt(g, { type: 'end' });   // hold fire rather than shoot our own mine
     g = r.state;
-    for (const e of g.events) if (e.t === 'destroyed' && e.cause === 'scripted') doomed.push(e.name);
+    for (const e of g.events) {
+      if (e.t === 'destroyed' && e.cause === 'scripted') doomed.push(e.name);
+      if (e.t === 'script_unknown' || e.t === 'script_failed') doomed.problems = (doomed.problems || []).concat(e.t + ':' + (e.action || '') + (e.why ? ' (' + e.why + ')' : ''));
+    }
   }
   g.doomed = doomed;
   return g;
@@ -88,7 +91,7 @@ for (const node of C.nodes) {
     extra.mineHits += g.script.mineHit[1] || 0;
     extra.stopped += g.script.stopped[0] || 0;
     if (g.script.flags['grafted:kestrel+tern']) extra.grafted++;
-    for (const e of g.events || []) if (e.t === 'script_unknown') unknown.add(e.action);
+    for (const x of g.doomed.problems || []) unknown.add(x);
     if (!firstWin && ['win', 'to_be_continued'].includes(g.script.result)) firstWin = g;
   }
   const avg = (a) => (a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : '-');
@@ -100,7 +103,7 @@ for (const node of C.nodes) {
   }
   log(`  destroyed / removed (games): ${JSON.stringify(deaths)}; of those by a doom fallback: ${JSON.stringify(extra.doomed)}`);
   log(`  enemy mine hits ${extra.mineHits}; player missiles stopped by PD ${extra.stopped}; kestrel+tern grafted in ${extra.grafted} games`);
-  if (unknown.size) log(`  script_unknown actions: ${[...unknown].join(', ')}`);
+  log(`  script_unknown / script_failed events: ${unknown.size ? [...unknown].join(', ') : 'none'}`);
   progress = E.applyResult(progress, chDoc, firstWin || { script: { result: 'win', flags: {} }, ships: [], winner: 0 });
   log(`  progress out (${firstWin ? 'from a won game' : 'synthesised win: no game won'}): roster ${JSON.stringify(progress.roster.map((r) => r.id + (r.hull ? '(carried ' + r.hull.length + '-segment hull)' : '')))}`);
 }
