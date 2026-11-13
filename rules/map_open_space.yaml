@@ -24,6 +24,14 @@ map:
     drones: own_home_zone
     mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
 
+  # The beacon in the middle (see map_skirmish.yaml for how it scores).
+  objective:
+    at: [0, 0]
+    radius: 2
+    points_to_win: 6
+    reveals_holder: true
+    decides_turn_limit: true
+
   # Terrain is mirrored so neither side has an advantage.
   terrain:
     - { type: nebula,   at: [0, 0],   radius: 2 }

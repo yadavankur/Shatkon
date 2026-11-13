@@ -30,6 +30,8 @@ Each phone holds the whole game, so the fog of war relies on neither player look
 
 On the board: tap a ship (or its card above the board) to select it and zoom in. Green markers are places it can move; tap one to preview the move, tap again to go. The turn ends by itself when the command points run out. Zoomed in, each segment shows its three bays and three mounts, coloured by part. The darker part of the board is outside your sensor range.
 
+There are two ways to win: destroy the enemy flagship, or hold the **beacon** (the gold star in the middle). Start your turn with a ship touching it and no enemy ship touching it, and you score 1. The first to the map's target wins, and at the round limit the higher score wins. Holding it lights your ship up for everyone. The map file sets the beacon's place, size and target.
+
 Detection has three tiers: a red fuzzy circle means something is roughly there, ◆ after a ship's name means you know exactly where it is, and ▣ means a fresh scan shows every part. A ship's signature is its size minus its working stealth parts (down to a floor), plus flare from firing, launching or scanning, minus one for sitting still and plus one for a big move. A ship can scan once per turn and only after it has moved; the further forward it is, the bigger the scan rings. The **?** button explains all of this in the game. Moves and launches that revealed nothing new can be undone (Ctrl+Z on a desktop).
 
 The **Lab** tab lets you design two ships, see who spots whom from how far, try "what if" changes, fight sandbox duels or a Monte Carlo series of them, change rule numbers, and then play a real game with your designs. Every number in it comes from the same engine as the game.
@@ -48,6 +50,7 @@ The default map is `rules/map_skirmish.yaml`, a small board where the fleets mee
 | `engine/actions.js` | Move, fire, launch, scan, detonate. |
 | `engine/scan.js` | How strong a scan is from where the ship stands. |
 | `engine/flight.js` | The flight phase: missiles and drones. |
+| `engine/objective.js` | The beacon: who holds it, scoring, and who wins at the round limit. |
 | `engine/turn.js` | The turn loop. |
 | `engine/view.js` | Cuts the full state down to what one player may see. |
 | `engine/query.js` | "Where can this ship go? What can it shoot?" |

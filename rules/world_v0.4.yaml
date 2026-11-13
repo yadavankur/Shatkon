@@ -136,6 +136,8 @@ damage:
     - core_destroyed
     - nothing_but_engines     # it has lost parts and only engines and the core still work
   friendly_fire: true         # your own blasts and mines can hurt you
+  own_munitions_pass_own_ships: true   # your missiles and drones fly through your own hulls
+                                       # instead of exploding on them (blasts still hurt)
 
 
 # ------------------------------------------------------------

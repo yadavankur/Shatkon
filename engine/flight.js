@@ -55,7 +55,8 @@ function stepObj(state, o, m, turnsLeft) {
     return turnsLeft;
   }
   const oc = occ.get(k);
-  if (oc && (oc.ship.owner !== p || state.rules.friendlyFire)) { explode(state, o, { ship: oc.ship, seg: oc.seg }); return turnsLeft; }
+  const passes = oc && oc.ship.owner === p && state.rules.ownMissilesPass;
+  if (oc && !passes && (oc.ship.owner !== p || state.rules.friendlyFire)) { explode(state, o, { ship: oc.ship, seg: oc.seg }); return turnsLeft; }
   o.pos = np;
   return turnsLeft;
 }

@@ -119,6 +119,11 @@ export function computerMove(state, seat, level = 'normal') {
       ? [0, -(v.board.radius - 2)]
       : [0, v.board.radius - 2]
     : [0, 0];
+  // the map objective: hold it to score; behind on points means push harder
+  const obj = v.objective;
+  const myScore = (v.scores || [])[seat] || 0, theirScore = (v.scores || [])[1 - seat] || 0;
+  const objPull = !obj ? 0 : theirScore > myScore ? 2 : theirScore === myScore ? 1.2 : 0.6;
+  const onObj = (cells) => obj && cells.some((c) => H.dist(c, obj.at) <= obj.radius);
   const knownMines = new Set(
     v.objs.filter((o) => !o.mine && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
   );
@@ -128,7 +133,9 @@ export function computerMove(state, seat, level = 'normal') {
       ? v.contacts.map((c) => c.at) /* head for the circle's centre: the best single guess */
       : v.ghosts.length
         ? v.ghosts.flatMap((g) => g.cells)
-        : [homePoint];
+        : obj
+          ? [obj.at]
+          : [homePoint];
   // path-aware approach: BFS over centres where the whole ship fits, so a ship parked
   // behind an asteroid works its way round instead of stalling
   const blockMove = new Set();
@@ -206,6 +213,11 @@ export function computerMove(state, seat, level = 'normal') {
       score -= d * (s.flagship ? 0.7 : 1);
       const others = mine.filter((m) => m.id !== s.id);
       if (s.flagship && others.length) score -= Math.max(0, minDist(cells, others[0].cells) - 5) * 0.8;
+    }
+    if (obj) {
+      // the scout goes for the beacon; the flagship joins in when behind on points
+      const w = s.flagship ? (theirScore > myScore ? objPull * 0.6 : 0.2) : objPull;
+      score += onObj(cells) ? 3 * w : -minDist(cells, [obj.at]) * 0.5 * w;
     }
     return score;
   };

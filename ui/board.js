@@ -101,6 +101,17 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     }
   }
 
+  // the beacon: hold it to score (gold ring; brighter in the colour of whoever scored last)
+  if (v.objective) {
+    const o = v.objective, oc = all.filter((c) => hex.dist(c, o.at) <= o.radius);
+    const lastScore = v.feed.filter((e) => e.t === 'objective_scored').pop();
+    const tint = lastScore ? col(lastScore.player) : '#e8c15a';
+    svg.appendChild(s('path', { d: oc.map((c) => cellPath(c, 0.92)).join(''), fill: '#e8c15a', 'fill-opacity': 0.08, stroke: tint, 'stroke-width': 0.9, 'stroke-opacity': 0.8, 'stroke-dasharray': '2 1.5' }));
+    let d = '';
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * 2 * Math.PI - Math.PI / 2, rad = S * (i % 2 ? 0.18 : 0.42); d += (i ? 'L' : 'M') + f1(X(o.at) + rad * Math.cos(a)) + ',' + f1(Y(o.at) + rad * Math.sin(a)); }
+    svg.appendChild(s('path', { d: d + 'Z', fill: '#e8c15a', 'fill-opacity': 0.9 }));
+  }
+
   // fog: everything outside this player's sensor range is darker
   const dark = all.filter((c) => !v.eyes.some((e) => e.range !== null && e.cells.some((x) => hex.dist(x, c) <= e.range)));
   if (dark.length) svg.appendChild(s('path', { d: dark.map((c) => cellPath(c, 1.01)).join(''), fill: '#02040a', 'fill-opacity': 0.5 }));

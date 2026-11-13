@@ -574,7 +574,7 @@ function act(action, quiet, byAI) {
     report = makeReport(game.events, fxViewer) || (byAI ? report : null);
   }
   let msg = mine.join(' ');
-  if (game.phase === 'over' && game.winner === 'draw' && !/draw/.test(msg)) msg += (msg ? ' ' : '') + 'The round limit was reached, so the game is a draw.';
+  if (game.phase === 'over' && game.winner === 'draw' && !/draw/.test(msg)) msg += (msg ? ' ' : '') + 'The round limit was reached' + (game.rules.objective && game.rules.objective.scoreAtLimit ? ' with the beacon score tied' : '') + ', so the game is a draw.';
   if (action.type === 'end' || game.phase === 'over') {
     code = E.turnCode(game); sel = null; mode = 'move'; cam.w = 0;      // back to the whole map for the next player
     undoStack = [];
@@ -633,7 +633,9 @@ function describe(e) {
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
-    case 'game_over': return e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
+    case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
+    case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
+    case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.' : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
   return e.t;
 }
@@ -1001,7 +1003,8 @@ export function render() {
   const stepNames = game.order.map((p) => 'Player ' + (p + 1)).concat('Flight');
   fill(bar, [h('div', { class: 'big' }, game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
       : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1)),
-    h('div', { class: 'line' }, h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n))),
+    h('div', { class: 'line' }, h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n)),
+      v.objective ? h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '') : null),
     mine ? h('div', { class: 'line' },
       h('span', null, 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
       h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), ' (moving costs 1 per segment per hex)'), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,

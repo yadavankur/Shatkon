@@ -435,3 +435,56 @@ test('losing a magazine reports how many munitions went with it', () => {
   assert.equal(ev.count, 2, '5 missiles, room left for 3: 2 lost');
   assert.equal(ship.load.missile, 3);
 });
+
+const ends = (g, n = 1) => { for (let i = 0; i < n; i++) g = apply(g, { type: 'end' }); return g; };
+
+test('the beacon scores for a side that holds it through the other side\'s turn', () => {
+  const objective = { at: [0, 0], radius: 1, points_to_win: 2 };
+  const { game, problems } = battle({ objective, p1: [scout('Holder', [0, 1])], p2: [scout('Far', [0, -8])] });
+  assert.deepEqual(problems, []);
+  let g = ends(game, 2);                       // round 1 over; player 2 moves first in round 2
+  assert.deepEqual(g.players.map((p) => p.score), [0, 0], 'nobody scores at the start of the game');
+  g = ends(g, 1);                              // player 2 ends: player 1 starts its turn on the beacon
+  assert.deepEqual(g.players.map((p) => p.score), [1, 0]);
+  assert.ok(g.lit[g.ships.find((s) => s.name === 'Holder').id], 'holding it lights the holder up');
+  g = ends(g, 1);                              // player 1 also starts round 3 (turn order alternates)
+  assert.equal(g.phase, 'over');
+  assert.equal(g.winner, 0);
+});
+
+test('nobody scores while both sides touch the beacon', () => {
+  const objective = { at: [0, 0], radius: 1, points_to_win: 1 };
+  const { game } = battle({ objective, p1: [scout('A', [0, 1])], p2: [scout('B', [0, -1])] });
+  const g = ends(game, 6);
+  assert.deepEqual(g.players.map((p) => p.score), [0, 0]);
+  assert.equal(g.phase, 'play');
+});
+
+test('at the turn limit the beacon score decides', () => {
+  const objective = { at: [0, 0], radius: 1, points_to_win: 0 };
+  const world = structuredClone(shippedFiles().world);
+  world.turns.turn_limit = 3;
+  const { game } = battle({ world, objective, p1: [scout('Holder', [0, 1])], p2: [scout('Far', [0, -8])] });
+  const g = ends(game, 6);
+  assert.equal(g.phase, 'over');
+  assert.equal(g.winner, 0);
+});
+
+test('your own missiles fly through your own ships when the rule says so', () => {
+  const run = (pass) => {
+    const world = structuredClone(shippedFiles().world);
+    world.damage.own_munitions_pass_own_ships = pass;
+    const { game, problems } = battle({ world,
+      p1: [pod('Launcher', [0, 4], ['core', 'magazine', 'engine'], ['launcher'], { load: { missile: 1 } }),
+        pod('Friend', [0, 1], ['core', 'engine', 'sensor'], [], { flagship: false })],
+      p2: [scout('Far', [0, -9])] });
+    assert.deepEqual(problems, []);
+    // fire it straight north (direction 2 is "up" on this board: r goes down), through the friend
+    let g = apply(game, { type: 'launch', ship: game.ships[0].id, kind: 'missile', start: [0, 3], route: [2, 2, 2, 2, 2, 2] });
+    g = ends(g, 2);
+    return g.ships.find((s) => s.name === 'Friend');
+  };
+  const hurt = (s) => s.segs[0].parts.some((p) => p.hp <= 0);
+  assert.equal(hurt(run(false)), true, 'with the rule off, the missile blows up on the friendly ship');
+  assert.equal(hurt(run(true)), false, 'with the rule on, it flies through');
+});

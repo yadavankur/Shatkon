@@ -21,13 +21,13 @@ export function shippedFiles() {
 
 // A small battle on an empty board, using the real parts catalogue.
 // ships: [{ name, at, flagship, hull: [{at, bays, mounts}], load }]
-export function battle({ radius = 10, terrain = [], p1, p2, extra1 = [], extra2 = [], world, seed = 7 }) {
+export function battle({ radius = 10, terrain = [], objective, p1, p2, extra1 = [], extra2 = [], world, seed = 7 }) {
   const w = structuredClone(world || shippedFiles().world);
   const side = (ships, extra) => ({
     ships: ships.map((s) => ({ name: s.name, flagship: !!s.flagship, hull: s.hull, load: s.load })),
     deployment: ships.map((s) => ({ ship: s.name, at: s.at })).concat(extra),
   });
-  const built = buildRules(w, { map: { board: { shape: 'hexagon', radius }, terrain } }, { budget: 99999, player_1: side(p1, extra1), player_2: side(p2, extra2) });
+  const built = buildRules(w, { map: { board: { shape: 'hexagon', radius }, terrain, objective } }, { budget: 99999, player_1: side(p1, extra1), player_2: side(p2, extra2) });
   return { ...built, game: start(built.rules, seed) };
 }
 
