@@ -1,0 +1,252 @@
+# ============================================================
+#  WORLD FILE v0.2  -  the laws of physics + the parts catalogue
+#
+#  Shared by both players. Nothing in here belongs to a player.
+#  Companion files:
+#    map_open_space.yaml  - the board, zones and terrain
+#    fleets_v0.2.yaml     - what each player built and where it starts
+#
+#  Lines starting with # are notes. Change any number freely.
+# ============================================================
+
+meta:
+  name: "Untitled Hex Space Game"
+  version: "0.2"
+
+
+# ------------------------------------------------------------
+# 1. TURNS
+# ------------------------------------------------------------
+turns:
+  command_points:
+    per_turn: 3
+    bank_cap: 6               # most unspent points you can carry over
+    bank_hidden: true         # opponent never sees your bank
+  round_structure:
+    - player_turn             # first player spends command points
+    - player_turn             # second player spends command points
+    - flight_phase            # missiles and drones all move together
+  first_player: alternate     # swaps every round
+  flight_phase:
+    ticks: 6                  # the flight phase is cut into 6 small steps.
+                              # A speed-6 missile moves 1 hex every step.
+                              # Collisions are checked after every step.
+  turn_limit: 30
+  win_conditions:
+    - destroy_enemy_flagship
+
+
+# ------------------------------------------------------------
+# 2. ACTIONS  (what a command point buys)
+# ------------------------------------------------------------
+actions:
+  move:     { cost: 1, note: "one ship moves up to its speed; each 60-degree turn uses 1 hex of movement" }
+  fire:     { cost: 1, note: "fire one beam weapon" }
+  launch:   { cost: 1, note: "launch one missile or drone and secretly plot its route" }
+  scan:     { cost: 1, note: "reveal one module of an enemy ship you can see" }
+  detonate: { cost: 1, note: "blow up one of your own drones" }
+  pass:     { cost: 0, note: "end your turn; unspent points go to the bank" }
+
+
+# ------------------------------------------------------------
+# 3. SHIPS  (how a ship is put together)
+# ------------------------------------------------------------
+#  A ship = a HULL (the hexes it occupies) + MODULES placed on the hull.
+#  - Each hull hex has its own hp and armour (so you can armour zones).
+#  - Several modules can share one hex.
+#  - One module can spread over several hexes.
+#  - A module works at (surviving hexes / hexes it covers).
+#    Engine on 2 hexes, 1 hex wrecked = half thrust.
+ships:
+  hull:
+    min_hexes: 1
+    max_hexes: 7
+    must_be_connected: true
+    hex_hp: 4
+    hex_cost: 3               # budget points per hull hex
+    armour: { min: 0, max: 4, cost_per_point: 2 }   # set per hex
+    max_modules_per_hex: 3
+  wrecked_hex: stays_attached # a wrecked hex still takes up space;
+                              # hits on it pass through to the next hex
+  speed_rule: "speed = total working thrust / number of hull hexes, rounded down"
+  destroyed_when_options: [core_lost, all_hexes_wrecked]   # chosen per ship
+
+
+# ------------------------------------------------------------
+# 4. DETECTION
+# ------------------------------------------------------------
+detection:
+  rule: "you see a target if distance <= your sensor range + its signature + its flare"
+  signature_rule: "each hull hex emits 1; stealth_a lowers the hexes it covers; add them up and round"
+  small_object_signature: 1   # default for missiles, drones, mines
+  flare:                      # temporary extra visibility, lasts until the end of the next round
+    fire_beam: 0              # silent...
+    beam_hit: 3               # ...unless it hits
+    launch: 2
+    point_defence_shot: 2
+    detonation_lights_up: 4   # everything within this many hexes of a blast is revealed
+  lost_contact: ghost         # an enemy that slips out of view leaves a "last seen here" marker
+  information: "a player sees everything any of their ships or drones can see"
+
+
+# ------------------------------------------------------------
+# 5. COMMS NETWORK
+# ------------------------------------------------------------
+comms:
+  core_link_range: 4          # every ship can link to friends this close
+  rule: >
+    Ships within link range of each other form a network (links chain).
+    A ship may lock a missile onto any target seen by its network.
+    A ship outside the network can only lock onto what it sees itself.
+
+
+# ------------------------------------------------------------
+# 6. DAMAGE
+# ------------------------------------------------------------
+damage:
+  rule: "damage = power - armour of the hex hit - (falloff x distance), never below 0"
+  hit_location: first_hex_reached   # the hull hex the shot arrives at
+  blast:
+    each_ring_out: 0.5        # each ring away from the blast centre takes half
+    friendly_fire: true
+
+
+# ------------------------------------------------------------
+# 7. MODULES  (the parts catalogue)
+#    cost = budget points PER HEX the module covers.
+#    tiers = upgrade versions (mk1, mk2, mk3).
+# ------------------------------------------------------------
+modules:
+  core:
+    note: "the ship's brain; every ship needs exactly one"
+    hexes: 1
+    cost: 0
+
+  engine:
+    note: "gives thrust; spread it over hexes so one hit doesn't stop you"
+    tiers:
+      mk1: { thrust: 6,  cost: 4 }
+      mk2: { thrust: 9,  cost: 7 }
+      mk3: { thrust: 12, cost: 10 }
+
+  sensor:
+    note: "how far the ship sees"
+    tiers:
+      mk1: { range: 4, cost: 4 }
+      mk2: { range: 6, cost: 7 }
+      mk3: { range: 8, cost: 10 }
+
+  stealth_a:
+    note: "damper: covered hexes emit less (strength 0.5 = half as visible)"
+    tiers:
+      mk1: { strength: 0.3, cost: 3 }
+      mk2: { strength: 0.5, cost: 5 }
+      mk3: { strength: 0.7, cost: 8 }
+
+  stealth_b:
+    note: "mask: hides the flash when this ship fires, launches or uses point defence"
+    tiers:
+      mk1: { flare_reduction: 1, cost: 4 }
+      mk2: { flare_reduction: 2, cost: 6 }
+      mk3: { flare_reduction: 3, cost: 9 }
+
+  beam_mount:
+    note: "holds one beam weapon (weapon bought separately)"
+    hexes: 1
+    cost: 2
+
+  launcher:
+    note: "holds and launches missiles and drones (bought separately)"
+    hexes: 1
+    cost: 3
+    capacity: 6
+
+  point_defence:
+    note: "automatic self-defence: shoots incoming missiles and drones, costs no command points"
+    hexes: 1
+    range: 2
+    hit_chance: 0.6
+    penalty: "each shot gives the ship flare (see detection)"
+    tiers:
+      mk1: { shots_per_round: 1, cost: 6 }
+      mk2: { shots_per_round: 2, cost: 10 }
+      mk3: { shots_per_round: 3, cost: 14 }
+
+  comms:
+    note: "long-range link and relay; lose it and your fleet may split into islands"
+    hexes: 1
+    link_range: 12
+    cost: 5
+
+
+# ------------------------------------------------------------
+# 8. BEAM WEAPONS  (fitted to a beam_mount)
+# ------------------------------------------------------------
+weapons:
+  laser:
+    note: "instant, straight line, needs a clear line of sight to a target you can see"
+    power: 5
+    range: 8
+    falloff: 0.25             # loses this much power per hex travelled
+    cost: 10
+
+
+# ------------------------------------------------------------
+# 9. MUNITIONS  (real pieces on the board, loaded into a launcher)
+# ------------------------------------------------------------
+munitions:
+  missile:
+    speed: 6                  # hexes per round
+    fuel: 3                   # rounds before it burns out
+    turn_rate: 1              # 60-degree turns allowed per tick
+    power: 6
+    blast_radius: 1
+    hp: 1
+    seeker_range: 2
+    guidance:
+      locked: "chases its target while the target is seen by the missile or the launcher's network"
+      unlocked: "flies the plotted route, then goes for the first enemy within seeker_range"
+    cost: 8
+
+  seeker_drone:
+    speed: 3
+    fuel: 6
+    sensor_range: 3
+    patrol: random            # options: line, circle, random
+    power: 4
+    blast_radius: 1
+    hp: 1
+    reports: true             # what it sees, you see
+    reveals_itself_on_detect: true
+    remote_detonate: true
+    can_place_at_setup: true
+    cost: 6
+
+  mine:
+    speed: 0
+    power: 8
+    blast_radius: 0
+    hp: 1
+    setup_only: true          # placed secretly before the game
+    max_per_player: 6
+    cost: 5
+
+
+# ------------------------------------------------------------
+# 10. TERRAIN TYPES  (placed by the map file)
+# ------------------------------------------------------------
+terrain:
+  asteroid: { blocks_movement: true, blocks_sight: true }
+  nebula:   { sensor_penalty: 3, signature_bonus: -2, note: "inside you see less and are harder to see" }
+
+
+# ------------------------------------------------------------
+# 11. PARKED FOR LATER  (not in the engine yet)
+# ------------------------------------------------------------
+# - Compound / twin ships that split apart
+# - Tractor (large ship swallows a small one)
+# - Tunnel / wormhole devices
+# - stealth_c: distortion (appear bigger or smaller than you are)
+# - Space rivers, gravity wells, warped hexes, sphere / doughnut boards
+# - Campaign: branching map, unlocks and upgrades, salvage collectors,
+#   raw materials between battles, planet-sized final boss

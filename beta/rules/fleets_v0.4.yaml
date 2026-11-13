@@ -1,0 +1,59 @@
+# ============================================================
+#  FLEETS FILE v0.4  -  what each player built
+#
+#  Parts and prices come from world_v0.4.yaml.
+#  Each segment has room for 3 bay parts and 3 mount parts.
+#  Coordinates are [q, r] relative to the ship's own centre [0, 0].
+#  The opponent never sees this file's contents during play.
+# ============================================================
+
+world: world_v0.4.yaml
+map: map_skirmish.yaml
+budget: 200
+
+player_1:
+  ships:
+
+    # ---- A small, quiet scout: 3 segments in a line ----
+    - name: "Blob A"
+      hull:
+        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [armour] }
+        - { at: [0, 0],  bays: [core, engine, coupling] }
+        - { at: [1, 0],  bays: [sensor, engine, stealth], mounts: [laser] }
+      # cost:   3 segments 9 + 3 engines 18 + 2 stealth 0 + sensor 5 + armour 5 + laser 10 = 47
+      # result: sensor 4, signature 3 - 2 = 1 (its floor)
+
+    # ---- A big flagship: 7 segments, centre plus a ring of six ----
+    - name: "Blob B"
+      flagship: true
+      load: { missile: 2 }                # the one magazine holds up to 3
+      hull:
+        - { at: [0, 0],  bays: [core, magazine, comms] }
+        - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1],  bays: [engine, coupling, stealth] }
+      # cost:   7 segments 21 + 7 engines 42 + sensor 5 + magazine 3 + comms 5 + laser 10 + shield 8
+      #         + launcher 4 + point defence 7 + 2 armour 10 + 2 missiles 16 = 131
+      # + 4 stealth parts in the empty bays (free)
+      # result: sensor 4, signature 7 - 4 = 3 (its floor): seen by sensor 4 from 7 hexes, not 11
+
+  # FLEET: 10 engines for 10 segments = 10 thrust a turn. Average 1, so a ship may move up to 2 hexes.
+  # FLEET TOTAL: 47 + 131 + 2 mines 10 = 188 of 200 (12 spare)
+
+  # Starting positions for map_skirmish.yaml (board coordinates).
+  # For the big map_open_space.yaml use: Blob A [2, 16], Blob B [-2, 18], mines [0, 12] and [-5, 13].
+  deployment:
+    - { ship: "Blob A", at: [1, 6] }
+    - { ship: "Blob B", at: [-2, 7] }
+    - { mine: [2, 1] }        # mines default to no man's land, not your own doorstep
+    - { mine: [-2, 2] }
+
+
+# Player 2 uses an exact copy of player 1, mirrored to the other side.
+player_2:
+  copy_of: player_1
+  mirror_deployment: true
+  mirror_ships: true
