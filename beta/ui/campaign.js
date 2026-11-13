@@ -104,6 +104,7 @@ function drawMap() {
       h('label', null, 'Captain ', h('select', { onchange: (ev) => setSettings({ captain: ev.target.value }) },
         h('option', { value: 'captain_a', selected: s.captain !== 'captain_b' }, 'Look A'), h('option', { value: 'captain_b', selected: s.captain === 'captain_b' }, 'Look B'))),
       h('span', { class: 'muted' }, player ? '' : 'Cutscenes show as text until the story files arrive.'),
+      h('button', { class: 'btn', onclick: () => drawTest() }, 'Test a chapter'),
       h('button', { class: 'btn', onclick: () => { if (confirm('Start the campaign again from chapter 1? Progress is lost.')) { progress = E.newCampaign(data.campaign); saveProgress(); drawMap(); } } }, 'Restart campaign'))));
   const sc = box.querySelector('.cm-scroll');
   if (sc) sc.scrollLeft = (sc.scrollWidth - sc.clientWidth) / 2;   // the chapters sit in the middle
@@ -123,20 +124,28 @@ async function pickNode(n) {
   startChapter(n.id);
 }
 
-export function startChapter(id) {
-  const chapter = data.chapters[id], ch = chapter.chapter || chapter;
-  // a replay starts from the progress the crew had back then (ships merged later would be missing)
-  progress.before = progress.before || {};
-  if (!progress.before[id]) { const { before, ...snap } = progress; progress.before[id] = structuredClone(snap); saveProgress(); }
+export function startChapter(id, test = false) {
+  store.set(KEY + '.test', test ? '1' : '');
+  const chapter = tweaked(id), ch = chapter.chapter || chapter;
+  let start;
+  if (test) start = testStart(id).progress;
+  else {
+    // a replay starts from the progress the crew had back then (ships merged later would be missing)
+    progress.before = progress.before || {};
+    if (!progress.before[id]) { const { before, ...snap } = progress; progress.before[id] = structuredClone(snap); saveProgress(); }
+    start = progress.before[id];
+  }
   const { rules, problems } = E.buildChapter({
-    world: data.docs['rules/' + (ch.world || 'world_v0.4.yaml')], map: data.docs[C_DIR + ch.map],
-    ships: data.ships, chapter, campaign: data.campaign, progress: progress.before[id],
+    world: knobbedWorld(data.docs['rules/' + (ch.world || 'world_v0.4.yaml')]), map: data.docs[C_DIR + ch.map],
+    ships: data.ships, chapter, campaign: data.campaign, progress: start,
   });
   if (problems.length) { hooks.say('This chapter has problems: ' + problems.join(' '), true); console.warn(problems); }
   objective = null;
   store.set(KEY + '.playing', id);
   closeCampaign();
-  hooks.startStoryGame(rules, ch.title || id);
+  hooks.startStoryGame(rules, (test ? 'Test: ' : '') + (ch.title || id));
+  const n = Object.keys(knobs()).length + Object.keys(tweaks()[id] || {}).length;
+  if (test || n) hooks.toast([test ? 'Test run' : '', n ? n + ' change' + (n === 1 ? '' : 's') : ''].filter(Boolean).join(' · '), 'info');
 }
 
 // ---------------------------------------------------------------- events from the engine
@@ -214,7 +223,7 @@ async function chapterOver(game) {
   if (!data) await loadAll();
   if (!progress) loadProgress();
   const result = game.script && game.script.result;
-  const replay = progress.completed.includes(id);   // a replay earns nothing new
+  const replay = progress.completed.includes(id) || store.get(KEY + '.test') === '1';   // a replay or a test run earns nothing new
   if (chapter && !replay && (result === 'win' || result === 'to_be_continued')) {
     const before = progress.before;
     progress = E.applyResult(progress, data.chapters[id], game);
@@ -231,5 +240,91 @@ export function storyOverText(game) {
 }
 export function retryChapter(game) {
   const id = store.get(KEY + '.playing') || game.rules.campaign.id;
-  (async () => { await loadAll(); loadProgress(); startChapter(id); })();
+  (async () => { await loadAll(); loadProgress(); startChapter(id, store.get(KEY + '.test') === '1'); })();
+}
+
+// ---------------------------------------------------------------- tuning and test runs
+// Rule knobs come from the Lab (the same ones the skirmish uses). Chapter tweaks are per chapter,
+// paths inside the chapter (for now the computer's ai_profiles). Both live in this browser only;
+// "Copy changes" gives text to paste to whoever edits the files.
+const LAB_KEY = 'shatkon.labKnobs', TWEAK_KEY = KEY + '.tweaks';
+const readJson = (k) => { try { return JSON.parse(store.get(k) || '{}') || {}; } catch (e) { return {}; } };
+const knobs = () => readJson(LAB_KEY);
+const tweaks = () => readJson(TWEAK_KEY);
+const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); for (const k of ks) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[last] = v; };
+const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+function knobbedWorld(w) { const out = structuredClone(w); for (const [p, v] of Object.entries(knobs())) setPath(out, p, v); return out; }
+function tweaked(id) {
+  const doc = structuredClone(data.chapters[id]), ch = doc.chapter || doc;
+  for (const [p, v] of Object.entries(tweaks()[id] || {})) setPath(ch, p, v);
+  return doc;
+}
+// Where a test starts: your own save from just before that chapter if you have one,
+// otherwise a crew that won every chapter on the way (taking the first branch at a fork).
+function testStart(id) {
+  if (!progress) loadProgress();
+  if (progress.before && progress.before[id]) return { progress: progress.before[id], from: 'your save' };
+  let p = E.newCampaign(data.campaign);
+  for (let i = 0; i < 12 && !E.nextNodes(data.campaign, p).some((n) => n.id === id); i++) {
+    const n = E.nextNodes(data.campaign, p).find((x) => !x.locked && data.chapters[x.id]);
+    if (!n) break;
+    p = E.applyResult(p, data.chapters[n.id], { script: { result: 'win', flags: {} }, ships: [], winner: 0 });
+  }
+  return { progress: p, from: 'a crew that won every chapter before it (merged ships start unmerged)' };
+}
+
+const AI_FIELDS = [
+  ['level', 'Skill', ['easy', 'normal']],
+  ['stance', 'Personality', ['', 'hunt', 'charge', 'hold', 'advance', 'flee']],
+  ['stand_off', 'Keeps this many hexes away', 'num'],
+  ['target', 'Goes after (flagship, smallest, nearest, or ship names)', 'text'],
+  ['launch_range', 'Launches missiles within (hexes)', 'num'],
+  ['scans', 'Scans', 'bool'],
+];
+const STANCE_HELP = 'hunt: closes to a shooting distance and fights. charge: rams into close range. hold: never moves. advance: marches to its goal, ignoring you. flee: keeps as far away as it can. (blank: the stock computer)';
+
+function drawTest(sel) {
+  const { h } = hooks, box = document.getElementById('story'), C = data.campaign.campaign;
+  const ids = C.nodes.filter((n) => n.file && data.chapters[n.id]).map((n) => n.id);
+  const id = sel && ids.includes(sel) ? sel : store.get(KEY + '.testsel') && ids.includes(store.get(KEY + '.testsel')) ? store.get(KEY + '.testsel') : ids[0];
+  store.set(KEY + '.testsel', id);
+  const node = C.nodes.find((n) => n.id === id), base = data.chapters[id].chapter || data.chapters[id];
+  const T = tweaks(), mine = T[id] || {}, K = knobs();
+  const save = (p, v) => { const all = tweaks(); all[id] = all[id] || {}; if (v === undefined || JSON.stringify(v) === JSON.stringify(getPath(base, p))) delete all[id][p]; else all[id][p] = v; if (!Object.keys(all[id]).length) delete all[id]; store.set(TWEAK_KEY, JSON.stringify(all)); drawTest(id); };
+  const profiles = base.ai_profiles || {};
+  const field = (pname, [f, label, kind]) => {
+    const p = 'ai_profiles.' + pname + '.' + f, cur = p in mine ? mine[p] : getPath(base, p), changed = p in mine;
+    let input;
+    if (Array.isArray(kind)) input = h('select', { onchange: (e) => save(p, e.target.value || undefined) }, ...kind.map((o) => h('option', { value: o, selected: (cur || '') === o }, o || '(stock)')));
+    else if (kind === 'bool') input = h('input', { type: 'checkbox', checked: !!cur, onchange: (e) => save(p, e.target.checked) });
+    else if (kind === 'num') input = h('input', { type: 'number', inputmode: 'numeric', value: cur == null ? '' : typeof cur === 'object' ? '' : cur, placeholder: cur && typeof cur === 'object' ? JSON.stringify(cur) : '', onchange: (e) => save(p, e.target.value === '' ? undefined : Number(e.target.value)) });
+    else input = h('input', { type: 'text', value: cur == null ? '' : Array.isArray(cur) ? cur.join(', ') : String(cur), onchange: (e) => { const v = e.target.value.trim(); save(p, !v ? undefined : /,/.test(v) || !['flagship', 'smallest', 'nearest'].includes(v) ? v.split(',').map((x) => x.trim()).filter(Boolean) : v); } });
+    return h('label', { class: 'tune-f' + (changed ? ' changed' : '') }, h('span', null, label), input);
+  };
+  const st = testStart(id), nk = Object.keys(K).length;
+  const copyText = () => {
+    const lines = ['# Shatkon tuning (from the Test a chapter screen)'];
+    if (nk) { lines.push('# rules/world_v0.4.yaml'); for (const [p, v] of Object.entries(K)) lines.push(p + ': ' + JSON.stringify(v)); }
+    for (const [cid, t] of Object.entries(tweaks())) { lines.push('# campaign chapter ' + cid); for (const [p, v] of Object.entries(t)) lines.push(p + ': ' + JSON.stringify(v)); }
+    return lines.join('\n');
+  };
+  box.textContent = '';
+  box.appendChild(h('div', { class: 'cm tune' },
+    h('div', { class: 'cm-top' }, h('h2', null, 'Test a chapter'), h('button', { class: 'btn', onclick: () => drawMap() }, 'Back to map')),
+    h('div', { class: 'tune-body' },
+      h('label', { class: 'tune-f' }, h('span', null, 'Chapter'), h('select', { onchange: (e) => drawTest(e.target.value) }, ...ids.map((x) => h('option', { value: x, selected: x === id }, (C.nodes.find((n) => n.id === x).title || x) + (tweaks()[x] ? ' *' : ''))))),
+      h('p', { class: 'muted' }, 'Starts from ' + st.from + '. A test run never changes your campaign save.'),
+      h('h3', null, 'Rule knobs ', h('small', { class: 'muted' }, nk ? nk + ' changed' : 'none changed')),
+      h('p', { class: 'muted' }, 'Lasers, shields, missiles, detection… are set in the Lab and apply to skirmish and story alike. ',
+        h('button', { class: 'btn sm', onclick: () => { closeCampaign(); location.hash = '#lab'; } }, 'Open the Lab knobs')),
+      nk ? h('ul', { class: 'tune-list' }, ...Object.entries(K).map(([p, v]) => h('li', null, p + ' = ' + JSON.stringify(v)))) : null,
+      h('h3', null, 'Enemy personalities in this chapter'),
+      h('p', { class: 'muted' }, STANCE_HELP),
+      Object.keys(profiles).length
+        ? h('div', null, ...Object.keys(profiles).map((pn) => h('fieldset', { class: 'tune-p' }, h('legend', null, pn.replace(/_/g, ' ')), ...AI_FIELDS.map((f) => field(pn, f)))))
+        : h('p', { class: 'muted' }, 'This chapter has no computer profiles to tune.'),
+      h('div', { class: 'row tune-go' },
+        h('button', { class: 'btn go', onclick: () => startChapter(id, true) }, 'Launch test'),
+        h('button', { class: 'btn', disabled: !mine || !Object.keys(mine).length, onclick: () => { const all = tweaks(); delete all[id]; store.set(TWEAK_KEY, JSON.stringify(all)); drawTest(id); } }, 'Reset this chapter'),
+        h('button', { class: 'btn', onclick: (e) => { const t = copyText(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { e.target.textContent = 'Copied'; }, () => window.prompt('Copy these changes:', t)); } }, 'Copy changes')))));
 }
