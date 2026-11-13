@@ -10,9 +10,9 @@ import { sensorOf, signatureOf } from '../../engine/detect.js';
 import { gap } from '../../engine/state.js';
 import { camp, worldFor, fleetShip, sideFleet, hullKeyFor, H, render, terrainSets } from './lib.mjs';
 
-const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff'.split(' ');
-const BARKS = 'b1_scouts_ahead b1_contact_glyphs b1_finch_hit b1_seed_shield b1_seed_closing b2_mines_set b2_choke b2_mine_boom b2_second_seed b3_cover b3_pd_stopped b3_hull_low b3_flank_open b4_too_easy b4_graft_hint b4_seam_hums b5_jammed b5_kestrel_unresponsive b5_li_coming'.split(' ');
-const SHIP_IDS = 'kestrel sparrow finch halcyon tern seed seed_a seed_b twin twin_a twin_b husk_1 husk_2 husk_3 bloom'.split(' ');
+const SCENES = 'ch1_intro ch1_contact ch1_finch_down ch1_hurl ch1_victory ch1_salvage ch1_defeat ch2_intro ch2_contact ch2_first_mine ch2_victory ch2_salvage ch2_defeat ch3_intro ch3_split ch3_despair ch3_li_arrives ch3_victory ch3_reunion ch3_defeat ch4_fork ch4a_intro ch4a_graft_found ch4a_outro ch4a_defeat ch5_intro ch5_bloom ch5_seam_wakes ch5_li_moves ch5_cliff'.split(' ');
+const BARKS = 'b1_scouts_ahead b1_contact_glyphs b1_finch_hit b1_seed_shield b1_seed_closing b1_weapons_gone b1_hurl_wren b1_hurl_kite b2_mines_set b2_choke b2_mine_boom b2_second_seed b2_dead_in_water b3_cover b3_pd_stopped b3_hull_low b3_flank_open b4_too_easy b4_graft_hint b4_seam_hums b5_jammed b5_kestrel_unresponsive b5_li_coming'.split(' ');
+const SHIP_IDS = 'kestrel sparrow finch wren kite halcyon tern seed seed_a seed_b twin twin_a twin_b husk_1 husk_2 husk_3 bloom'.split(' ');
 const ZONES = ['choke', 'minefield', 'li_arrival', 'outpost', 'bloom_entry'];
 // Trigger, action and AI-knob names exactly as PR #2's engine/script.js and engine/ai.js read them.
 const TRIGGERS = ['start', 'round', 'turn', 'after', 'beat', 'fired', 'destroyed', 'removed', 'alive', 'hull_below', 'part_lost', 'in_zone', 'distance_below', 'sees', 'fired_at', 'stopped', 'mine_hit', 'grafted', 'docked', 'flag', 'all', 'any', 'not', 'rammed', 'engines_out'];
@@ -53,6 +53,13 @@ for (const node of campaign.nodes) {
   // roster: every player ship must be in the campaign roster; groups bring new ones
   const pIds = (ch.player.ships || []).map(idOf);
   for (const id of pIds) if (!roster.includes(id)) fail(`roster has no ${id} at the start of ${ch.id}`);
+  // ship entries: an id or { id, flagship?, hull?, load?, helm? }. helm: script is Combat v2
+  // (the player cannot command the ship; it flies on orders). The engine at 7f51643 ignores it.
+  for (const e of [...(ch.player.ships || []), ...(ch.enemy.ships || [])]) if (typeof e === 'object') {
+    for (const k of Object.keys(e)) if (!['id', 'flagship', 'hull', 'load', 'helm'].includes(k)) fail(`ship entry ${e.id}: unknown field ${k}`);
+    if (e.helm !== undefined && e.helm !== 'script') fail(`ship entry ${e.id}: helm must be script`);
+    if (e.helm === 'script') ok(`${e.id}: helm: script (Combat v2): the engine locks it for the battle; it follows the script's orders`);
+  }
   for (const [g, grp] of Object.entries(ch.groups || {})) if (grp.side === 'player') for (const id of grp.ships) if (roster.includes(id)) fail(`group ${g}: ${id} is already in the roster`);
   for (const id of [...pIds, ...(ch.enemy.ships || []).map(idOf), ...Object.values(ch.groups || {}).flatMap((g) => g.ships.map(idOf))]) if (!hk(id)) fail(`no hull for ${id} in ships.yaml`);
   ok(`hulls (loader rule <id>@<chapter>): ${[...pIds, ...(ch.enemy.ships || []).map(idOf), ...Object.values(ch.groups || {}).flatMap((g) => g.ships.map(idOf))].map((id) => id + '=' + hk(id)).join(', ')}`);
@@ -62,8 +69,9 @@ for (const node of campaign.nodes) {
     if (PART_CAP[p] && !caps.has(PART_CAP[p])) fail(`${id} carries ${p} before the capability is earned`);
 
   // ---- world + overrides ----
-  const { world, notes } = worldFor(ch);
+  const { world, notes, infos } = worldFor(ch);
   notes.forEach(fail);
+  infos.forEach((x) => log('  note: ' + x));
   log(`  world_overrides: ${JSON.stringify(ch.world_overrides || {})}`);
 
   // ---- main fleets ----
@@ -227,7 +235,12 @@ for (const node of campaign.nodes) {
     if (t.after) return guarBeat(t.after.beat, seen);
     if (t.beat || t.fired) return guarBeat(t.beat || t.fired, seen);
     if (t.any) return t.any.some((x) => guar(x, seen));
-    if (t.all) return t.all.every((x) => (x.not ? true : guar(x, seen)));
+    // inside all: a `not` or `alive` only stops a fallback that is no longer needed
+    if (t.all) return t.all.every((x) => (x.not || x.alive ? true : guar(x, seen)));
+    // a flag is guaranteed when a guaranteed beat sets it
+    if (t.flag) return ch.script.some((f) => actionsOf(f).some((a) => a.flag === t.flag) && guarBeat(f.id, seen));
+    // rammed: guaranteed when a guaranteed beat hurls that ship with force: true
+    if (t.rammed) return ch.script.some((f) => actionsOf(f).some((a) => a.ram && a.ram.ship === t.rammed && a.ram.force === true) && guarBeat(f.id, seen));
     if (t.destroyed) return dooms.has(t.destroyed) && guarBeat(dooms.get(t.destroyed), seen);
     return false;
   };
@@ -255,7 +268,22 @@ for (const node of campaign.nodes) {
       if (k === 'ai' && !v.ship && !v.side) fail(`${where}: ai needs ship or side`);
       if (typeof v === 'object' && v && !Array.isArray(v)) checkShip(v.ship, where);
       if (k === 'set_rule' && (() => { const w2 = structuredClone(world); return v.path.split('.').reduce((o, x) => (o && x in o ? o[x] : undefined), w2) === undefined; })()) fail(`${where}: set_rule path ${v.path} not in world`);
-      if (k === 'force') { if (!v.ship) fail(`${where}: force needs a ship`); for (const d of v.do) { const [o] = Object.keys(d); if (!FORCE_ORDERS.includes(o)) fail(`${where}: force order ${o} is not one the engine runs`); else checkShip(d[o], where); } }
+      if (k === 'force' || k === 'orders') {
+        if (!v.ship) fail(`${where}: ${k} needs a ship`);
+        if (!Array.isArray(v.do) || !v.do.length) fail(`${where}: ${k} needs a do list`);
+        for (const d of v.do || []) {
+          const [o, ...more] = Object.keys(d), x = d[o];
+          if (more.length) fail(`${where}: one order per entry (${Object.keys(d).join(', ')})`);
+          if (!FORCE_ORDERS.includes(o)) { fail(`${where}: order ${o} is not one the engine runs`); continue; }
+          const hex = (c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger);
+          if (['move_toward', 'fire_at', 'ram'].includes(o)) checkShip(x, where);
+          else if (o === 'move_to' && !hex(x)) fail(`${where}: move_to needs a hex [q, r]`);
+          else if (o === 'follow' && !(Array.isArray(x) && x.length && x.every(hex))) fail(`${where}: follow needs a list of hexes`);
+          else if (o === 'launch_at') { if (typeof x === 'string') checkShip(x, where); else if (!hex(x)) fail(`${where}: launch_at needs a ship or a hex`); }
+          else if (o === 'hold' && x !== true) fail(`${where}: hold: true`);
+        }
+      }
+      if (k === 'ram') { checkShip(v.ship, where); checkShip(v.target, where); if (v.force !== undefined && typeof v.force !== 'boolean') fail(`${where}: ram force must be true or false`); }
       if (k === 'protect') { if (!v.ship) fail(`${where}: protect needs a ship`); if (typeof v.until !== 'string' || (v.until !== 'end' && !byId[v.until])) fail(`${where}: protect until must be a beat id or end`); }
       if (k === 'doom' && typeof v.by_round !== 'number') fail(`${where}: doom needs by_round`);
       if (['lock', 'force', 'disable'].includes(k) && v.until !== undefined && !(v.until === 'end' || typeof v.until === 'number' || (typeof v.until === 'object' && typeof v.until.rounds === 'number') || byId[v.until])) fail(`${where}: ${k} until ${JSON.stringify(v.until)}`);

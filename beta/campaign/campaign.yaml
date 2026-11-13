@@ -13,7 +13,7 @@ campaign:
   start_state:
     # roster: the ships the crew has. Rewards change it (roster_add / roster_remove);
     # a grafted ship is carried over with its new hull by the engine (applyResult).
-    roster: [kestrel, sparrow, finch]
+    roster: [kestrel, finch, wren, kite]   # ch1 adds sparrow, removes the escorts
     capabilities: [core, engine, sensor, laser, armour, coupling]
     flags: {}
   nodes:

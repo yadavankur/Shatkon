@@ -55,7 +55,7 @@ chapter:
     press_kestrel:    { level: normal, stance: hunt, target: [kestrel], stand_off: 4, scans: true, launch_range: 5 }
     # twin_a after li arrives: turns to the newcomers (and so shows Kestrel its flank).
     turn_on_newcomer: { level: normal, stance: hunt, target: [halcyon, tern], scans: false, launch_range: 5 }
-    charge:           { level: normal, stance: charge, target: [kestrel], stand_off: 1 }
+    pinned:           { level: normal, stance: hold, launch_range: 5 }   # drive burnt out: it cannot move (still fires)
 
   script:
     - id: rails
@@ -63,6 +63,10 @@ chapter:
       do:
         - protect: { ship: kestrel, until: kestrel_exposed }   # 2 rounds after li arrives
         - protect: { ship: sparrow, until: end }   # assumption: needed in ch4A-5
+        # Combat v2 lasers would let Kestrel take a half alone before Li's wing turns the fight:
+        # the halves cannot die before Li arrives (twin_a) or at all (twin_b withdraws).
+        - protect: { ship: twin_a, until: kestrel_exposed }   # Li + 2 rounds: the turn on the newcomers
+        - protect: { ship: twin_b, until: end }
         - bark: b3_cover
         - objective: "Meridian is silent. Stay behind the rocks and survive."
 
@@ -126,11 +130,18 @@ chapter:
       do:
         - bark: b3_flank_open
 
-    - id: charge
-      when: { round: 18 }
+    # Safety net (v2: replaces the old round-18 charge profile). Li's seeker drone locks on to
+    # twin_a and burns out its drive and shields: it is pinned and lit for everyone, and the
+    # doom ends it 5 rounds later if nothing else does.
+    - id: pinned
+      fallback_for: twin_b_leaves
+      when: { all: [ { round: 16 }, { alive: twin_a } ] }
       do:
-        - ai: { ship: twin_a, profile: charge }
-        - doom: { ship: twin_a, by_round: 23 }   # safety net (PR #2 sims: 5 of 40 games reached the turn limit)
+        - disable: { ship: twin_a, parts: [engine, shield] }
+        - light: { ship: twin_a, rounds: 8 }
+        - ai: { ship: twin_a, profile: pinned }
+        - objective: "Li's seeker has twin_a pinned. Finish it."
+        - doom: { ship: twin_a, by_round: 21 }
 
     - id: twin_b_leaves
       outcome: true                                # part of the win itself; needs no fallback

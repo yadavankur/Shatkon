@@ -7,8 +7,9 @@
 #  Key numbers (see CHECKS.md):
 #   - Start: Sparrow is 5 hexes from the outpost ring, Kestrel 5; husk_1 is 3 hexes north of it.
 #   - Humans see a husk at 5-7 (sensors 4-6 + husk signature 1-2). Husks have sensor 4.
-#   - Husks: one laser between the three of them (husk_1), no shields; timid (hold, fire
-#     30% of the time, at most 1 hit a round); 4, 8 and 5 hull points to kill.
+#   - Husks: one laser between the three of them (husk_1), no shields; they hold by the wreck
+#     and fight normally (v2: no hold-fire profile); 4, 8 and 5 hull points to kill. At the
+#     gift any husk left goes dark (lasers and engines switched off).
 #   - Gift fallback round 6. Graft fallback: 2 rounds after the gift Tern is taken under tow
 #     (forced toward Kestrel, both locked); the graft fires as soon as they touch.
 #     Tern starts 1 hex from Kestrel's cells, so by round 9-10 at the latest
@@ -41,11 +42,14 @@ chapter:
       - { ship: husk_1, at: [2, -3] }
       - { ship: husk_2, at: [-3, -3] }   # cells [-3,-3] [-2,-3]
       - { ship: husk_3, at: [1, -6] }
-    ai: { default: timid }
+    ai: { default: guard }
 
   ai_profiles:
-    timid: { level: easy, stance: hold, fire_chance: 0.3, max_hits_per_round: 1, launch_range: 0, scans: false }
-    dark:  { level: easy, stance: flee, fire_chance: 0, scans: false }
+    # Bait that fights as well as it can: hold by the wreck and shoot. Their weakness is in the
+    # hulls (one laser between three, no shields, missing plates), not in how they fight.
+    guard: { level: normal, stance: hold, scans: false }
+    # Gone dark (lasers and engines switched off at the gift): nothing left to do but sit.
+    dark:  { level: normal, stance: hold, scans: false }
 
   script:
     - id: rails
@@ -79,7 +83,11 @@ chapter:
           - { in_zone: { side: player, zone: outpost } }
           - husks_dark
       do:
-        - ai: { side: enemy, profile: dark }        # any husk left stops fighting
+        # any husk left goes dark: guns and engines die (a mechanic, not a hold-fire profile)
+        - disable: { ship: husk_1, parts: [laser, engine] }
+        - disable: { ship: husk_2, parts: [laser, engine] }
+        - disable: { ship: husk_3, parts: [laser, engine] }
+        - ai: { side: enemy, profile: dark }
         - scene: ch4a_graft_found
         - unlock: graft
         - objective: "Bring Tern alongside Kestrel and Graft them"
@@ -102,6 +110,7 @@ chapter:
       when:
         any:
           - { grafted: [kestrel, tern] }
+          - all: [ gift, { docked: [kestrel, tern] } ]   # docking (earned in ch3) also joins them; without this the chapter would stall
           - all: [ tow, { distance_below: { a: kestrel, b: tern, hexes: 2 } } ]
       do:
         - graft: [kestrel, tern]                    # no-op if the player already did it (Tern is gone)

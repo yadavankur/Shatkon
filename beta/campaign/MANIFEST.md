@@ -1,102 +1,115 @@
-# MANIFEST: Shatkon: The Weave, chapters 1-5 (campaign-v1)
+# MANIFEST: Shatkon: The Weave, chapters 1-5 (campaign-v2)
 
-Level design for the story campaign. The branch is based on `main` (8c8be0a) and adds files
-under `campaign/` only: no engine or rule file is changed.
+Level design for the story campaign, reworked for **Combat v2**. Branch `campaign-v2` is made
+from `origin/campaign-engine` at **1afc785** ("Combat v2: faster fights, missiles at any hex, the
+sacrificial hurl, self-flying ships") and changes files under `campaign/` only. No engine, rule
+or UI file is changed.
 
-The files are written for the story engine in **PR #2** (branch `campaign-engine`, head
-3692a82, still open). They use its formats, field names, trigger and action names and AI-profile
-knobs. Every chapter loads with its `buildChapter()` without problems, and every beat fires in
-scripted games through its `script.js` (see CHECKS.md, where each result is labelled [main] or
-[PR #2]).
+What v2 changes (playtest feedback: fights drag; the aliens visibly fail on purpose):
+- **ch1** is rebuilt around the brief's beats. The player flies only Kestrel; Finch, Wren and
+  Kite are `helm: script` escorts flown by `orders`. The Seed's missile kills Finch, its gun
+  takes the escorts' lasers, then Kite and Wren each `ram` one end of the Seed, and Kestrel
+  finishes the hulk. Sparrow is not in ch1 (`roster_add: [sparrow]` in the rewards).
+- **ch2** is rebuilt so the mines decide it: charges on both flanks, `munitions.mine.strikes:
+  engines` with 5 hits, and `engines_out` sets a Seed dead in the water.
+- **ch3-5** re-checked against the new numbers. In ch3 the halves are protected until Li's
+  wing turns the fight (the Twin's trimmed plate is restored). Every `charge`, `herd`, `timid`
+  and `fire_chance` "blunder" profile is gone; the Weave play the stock normal AI with story
+  knobs (targets, stand-off, hold when crippled or dark).
+
+See CHECKS.md for the numbers.
 
 ## Files
 
 | file | what it is |
 |---|---|
-| `campaign.yaml` | The campaign graph: `id`, `start`, `start_state` (`roster` as a list of ship ids, `capabilities`, `flags`) and `nodes` (ch1 → ch2 → ch3 → ch4a or ch4b(locked) → ch5). |
-| `ships.yaml` | Every hull, keyed `<ship>@<chapter it first flies in>`. Kestrel has a hull per refit (ch1, ch2, ch3, ch4a, ch5); sparrow@ch1/@ch3, finch, halcyon, tern, the Seeds, the Twin (plus documented split pieces twin_a@ch3 / twin_b@ch3), the husks and the Bloom. `flagship: true` sits on the hull. |
-| `maps/ch1_corridor.yaml` | Radius 7. An asteroid corridor (\|x\| ≤ 1.5, wider at the ends). Zone `corridor_mid`. |
-| `maps/ch2_quiet_water.yaml` | Radius 8. An asteroid wall on rows 0-1 with one 2-3 hex gap and a 1-hex west slot. A small nebula north of the wall. Zones `choke`, `minefield`, `west_slot`. Mines allowed 6 rows past home. |
-| `maps/ch3_splitting.yaml` | Radius 9. The rock cluster that hides Kestrel's start. Zones `li_arrival` (north-east corner, 8 hexes) and `cover`. |
-| `maps/ch4a_ashfall.yaml` | Radius 8. The outpost wreck ring around [0,0] and small nebulae. Zone `outpost`. |
-| `maps/ch5_bloom.yaml` | Radius 10. A nebula band on rows -7..-5. Zone `bloom_entry` (16 hexes). |
-| `chapters/ch1_first_contact.yaml` … `ch5_bloom.yaml` | One file per chapter: `world_overrides`, `map`, `player` / `enemy` (`ships`, `deployment`, `ai`), `groups`, `ai_profiles`, `script`, `win`, `lose`, `scenes`, `rewards`. |
-| `CHECKS.md` | Per-chapter numbers and results: [main] buildRules, [PR #2] buildChapter and scripted sims. |
-| `tools/check.mjs` | The [main] checker. It runs buildRules per chapter (resolving hulls by the PR #2 loader's rule) and checks split pieces, the graft result, spawn groups, zones, roster/capability continuity, every shared scene/bark id, and the trigger/action/knob names PR #2 reads. It also checks that every beat has a guaranteed fallback, and draws an ASCII board. Exit code 1 on failure. Run it with `node campaign/tools/check.mjs`. |
-| `tools/engine_check.mjs` | The [PR #2] checker. It loads every chapter with PR #2's `buildChapter`, chaining progress through `newCampaign` / `applyResult`, and plays N scripted AI-vs-AI games per chapter with `campaignMove`. Run it with `node campaign/tools/engine_check.mjs --engine <checkout of campaign-engine> [--games 40] [--chapter chN] [--no-rails] [--sloppy] [--graft] [--out file]`. |
-| `tools/gen_maps.mjs` | Regenerates the five map files: terrain compressed into the map format's disc / line / single shapes, plus the zones. |
-| `tools/lib.mjs` | Shared helpers: the repo's YAML reader, `world_overrides`, hull resolution (`hullKeyFor`, the same rule as PR #2's `hullFor`) and the ASCII board. |
+| `campaign.yaml` | The campaign graph. `start_state.roster: [kestrel, finch, wren, kite]`. ch1's rewards remove the escorts and add Sparrow. |
+| `ships.yaml` | Every hull, keyed `<ship>@<chapter it first flies in>`. New in v2: wren@ch1 (2 hexes), kite@ch1 (1 hex). finch@ch1 is now the unarmed scout; seed@ch1 is re-laid out; kestrel@ch2 keeps four engines; twin@ch3 back to full plates. |
+| `maps/ch1_corridor.yaml` | Radius 7. The asteroid corridor, 3-4 hexes wide. South home zone 7 rows deep. |
+| `maps/ch2_quiet_water.yaml` | Radius 8, new in v2. An asteroid mass in the middle (rows -3..1, \|x\| <= 4.5) splits the board into a west and an east lane. Scattered rocks and two nebula discs. Zones `belt_w` / `belt_e` (row 1 of each lane, where the charges lie), `lane_w` / `lane_e`. Home zones 6 deep, mines allowed 8 rows. |
+| `maps/ch3_splitting.yaml`, `ch4a_ashfall.yaml`, `ch5_bloom.yaml` | Unchanged from v1. |
+| `chapters/ch1_first_contact.yaml` … `ch5_bloom.yaml` | One file per chapter. |
+| `CHECKS.md` | Per-chapter numbers and the full check outputs. |
+| `tools/check.mjs` | Static checker: buildRules per chapter, ids, continuity, every trigger / action / order / knob name the engine reads, ship-entry fields (`helm: script`), `orders` / `force` order shapes, `ram` targets, and a guaranteed fallback for every beat (a `rammed` trigger counts as guaranteed when a guaranteed beat does `ram { force: true }`). Exit 1 on failure. |
+| `tools/engine_check.mjs` | Engine checker: chains every chapter through `buildChapter` / `applyResult` and plays N scripted games per chapter. It reports beat rates, killing blows, rounds under fire before death and a rounds histogram. Flags: `--engine <checkout> --games N --seed N --chapter chN --no-rails --sloppy --graft --trace <seed> --out file`. |
+| `tools/browser_story.cjs` | Playwright run of the whole Story campaign from the play screen (`--fix-fork`, `--graft-only`). |
+| `tools/gen_maps.mjs`, `tools/lib.mjs` | Map generator and shared helpers. |
 
-## How the files map onto PR #2's engine
+## Combat v2: how the chapters use it
 
-| need | how it is written (PR #2 name) |
-|---|---|
-| which hull a ship flies | No per-chapter hull list. The loader picks `<id>@<this chapter>`, else a hull carried from an earlier battle, else the newest earlier `<id>@<chapter>`. |
-| flagship | `flagship: true` on the hull (kestrel@*, seed@ch1, seed_a@ch2, twin@ch3, husk_1@ch4a, bloom@ch5). The split gives `twin_a` `flagship: true`. |
-| roster | `start_state.roster: [kestrel, sparrow, finch]`; `rewards.roster_remove: [finch]` (ch1); `rewards.roster_add: [halcyon, tern]` (ch3). ch4A needs no reward: `applyResult` drops Tern and carries Kestrel's grafted hull itself (`roster_remove: [tern]` is kept as belt and braces). |
-| late arrivals | `groups.<name>: { side, ships, zone, at: { ship: [q, r] } }` + `spawn: <name>` (li_wing ch3, bloom_arrival ch5). The Bloom is a reserve flagship. |
-| beat references | Bare beat ids (`when: li_moves`, `{ not: gift }`), `{ after: { beat, rounds \| turns } }`. `flag:` is not used for beats. |
-| "next player turn after X" | `{ all: [ { after: { beat: despair, turns: 1 } }, { turn: { round: 1, side: player } } ] }` |
-| protect until a later moment | `protect: { ship, until: <beat id> }` plus a helper beat (`kestrel_exposed` = 2 rounds after `li_arrives`). |
-| forced moves | `force: { ship, do: [ { move_toward: <ship> } ], each_turn: true, until }` (Kestrel → Bloom in ch5, Tern → Kestrel in ch4A). |
-| herding into a zone | AI profile `herd` (`stance: advance, path_via: minefield`), set with `ai: { side: enemy, profile: herd }`. |
-| split | `split: { ship: twin, into: [ { id, flagship, cells } ] }`, with cells in the Twin's own offsets. The engine grows twin_b's core in its first cell ([1,-1]), where the hull keeps a bay free. |
-| graft | `unlock: graft`, the player order `{ type: graft, ship, with }`, and the script action `graft: [kestrel, tern]`. Triggers: `grafted: [kestrel, tern]`. |
-| results | `win` / `lose` lists (empty in ch5 → the engine's defaults). `end: { result: win \| to_be_continued }`. Scenes: `scenes.intro`, `win` (list), `lose`, `tbc` (ch5_cliff). |
-| AI knobs used | `level, stance (hunt/advance/hold/flee/charge), target (smallest/flagship/list), stand_off (number or { from, hexes }), path_via, scans, avoid_mines, launch_range, fire_chance, max_hits_per_round`. |
+| block | where | how |
+|---|---|---|
+| `helm: script` | ch1 finch, wren, kite | `{ id: wren, helm: script }`. The engine locks the ship for the battle and the fleet strip says "flying itself". |
+| `orders` | ch1 | Finch `move_toward: seed`. Wren / Kite `hold` (guns cold), then `[hold, fire_at: seed]` at weapons free, `move_toward: kestrel` once toothless, then `ram: seed` (Wren `[move_to: [1,-1], ram: seed]` to come at the stern). Orders on an **enemy** ship work too: `orders: { ship: seed, do: [launch_at: finch] }`. |
+| `launch_at` (straight-line missile) | ch1 | The Seed's two missiles at Finch: once Finch is inside 7 hexes, and again 2 rounds later. |
+| `ram` | ch1 | Through `orders` (closes in, hurls once within this turn's move + 2). Fallback `ram: { ship, target: seed, force: true }` 3 rounds after the hurl. Triggers `rammed: kite` / `rammed: wren`. |
+| `munitions.mine.strikes: engines`, `munitions.mine.hits: 5` | ch2 world_overrides | A charge's 5 hits take both of a Seed's engines, then 3 more on the struck segment. |
+| `engines_out` | ch2 | `a_dead` / `b_dead` fire on `engines_out: seed_a` / `seed_b`. |
+| forced orders' own budget | ch1 | The v1 workaround `turns.command_points.per_turn: 6` is gone. |
 
-### Fields kept that PR #2 does not read (invented, harmless)
+## Engine gaps found (campaign-engine 1afc785), with exact semantics
 
-1. **Script entry fields `flavor: true`, `outcome: true` and `fallback_for: <beat>`.** These
-   are metadata for `check.mjs`'s "every beat has a fallback" analysis:
-   - a flavor bark may never fire;
-   - an outcome entry is part of the win itself;
-   - `fallback_for` marks the entry that guarantees another beat.
+1. **A ship with no working engine still moves.** `reach()` limits a move by the fleet's
+   shared pool: `moveCap = floor(fleet thrust income / fleet segments) + cap bonus`, and
+   `pl.thrust`. The ship's own engines are never checked. So seed_a, engines gone, still moves on
+   seed_b's thrust. *Workaround:* the dead-in-water beats switch the Seed's AI to `stance:
+   hold`. *Wanted:* `reach(state, ship)` returns `[]` (and `doMove` refuses) when the ship has no
+   engine with `hp > 0 && !off`; `engines_out` would then mean "cannot move" by itself.
+2. **`engines_out` ignores switched-off engines.** It tests `p.t === 'engine' && p.hp > 0`
+   only. An engine turned off with `disable` (`p.off`) still counts as working. *Workaround:* the
+   ch2 fallbacks set a flag next to `disable: [engine]`. *Wanted:* treat `p.off` as not working.
+3. **Scripted mine damage ignores `strikes: engines`.** `damage: { from_mine: true }` calls
+   `applyHits` on the given segment (outer layers first); only a real `explode()` uses
+   `strikeEngines`. *Workaround:* the fallback blast is 1 hit, then `disable: [engine]`.
+   *Wanted:* `from_mine` follows `munitions.mine.strikes`.
+4. **A ram cannot choose the struck segment.** `ram()` sorts the target's segments by distance
+   from the rammer's footprint (ties: lower index first) and starts there. On a protected ship
+   the core segment can never be wrecked, so all the hits stay on it and nothing spills to the
+   next. Two rams from the same side therefore hit the same end. *Workaround:* Wren first
+   `move_to: [1, -1]` (east of the Seed's stern). *Wanted:* `ram: { ..., seg: N }` (and an
+   order form `{ ram: seed, seg: 1 }`).
+5. **A new `orders` replaces a plan that has not run yet.** Plans run at the owner's turn
+   start. A second `orders` for the same ship before that turn silently drops the first,
+   including a one-shot `launch_at`. *Workaround:* the second missile is 2 rounds after the
+   first. *Wanted:* `orders: { ..., append: true }`, or keep unfinished one-shot orders.
+6. **`launch_at` is marked done even when nothing launched** (no free launcher, no missile,
+   no start hex): `runPlan` sets `o.done` after `forced()` returns, whatever happened.
+   *Wanted:* mark it done only after `doLaunch`.
+7. **A beam stops on enemy missiles in flight.** That's not a bug, but it matters for scripting:
+   missiles fly in the flight phase at the end of the round, so a missile launched far from its
+   target sits on the board through the other side's turn, and the player's shots at the
+   launcher can stop on it. ch1 launches only inside 7 hexes, so the missile lands the same round.
+8. **Lock wording.** `lock: { ship: kestrel, actions: [fire, launch] }` refuses with "kestrel is
+   not answering the helm" even though Kestrel can still move and scan. *Wanted:* word the
+   refusal and the `locked` event by the locked actions, and hide the buttons they forbid.
+9. **`munitions.mine.strikes` is not listed in `rules/world_v0.4.yaml`.** `engine/damage.js`
+   reads it, but the world file has no default entry; check.mjs reports it as a note, not a
+   failure.
 
-   The engine ignores unknown entry fields.
-2. **`campaign.yaml`: `title`, `map_art`, and the node fields `title`, `file`, `at`,
-   `fork_scene` and `locked_text`.** These are for the campaign-map screen. PR #2's
-   `nextNodes` reads only `id`, `next` and `locked`. The ch3 fork (see below) is not engine
-   logic yet.
-3. **Chapter `world` and `map` paths.** `buildChapter` takes the parsed world and map from the
-   caller, so the caller must open these paths. `engine_check.mjs` does.
-4. **`ships.yaml` documentation fields.** `from` is documentation. The hulls `twin_a@ch3` and
-   `twin_b@ch3` are never loaded; they document, and check, what the split builds.
-5. **Comments on intended turn-limit outcomes.** The old `at_turn_limit` field was removed.
-   PR #2 scores a time-out as a draw, so ch1-3 put safety dooms on the enemy flagship and ch4A
-   and ch5 end through the script long before their limits.
+Fixed in 1afc785 (v1 gaps now closed): `helm: script`, `orders` and every order kind,
+`ram`, straight-line `launch_at`, mine `strikes`, and forced orders spending their own budget
+(v1 needed `command_points.per_turn: 6` in ch1).
 
-### Things the design wanted that PR #2 cannot do (worked around; requests for the engine)
+## Rails and fallbacks per chapter (what guarantees each beat)
 
-1. **Scripted damage or detonation.** ch2's `first_mine` has a round-10 fallback that plays
-   the scene without a real explosion. A `damage: { ship, hits, cause }` or
-   `detonate: <mine at>` action would make the fallback honest.
-2. **Exclusive targets.** `only_targets` was dropped: `target: [list]` is only a preference.
-   The ch5 Bloom may shoot Kestrel, which is protected until the cliff.
-3. **Forcing a move into a zone, and protecting a whole side.** Replaced by the herd profile
-   and by one `protect` per ship.
-4. **Starting damaged (`broken: [part]`).** The ch4A husks are instead built with missing
-   parts.
-5. **`ignore_flank`.** Accepted by PR #2 but it does nothing, so it was removed.
-6. **The scripted `graft` when the ships are apart.** PR #2's join() throws "the ships must
-   be touching" from inside the script. The ch4A `grafted` beat therefore fires the scripted
-   graft only once a `tow` (lock + `move_toward`) has brought Tern alongside. It would be safer
-   if a script-side graft on non-touching ships emitted an event instead of throwing.
-7. **A canonical post-graft hull.** Because `kestrel@ch5` exists, the loader uses it in ch5
-   instead of the shape the player actually grafted. That shape is still carried in the
-   progress. This is deliberate, because it keeps ch5's deployment legal however the player
-   grafted. Delete `kestrel@ch5` if the real grafted shape should fly.
+| ch | rails | fallbacks |
+|---|---|---|
+| 1 | protect Kestrel, Wren, Kite (until end; a ram destroys the rammer regardless) and the Seed (until `crippled`); doom Finch by r6; Kestrel guns cold until `finch_down` | doom Finch r6; `disarm_fallback` r9 (switch off any escort laser still working); `ram_fallback` 3 rounds after the hurl (`ram force`); `finish_fallback` 3 rounds after `crippled` |
+| 2 | protect Kestrel, Sparrow; each Seed until it is dead in the water; Kestrel revealed to the Weave | `a_fallback` / `b_fallback` r9 (a charge blast plus engines off); `finish_fallback` r17 |
+| 3 | protect Kestrel until `kestrel_exposed`, Sparrow; twin_a until `kestrel_exposed`, twin_b until end | `despair` r6; `li_arrives` r7; `pinned` r16 (twin_a's drive burnt out plus doom r21) |
+| 4A | protect every human ship | `husks_dark` r6 (for the gift); `tow` (for the graft) |
+| 5 | protect Kestrel, Halcyon, Sparrow until the cliff | `seam_wakes` r5; `li_moves` 2 rounds after the seam |
 
 ## Notes for the story developer
 
-- **Every shared id is used**: all 29 scenes and all 19 barks, checked by `check.mjs`.
+- **Every shared id is used**: all 30 scenes and all 23 barks, checked by `check.mjs`.
   - Intro scenes play from `scenes.intro`.
   - Win scenes: ch1_victory + ch1_salvage, ch2_victory + ch2_salvage, ch3_victory +
     ch3_reunion.
   - Lose scenes: chN_defeat. They are unreachable while the rails hold, but kept for a retry
     screen.
 - **Script-played scenes:**
-  - ch1_contact, ch1_finch_down
+  - ch1_contact, ch1_finch_down, ch1_hurl
   - ch2_contact, ch2_first_mine
   - ch3_split, ch3_despair, ch3_li_arrives
   - ch4a_graft_found, ch4a_outro (played just before `end: win`; `scenes.win` is empty)
@@ -107,82 +120,68 @@ scripted games through its `script.js` (see CHECKS.md, where each result is labe
   needs to implement this; PR #2 only marks ch4b `locked`.
 - **Objectives** are `objective:` strings in the scripts, in the player's voice. Rewrite
   them freely.
+- **New barks (v2):** b1_weapons_gone (both escort lasers gone), b1_hurl_kite / b1_hurl_wren
+  (on each `rammed`), b2_dead_in_water (each Seed's `engines_out`).
 - **Ship names in barks:** twin_a and twin_b only exist after `split` (r3 in sims). Halcyon
   and Tern only exist after `li_arrives` (r6).
 
 ## Assumptions (made without the user; all reversible)
 
-1. **More rails than the spec asked for, for story continuity:**
-   - Sparrow is protected in ch1-3, because it is needed for the ch1 salvage and in ch4A-5.
-   - Tern is protected from its arrival in ch3, because it is grafted in ch4A.
-   - All human ships are protected in ch4A and until the cliff in ch5.
-
-   Without these, Sparrow dies in 40/40 PR #2 games in ch1 and ch3 (CHECKS, Appendix C).
-2. **Safety dooms on the enemy flagship:** the Seed by r19 (ch1), seed_a by r21 (ch2) and
-   twin_a by r23 (ch3). No chapter can stall into PR #2's turn-limit draw.
-3. **Finch's fall is guaranteed by `doom: by_round 4`.** In PR #2 sims the Seed hurts Finch
-   but the doom always delivers the kill (40/40), because the Seed's stand_off from Kestrel
-   keeps it cautious.
-4. **The ch2 survey charges are pre-placed** in the player's deployment (4 mines in the
-   gap); the player does not place them in v1. Their signature is overridden to -12, so the
-   Weave can never see them.
-5. **The ch2 fallbacks:**
-   - **herd:** at r6 the Seeds' profile becomes "march through the minefield".
-   - **first_mine:** plays at r10 even without a hit.
-6. **Turn limits:** ch1 20, ch2 22, ch3 24, ch4A 15, ch5 12 (world overrides).
-7. **Hull refits.** Kestrel changes hull every chapter: ch2 gets a launcher and magazine,
-   ch3 a fourth segment and shields, ch4A point defence, ch5 the graft. Sparrow gains a shield
-   from ch3. Rewards unlock the matching capabilities: launcher, magazine, missile and mine
-   after ch1; shield after ch2; point defence, comms, seeker drone and docking after ch3;
-   graft after ch4A.
-8. **The canonical grafted Kestrel puts Tern at the rear**, at [-1,1] and [0,1], with Tern's
-   core fused into a seam coupling (1 core). ch5 always flies this shape.
-9. **The Twin split.** twin_a ([0,0], [1,0], [0,1]) is the flagship and keeps the hunt.
-   twin_b grows its core in a free bay of [1,-1] and takes all 3 missiles, because only it has
-   a magazine.
-10. **Li's arrival.** li arrives in the north-east corner (Halcyon [6,-9], Tern [8,-9]), at
-    the start of the player's turn at least one turn after Despair, or r7 at the latest.
-11. **The ch5 jamming** is `bay_parts.comms.link_range` 12 → 3 and `bay_parts.core.link_range`
-    4 → 2, from the Bloom's arrival (r2).
-12. **The ch5 forced drift** is the engine's `move_toward`, which spends the player's thrust.
-13. **The ch4B node is shown locked** ("Signal lost") and has no chapter file. ch5 follows
-    ch4A only.
-14. **The human stand-in in sims never shoots its own mines** (default). `--sloppy` shows
-    what happens when it does (CHECKS, Appendix D).
-15. **No PR #2 fields beyond what its code reads,** except the harmless ones listed above.
+1. **Finch is an unarmed scout** (core, engine, sensor, two plates). It never fires in the
+   brief's beats. Its two plates let it survive a stray beam, so a missile always lands the kill
+   (40/40). The engine's `nothing_but_engines` rule kills a ship left with only core and engine.
+2. **First-contact protocol: Kestrel's guns are cold until Finch is lost** (`lock { kestrel,
+   actions: [fire, launch], until: finch_down }`, objective "Guns cold"). This is a human rule,
+   not a Weave mistake. Without it, Combat v2's lasers (3-4 hits each, 3 on Kestrel) strip the
+   Seed's launcher in round 2, before it can fire at Finch, and its gun by round 3, before it can
+   disarm the escorts.
+3. **The Seed's missiles are scripted** (`launch_at`, hunter `launch_range: 0`). Its gun
+   targets the escorts' guns (`target: [wren, kite]`, `only_targets: [wren, kite, kestrel]`):
+   competent play (missiles for the scout, the gun for the armed ships), not a hold-fire. It can
+   still hit Finch when the scout is in its line (it cannot see the 1-hex scout).
+4. **Both escort lasers are exposed** (Wren's alone on its front cell, Kite's its only mount), so
+   the Seed's first beam on each takes it (r4 / r6). Weapons free (escorts fire) only from
+   `finch_down`.
+5. **After losing their guns the escorts fall back on Kestrel for 2 rounds, then hurl.** Kite
+   goes straight in and strikes the bow (r9); Wren swings to [1,-1] first and strikes the stern
+   (r10). The rams land a turn apart, as the brief allows. **The ends are geometry:** the swing
+   point assumes the Seed sits near [0,-2], where it duels Kestrel at stand-off 5 in every
+   sim. If a player drags the fight elsewhere, both rams can strike the same end (gap 4). The
+   `crippled` beat still switches off the Seed's engine, laser and launcher.
+6. **Ram damage** is the world default: 4 hits per living rammer segment (Wren 8, Kite 4),
+   piercing shields. The Seed stays protected until both have rammed, so the rams leave a hulk
+   and Kestrel makes the kill (40/40).
+7. **ch2: the Seeds never scan** (they have never met mines) and **have Kestrel's scent**
+   (revealed to them all battle, so they come round the mass, one down each lane). Each Seed is
+   protected until it is dead in the water, so a charge's spill-over hits cannot finish it
+   outright. A dead-in-water Seed holds (gap 1) and keeps shooting. Its shields now recharge
+   normally (Combat v2 keeps them down under sustained fire, so v1's shield burn-out is gone).
+8. **`strikes: engines` per touched segment or ship-wide:** the engine does ship-wide (the
+   nearest working engine anywhere). The design relies on that: one charge does it.
+9. **ch3:** both halves are protected until Li's wing turns the fight (twin_a until
+   `kestrel_exposed` = Li + 2 rounds), and twin_b until the end (it withdraws). Without this
+   Combat v2 lets Kestrel finish twin_a at Li's arrival (34/40 at r6), or kill twin_b instead
+   (6/40, then a 14-21 round tail).
+10. **ch4A / ch5 profiles:** `timid` became `guard` (`stance: hold`, no scans); `dark` husks
+    have laser and engine switched off by the gift; the ch5 siege holds with
+    `only_targets: [sparrow, halcyon]`.
+11. **Sparrow** is protected in ch2-3 (it is needed through ch5). Tern and Halcyon are
+    protected from their arrival.
+12. Earlier v1 assumptions still hold: canonical grafted kestrel@ch5, the ch4B node shown
+    locked, the ch5 jamming via `set_rule`, and turn limits.
 
 ## Risks and open issues
 
-1. **ch2: lasers stop on mines.** A laser stops on any object in its line, mines included.
-   A player, or the Weave, firing through the gap destroys the survey charges; the stock AI
-   stand-in shot all four within 5 rounds. Possible fixes:
-   - tell the player to hold fire through the gap (b2_mines_set / objective);
-   - give the engine a rule that beams pass mines;
-   - accept the r10 fallback.
-2. **ch5:** with the AI stand-in the seam always wakes on the r5 fallback, because the
-   stand-in never closes on the Bloom. A real player who engages should trigger it earlier
-   (it needs 5+ hexes of closing).
-3. **ch3:** Despair always comes from the r6 fallback in sims. The first point-defence stop
-   lands at r6-7, just after.
-4. **PR #2 is still open.** If its names change, `check.mjs` (name lists at the top) and the
-   files need a pass. `engine_check.mjs` pins nothing and runs against any checkout.
-5. **Campaign-screen logic that is not engine logic:** the ch3 fork (ch4_fork, the ch4b
-   objection) and the "To be continued" save after ch5. PR #2's `applyResult` marks ch5
-   completed.
+1. **The sims are close to deterministic** (the stock AI makes few random choices), so ch1 and
+   ch2 play the same way in all 40 games. A human Kestrel that rushes the Seed after Finch dies
+   can strip its gun before Kite is disarmed: `disarm_fallback` (r9) then switches the laser off.
+   It can also move the duel away from the swing point (assumption 5).
+2. **ch4A is short** (r5-9, avg 7) and the husks die in 1 round. It is the breather chapter;
+   left as is.
+3. **ch5** still wakes the seam on the r5 fallback with the stand-in, and **ch3** despair is
+   always the r6 fallback (as in v1).
+4. **UI fork bug** (ui/campaign.js `nodeState`): once the fork choice is saved, every other
+   open node greys out, so ch5 shows as Locked after ch4A. The browser run uses `--fix-fork`.
+   This is not fixable in campaign/; the one-line patch is in CHECKS.md, "Browser run".
+5. The engine branch is still moving. `check.mjs`'s name lists are at the top of the file.
 
-## Resolved during integration (engine branch campaign-engine)
-
-- **Scripted damage** (request 1): `damage: { ship, hits, seg?, cause?, from_mine? }`. With
-  `from_mine: true` it uses up the nearest mine of the other side, shows the blast and counts as
-  a mine hit. ch2's round-10 fallback (`mine_fallback`) now sets off a real charge under seed_a;
-  `first_mine` then fires from the `mine_hit` trigger (round 11 is the last resort).
-- **Exclusive targets** (request 2): AI knob `only_targets: [ids]`. The computer shoots and
-  locks only those ships. Not used yet; available for the ch5 Bloom.
-- **Protecting a whole side** (request 3): `protect: { side: player, until }`, including ships
-  that arrive later.
-- **Scripted graft on ships that are apart** (request 6): emits `script_failed` and the beat
-  carries on, instead of breaking the chapter.
-- **Lasers stopping on mines** (risk 1): new world setting `damage.beams_pass_mines`
-  (default false). ch2 turns it on, so nobody destroys the survey charges by firing through
-  the gap.
-- `check.mjs` knows the new `damage` action and the `only_targets` knob.
