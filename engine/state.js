@@ -117,7 +117,7 @@ export function newGame(rules, seed = 1) {
     events: [], history: [], pending: [], pre: '', lastTurn: null,
   };
   rules.fleets.forEach((fl, p) => {
-    state.players.push({ name: fl.name, cp: 0, cpBank: 0, thrust: 0, thrustBank: 0, canMove: false, moved: {}, vis: [], seen: {}, intel: {}, feed: [], readSeq: 0, turnSeq: 0 });
+    state.players.push({ name: fl.name, cp: 0, cpBank: 0, thrust: 0, thrustBank: 0, canMove: false, moved: {}, vis: [], seen: {}, intel: {}, feed: [], readSeq: 0, turnSeq: 0, score: 0 });
     fl.ships.forEach((sh, i) => {
       const dep = fl.deployment.find((d) => d.ship === sh.name);
       if (!dep) return;

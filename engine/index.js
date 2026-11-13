@@ -23,6 +23,7 @@ export * as hex from './hex.js';
 export { sigBreak, signatureOf, sensorOf, eyes, detectRange, passiveRange, sees, visibleTo, contactsFor, netMoved, motionSig, refreshSight, addFlare } from './detect.js';
 export { scanInfo } from './scan.js';
 export { moveCap } from './actions.js';
+export { holders } from './objective.js';
 export { hullPct, num, footprint, workingParts, sumAttr, gap } from './state.js';
 export { fnv, seededRandom } from './codec.js';
 

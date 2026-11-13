@@ -20,7 +20,7 @@ player_1:
         - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [armour] }
         - { at: [0, 0],  bays: [core, engine, coupling] }
         - { at: [1, 0],  bays: [sensor, engine, stealth], mounts: [laser] }
-      # cost:   3 segments 9 + 3 engines 18 + 2 stealth 0 + sensor 5 + armour 5 + laser 10 = 59
+      # cost:   3 segments 9 + 3 engines 18 + 2 stealth 0 + sensor 5 + armour 5 + laser 10 = 47
       # result: sensor 4, signature 3 - 2 = 1 (its floor)
 
     # ---- A big flagship: 7 segments, centre plus a ring of six ----
@@ -41,7 +41,7 @@ player_1:
       # result: sensor 4, signature 7 - 4 = 3 (its floor): seen by sensor 4 from 7 hexes, not 11
 
   # FLEET: 10 engines for 10 segments = 10 thrust a turn. Average 1, so a ship may move up to 2 hexes.
-  # FLEET TOTAL: 59 + 131 + 2 mines 10 = 200 of 200
+  # FLEET TOTAL: 47 + 131 + 2 mines 10 = 188 of 200 (12 spare)
 
   # Starting positions for map_skirmish.yaml (board coordinates).
   # For the big map_open_space.yaml use: Blob A [2, 16], Blob B [-2, 18], mines [0, 12] and [-5, 13].

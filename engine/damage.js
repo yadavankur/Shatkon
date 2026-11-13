@@ -21,7 +21,7 @@ function clampLoad(state, ship) {
   for (let i = kinds.length - 1; total > cap && i >= 0; ) {
     if (ship.load[kinds[i]] > 0) { ship.load[kinds[i]]--; total--; lost++; } else i--;
   }
-  if (lost) emit(state, { t: 'ammo_lost', ship: ship.id, n: lost }, [ship.owner]);
+  if (lost) emit(state, { t: 'ammo_lost', ship: ship.id, count: lost }, [ship.owner]);
 }
 
 export function isDead(state, ship) {
@@ -82,7 +82,7 @@ export function explode(state, obj, struck) {
       return;
     }
   }
-  emit(state, { t: 'blast', kind: obj.kind, owner: obj.owner, at: center }, everyone);
+  emit(state, { t: 'blast', kind: obj.kind, owner: obj.owner, obj: obj.id, at: center }, everyone);
   const lit = state.rules.det.lightsUp;
   for (const x of state.ships.filter((s) => !s.dead).concat(state.objs))
     if (Math.min(...cellsOf(x).map((c) => dist(c, center))) <= lit) state.lit[x.id] = state.round + 1;

@@ -62,5 +62,6 @@ export function view(state, who) {
     eyes: state.ships.filter((s) => !s.dead && s.owner === p).concat(state.objs.filter((o) => o.owner === p && rules.munitions[o.kind].reports))
       .map((o) => ({ id: o.id, cells: cellsOf(o), range: eyes(state, o) })),
     shownSensor: rules.det.shownSensor,
+    objective: rules.objective, scores: state.players.map((x) => x.score || 0), turnLimit: rules.turnLimit,
   };
 }

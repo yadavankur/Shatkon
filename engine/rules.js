@@ -16,6 +16,15 @@ function terrainCells(t) {
   return [t.at];
 }
 
+// The map's objective: a beacon to hold. null when the map has none.
+function readObjective(o) {
+  if (!isObj(o) || !Array.isArray(o.at)) return null;
+  return {
+    at: o.at.slice(), radius: num(o.radius, 1), toWin: num(o.points_to_win, 0),
+    reveals: o.reveals_holder !== false, scoreAtLimit: o.decides_turn_limit !== false,
+  };
+}
+
 export function buildRules(world, mapFile, fleetsFile) {
   const problems = [];
   const w = world || {}, m = (mapFile && mapFile.map) || mapFile || {}, f = fleetsFile || {};
@@ -55,12 +64,15 @@ export function buildRules(world, mapFile, fleetsFile) {
     },
     deadWhen: Array.isArray(dmg.ship_dead_when) ? dmg.ship_dead_when : ['core_destroyed'],
     friendlyFire: dmg.friendly_fire !== false,
+    ownMissilesPass: dmg.own_munitions_pass_own_ships === true,   // your missiles and drones fly through your own hulls
+    beamsPassOwnMunitions: dmg.beams_pass_own_munitions === true, // your beams fly past your own missiles and drones
     parts, munitions,
     terrainTypes: w.terrain || {},
     board: { radius: num((m.board || {}).radius, 10) },
     zones: Object.entries(m.zones || {}).filter(([, z]) => isObj(z) && EDGE[z.edge] && typeof z.depth === 'number').map(([name, z]) => ({ name, edge: z.edge, depth: z.depth })),
     mineRows: num(((m.setup || {}).mines || {}).rows_into_no_mans_land, 0),
     terrain: listOf(m.terrain).filter((x) => isObj(x) && Array.isArray(x.at)).map((x) => ({ type: x.type, at: x.at, cells: terrainCells(x) })),
+    objective: readObjective(m.objective),
     budget: num(f.budget, Infinity),
     fleets: [],
   };

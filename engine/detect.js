@@ -2,8 +2,9 @@
 // One rule decides everything: you see a target if
 //   distance <= your sensor range + its signature (+ its flare).
 // A ship's signature is its size, minus 1 per working stealth part (down to a floor of
-// segments / 3), plus flare, plus how it moved this turn (sitting still hides it a little,
-// a big move leaves an engine wake), minus any nebula it sits in.
+// segments / 3), plus flare, plus how it moved this turn (a big move leaves an engine wake;
+// the world file's still_signature_bonus, 0 by default, applies to a ship that did nothing),
+// minus any nebula it sits in.
 // Just beyond that range a target shows up as a fuzzy contact: "something is in this circle".
 
 import { key, dist } from './hex.js';
@@ -30,8 +31,9 @@ export function netMoved(state, ship) {
   return ship.turnStart ? dist(ship.turnStart, ship.pos) : 0;
 }
 
-// Stealth from motion: a ship that has not moved or used anything this turn runs silent,
-// a big move leaves an engine wake. It lasts until that ship's next turn.
+// Signature from motion: a ship that has not moved or used anything this turn gets
+// still_signature_bonus (0 by default; -1 makes it "run silent"), and a big move leaves an
+// engine wake. It lasts until that ship's next turn.
 export function motionSig(state, ship) {
   if (!ship.turnStart) return 0;
   const d = netMoved(state, ship), quiet = !Object.keys(ship.used || {}).length, r = state.rules.det;

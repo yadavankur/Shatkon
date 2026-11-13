@@ -89,7 +89,7 @@ movement:
 detection:
   rule: "you see a target if distance <= your sensor range + its signature + its flare"
   sensor_rule: "sensor range = the numbers on the ship's working parts (core 2, each sensor +2)"
-  signature_rule: "signature = segments - 1 per working stealth part (never below segments / 3, rounded up), + flare, -1 if it sat still, +1 after a big move, -2 in a nebula"
+  signature_rule: "signature = segments - 1 per working stealth part (never below segments / 3, rounded up), + flare, + still_signature_bonus if it sat still, +1 after a big move, -2 in a nebula"
   stealth_floor_segments_per_point: 3   # floor = ceil(segments / this): a 7-segment flagship bottoms out at 3, a 3-segment scout at 1
   small_object_signature: 1   # missiles and drones; a mine sets its own below
   flare:                      # temporary extra visibility, lasts until the end of the next round
@@ -102,7 +102,10 @@ detection:
   scan_fuzzy_extra: 4         # (old flat scan; replaced by scan_tiers)
   scan_tiers: [[2, 4], [4, 7], [6, 10]]   # [clear, faint] rings: near home / mid-field / centre line and beyond
   scan_mid_rows_past_home: 2  # mid-field starts this many rows past your home zone; full strength from the centre line
-  still_signature_bonus: -1   # a ship that did nothing on its turn (no move, fire, launch or scan) runs silent
+  still_signature_bonus: 0    # added to a ship that did nothing on its turn (no move, fire, launch or scan).
+                              # Was -1 ("runs silent"). In simulations a 16-missile flagship that never moved
+                              # beat one that manoeuvred and fired back 63% of the time; at 0 it's 44%.
+                              # The current fleet is about even either way. Set -1 to bring it back.
   move_signature_penalty: 1   # a big move leaves an engine wake...
   move_signature_from_hexes: 2  # ...from this many hexes of net movement
   passive_fuzzy_extra: 3      # targets this close to your detection range show up as fuzzy contacts
@@ -136,6 +139,11 @@ damage:
     - core_destroyed
     - nothing_but_engines     # it has lost parts and only engines and the core still work
   friendly_fire: true         # your own blasts and mines can hurt you
+  own_munitions_pass_own_ships: true   # your missiles and drones fly through your own hulls
+                                       # instead of exploding on them (blasts still hurt)
+  beams_pass_own_munitions: false      # true: your lasers fly past your own missiles and drones
+                                       # (not mines). false: a beam stops at the first thing it
+                                       # meets, yours included
 
 
 # ------------------------------------------------------------
