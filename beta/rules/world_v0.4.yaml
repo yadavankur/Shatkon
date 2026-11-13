@@ -46,6 +46,11 @@ actions:
   launch:   { cost: 1, note: "launch one missile or drone; each launcher launches once a turn" }
   scan:     { cost: 1, note: "active scan around one of your ships, once per ship per turn and only after it has moved this turn; rings grow the further forward it is" }
   detonate: { cost: 1, note: "blow up one of your own drones" }
+  ram:                         # the sacrificial hurl: only story scripts can order it (no player button)
+    hits_per_segment: 4        # the rammer's living segments x this = hits on the target, starting at the segment it strikes
+    reach_bonus: 2             # how much further than its normal move a ship can hurl itself
+    pierces_shields: true      # shields don't soak ram hits
+    note: "a ship flies into an enemy ship and is destroyed; the impact does heavy damage" 
   end:      { cost: 0, note: "end your turn; unspent points go to the bank" }
 
 
@@ -102,6 +107,7 @@ detection:
   scan_fuzzy_extra: 4         # (old flat scan; replaced by scan_tiers)
   scan_tiers: [[2, 4], [4, 7], [6, 10]]   # [clear, faint] rings: near home / mid-field / centre line and beyond
   scan_mid_rows_past_home: 2  # mid-field starts this many rows past your home zone; full strength from the centre line
+  attack_run_bonus: 1         # +1 laser hit for a ship that moved at least 1 hex this turn before firing (combat v2)
   still_signature_bonus: 0    # added to a ship that did nothing on its turn (no move, fire, launch or scan).
                               # Was -1 ("runs silent"). In simulations a 16-missile flagship that never moved
                               # beat one that manoeuvred and fired back 63% of the time; at 0 it's 44%.
@@ -201,9 +207,11 @@ bay_parts:
 # ------------------------------------------------------------
 mount_parts:
   shield:
-    note: "soaks the first hit on its segment each round, then comes back"
+    note: "soaks the first hit on its segment; comes back only after a round without being hit"
     hp: 1
     recharges: true
+    recharge_every: 1         # rounds before a downed shield comes back
+    recharge_if_unhit: true   # sustained fire keeps it down (combat v2: fights were dragging)
     layer: 1
     cost: 8
   armour:
@@ -213,9 +221,9 @@ mount_parts:
     cost: 5
   laser:
     note: "instant, straight line, needs a clear line to a target the ship's network can see"
-    hits: 2
+    hits: 3                   # combat v2 (was 2): 3 hits out to 4 hexes, 2 hits from 5 to 8
     range: 8
-    loses_1_hit_every: 4      # 2 hits out to 4 hexes, 1 hit from 5 to 8
+    loses_1_hit_every: 4
     layer: 3
     cost: 10
   launcher:

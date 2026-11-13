@@ -62,7 +62,7 @@ export function buildChapter({ world, map, ships, chapter, campaign, progress })
   const m = structuredClone(map), md = inner(m, 'map'), zones = {};
   for (const src of [md.zones, md.campaign_zones, m.zones]) if (isObj(src)) for (const [k, v] of Object.entries(src)) if (Array.isArray(v)) zones[k] = v;
   // fleets: the player (seat 0) and the enemy (seat 1), plus groups that arrive later
-  const seams = {};
+  const seams = {}, helm = {};
   const side = (who, seat) => {
     const S = ch[who] || {}, list = [], seen = new Set();
     const addShip = (entry, reserve) => {
@@ -73,6 +73,7 @@ export function buildChapter({ world, map, ships, chapter, campaign, progress })
       if (!h) { problems.push(`${who}: no hull for ship "${id}" in ships.yaml.`); return; }
       const extra = typeof entry === 'string' ? {} : entry;
       if (h.seams) seams[id] = h.seams;
+      if (extra.helm === 'script') helm[id] = 'script';
       list.push({ name: id, flagship: extra.flagship ?? h.flagship === true, hull: extra.hull || h.hull, load: extra.load || h.load || {},
         ...(reserve ? { reserve: true } : {}), ...(h.joined || (h.seams && h.seams.length) ? { joined: true } : {}) });
     };
@@ -90,7 +91,7 @@ export function buildChapter({ world, map, ships, chapter, campaign, progress })
   built.rules.campaign = {
     id: ch.id, title: ch.title, script: ch.script || [], win: ch.win || [], lose: ch.lose || [],
     groups: ch.groups || {}, aiProfiles: ch.ai_profiles || {}, ai, zones, scenes: ch.scenes || {},
-    unlocked: { graft: caps.has('graft'), dock: caps.has('docking') || caps.has('dock') }, seams,
+    unlocked: { graft: caps.has('graft'), dock: caps.has('docking') || caps.has('dock') }, seams, helm,
     src: { world: w, map: m, fleets },
   };
   return { rules: built.rules, problems };

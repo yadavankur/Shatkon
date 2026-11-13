@@ -660,7 +660,8 @@ function describe(e) {
     case 'docked': return e.name + ' and ' + e.other + ' are clamped together.';
     case 'removed': return e.ship + (e.as === 'dark' ? ' went dark and drifted away.' : ' withdrew.');
     case 'locked': return (e.ship || 'Your ships') + ' stopped answering the helm.';
-    case 'forced': return e.ship + (e.order === 'move' ? ' moved on its own.' : ' fired on its own.');
+    case 'forced': return null;
+    case 'ram': return e.ship + ' hurled itself into ' + e.target + ': ' + e.hits + ' hits.';
     case 'disabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' went offline.';
     case 'enabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' back online.';
     case 'rule_changed': return /link_range/.test(e.path) ? 'Comms are jammed: your ships share less of what they see.' : null;
@@ -727,6 +728,15 @@ function tap(c, v, opts) {
     pending = o.preview;
     say(forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.');
     return render();
+  }
+  // missiles and drones can be aimed at any hex: they fly the straight line toward it
+  if (!o && (mode === 'missile' || mode === 'seeker_drone') && sel && myTurn() && !v.ships.some((x) => x.mine && x.cells.some((y) => hex.same(y, c)))) {
+    const aimed = E.aimLaunch(game, sel, mode, c);
+    if (aimed) {
+      pending = aimed;
+      say('Aimed straight at ' + at(c) + '. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.');
+      return render();
+    }
   }
   if (pending && pending.type !== 'move') return;
   pending = null;
@@ -1049,9 +1059,9 @@ export function render() {
   // fleet strip: every ship of the player to move, with what it has left
   if (mine) for (const x of v.ships.filter((s) => s.mine)) {
     const st = E.shipStatus(game, x.id), stat = (label, val, zero) => h('span', { class: zero ? 'zero' : '' }, label + ' ', h('b', null, val));
-    const seized = v.story && v.story.locked.includes(x.name);
+    const seized = v.story && v.story.locked.includes(x.name), auto = v.story && (v.story.auto || []).includes(x.name);
     fleet.appendChild(h('button', { class: 'shipchip who' + x.owner + (seized ? ' lockedchip' : ''), 'aria-pressed': String(sel === x.id), onclick: () => { selectShip(x.id, v); render(); } },
-      h('div', { class: 'nm' }, (x.flagship ? '★ ' : '') + x.id + ' ' + (v.story ? x.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : x.name) + (seized ? ' \u00b7 not answering' : '')),
+      h('div', { class: 'nm' }, (x.flagship ? '★ ' : '') + x.id + ' ' + (v.story ? x.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : x.name) + (auto ? ' \u00b7 flying itself' : seized ? ' \u00b7 not answering' : '')),
       h('div', { class: 'st' }, stat('Move', st.moveLeft, !st.moveLeft), st.beams ? stat('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady) : null,
         Object.entries(st.ammo).map(([k, n]) => stat(nice(k) + 's', n, !n)))));
   }
@@ -1077,8 +1087,8 @@ export function render() {
     const me = sel && v.ships.find((x) => x.id === sel), st = me ? E.shipStatus(game, sel) : null, lo = me ? E.launchOptions(game, sel) : null;
     const shots = me ? E.beamTargets(game, sel) : [];
     const help = { move: 'Tap a green marker to see where the ship would end up, then tap it again to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
-      missile: 'Tap an amber ring to lock on to that ship, or a blue dot to send the missile straight out that way. You will see its path before it launches.',
-      seeker_drone: 'Tap a blue dot to send the drone out that way. It wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
+      missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
+      seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
     const btn = (m, label, sub, on, cells) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on), disabled: !on, onclick: () => { mode = m; pending = null; say(help[m]); if (cells && cells.length) frame(cells, selZoom()); render(); } }, label, h('small', null, sub));
     const launchWhy = (kind) => !st ? 'select a ship' : !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const foes = v.ships.filter((x) => !x.mine && x.seen);

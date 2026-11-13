@@ -78,6 +78,9 @@ export function buildRules(world, mapFile, fleetsFile) {
     fleets: [],
   };
   for (const a of ['move', 'fire', 'launch', 'scan', 'detonate']) rules.cost[a] = num((act[a] || {}).cost, 1);
+  // the sacrificial hurl: story scripts and the computer only (no player button)
+  const rm = act.ram || {};
+  rules.ram = { hitsPerSeg: num(rm.hits_per_segment, 4), reachBonus: num(rm.reach_bonus, 2), pierces: rm.pierces_shields !== false };
 
   const R = rules.board.radius;
   const blocked = new Set();

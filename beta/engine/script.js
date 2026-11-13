@@ -13,8 +13,8 @@ import { add, key, dist, step } from './hex.js';
 import { no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById } from './state.js';
 import { visibleTo, refreshSight } from './detect.js';
 import { applyHits, removeObj } from './damage.js';
-import { doMove, doFire } from './actions.js';
-import { reach, beamTargets } from './query.js';
+import { doMove, doFire, doLaunch } from './actions.js';
+import { reach, beamTargets, aimLaunch } from './query.js';
 import { buildRules } from './rules.js';
 
 const SIDE = { player: 0, human: 0, enemy: 1, weave: 1 };
@@ -31,10 +31,14 @@ export function startScript(state) {
   state.script = {
     fired: {}, flags: {}, unlocked: {}, ai: {}, locks: [], forces: [], protect: {}, doom: [],
     objective: null, stopped: [0, 0], firedAt: {}, mineHit: [0, 0], via: {}, hits: {}, turns: 0,
-    started: false, spawned: {}, gone: {}, disables: [], result: null,
+    started: false, spawned: {}, gone: {}, disables: [], plans: {}, auto: [], result: null,
   };
   for (const [k, v] of Object.entries(C.unlocked || {})) state.script.unlocked[k] = v;
   for (const s of state.ships) if (C.seams && C.seams[s.name]) s.seams = structuredClone(C.seams[s.name]);
+  for (const name of Object.keys(C.helm || {})) {   // helm: script — the ship flies itself, the player can't command it
+    state.script.auto.push(name);
+    state.script.locks.push({ ship: name, actions: 'all', until: 'end', helm: true, from: 1, fromTurn: 1 });
+  }
   if (C.scenes && C.scenes.intro) emit(state, { t: 'scene', id: C.scenes.intro, at: 'intro' }, everyone(state));
   state.script.started = true;
   state.script.turns = 1;
@@ -65,12 +69,14 @@ export function onTurnStart(state) {
     const cores = s.segs.reduce((n, sg) => n + sg.parts.filter((x) => x.hp > 0 && state.rules.parts[x.t].required).length, 0);
     state.players[p].cp = Math.max(0, state.players[p].cp - Math.max(0, cores - 1));
   }
+  // planned orders for this side's self-flying ships
+  for (const [name, plan] of Object.entries(sc.plans)) { const s = live(state, name); if (s && s.owner === p) runPlan(state, s, plan); }
   // forced orders for this side's ships (a seized ship moves on its own)
   for (const f of sc.forces) if (active(state, f) && (f.each_turn || !f.done)) {
     const s = live(state, f.ship);
     if (!s || s.owner !== p) continue;
     f.done = true;
-    for (const order of f.do || []) forced(state, s, order);
+    free(state, p, () => { for (const order of f.do || []) forced(state, s, order); });
   }
   refreshSight(state);
   noteEvents(state);
@@ -138,6 +144,8 @@ export function test(state, t) {
     case 'grafted': case 'docked': return !!sc.flags[k + ':' + v.slice().sort().join('+')];
     case 'flag': return !!sc.flags[v];
     case 'alive': return !!live(state, v);
+    case 'rammed': return !!sc.flags['rammed:' + v];
+    case 'engines_out': { const s = live(state, v); return !!s && !s.segs.some((sg) => !sg.wrecked && sg.parts.some((p) => p.t === 'engine' && p.hp > 0)); }
     default: return false;
   }
 }
@@ -187,6 +195,8 @@ function act(state, a) {
     case 'ai': sc.ai[v.ship || ('side:' + sideOf(v.side))] = v.profile; break;
     case 'protect': sc.protect[v.ship || ('side:' + sideOf(v.side))] = v.until || 'end'; break;
     case 'damage': scriptedDamage(state, v); break;
+    case 'orders': sc.plans[v.ship] = (v.do || []).map((o) => structuredClone(o)); break;
+    case 'ram': { const s1 = live(state, v.ship), t = live(state, v.target); if (s1 && t) free(state, s1.owner, () => ram(state, s1, t, !!v.force)); break; }
     case 'unprotect': delete sc.protect[v.ship || v]; break;
     case 'doom': sc.doom.push({ ship: v.ship, by_round: v.by_round, done: false }); break;
     case 'lock': sc.locks.push({ ...v, from: state.round, fromTurn: sc.turns }); emit(state, { t: 'locked', ship: v.ship || null, side: v.side ?? null, actions: v.actions }, all); break;
@@ -349,6 +359,7 @@ function takeOff(state, s) {
   for (const pl of state.players) delete pl.seen[s.id];
   if (state.script) state.script.gone[s.name] = true;
 }
+const launchKind = (state, s) => Object.keys(s.load).find((k) => s.load[k] > 0 && num(state.rules.munitions[k].seeker_range)) || Object.keys(s.load).find((k) => s.load[k] > 0) || null;
 const coreName = (state) => Object.keys(state.rules.parts).find((k) => state.rules.parts[k].required) || 'core';
 
 // Two touching ships of one side become one. kind 'dock' (human clamps: extra cores cost
@@ -380,10 +391,89 @@ export function doJoin(state, a) {
   join(state, s1, s2, a.type === 'graft' ? 'weave' : 'dock', false);
 }
 
+// Script-flown ships act on a budget of their own: the player's command points and thrust are put back.
+function free(state, p, fn) {
+  const pl = state.players[p], save = { cp: pl.cp, thrust: pl.thrust, canMove: pl.canMove };
+  pl.cp = 99; pl.thrust = 999; pl.canMove = true;
+  try { return fn(); } finally { pl.cp = save.cp; pl.thrust = save.thrust; pl.canMove = save.canMove; }
+}
+
+// Move a ship as close as it can get to a hex (its position) this turn.
+function stepTo(state, s, cell) {
+  const opts = reach(state, s.id);
+  let best = null;
+  for (const r of opts) { const d = dist(r.at, cell); if (!best || d < best.d) best = { d, path: r.path }; }
+  if (best && best.d < dist(s.pos, cell)) { doMove(state, { type: 'move', ship: s.id, path: best.path }); emit(state, { t: 'forced', ship: s.id, order: 'move' }, everyone(state)); }
+}
+
+// The sacrificial hurl. The ship flies into the target (if it can reach: its move this turn plus
+// the reach bonus, unless forced) and is destroyed; the impact lands hitsPerSeg x its living
+// segments on the target, starting with the target segment nearest the rammer, piercing shields.
+export function ram(state, s, t, force) {
+  const R = state.rules.ram, d = gap(s, t);
+  const reachD = reach(state, s.id).reduce((m, r) => Math.max(m, r.path.length), 0);
+  if (!force && d > reachD + R.reachBonus) return false;
+  const near = (i) => Math.min(...footprint(s).map((c) => dist(c, add(t.pos, t.segs[i].off))));
+  const order = t.segs.map((_, i) => i).sort((a, b) => near(a) - near(b));
+  const impact = add(t.pos, t.segs[order[0]].off), total = R.hitsPerSeg * s.segs.filter((sg) => !sg.wrecked).length;
+  emit(state, { t: 'ram', ship: s.id, name: s.name, target: t.id, targetName: t.name, at: impact, hits: total }, everyone(state));
+  if (state.script) state.script.flags['rammed:' + s.name] = true;
+  emit(state, { t: 'blast', kind: 'ram', owner: s.owner, at: impact }, everyone(state));
+  destroy(state, s, 'rammed');
+  for (let k = 0; k < total && !t.dead; k++) {
+    const si = order.find((i) => !t.segs[i].wrecked);
+    if (si === undefined) break;
+    applyHits(state, t, si, 1, 'ram', { pierce: R.pierces });
+  }
+  refreshSight(state);
+  return true;
+}
+
+// Planned orders (the `orders` action): each turn the first unfinished movement order runs
+// (move_to, move_toward, follow, hold, ram), and every fire_at / launch_at order fires.
+function runPlan(state, s, plan) {
+  free(state, s.owner, () => {
+    let moved = false;
+    for (const o of plan) {
+      if (o.done || s.dead) continue;
+      const [k] = Object.keys(o).filter((x) => x !== 'done' && x !== 'i'), v = o[k];
+      try {
+        if (k === 'fire_at' || k === 'launch_at') { forced(state, s, { [k]: v }); if (k === 'launch_at') o.done = true; continue; }
+        if (moved) continue;
+        moved = true;
+        if (k === 'hold') continue;
+        if (k === 'move_to') { stepTo(state, s, v); if (s.pos[0] === v[0] && s.pos[1] === v[1]) o.done = true; }
+        else if (k === 'follow') {
+          o.i = o.i || 0;
+          stepTo(state, s, v[o.i]);
+          if (s.pos[0] === v[o.i][0] && s.pos[1] === v[o.i][1]) o.i++;
+          if (o.i >= v.length) o.done = true;
+        } else if (k === 'move_toward') forced(state, s, o);
+        else if (k === 'ram') {
+          const t = live(state, v);
+          if (!t) { o.done = true; moved = false; continue; }
+          if (ram(state, s, t, false)) o.done = true; else forced(state, s, { move_toward: v });
+        }
+      } catch (e) { /* an order that can't be carried out this turn waits */ }
+    }
+  });
+}
+
 // A forced order, carried out on the ship owner's turn without asking.
 function forced(state, s, order) {
   const [k] = Object.keys(order), v = order[k];
   try {
+    if (k === 'move_to') return stepTo(state, s, v);
+    if (k === 'ram') { const t = live(state, v); if (t && !ram(state, s, t, false)) forced(state, s, { move_toward: v }); return; }
+    if (k === 'launch_at') {
+      const t = typeof v === 'string' ? live(state, v) : null, aimAt = t ? t.pos : v;
+      if (!aimAt) return;
+      const lo = launchKind(state, s);
+      if (!lo) return;
+      const a = aimLaunch(state, s.id, lo, aimAt, t ? t.id : null);
+      if (a) { doLaunch(state, a); emit(state, { t: 'forced', ship: s.id, order: 'launch' }, everyone(state)); }
+      return;
+    }
     if (k === 'move_toward') {
       const t = live(state, v);
       if (!t) return;
