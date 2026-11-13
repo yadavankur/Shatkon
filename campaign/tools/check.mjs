@@ -58,8 +58,7 @@ for (const node of campaign.nodes) {
   for (const e of [...(ch.player.ships || []), ...(ch.enemy.ships || [])]) if (typeof e === 'object') {
     for (const k of Object.keys(e)) if (!['id', 'flagship', 'hull', 'load', 'helm'].includes(k)) fail(`ship entry ${e.id}: unknown field ${k}`);
     if (e.helm !== undefined && e.helm !== 'script') fail(`ship entry ${e.id}: helm must be script`);
-    if (e.helm === 'script') { const locked = (ch.script || []).some((x) => (x.when === 'start') && (x.do || []).some((a) => a.lock && a.lock.ship === e.id && a.lock.actions === 'all'));
-      if (locked) ok(`${e.id}: helm: script (Combat v2), emulated today by lock { ship: ${e.id}, actions: all } at start`); else fail(`${e.id}: helm: script needs the start lock that emulates it on the current engine`); }
+    if (e.helm === 'script') ok(`${e.id}: helm: script (Combat v2): the engine locks it for the battle; it follows the script's orders`);
   }
   for (const [g, grp] of Object.entries(ch.groups || {})) if (grp.side === 'player') for (const id of grp.ships) if (roster.includes(id)) fail(`group ${g}: ${id} is already in the roster`);
   for (const id of [...pIds, ...(ch.enemy.ships || []).map(idOf), ...Object.values(ch.groups || {}).flatMap((g) => g.ships.map(idOf))]) if (!hk(id)) fail(`no hull for ${id} in ships.yaml`);
@@ -240,6 +239,8 @@ for (const node of campaign.nodes) {
     if (t.all) return t.all.every((x) => (x.not || x.alive ? true : guar(x, seen)));
     // a flag is guaranteed when a guaranteed beat sets it
     if (t.flag) return ch.script.some((f) => actionsOf(f).some((a) => a.flag === t.flag) && guarBeat(f.id, seen));
+    // rammed: guaranteed when a guaranteed beat hurls that ship with force: true
+    if (t.rammed) return ch.script.some((f) => actionsOf(f).some((a) => a.ram && a.ram.ship === t.rammed && a.ram.force === true) && guarBeat(f.id, seen));
     if (t.destroyed) return dooms.has(t.destroyed) && guarBeat(dooms.get(t.destroyed), seen);
     return false;
   };
@@ -267,7 +268,22 @@ for (const node of campaign.nodes) {
       if (k === 'ai' && !v.ship && !v.side) fail(`${where}: ai needs ship or side`);
       if (typeof v === 'object' && v && !Array.isArray(v)) checkShip(v.ship, where);
       if (k === 'set_rule' && (() => { const w2 = structuredClone(world); return v.path.split('.').reduce((o, x) => (o && x in o ? o[x] : undefined), w2) === undefined; })()) fail(`${where}: set_rule path ${v.path} not in world`);
-      if (k === 'force') { if (!v.ship) fail(`${where}: force needs a ship`); for (const d of v.do) { const [o] = Object.keys(d); if (!FORCE_ORDERS.includes(o)) fail(`${where}: force order ${o} is not one the engine runs`); else checkShip(d[o], where); } }
+      if (k === 'force' || k === 'orders') {
+        if (!v.ship) fail(`${where}: ${k} needs a ship`);
+        if (!Array.isArray(v.do) || !v.do.length) fail(`${where}: ${k} needs a do list`);
+        for (const d of v.do || []) {
+          const [o, ...more] = Object.keys(d), x = d[o];
+          if (more.length) fail(`${where}: one order per entry (${Object.keys(d).join(', ')})`);
+          if (!FORCE_ORDERS.includes(o)) { fail(`${where}: order ${o} is not one the engine runs`); continue; }
+          const hex = (c) => Array.isArray(c) && c.length === 2 && c.every(Number.isInteger);
+          if (['move_toward', 'fire_at', 'ram'].includes(o)) checkShip(x, where);
+          else if (o === 'move_to' && !hex(x)) fail(`${where}: move_to needs a hex [q, r]`);
+          else if (o === 'follow' && !(Array.isArray(x) && x.length && x.every(hex))) fail(`${where}: follow needs a list of hexes`);
+          else if (o === 'launch_at') { if (typeof x === 'string') checkShip(x, where); else if (!hex(x)) fail(`${where}: launch_at needs a ship or a hex`); }
+          else if (o === 'hold' && x !== true) fail(`${where}: hold: true`);
+        }
+      }
+      if (k === 'ram') { checkShip(v.ship, where); checkShip(v.target, where); if (v.force !== undefined && typeof v.force !== 'boolean') fail(`${where}: ram force must be true or false`); }
       if (k === 'protect') { if (!v.ship) fail(`${where}: protect needs a ship`); if (typeof v.until !== 'string' || (v.until !== 'end' && !byId[v.until])) fail(`${where}: protect until must be a beat id or end`); }
       if (k === 'doom' && typeof v.by_round !== 'number') fail(`${where}: doom needs by_round`);
       if (['lock', 'force', 'disable'].includes(k) && v.until !== undefined && !(v.until === 'end' || typeof v.until === 'number' || (typeof v.until === 'object' && typeof v.until.rounds === 'number') || byId[v.until])) fail(`${where}: ${k} until ${JSON.stringify(v.until)}`);

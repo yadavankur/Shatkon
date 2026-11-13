@@ -92,22 +92,24 @@ sparrow@ch1:
   hull:
     - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour, armour] }
 
-# Ch1 escort (helm: script). A lighter Sparrow: one plate, 4 hits to kill. Two rounds of the
-# Seed's focus: its laser (1-2 a round) wears the plate, its missile (3) lands the killing hits.
+# Ch1 escort (helm: script): the unarmed scout. Core, engine, sensor and two plates: 5-6 hits
+# (it dies once only the core and engine are left: the engine's nothing_but_engines rule).
+# Two of the Seed's missiles (3 each), or a stray beam and a missile (the Seed cannot see a
+# 1-hex scout; its shots at Wren and Kite can stop on it, 2-3 hits at long range).
 finch@ch1:
   hull:
-    - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, armour] }
+    - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, armour] }
 
 # Ch1 escort (helm: script), 2 hexes. The laser sits alone on the front cell with no plate in
-# front of it, so the first Seed hit on that cell shoots it off; the armour is all on the rear
-# cell (which takes the ram). Thrust 3. Sensor 4, signature 2.
+# front of it, so the Seed's first beam on that cell takes it; the armour is all on the rear
+# cell. Thrust 3. Sensor 4, signature 2. Rams for 8 (2 living segments x 4).
 wren@ch1:
   hull:
     - { at: [0, 0], bays: [core, sensor, engine],     mounts: [laser] }
     - { at: [1, 0], bays: [coupling, engine, engine], mounts: [armour, armour, armour] }
 
-# Ch1 escort (helm: script), 1 hex. One plate (2 hits) in front of the laser: the Seed needs
-# 3 hits, 2-3 rounds of its long shots, to take Kite's gun. Thrust 1.
+# Ch1 escort (helm: script), 1 hex. One plate (2 hits) in front of the laser: one or two of the
+# Seed's beams to take Kite's gun. Thrust 1. Rams for 4.
 kite@ch1:
   hull:
     - { at: [0, 0], bays: [core, engine, sensor], mounts: [armour, laser] }
@@ -140,7 +142,7 @@ tern@ch3:
 # (1 hex a turn, 2 with banked thrust). The laser sits behind the stern's shield and plate, so the
 # escorts' 1-hit long shots rarely reach it; only rams (or Kestrel up close) open the Seed.
 # Protected until crippled (ch1 script).
-#   bow   [0,0]: core, sensor, magazine   | shield, shield, launcher   (Wren's ram)
+#   bow   [0,0]: core, sensor, magazine   | shield, shield, launcher
 #   stern [1,0]: coupling, engine, engine | shield, armour, laser      (Kite's ram)
 seed@ch1:
   flagship: true
