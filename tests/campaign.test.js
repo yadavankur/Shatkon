@@ -2,7 +2,7 @@
 // Uses a small fixture campaign written here, not the real chapters (those come later).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame } from '../engine/index.js';
+import { guideView, start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
 import { shippedFiles } from './helpers.js';
 
@@ -424,4 +424,98 @@ test('launch_at: a scripted launch aims a missile at a ship', () => {
   g = ends(g, 2);
   while (g.order[g.turn] !== 0) g = ends(g, 1);
   assert.equal(ship(g, 'kestrel').load.missile, 1);
+});
+
+test('dead in the water: a ship whose engines are all gone or off cannot move', () => {
+  const ch = chapter({ script: [{ id: 'off', when: 'start', do: [{ disable: { ship: 'sparrow', parts: ['engine'] } }] },
+    { id: 'adrift', when: { engines_out: 'sparrow' }, do: [{ flag: 'adrift' }] }] });
+  const g = start(load(ch), 3);
+  assert.ok(g.script.flags.adrift, 'switched-off engines count as out');
+  assert.match(attempt(g, { type: 'move', ship: ship(g, 'sparrow').id, path: [2] }).why, /dead in the water/);
+  assert.ok(attempt(g, { type: 'move', ship: ship(g, 'kestrel').id, path: [2] }).ok, 'the rest of the fleet still moves');
+});
+
+test('a ram can be told which segment to strike', () => {
+  const ch = chapter({ player: { ships: ['kestrel', { id: 'sparrow', helm: 'script' }], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'hurl', when: 'start', do: [{ ram: { ship: 'sparrow', target: 'seed', force: true, seg: 1 } }] }] });
+  const g = start(load(ch), 3);
+  const seed = ship(g, 'seed');
+  assert.ok(seed.segs[1].parts.some((p) => p.hp < g.rules.parts[p.t].hp), 'segment 1 took the impact');
+});
+
+test('orders: append keeps the old plan; a one-shot launch that has not fired survives a new plan', () => {
+  const ch = chapter({ script: [{ id: 'a', when: 'start', do: [
+    { orders: { ship: 'kestrel', do: [{ launch_at: [0, -7] }] } },
+    { orders: { ship: 'kestrel', do: [{ hold: true }] } },
+    { orders: { ship: 'sparrow', do: [{ move_to: [2, 4] }] } },
+    { orders: { ship: 'sparrow', do: [{ hold: true }], append: true } }] }] });
+  const g = start(load(ch), 3);
+  assert.deepEqual(g.script.plans.kestrel.map((o) => Object.keys(o)[0]), ['launch_at', 'hold']);
+  assert.deepEqual(g.script.plans.sparrow.map((o) => Object.keys(o)[0]), ['move_to', 'hold']);
+});
+
+test('a partial lock names what is forbidden and leaves the rest', () => {
+  const ch = chapter({ script: [{ id: 'cold', when: 'start', do: [{ lock: { ship: 'kestrel', actions: ['fire', 'launch'], until: 'end', reason: 'Guns cold until contact is confirmed' } }] }] });
+  const g = start(load(ch), 3);
+  const k = ship(g, 'kestrel'), laser = k.segs[0].parts.findIndex((p) => p.t === 'laser');
+  assert.equal(attempt(g, { type: 'fire', ship: k.id, seg: 0, part: laser, at: [0, 0] }).why, 'Guns cold until contact is confirmed');
+  assert.ok(attempt(g, { type: 'move', ship: k.id, path: [2] }).ok);
+});
+
+// ---- move guides (campaign/GUIDE_PROPOSAL.md)
+const guided = (steps, when = 'start') => chapter({ script: [
+  { id: 'calm', when: 'start', do: [] },
+  { id: 'go', when, guide: { ship: 'kestrel', steps } }] });
+const noSeed = (v) => !JSON.stringify(v).includes('[0,-7]');
+
+test('guide: none before its beat, and never on the other player\'s screen', () => {
+  const g = start(load(guided([{ move_to: [0, 4], label: 'Go' }], { round: 3 })), 3);
+  assert.equal(guideView(g, 0), null);
+  const h = start(load(guided([{ move_to: [0, 4], label: 'Go' }])), 3);
+  assert.ok(guideView(h, 0));
+  assert.equal(guideView(h, 1), null);
+});
+
+test('guide: starts on the beat with a route to the destination and a turn-end mark', () => {
+  const g = start(load(guided([{ move_to: [0, 4], label: 'Go' }, { fire_at: 'seed', label: 'Shoot' }])), 3);
+  const v = guideView(g, 0);
+  assert.equal(v.step, 1); assert.equal(v.of, 2); assert.equal(v.label, 'Go');
+  assert.deepEqual(v.best, [0, 4]); assert.deepEqual(v.route[0], [0, 7]); assert.deepEqual(v.route.at(-1), [0, 4]);
+  assert.ok(v.turnEnd && v.route.some((c) => c[0] === v.turnEnd[0] && c[1] === v.turnEnd[1]));
+  assert.ok(g.history.length >= 0);
+});
+
+test('guide: a step already done is skipped; reaching the hex advances', () => {
+  const g = start(load(guided([{ move_to: [0, 7], label: 'Stay' }, { move_to: [0, 6], label: 'Step up' }, { fire_at: 'seed', label: 'Shoot' }])), 3);
+  assert.equal(guideView(g, 0).label, 'Step up');
+  const k = ship(g, 'kestrel');
+  const h = apply(g, { type: 'move', ship: k.id, path: [2] });
+  assert.deepEqual(ship(h, 'kestrel').pos, [0, 6]);
+  assert.equal(guideView(h, 0).label, 'Shoot');
+});
+
+test('guide: a blocked hex falls back to the nearest open one, the same every time', () => {
+  const ch = guided([{ move_to: [2, 6], label: 'There' }]);
+  const a = guideView(start(load(ch), 3), 0), b = guideView(start(load(ch), 3), 0);
+  assert.deepEqual(a.blockedFrom, [[2, 6]]);
+  assert.ok(a.best && !(a.best[0] === 2 && a.best[1] === 6));
+  assert.deepEqual(a.best, b.best);
+});
+
+test('guide: fog: an unseen target gives no reticle, no destination and leaks no coordinates', () => {
+  const g = start(load(guided([{ move_to: { near: 'seed', within: 4 }, fire_at: 'seed', label: 'Hunt' }])), 3);
+  const v = guideView(g, 0);
+  assert.equal(v.reticle, null); assert.deepEqual(v.dest, []); assert.deepEqual(v.anchor, [0, 7]);
+  assert.ok(noSeed(v));
+  assert.ok(noSeed(g.history));
+});
+
+test('guide: a new guide for the same ship replaces the old; clear removes it', () => {
+  const ch = chapter({ script: [
+    { id: 'one', when: 'start', guide: { ship: 'kestrel', steps: [{ move_to: [0, 4], label: 'A' }] } },
+    { id: 'two', when: 'start', guide: { ship: 'kestrel', steps: [{ move_to: [0, 3], label: 'B' }], clear: { round: 2 } } }] });
+  let g = start(load(ch), 3);
+  assert.equal(g.script.guides.length, 1); assert.equal(guideView(g, 0).label, 'B');
+  g = ends(g, 2);
+  assert.equal(guideView(g, 0), null);
 });

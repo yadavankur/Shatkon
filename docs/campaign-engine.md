@@ -125,3 +125,37 @@ in and hurls itself once in reach), and every `fire_at: ship` / `launch_at: ship
 fires (`launch_at` once). A new `orders` action replaces that ship's plan. Orders and forced moves
 spend their own budget: the player's command points and thrust are untouched. `force` takes the
 same order kinds.
+
+**More order options.** `orders: { ship, do: [...], append: true }` adds to the plan instead of
+replacing it. A `launch_at` that hasn't fired yet survives a replacing `orders` (it is a one-shot
+and is only marked done after a real launch). `ram: { ship, target, seg: n }` strikes segment `n` of
+the target first.
+
+**Dead in the water.** A ship built with engines whose engines are all destroyed or `off` can't
+move (`reach` is empty, a move is refused with a reason). `engines_out` uses the same test. A
+scripted `damage` with `from_mine: true` follows the mine's `strikes` setting.
+
+**Partial locks.** `lock: { ship, actions: [fire, launch], until, reason: "Guns cold" }`. The
+refusal text is the `reason`; the play screen greys just those buttons and shows the reason.
+`actions: all` is the old full lock ("not answering").
+
+## Move guides (on-map "go here" hints)
+
+Format: `campaign/GUIDE_PROPOSAL.md`. A script entry may carry `guide: { ship, steps, clear }` next
+to `when`/`do`. It starts when the entry fires; one guide per ship (a new one replaces it).
+
+- Lifecycle (`engine/script.js`): `state.script.guides`. Steps advance on `done` (a trigger or a
+  reserved word: `reached`, `fired`, `launched`, `grafted`, `docked`; the default comes from the
+  step's kind), skip steps already done, time out with `timeout: { rounds }`, and drop on `clear`,
+  the ship's loss or the chapter's end. Events `guide` / `guide_clear` (`why`: done, clear,
+  timeout, ship_lost, replaced, chapter_end) go to the owner only.
+- `guideView(state, player)` (`engine/guide.js`, exported) is pure and fog-safe: `dest`, `best`,
+  `blockedFrom` (occupied targets fall back ring by ring), `route` (open-hex search; through `path`
+  waypoints if given), `turnEnd` (furthest route hex in `reach` this turn), `reticle` (dashed when
+  out of range or on a last-known ghost; none if never seen), `join`, `label`, `step`/`of`,
+  `anchor`, `live`.
+- Play screen: cyan glow on the destinations (best one filled), ghost path solid to this turn's
+  end then dotted, reticle, join marker and a label pill; 40% opacity on the enemy turn. Tap a
+  glowing hex to preview that move (or this turn's part of it); tap the reticle for Fire mode, or
+  an aimed launch. The camera frames the step when it first shows. While a guide is up the
+  objective banner is hidden.

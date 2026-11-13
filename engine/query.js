@@ -2,14 +2,14 @@
 // what can it shoot, what can it lock on to. These use only what the player knows.
 
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
-import { geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
+import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
 import { networkSees, netMoved } from './detect.js';
 import { moveCap } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
-  if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move) return [];
+  if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
   const n = ship.segs.length;
   const max = Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
   if (max <= 0) return [];

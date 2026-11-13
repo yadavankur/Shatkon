@@ -50,7 +50,7 @@ function diamond(cx, cy, k) {
   return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + f1(cx + S * (mx + (x - mx) * 0.8)) + ',' + f1(cy + S * (my + (y - my) * 0.8))).join('') + 'Z', x: cx + S * mx, y: cy + S * my };
 }
 
-export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false }) {
+export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -242,6 +242,46 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('path', { d: ghost.cells.map((c) => cellPath(c, 1.0)).join(''), fill: gc, 'fill-opacity': 0.18, stroke: '#ffffff', 'stroke-width': 1.3, 'stroke-dasharray': '3 2' }));
     svg.appendChild(s('line', { x1: f1(ax), y1: f1(ay), x2: f1(bx), y2: f1(by), stroke: '#ffffff', 'stroke-width': 1.6, 'stroke-linecap': 'round' }));
     svg.appendChild(s('path', { d: `M${f1(bx)},${f1(by)}L${f1(bx - hd * Math.cos(ang - 0.5))},${f1(by - hd * Math.sin(ang - 0.5))}L${f1(bx - hd * Math.cos(ang + 0.5))},${f1(by - hd * Math.sin(ang + 0.5))}Z`, fill: '#ffffff' }));
+  }
+
+  // move guide (campaign/GUIDE_PROPOSAL.md): a cyan hint of where to go and what to hit. Never blocks a tap.
+  if (guide && !hidden) {
+    const gc = '#6fe7ff', gl = s('g', { opacity: guide.live ? 1 : 0.4, 'pointer-events': 'none', class: 'guide' });
+    for (const c of guide.blockedFrom) {
+      const cx = X(c), cy = Y(c), k = S * 0.45;
+      gl.appendChild(s('path', { d: cellPath(c, 0.85), fill: 'none', stroke: gc, 'stroke-opacity': 0.35, 'stroke-width': 0.6, 'stroke-dasharray': '1.5 1.5' }));
+      gl.appendChild(s('path', { d: `M${f1(cx - k)},${f1(cy - k)}L${f1(cx + k)},${f1(cy + k)}M${f1(cx + k)},${f1(cy - k)}L${f1(cx - k)},${f1(cy + k)}`, stroke: gc, 'stroke-opacity': 0.45, 'stroke-width': 0.8 }));
+    }
+    if (guide.dest.length) gl.appendChild(s('path', { d: guide.dest.map((c) => cellPath(c, 0.88)).join(''), fill: gc, 'fill-opacity': 0.06, stroke: gc, 'stroke-width': 0.9, class: 'guidepulse' }));
+    const gs = v.ships.find((x) => x.id === guide.ship);
+    if (guide.best) {
+      if (gs && gs.segs.length > 1) gl.appendChild(s('path', { d: gs.segs.map((sg) => cellPath([guide.best[0] + sg.off[0], guide.best[1] + sg.off[1]], 0.9)).join(''), fill: gc, 'fill-opacity': 0.08, stroke: gc, 'stroke-opacity': 0.4, 'stroke-width': 0.6, 'stroke-dasharray': '2 1.5' }));
+      gl.appendChild(s('path', { d: cellPath(guide.best, 0.88), fill: gc, 'fill-opacity': 0.28, stroke: gc, 'stroke-width': 1.4 }));
+    }
+    if (guide.route.length > 1) {
+      const cut = guide.turnEnd ? guide.route.findIndex((c) => hex.same(c, guide.turnEnd)) : 0;
+      const pts = (a, b) => guide.route.slice(a, b).map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' ');
+      if (cut > 0) gl.appendChild(s('polyline', { points: pts(0, cut + 1), fill: 'none', stroke: gc, 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-opacity': 0.9 }));
+      if (cut < guide.route.length - 1) gl.appendChild(s('polyline', { points: pts(Math.max(0, cut), guide.route.length), fill: 'none', stroke: gc, 'stroke-width': 1.3, 'stroke-dasharray': '0.1 3.2', 'stroke-linecap': 'round', 'stroke-opacity': 0.8 }));
+      if (guide.turnEnd) gl.appendChild(s('circle', { cx: f1(X(guide.turnEnd)), cy: f1(Y(guide.turnEnd)), r: 2.2, fill: '#060a14', stroke: gc, 'stroke-width': 1.2 }));
+    }
+    if (guide.join) {
+      const [a, b] = guide.join.cells;
+      gl.appendChild(s('line', { x1: f1(X(a)), y1: f1(Y(a)), x2: f1(X(b)), y2: f1(Y(b)), stroke: gc, 'stroke-width': 1.4, 'stroke-dasharray': '2 1.5' }));
+      for (const c of [a, b]) gl.appendChild(s('circle', { cx: f1(X(c)), cy: f1(Y(c)), r: 2.4, fill: 'none', stroke: gc, 'stroke-width': 1 }));
+    }
+    if (guide.reticle) {
+      const c = guide.reticle.at, cx = X(c), cy = Y(c), r = S * 0.8, dash = guide.reticle.dashed ? '2 1.6' : null;
+      gl.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(r), fill: 'none', stroke: gc, 'stroke-width': 1.3, 'stroke-dasharray': dash }));
+      gl.appendChild(s('path', { d: `M${f1(cx - r * 1.3)},${f1(cy)}H${f1(cx - r * 0.45)}M${f1(cx + r * 0.45)},${f1(cy)}H${f1(cx + r * 1.3)}M${f1(cx)},${f1(cy - r * 1.3)}V${f1(cy - r * 0.45)}M${f1(cx)},${f1(cy + r * 0.45)}V${f1(cy + r * 1.3)}`, stroke: gc, 'stroke-width': 1.1 }));
+    }
+    if (guide.label) {
+      const txt = guide.label + (guide.of > 1 ? '  ' + guide.step + '/' + guide.of : ''), fpx = 11 / px, w = (txt.length * 6.3 + 14) / px, hgt = 20 / px;
+      const lx = X(guide.anchor), ly = Y(guide.anchor) - FL * (S * 1.2) - hgt / 2;
+      gl.appendChild(s('rect', { x: f1(lx - w / 2), y: f1(ly - hgt / 2), width: f1(w), height: f1(hgt), rx: f1(hgt / 2), fill: '#06202a', 'fill-opacity': 0.92, stroke: gc, 'stroke-width': f1(1 / px) }));
+      gl.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': f1(fpx), 'font-weight': 700, fill: gc }, txt));
+    }
+    svg.appendChild(gl);
   }
 
   // what can be tapped right now
