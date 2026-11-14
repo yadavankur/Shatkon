@@ -17,6 +17,8 @@ p.lead,p.note{color:var(--muted);margin:6px 0 10px;max-width:880px}
 main{max-width:1280px;margin:auto;padding:0 18px 40px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
 .grid.wide{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.grid.sheet{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.grid.evo{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .card{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(12,24,48,.85),rgba(6,12,24,.9));padding:8px 10px 10px;overflow:hidden}
 .card h3{margin:0;font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
 .card h3 small{color:var(--muted);font-weight:400}
@@ -40,9 +42,9 @@ a{color:var(--teal)}
 <body>
 <header>
   <h1>SHATKON · SHIP GALLERY</h1>
-  <p class="lead">Every hull is drawn by <code>ui/ships.js</code> straight from its hexes: the footprint is exactly the cells it occupies on the board.
-  The bow is one of the shape's own mirror lines (the one facing the enemy); parts never show as icons, they change the hull's surface.</p>
-  <div class="legend"><span><b>Engines</b> stern nozzles and glow</span><span><b>Armour</b> heavy, bumpy plating</span><span><b>Stealth</b> dark matte finish</span><span><b>Sensors</b> emissive lines</span><span><b>Comms</b> emissive arc</span><span><b>Weapons</b> hard points on the edge</span><span><b>Shield</b> faint hex bubble</span><span><b>Core</b> bridge canopy</span></div>
+  <p class="lead">Your ships (<code>ui/frigate.js</code>) are classic sci-fi vessels assembled from the modules actually fitted: every hex is a hull section on one spine, bow toward the enemy, and the ship never leaves its own hexes.
+  The Weave (<code>ui/ships.js</code>) keeps its organic hex hulls, where parts change the surface instead.</p>
+  <div class="legend"><span><b>Core</b> bridge tower (flagship: bigger, star)</span><span><b>Engine</b> thruster block / nacelles</span><span><b>Laser</b> twin turret, aims</span><span><b>Launcher</b> VLS missile pod</span><span><b>PD</b> CIWS turret</span><span><b>Sensor</b> dish + array</span><span><b>Comms</b> antenna mast</span><span><b>Shield</b> emitters + bubble</span><span><b>Armour</b> bolt-on plates</span><span><b>Stealth</b> faceted dark panels</span><span><b>Magazine</b> VLS hatches</span><span><b>Coupling</b> spine collars</span></div>
   <p class="note">Teal/blue = your side, purple/pink = the enemy. <a href="../play.html">Play</a> · <a href="../index.html">Rule viewer</a></p>
   <p id="err"></p>
 </header>

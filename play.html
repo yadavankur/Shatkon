@@ -137,6 +137,10 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .lab-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px}
 .lab-two{display:grid;grid-template-columns:minmax(150px,1fr) 1.3fr;gap:10px;align-items:start}
 .lab-hull{width:100%;max-width:260px;display:block;margin:auto}
+.lab-preview{max-width:220px;background:radial-gradient(circle,rgba(25,195,179,.08),transparent 70%)}
+.lab-cap{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:4px}
+.blink{animation:blink 2.2s steps(2,end) infinite}@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
 .lab-hex{cursor:default}.lab-hex.on,.lab-hex.add{cursor:pointer}.lab-hex.add:hover polygon{stroke:var(--accent)}
 .lab-hex:focus{outline:none}.lab-hex:focus polygon{stroke:#fff}
 .lab-slots{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:4px;align-items:center;margin:4px 0}

@@ -9,6 +9,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { s as svgEl, partLooks } from './board.js';
 import { drawShip, shipDefs } from './ships.js';
+import { drawFrigate, frigateDefs } from './frigate.js';
 import { $, h, rules, game, store, say, reduceMotion, newGame, plural, wholeMap, render, setRules } from './play.js';
 const { hex } = E;
 
@@ -720,14 +721,6 @@ function labDesigner(side) {
       'aria-label': 'Hull layout for ship ' + side.toUpperCase()
     }),
     has = new Map(des.hull.map((g, i) => [hex.key(g.at), i]));
-  // the ship as it will look in play, drawn under the editor's cells and slots
-  svg.appendChild(shipDefs());
-  try {
-    const partsOf = (sg) => [...(sg.bays || []), ...(sg.mounts || [])].filter((t) => t && rules.parts && rules.parts[t]).map((t) => ({ t, hp: rules.parts[t].hp || 1, max: rules.parts[t].hp || 1 }));
-    const art = drawShip({ cells: des.hull.map((sg) => sg.at), segs: des.hull.map((sg) => ({ parts: partsOf(sg), wrecked: false })), owner: side === 'b' ? 1 : 0, rules, xy: px, S, forward: [0, -1], detail: 1, flagship: des.flagship });
-    art.setAttribute('pointer-events', 'none');
-    svg.appendChild(art);
-  } catch (e) {}
   for (let h of hex.disc([0, 0], 2)) {
     let [x, y2] = px(h),
       i = has.get(hex.key(h)),
@@ -745,8 +738,7 @@ function labDesigner(side) {
     g.appendChild(
       svgEl('polygon', {
         points: pts,
-        fill: i != null ? (i === sel ? '#7fd8f0' : '#000') : 'none',
-        'fill-opacity': i != null ? (i === sel ? 0.12 : 0.01) : null,
+        fill: i != null ? (i === sel ? '#2a3550' : '#1b2338') : 'none',
         stroke: i === sel ? LAB_COLORS[side] : i != null ? '#5a6890' : adj ? '#3b4766' : '#222b40',
         'stroke-dasharray': adj ? '3 3' : null,
         'stroke-width': i === sel ? 2 : 1
@@ -821,6 +813,14 @@ function labDesigner(side) {
     }
     svg.appendChild(g);
   }
+  // the ship as it flies: rebuilt from its modules on every change, so fitting a part shows at once
+  let preview = svgEl('svg', { viewBox: [-W * 2.9, -S * 4.1, W * 5.8, S * 8.2].join(' '), class: 'lab-hull lab-preview', role: 'img', 'aria-label': 'Ship ' + side.toUpperCase() + ' as it looks in play' });
+  preview.appendChild(shipDefs());
+  preview.appendChild(frigateDefs());
+  try {
+    const partsOf = (sg) => [...(sg.bays || []), ...(sg.mounts || [])].filter((t) => t && rules.parts && rules.parts[t]).map((t) => ({ t, hp: rules.parts[t].hp || 1, max: rules.parts[t].hp || 1 }));
+    if (des.hull.length) preview.appendChild((side === 'b' ? drawShip : drawFrigate)({ cells: des.hull.map((sg) => sg.at), segs: des.hull.map((sg) => ({ parts: partsOf(sg), wrecked: false })), owner: side === 'b' ? 1 : 0, rules, xy: px, S, forward: [0, -1], detail: 1, flagship: des.flagship }));
+  } catch (e) {}
   let slotSel = (arr, k, opts) =>
     h(
       'select',
@@ -921,7 +921,7 @@ function labDesigner(side) {
     h(
       'div',
       { class: 'lab-two' },
-      svg,
+      h('div', { class: 'lab-art' }, svg, h('div', { class: 'lab-cap' }, 'As it flies'), preview),
       h(
         'div',
         { class: 'lab-seg' },

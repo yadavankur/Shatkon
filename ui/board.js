@@ -3,6 +3,7 @@
 
 import { hex } from '../engine/index.js';
 import { drawShip, shipDefs, TEAM } from './ships.js';
+import { drawFrigate, frigateDefs } from './frigate.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const S = 10, W = Math.sqrt(3) * S;
@@ -122,7 +123,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     s('radialGradient', { id: 'star4' }, s('stop', { offset: '0', 'stop-color': '#ffffff', 'stop-opacity': '1' }), s('stop', { offset: '.25', 'stop-color': '#cfe8ff', 'stop-opacity': '.6' }), s('stop', { offset: '1', 'stop-color': '#cfe8ff', 'stop-opacity': '0' })),
     s('pattern', { id: 'fogpat', width: 4, height: 4, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(30)' }, s('path', { d: 'M0,0V4', stroke: '#7f93ad', 'stroke-width': 0.25, 'stroke-opacity': 0.18 })),
     s('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, s('feGaussianBlur', { stdDeviation: '1.6' })),
-    ...shipDefs().childNodes));
+    ...shipDefs().childNodes, ...frigateDefs().childNodes));
 
   // space: deep navy, three faint nebula washes, then three layers of stars (a few twinkle)
   const bw = W * (2 * R + 6), bh = S * (3 * R + 10);
@@ -241,7 +242,10 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     if (model && !model._fit) { if (!model._bad) measure(model, modelBase + model.img, onCam); model = null; }   // schematic until the picture is measured
     if (!model && style === 'hull') {
       const hm = home[x.owner], fwd = hm && Math.hypot(hm[0], hm[1]) > S ? [-hm[0], -hm[1]] : [0, (x.owner === 0 ? -1 : 1) * FL];
-      g.appendChild(drawShip({ cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: fwd, detail: detailed ? 1 : 0, moved: x.moved, flagship: x.flagship }));
+      // your side (seat 1) flies classic sci-fi ships built from their modules; the Weave side keeps the hex hulls
+      const foe = v.ships.filter((z) => z.owner !== x.owner && z.seen).map((z) => [X(z.pos), Y(z.pos)]).sort((a, z) => Math.hypot(a[0] - X(x.pos), a[1] - Y(x.pos)) - Math.hypot(z[0] - X(x.pos), z[1] - Y(x.pos)))[0] || null;
+      const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: fwd, detail: detailed ? 1 : 0, moved: x.moved, flagship: x.flagship, target: foe };
+      g.appendChild(x.owner === 0 ? drawFrigate(so) : drawShip(so));
     } else {
     // the hull plate: one fused shape under the segments
     g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
