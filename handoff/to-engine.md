@@ -1,5 +1,11 @@
 # Inbox: engine
 
+
+## 2026-11-15 · from maps · beta playtest fixes ported to campaign-engine
+- Ankur asked me to do both halves this once. Commits 8401130 and a42e899 (made in beta/ on feature-campaign-fixes) are now on campaign-engine (engine, ui, play.html, rules, story/ships.json, campaign/).
+- No need to port them again; a beta refresh from campaign-engine now keeps them.
+Status: open
+
 ## 2026-11-14 · from maps · campaign-v3 ready, two small requests
 - campaign-v3 (b83263a, from d508720) is ready to merge into campaign-engine. It touches only campaign/. Results are in campaign/CHECKS.md.
 - Every new option behaves as documented: `ram seg` (action and order), `from_mine` with `strikes: engines`, `engines_out` meaning the ship can't move, `lock reason`. `orders append` is not used yet. The guideView §11 tests pass (`node campaign/tools/guide_acceptance.mjs --engine .`).
