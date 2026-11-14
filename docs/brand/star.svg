@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-75 -75 150 150"><title>SHATKON star (the flower)</title>
+<!-- The flower: the six-rhombus star at the heart of the logo, the six petals meeting at the centre node. -->
+<defs>
+  <linearGradient id="ss" x1="-80" y1="-100" x2="80" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#cfe8ff"/><stop offset=".5" stop-color="#7fd8f0"/><stop offset="1" stop-color="#2fe0b0"/></linearGradient>
+  <radialGradient id="sn"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#5ff7ff"/><stop offset="1" stop-color="#5ff7ff" stop-opacity="0"/></radialGradient>
+  <filter id="sglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs><polygon points="0,0 0,-40 34.64,-60 34.64,-20" fill="#2fe0b0" fill-opacity=".1"/><polygon points="0,0 34.64,-20 69.28,0 34.64,20" fill="#2fe0b0" fill-opacity=".1"/><polygon points="0,0 34.64,20 34.64,60 0,40" fill="#2fe0b0" fill-opacity=".1"/><polygon points="0,0 0,40 -34.64,60 -34.64,20" fill="#2fe0b0" fill-opacity=".1"/><polygon points="0,0 -34.64,20 -69.28,0 -34.64,-20" fill="#2fe0b0" fill-opacity=".1"/><polygon points="0,0 -34.64,-20 -34.64,-60 0,-40" fill="#2fe0b0" fill-opacity=".1"/><path d="M0,0L0,-40L34.64,-60L34.64,-20ZM0,0L34.64,-20L69.28,0L34.64,20ZM0,0L34.64,20L34.64,60L0,40ZM0,0L0,40L-34.64,60L-34.64,20ZM0,0L-34.64,20L-69.28,0L-34.64,-20ZM0,0L-34.64,-20L-34.64,-60L0,-40Z" fill="none" stroke="url(#ss)" stroke-width="3.2" stroke-linejoin="round" filter="url(#sglow)"/><circle r="7" fill="url(#sn)"/>
+</svg>

@@ -1,0 +1,345 @@
+<!-- HERO -->
+<section class="hero" aria-label="Introduction">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <svg class="hexlayer" id="hexA" aria-hidden="true"></svg>
+  <svg class="hexlayer" id="hexB" aria-hidden="true"></svg>
+  <div class="hero-in">
+    <h1 class="logo"><span class="sr">SHATKON</span><svg class="heromark" id="heroMark" viewBox="-118 -118 236 236" aria-hidden="true"></svg><svg class="wordmark" id="heroWord" aria-hidden="true"></svg></h1>
+    <div class="hindi"><b lang="hi">षट्कोण</b> · shatkon · <i>hexagon</i> · the field manual · rules v0.4</div>
+    <p class="sub">A turn-based game of <b>hidden fleets on a hex sea</b>. Build ships from hexagonal segments, share one thrust pool across your whole fleet, hunt by sensor and signature, and sink the enemy <b>flagship</b> before they find yours.</p>
+    <div class="pills"><span>⬡ hex board</span><span>🛰️ fog of war</span><span>🧩 modular ships</span><span>🚀 missiles · drones · mines</span><span>📖 story campaign</span></div>
+    <div class="cta"><a class="btn" href="#quick">How a turn plays →</a><a class="btn ghost" href="#combat">Watch a fight</a><a class="btn ghost" href="#story">The story</a><a class="btn ghost" href="#geometry">The geometry</a></div>
+    <nav class="toc" id="toc" aria-label="Table of contents"></nav>
+  </div>
+  <div class="scrollcue" aria-hidden="true">SCROLL ↓</div>
+</section>
+
+<!-- GEOMETRY -->
+<section class="sec" id="geometry" style="--c:var(--neon);--c2:var(--mint)">
+  <div class="kicker"><b>0</b>Shatkon: the geometry</div>
+  <h2>One hexagon, <span class="grad">drawn with 21 lines</span></h2>
+  <p class="lead"><b lang="hi">षट्कोण</b> (<i>shatkon</i>) is Hindi for <b>hexagon</b>. The whole game grew out of the logo below: Ankur found his ship-segment rules inside it. The lines run in only three directions. Read them one way and you see flat rhombi. Read them another way and you see cubes, a hexagon inside a hexagon, and a star.</p>
+  <div class="geo">
+    <div class="card decomp">
+      <div class="modebar" id="geoModes" role="group" aria-label="Decomposition layers"></div>
+      <svg id="geoSvg" viewBox="-135 -135 270 270" role="img" aria-label="The SHATKON logo, decomposed into its cells"></svg>
+      <div class="row" style="margin-top:8px"><button id="geoSplit" aria-pressed="false">⇲ Separate the cells</button><span class="src">tap a cell for its role · traced from the original logo</span></div>
+    </div>
+    <div>
+      <div class="card ginfo" id="geoInfo" aria-live="polite"></div>
+      <div class="card" style="margin-top:14px">
+        <h4>How the logo maps onto a ship segment</h4>
+        <ul class="check">
+          <li><b>Core: three hexagons</b> meet at the centre node. Each one holds a <b>bay</b> (layers 4–6: core, engine, sensor, magazine…).</li>
+          <li><b>Periphery: three tips</b> (a rhombus at the top and two "squares" at the lower corners). Each one holds a <b>mount</b> (layers 1–3: shield, armour, laser, launcher…).</li>
+          <li>Every segment in the ship builder, the ship cards and the combat panel is drawn this way: 3 bays + 3 mounts = 6 cells that tile the hexagon exactly.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:34px">Three ideas in one drawing</h3>
+  <div class="ideas">
+    <div class="card"><svg id="ideaCube" viewBox="-115 -115 230 230" role="img" aria-label="Shaded logo reading as three cubes"></svg><h3>2D that reads as 3D</h3><p style="font-size:14px;margin:0">Every corner where three 120° angles meet reads as the corner of a cube. Shade one face light, one mid and one dark, and the flat drawing becomes isometric blocks. The "3D hexagon" is one of these, and it repeats on every third of the logo.</p></div>
+    <div class="card"><svg id="ideaHex" viewBox="-115 -115 230 230" role="img" aria-label="The inner hexagon and the three 3D hexagons, highlighted in turn"></svg><h3>A hexagon inside the hexagon</h3><p style="font-size:14px;margin:0">The inner points sit at exactly <b>0.4 ×</b> the outer radius and form a second hexagon with the same orientation. Around it, three smaller "3D hexagons" turn like a rotor: the same shape, every 120°.</p></div>
+    <div class="card"><svg id="ideaZoom" viewBox="-115 -115 230 230" role="img" aria-label="Zooming into the centre hexagon reveals the logo again"></svg><h3>A fractal at heart</h3><p style="font-size:14px;margin:0">The only lines inside the inner hexagon are its three diameters. Swap them for a copy of the logo at 0.4 scale and the pattern repeats forever. Each zoom of <b>2.5×</b> lands on the same picture.</p><p class="src" id="zoomNote" style="margin:6px 0 0"></p></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card">
+      <h3>The flaw <span class="tag beta">fixed in logo.svg</span></h3>
+      <div class="flawbox">
+        <svg id="flawSvg" viewBox="-115 -115 230 230" role="img" aria-label="Original versus corrected logo"></svg>
+        <div>
+          <p style="font-size:14.5px">In the original artwork, the two lines leaving the <b>bottom inner node</b> run on past the star points to the outer edge. That cuts two little triangles (0.2 × the radius on a side) out of the lower tips. The two are mirror images. The top tip is clean, so the drawing loses its 120° symmetry.</p>
+          <p style="font-size:14.5px">The fix: stop those two lines at the star points. That gives 21 lines and 12 cells, symmetric under every 120° turn.</p>
+          <div class="row" role="group" aria-label="Logo version"><button id="flawOrig" aria-pressed="true">Original</button><button id="flawFix" aria-pressed="false">Corrected</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>The original logo</h3>
+      <div class="flawbox">
+        <img loading="lazy" src="img/logo/logo_original.webp" alt="The original SHATKON logo" style="width:100%;border-radius:12px;border:1px solid var(--line);background:#000">
+        <p style="font-size:14.5px;margin:0">Everything in this guide is <b>traced from</b> or <b>corrected from</b> this logo. <code>brand/logo_original_trace.svg</code> is the faithful trace, flaw included. <code>brand/logo.svg</code> is the corrected mark used throughout. <code>brand/logo-core-periphery.svg</code> shows the core &amp; periphery reading.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:34px">The motif kit</h3>
+  <p style="color:var(--mute);margin-top:-4px">The same mark recurs across this guide, varied by section: the star as a bullet and favicon, cube shading, the core, the tips, the 3D hexagon, the recursion, and the Weave's pink for the enemy.</p>
+  <div class="kit" id="motifKit"></div>
+
+  <h3 style="margin-top:34px">Flower designer</h3>
+  <div class="card designer">
+    <svg id="flowerSvg" viewBox="-120 -120 240 240" role="img" aria-label="Your variation of the SHATKON flower"></svg>
+    <div class="ctrls">
+      <label>Inner radius k <output id="fkOut">0.40</output><input type="range" id="fk" min="0.2" max="0.62" step="0.01" value="0.4"></label>
+      <label>Rotation <output id="frOut">0°</output><input type="range" id="fr" min="0" max="60" step="1" value="0"></label>
+      <label>Recursion depth <output id="fdOut">0</output><input type="range" id="fd" min="0" max="3" step="1" value="0"></label>
+      <label>Stroke <output id="fsOut">3.0</output><input type="range" id="fs" min="1" max="7" step=".5" value="3"></label>
+      <label>Fill <select id="ffill"><option value="lines">lines only</option><option value="star">the flower (star)</option><option value="cube">cube shading</option><option value="hex3d">3D hexagons</option><option value="core">core + peripherals</option></select></label>
+      <label>Palette <select id="fpal"><option value="team">player · teal/blue</option><option value="enemy">the Weave · purple/pink</option><option value="mono">ice mono</option></select></label>
+      <label><input type="checkbox" id="fglow" checked> neon glow</label>
+      <div class="row"><button id="fdl">⬇ Download SVG</button><button class="ghost" id="freset">Reset</button></div>
+      <p class="src" style="margin:10px 0 0">k = 0.4 is the logo. Every line belongs to one of three families (vertical, ±30°).</p>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<section class="sec" id="quick" style="--c:var(--gold);--c2:var(--orange)">
+  <div class="kicker"><b>1</b>Quick start</div>
+  <h2>The game in <span class="grad">ninety seconds</span></h2>
+  <p class="lead">Two fleets start in opposite home zones: Player 1 in the south, Player 2 in the north. Neither can see the other. Each turn you spend <b>command points</b> on orders; after both players have acted, everything in flight moves at once. Sink the enemy flagship to win.</p>
+  <div class="grid g2" style="margin:22px 0">
+    <div class="card glow" style="--c:var(--gold)">
+      <h4>Command points</h4>
+      <div class="cpbar" aria-label="3 points per turn, bank up to 6"><span class="cp"></span><span class="cp"></span><span class="cp"></span><span style="width:14px"></span><span class="cp bank"></span><span class="cp bank"></span><span class="cp bank"></span></div>
+      <p style="margin-top:10px"><b id="cpTurn">3</b> points every turn. Points you don't spend go to the bank, which holds up to <b id="cpBank">6</b>. Every order costs 1, and <code>end</code> is free.</p>
+      <p class="src">rules/world_v0.4.yaml › turns, actions</p>
+    </div>
+    <div class="card glow" style="--c:var(--cyan)">
+      <h4>One round</h4>
+      <div class="round"><span style="background:rgba(79,184,255,.18);border:1px solid rgba(79,184,255,.5)">Player turn</span><span style="background:rgba(255,95,200,.18);border:1px solid rgba(255,95,200,.5)">Player turn</span><span style="background:rgba(127,216,240,.15);border:1px solid rgba(127,216,240,.5)">Flight phase · <span id="ticks">6</span> ticks</span></div>
+      <p>The first player alternates from round to round. In the flight phase, missiles and drones move in ticks, so a fast missile and a slow drone take turns fairly. Fuel burns down, shields come back and point defence reloads. Games end at turn <b id="turnLimit">30</b>.</p>
+      <p class="src">rules/world_v0.4.yaml › turns · engine/flight.js</p>
+    </div>
+  </div>
+  <h3>Your orders</h3>
+  <div class="flow" id="flow"></div>
+  <div class="callout" style="margin-top:20px"><b>How you win:</b> destroy the enemy <b>flagship</b>; losing other ships doesn't end the game. A fleet with no flagship loses when all its ships are dead, and if both sides lose at once it's a draw. A ship dies when its <b>core</b> is destroyed, or when nothing but its engines (and core) still works. <span class="src">engine/damage.js › checkWin · world › damage.ship_dead_when</span></div>
+</section>
+
+<!-- MODES -->
+<section class="sec" id="modes" style="--c:var(--lime);--c2:var(--teal)">
+  <div class="kicker"><b>2</b>Game modes</div>
+  <h2>Ways to <span class="grad">play</span></h2>
+  <p class="lead">Every mode runs the same engine. Change mode with the selector at the top right of the play screen.</p>
+  <div class="grid g4" id="modeCards"></div>
+</section>
+
+<!-- BOARD -->
+<section class="sec" id="board" style="--c:var(--cyan);--c2:var(--teal)">
+  <div class="kicker"><b>3</b>The board</div>
+  <h2>A <span class="grad">hexagon of hexagons</span></h2>
+  <p class="lead">The board is a big hexagon of radius <i>R</i>, made of pointy-top hexes with <b>axial coordinates</b> <code>[q, r]</code>. <code>r</code> grows towards the south, where Player 1 lives. The distance between two hexes is <code>(|dq| + |dr| + |dq+dr|) / 2</code>. Hover or tap a hex below to see its coordinates and its distance from the centre.</p>
+  <div class="grid g2" style="align-items:start">
+    <div class="card boardwrap" style="padding:10px">
+      <svg id="boardDemo" class="hexsvg" role="img" aria-label="Interactive hex board of radius 5 with asteroid and nebula terrain"></svg>
+      <div class="hud" id="hud" aria-live="polite">hover a hex</div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <h4>Directions</h4>
+        <p>Six neighbours: <code>E [1,0]</code> <code>NE [1,-1]</code> <code>NW [0,-1]</code> <code>W [-1,0]</code> <code>SW [-1,1]</code> <code>SE [0,1]</code>.</p>
+        <p class="src">engine/hex.js › DIRS</p>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h4>Terrain</h4>
+        <table><tr><th>Type</th><th>Effect</th></tr>
+          <tr><td><span class="sw" style="background:#3a4658"></span> Asteroid</td><td>Blocks movement <b>and</b> sight: beams and lines of fire stop on rock.</td></tr>
+          <tr><td><span class="sw" style="background:#145f6e"></span> Nebula</td><td>Sensor range <b>−3</b> inside, signature <b>−2</b> inside: you see less and you're harder to see.</td></tr></table>
+        <p style="margin-top:10px;font-size:14px">In a map file a terrain piece is <code>at</code> plus a shape: <code>radius: n</code> makes a disc, <code>size: 3</code> three hexes in a row (W, centre, E), <code>size: 7</code> a disc of radius 1, and anything else a single hex.</p>
+        <p class="src">world › terrain · engine/rules.js › terrainCells</p>
+      </div>
+      <div class="card">
+        <h4>Home zones</h4>
+        <p>Each player deploys inside a zone measured from an edge: <code>{ edge: south, depth: 3 }</code> means the three rows nearest the south edge. Campaign maps may also list zones as explicit hexes.</p>
+        <p class="src">engine/hex.js › EDGE · maps/*.yaml › zones</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHIPS -->
+<section class="sec" id="ships" style="--c:var(--orange);--c2:var(--gold)">
+  <div class="kicker"><b>4</b>Ships</div>
+  <h2>Built from <span class="grad">segments</span></h2>
+  <p class="lead">A ship is 1 to <b id="segMax">7</b> joined hexes called <b>segments</b>. Each segment has <b>3 bays</b> (inside: the core, engines, sensors…) and <b>3 mounts</b> (outside: shields, armour, guns). A segment costs <b>3</b> points on top of its parts. Every segment after the first needs a <b>coupling</b> in one of its bays.</p>
+
+  <div class="grid g2" style="align-items:start;margin-bottom:22px">
+    <div class="card glow" style="--c:var(--orange)">
+      <h3>Core vs periphery</h3>
+      <p>When a segment takes a hit, the damage goes to the working part with the <b>lowest layer number</b> first. So the periphery protects the core: shields take hits before armour, armour before guns, guns before the bays, and the core last of all.</p>
+      <div class="onion" id="onion"></div>
+      <p class="src" style="margin-top:10px">world › bay_parts / mount_parts › layer · damage.each_hit</p>
+    </div>
+    <div class="card">
+      <h3>Anatomy of one segment</h3>
+      <svg id="anatomy" class="hexsvg" viewBox="0 0 420 300" role="img" aria-label="One segment: three bay slots inside the hex, three mount slots on its outside edges"></svg>
+      <p style="font-size:14px">Bays sit <b>inside</b> the hull and mounts sit <b>outside</b>. A part placed in the wrong kind of slot is rejected when the fleet is loaded.</p>
+    </div>
+  </div>
+
+  <h3>The parts catalogue</h3>
+  <div class="tbl" style="margin-bottom:10px"><table id="partsTable"></table></div>
+  <p class="src">rules/world_v0.4.yaml › bay_parts, mount_parts</p>
+
+  <div class="grid g3" style="margin:24px 0">
+    <div class="card" style="--c:var(--cyan)"><h3>🔭 Seeing</h3><p><b>Sensor range</b> = 2 from the core + 2 per working sensor. <b>Signature</b> = number of segments − 1 per working stealth part, never below ⌈segments ÷ 3⌉. A big ship is easy to spot.</p></div>
+    <div class="card" style="--c:var(--lime)"><h3>🚀 Moving</h3><p>Each working engine adds <b>1 thrust</b> to a <b>pool shared by the whole fleet</b>. Moving a ship 1 hex costs 1 thrust <b>per segment</b> of that ship, so big hulls are slow.</p></div>
+    <div class="card" style="--c:var(--neon)"><h3>⚔️ Fighting</h3><p>Lasers fire instantly in a straight line. Launchers fire missiles and drones stored in magazines (3 per magazine). Point defence shoots down incoming munitions. Shields and armour soak hits.</p></div>
+  </div>
+
+  <h3 id="builder">🛠️ Ship explorer and builder</h3>
+  <p>Pick a real ship from the fleets file or the campaign, then click a segment to inspect it. Add and remove parts to see how cost, sensor range, signature and thrust change. The validator checks the same rules as <code>engine/rules.js</code>: slot limits, one core, enough couplings and magazine room.</p>
+  <div class="explorer card">
+    <div>
+      <div class="row" style="margin-bottom:8px"><label for="shipPick" class="src" style="margin:0">ship</label><select id="shipPick" aria-label="Choose a ship"></select><button class="ghost" id="resetShip">Reset</button></div>
+      <svg id="shipSvg" class="hexsvg" role="img" aria-label="Selected ship drawn on hexes with its parts"></svg>
+      <div class="legend"><span><span class="sw" style="background:#e6f6ff"></span>core</span><span><span class="sw" style="background:#2fe0b0"></span>engine</span><span><span class="sw" style="background:#7fd8f0"></span>sensor</span><span><span class="sw" style="background:#5ff7ff"></span>laser</span><span><span class="sw" style="background:#9fe8ff"></span>shield</span><span><span class="sw" style="background:linear-gradient(90deg,#ff5fc8,#9b6bff)"></span>Weave ships</span><span>hexagon cells = bays · rhombus tips = mounts</span></div>
+    </div>
+    <div>
+      <div class="stats" id="shipStats"></div>
+      <ul class="problems" id="shipProblems"></ul>
+      <div class="seginfo card" style="padding:12px;margin-top:10px" id="segInfo"></div>
+      <h4 style="margin-top:14px">Add to the selected segment</h4>
+      <div class="palette" id="palette"></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px">Design rules of thumb</h3>
+  <div class="grid g3">
+    <div class="card"><h4>Fleet budget</h4><p>A skirmish fleet costs at most <b id="budget">200</b> points, counting segments, parts and loaded munitions. Each fleet needs exactly <b>one flagship</b>.</p></div>
+    <div class="card"><h4>Speed vs bulk</h4><p>The pool is shared. A 7-segment flagship eats 7 thrust per hex, so a small engine-heavy ship can carry the pool for the fleet while the big one crawls.</p></div>
+    <div class="card"><h4>Thrust limits</h4><p>Each turn the fleet must average at least <code>needs_average_of</code> (0) hexes, and no ship may go more than <code>max_above_average</code> (1) above the average. Thrust can be banked for <code>bank_turns</code> (2) turns.</p></div>
+  </div>
+  <div class="callout" style="margin-top:16px"><b>Examples from the rules file:</b> <span id="moveEx"></span></div>
+</section>
+
+<!-- FLEETS -->
+<section class="sec" id="fleets" style="--c:var(--violet);--c2:var(--cyan)">
+  <div class="kicker"><b>5</b>Sample ships and fleets</div>
+  <h2>Ships of the <span class="grad">Channels</span></h2>
+  <p class="lead">Every stat below is calculated from the hull lists in the YAML: segments, sensor (2 + 2 per sensor), signature (segments − stealth, floor ⌈n/3⌉), thrust (engines) and cost (3 per segment + parts + munitions). Tap a card to open it in the builder.</p>
+  <h3>Skirmish fleet <span class="tag">rules/fleets_v0.4.yaml</span></h3>
+  <div class="grid g2" id="fleetCards" style="margin-bottom:28px"></div>
+  <h3>Campaign hulls <span class="tag beta">beta/campaign/ships.yaml</span></h3>
+  <div class="row" style="margin-bottom:12px" id="hullFilter"></div>
+  <div class="grid g4" id="hullCards"></div>
+</section>
+
+<!-- COMBAT -->
+<section class="sec" id="combat" style="--c:var(--cyan);--c2:var(--mint)">
+  <div class="kicker"><b>6</b>Combat</div>
+  <h2>Find them. <span class="grad">Hit them first.</span></h2>
+  <p class="lead">A fight runs on information. You can only shoot what your fleet's network can see, and every shot makes you easier to see. Press play to watch one exchange from contact to a lost segment, or step through it.</p>
+  <div class="stage" id="combatStage">
+    <svg id="combatSvg" viewBox="0 0 900 590" role="img" aria-label="Animated combat walkthrough"></svg>
+    <div class="caption" id="combatCap" aria-live="polite"></div>
+  </div>
+  <div class="ctl">
+    <button id="cPlay" aria-label="Play">▶ Play</button><button id="cPrev" class="ghost" aria-label="Previous step">⏮ Step back</button><button id="cNext" class="ghost" aria-label="Next step">Step ⏭</button>
+    <div class="tl" aria-hidden="true"><i id="cBar"></i></div><span class="src" id="cStep" style="margin:0"></span>
+  </div>
+  <div class="steps" id="cSteps"></div>
+
+  <div class="grid g2" style="margin-top:26px">
+    <div class="card" style="--c:var(--cyan)"><h3>🛰️ Detection</h3>
+      <p><b>You see a target when</b> distance ≤ your sensor range + its signature + its flare.</p>
+      <ul>
+        <li><b>Flare</b> is a flash from what a ship just did: <span id="flareList"></span>.</li>
+        <li>+1 signature after a big move (2 hexes or more). −2 inside a nebula, where sensors also drop by 3.</li>
+        <li><b>Fuzzy contacts:</b> just outside that range (+<span class="mono">3</span>) you get a blurred circle of radius 2, not an exact hex.</li>
+        <li>Small objects (missiles, drones) have signature 1. Mines have −6, so they're nearly invisible.</li>
+        <li>A drone detonation lights up everything within 4.</li>
+      </ul>
+      <p class="src">world › detection · engine/detect.js</p></div>
+    <div class="card" style="--c:var(--teal)"><h3>📡 Scans and comms</h3>
+      <p><b>Scan</b> (1 CP, once per ship per turn, only after it has moved): everything in the clear ring is fully revealed until the end of next round, and the faint ring gives fuzzy contacts. The rings grow the further forward the ship is:</p>
+      <table><tr><th>Tier</th><th>From</th><th>Clear / faint</th></tr><tr><td>near home</td><td>row 0</td><td>2 / 4</td></tr><tr><td>mid-field</td><td>home depth + 2 rows</td><td>4 / 7</td></tr><tr><td>centre line and beyond</td><td>R rows</td><td>6 / 10</td></tr></table>
+      <p style="margin-top:10px">Scanning flares the ship by 2. <b>Comms:</b> two ships are linked when they're within the longer of their two link ranges (core 4, comms part 12). Links chain into a network, and any ship can fire at or lock onto whatever its network sees.</p>
+      <p class="src">engine/scan.js › scanSteps · world › comms</p></div>
+    <div class="card" style="--c:var(--lime)"><h3>🚀 Movement and thrust</h3>
+      <p>One pool for the whole fleet: 1 thrust per working engine, plus whatever is banked. Moving costs 1 thrust per segment per hex. Asteroids block, and a move refuses paths through things you know about. If you bump into something you couldn't see, both are revealed and the move stops there.</p>
+      <p class="src">engine/actions.js › thrust, move</p></div>
+    <div class="card" style="--c:var(--neon)"><h3>🔴 Lasers</h3>
+      <p><b><span id="lzHits">2</span> hits</b> out to range <b>8</b>, losing 1 hit every 4 hexes (2 hits at 1–4, 1 hit at 5–8). The beam is instant and straight. It needs a clear line (asteroids block it) and stops at the <b>first thing it meets</b>, even something the shooter couldn't see. Each weapon fires once a turn. Anyone who can see the shooter sees the beam, and a hit flares the shooter by 3.</p>
+      <p class="src">world › mount_parts.laser · engine/actions.js › fire</p></div>
+    <div class="card" style="--c:var(--orange)"><h3>💥 Missiles, drones, mines</h3>
+      <div class="tbl"><table id="munTable"></table></div>
+      <p style="margin-top:10px;font-size:14px">A missile can launch <b>locked</b> onto a target your network sees. Its seeker keeps the lock while it (seeker range + target signature) or the launcher's network still sees the target. Otherwise it flies its route and grabs the nearest enemy its seeker can find. A route can't be longer than speed × fuel. Drones patrol at random, report what they see, and can be detonated remotely (1 CP). Mines are placed at setup only, up to 6 per player. Fuel burns down at the end of each round.</p>
+      <p class="src">world › munitions · engine/flight.js · actions.js › launch, detonate</p></div>
+    <div class="card" style="--c:var(--violet)"><h3>🛡️ Damage, shields, wrecks</h3>
+      <ol style="padding-left:18px;margin-top:0">
+        <li>Look at the working parts in the segment that was hit.</li>
+        <li>Take the ones with the lowest layer number.</li>
+        <li>One of them, picked at random, loses 1 hp.</li>
+        <li>A hit that finds nothing left wrecks the segment.</li>
+      </ol>
+      <p>A <b>wrecked segment</b> stays attached, still weighs the ship down, and lets shots pass through. Shields (hp 1) soak the first hit on their segment each round, then come back. Armour (hp 2) doesn't come back. Point defence stops 1 enemy missile or drone per round and flares the defender by 2. <b>Friendly fire is on</b>, but your own munitions pass through your own ships. Beams don't pass through your own munitions.</p>
+      <p class="src">world › damage · engine/damage.js</p></div>
+  </div>
+
+  <h3 style="margin-top:28px">⚡ Combat v2: beta and campaign <span class="tag beta">beta/rules · campaign-engine 960a0f7</span></h3>
+  <p>The beta build runs faster fights. These changes are live in <code>/beta/</code> and the story campaign, not yet in main's <code>rules/</code>.</p>
+  <div class="grid g3" id="v2Cards"></div>
+</section>
+
+<!-- MAPS -->
+<section class="sec" id="maps" style="--c:var(--teal);--c2:var(--lime)">
+  <div class="kicker"><b>7</b>Maps</div>
+  <h2>Every board, <span class="grad">drawn from its YAML</span></h2>
+  <p class="lead">Terrain is expanded the same way the engine does it. Blue is Player 1 / humans (south) and pink is Player 2 / the Weave (north). Ships are drawn at their deployment hexes; ◆ marks a mine and ◎ the beacon.</p>
+  <div class="legend" style="margin-bottom:16px"><span><span class="sw" style="background:#3a4658"></span>asteroid</span><span><span class="sw" style="background:rgba(25,150,150,.5)"></span>nebula</span><span><span class="sw" style="background:rgba(79,184,255,.35)"></span>P1 zone</span><span><span class="sw" style="background:rgba(255,95,200,.35)"></span>P2 zone</span><span><span class="sw" style="background:var(--neon)"></span>beacon</span></div>
+  <div class="maps" id="mapGrid"></div>
+  <div class="card" style="margin-top:20px"><h3>🎯 The Beacon objective</h3><p id="beaconTxt"></p><p class="src">rules/map_beacon_story.yaml › objective · engine/rules.js › readObjective</p></div>
+</section>
+
+<!-- WORLD -->
+<section class="sec" id="world" style="--c:var(--gold);--c2:var(--magenta)">
+  <div class="kicker"><b>8</b>World map and campaign</div>
+  <h2>The <span class="grad">Channels</span></h2>
+  <p class="lead">The Channels are frontier lanes threaded between asteroid belts and nebula banks. Two maps describe them: the repo's <b>story campaign</b> (in beta, so this is the version that plays), and a <b>design draft</b> of a skirmish-tutorial overlay that isn't loaded by the engine yet.</p>
+  <div class="grid g2" style="align-items:start">
+    <div class="card glow" style="--c:var(--gold)"><h3>Story campaign: <i>Shatkon: The Weave</i> <span class="tag ok">in beta</span></h3><svg id="campSvg" class="hexsvg" viewBox="0 0 520 560" role="img" aria-label="Campaign chapter graph"></svg><p class="src">beta/campaign/campaign.yaml › nodes</p><div id="campRewards"></div></div>
+    <div class="card glow" style="--c:var(--violet)"><h3>The Shatkon Channels <span class="tag prop">design draft</span></h3><svg id="wmSvg" class="hexsvg" viewBox="0 0 520 620" role="img" aria-label="Draft sector and channel graph"></svg><p style="font-size:14px">8 sectors, a five-step tutorial spine, then a branch. The five tutorial channels are <b>proposed</b>: their map and fleet files haven't been written. The three ready nodes reuse existing maps.</p><p class="src">campaign_world_map.yaml (local draft, not in rules/index.yaml)</p></div>
+  </div>
+  <h3 style="margin-top:28px">How a chapter runs</h3>
+  <div class="grid g4" id="chapterMech"></div>
+</section>
+
+<!-- STORY -->
+<section class="sec story" id="story">
+  <div class="kicker" style="--c:var(--enemy)"><b>9</b>The story</div>
+  <h2>Shatkon: <span class="grad">The Weave</span></h2>
+  <p class="lead">The survey cutter <b>Kestrel</b> is flying home to Meridian Station when something on no registry starts <i>counting</i> at it. The Weave builds ships out of cells, and it learns from every fight.</p>
+  <div class="teaser" id="teaser" aria-label="Animated cutscene teaser">
+    <div class="bg" id="tBg"></div>
+    <div class="por l" id="tPL"><img alt="" id="tPLi"></div><div class="por r" id="tPR"><img alt="" id="tPRi"></div>
+    <div class="box" id="tBox" aria-live="polite"><div class="nm" id="tNm"></div><div class="ln" id="tLn"></div></div>
+    <div class="title" id="tTitle"><div><div class="kicker" style="--c:var(--gold)">teaser</div><h3 class="grad" style="--c:#ffd6f2;--c2:var(--enemy)">THE WEAVE</h3><p><button id="tGo">▶ Play teaser</button></p></div></div>
+    <div class="ctl2"><button id="tPause" aria-label="Pause teaser">❚❚</button><button id="tSkip" aria-label="Next line">⏭</button></div>
+  </div>
+  <div class="row" style="margin:22px 0 4px;justify-content:space-between">
+    <h3 style="margin:0">Chapter timeline</h3>
+    <button id="spoilBtn" aria-pressed="false">🙈 Show spoilers</button>
+  </div>
+  <p class="src">Story beats are blurred until you turn spoilers on. Each chapter's art fades in as you scroll.</p>
+  <div class="timeline" id="timeline"></div>
+  <h3 style="margin-top:20px">The cast</h3>
+  <div class="cast" id="cast"></div>
+</section>
+
+<!-- DESIGN GUIDES -->
+<section class="sec" id="design" style="--c:var(--cyan);--c2:var(--violet)">
+  <div class="kicker"><b>10</b>Design guides</div>
+  <h2>Make your own: <span class="grad">maps, ships, chapters, scenes</span></h2>
+  <p class="lead">Everything in Shatkon is data. These are the formats the engine and the story player read, with checklists the existing content already follows.</p>
+  <div id="guides"></div>
+</section>
+
+<!-- GLOSSARY -->
+<section class="sec" id="glossary" style="--c:var(--lime);--c2:var(--cyan)">
+  <div class="kicker"><b>11</b>Glossary</div>
+  <h2>Words of the <span class="grad">trade</span></h2>
+  <dl class="gloss" id="gloss"></dl>
+</section>
+
+<!-- ROADMAP -->
+<section class="sec" id="roadmap" style="--c:var(--magenta);--c2:var(--gold)">
+  <div class="kicker"><b>12</b>Roadmap and open questions</div>
+  <h2>What's <span class="grad">next</span></h2>
+  <div class="grid g3" id="roadmapCards"></div>
+</section>
