@@ -34,7 +34,7 @@ let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
 let pendingFx = null;             // animations held back until the curtain lifts
 let ledgerOpen = false, sfxOn = true, actx = null;
-let shipStyle = 'schematic', haveModels = false;   // how ships are drawn: 'schematic' (parts and slots) or 'model' (art, where a ship has some)
+let shipStyle = 'hull', haveModels = false;   // how ships are drawn: 'hull' (ui/ships.js), 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
 const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
@@ -230,7 +230,7 @@ function fxTick(now) {
   fxRaf = fxList.length ? requestAnimationFrame(fxTick) : 0;
   if (!fxRaf) x.clearRect(0, 0, cw, ch);
 }
-const colOf = (p) => (p === 0 ? '#f5b942' : '#5cc8ff');
+const colOf = (p) => (p === 0 ? '#7fd8f0' : '#ff8bd8');   // team colours (ui/ships.js TEAM)
 const ownerOfId = (id) => Number(String(id)[0]) - 1;
 function beamFx(from, to, col, delay) {
   fx(
@@ -1346,7 +1346,7 @@ export function render() {
   const styleBtn = (val, label, on) => h('button', { 'aria-pressed': String(shipStyle === val), disabled: !on, onclick: () => { shipStyle = val; store.set('shatkon.ships', val); render(); } }, label);
   const artCount = v.ships.filter((x) => modelFor(x.name, x.segs.map((sg) => sg.off))).length;
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Display'),
-    h('div', { class: 'row', style: 'align-items:center' }, h('span', null, 'Ships drawn as'), h('div', { class: 'seg', role: 'group', 'aria-label': 'How ships are drawn' }, styleBtn('schematic', 'Schematic', true), styleBtn('model', 'Models', haveModels))),
+    h('div', { class: 'row', style: 'align-items:center' }, h('span', null, 'Ships drawn as'), h('div', { class: 'seg', role: 'group', 'aria-label': 'How ships are drawn' }, styleBtn('hull', 'Ships', true), styleBtn('schematic', 'Schematic', true), styleBtn('model', 'Models', haveModels))),
     h('p', { class: 'muted' }, 'Schematic shows every part in its slot. Models draws a ship\u2019s art where it has some and the schematic where it does not'
       + (haveModels ? ' (' + artCount + ' of ' + plural(v.ships.length, 'ship') + ' on this board have art).' : ' (no art pack was found).') + ' A ship\u2019s parts are always listed in its panel.')));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Key'),
@@ -1457,7 +1457,7 @@ function initExtras() {
   if (savedSeat === '0' || savedSeat === '1') seat = Number(savedSeat);
   else if (savedSeat === 'all' || savedSeat === 'pass' || savedSeat === 'cpu') seat = savedSeat;
   sfxOn = store.get('shatkon.sfx') !== '0';
-  shipStyle = store.get('shatkon.ships') === 'model' ? 'model' : 'schematic';
+  { const st = store.get('shatkon.ships'); shipStyle = st === 'model' || st === 'schematic' ? st : 'hull'; }
   // ship art: any pack in the story/ships.json format (see ui/board.js). Without one, ships stay schematic.
   try { const r = await fetch('story/ships.json'); if (r.ok) { setModels(await r.json()); haveModels = true; } } catch (e) {}
   if (!haveModels) shipStyle = 'schematic';
