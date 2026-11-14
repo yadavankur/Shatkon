@@ -1,0 +1,16 @@
+{
+  "bg": "#040812",
+  "bg2": "#08111f",
+  "ice": "#cfe8ff",
+  "cyan": "#7fd8f0",
+  "mint": "#2fe0b0",
+  "blue": "#4a8cff",
+  "teal": "#19c3b3",
+  "neon": "#5ff7ff",
+  "purple": "#9b6bff",
+  "pink": "#ff5fc8",
+  "amber": "#d9a441",
+  "text": "#dcecff",
+  "muted": "#7f93ad",
+  "notes": "Base near-black navy; teal/blue primary; neon only as hints; enemy purple/pink; muted amber for warnings only."
+}

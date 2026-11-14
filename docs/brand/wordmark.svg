@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -28 365.8 56"><title>SHATKON wordmark</title>
+<!-- Geometric wordmark: strokes at 0, 30, 60 and 90 degrees only (square, hexagon and rhombus angles). The O is the hexagon. -->
+<defs><linearGradient id="w" x1="0" y1="0" x2="353.76319313961056" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#cfe8ff"/><stop offset=".55" stop-color="#7fd8f0"/><stop offset="1" stop-color="#2fe0b0"/></linearGradient></defs>
+<path d="M34.64 -10L17.32 -20L0 -10L34.64 10L17.32 20L0 10M55.64 -20L55.64 20M83.64 -20L83.64 20M55.64 0L83.64 0M104.64 20L104.64 -10L121.96 -20L139.28 -10L139.28 20M104.64 3L139.28 3M160.28 -20L194.92 -20M177.6 -20L177.6 20M215.92 -20L215.92 20M250.56 -20L215.92 0L250.56 20M290.62 -22L309.67 -11L309.67 11L290.62 22L271.56 11L271.56 -11L290.62 -22M330.67 20L330.67 -20L353.76 20L353.76 -20" fill="none" stroke="url(#w)" stroke-width="3.4" stroke-linecap="square" stroke-linejoin="miter"/>
+<circle cx="215.9" cy="0.0" r="3.2" fill="#5ff7ff"/><circle cx="290.6" cy="0.0" r="3.2" fill="#5ff7ff"/>
+</svg>

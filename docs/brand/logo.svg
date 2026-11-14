@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-115 -115 230 230"><title>SHATKON mark (corrected from the original logo)</title>
+<!-- Corrected from the original logo: those two lines stop at the star points, giving clean 120 degree rotational symmetry. 21 lines, 12 cells. -->
+<defs>
+  <linearGradient id="cs" x1="-80" y1="-100" x2="80" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#cfe8ff"/><stop offset=".5" stop-color="#7fd8f0"/><stop offset="1" stop-color="#2fe0b0"/></linearGradient>
+  <radialGradient id="cn"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#5ff7ff"/><stop offset="1" stop-color="#5ff7ff" stop-opacity="0"/></radialGradient>
+  <filter id="cglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<path d="M0 -100L86.6 -50M86.6 -50L86.6 50M86.6 50L0 100M0 100L-86.6 50M-86.6 50L-86.6 -50M-86.6 -50L0 -100M0 -40L51.96 -70M0 -40L-51.96 -70M34.64 20L34.64 80M34.64 20L86.6 -10M-34.64 20L-86.6 -10M-34.64 20L-34.64 80M0 -40L0 40M34.64 -20L-34.64 20M34.64 20L-34.64 -20M34.64 -60L34.64 -20M34.64 -20L69.28 0M34.64 60L0 40M0 40L-34.64 60M-69.28 0L-34.64 -20M-34.64 -20L-34.64 -60" fill="none" stroke="url(#cs)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#cglow)"/>
+<circle cx="0" cy="0" r="9" fill="url(#cn)"/>
+</svg>

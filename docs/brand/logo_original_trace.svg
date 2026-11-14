@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-115 -115 230 230"><title>SHATKON mark: faithful trace of the original logo (flaw included)</title>
+<!-- Traced from brand/src/logo_original.jpg. Faithful, including the flaw: the two lines from the bottom inner node run on to the outer edge and cut two small triangles. The original's slight vertical stretch is normalised to a regular hexagon. -->
+<defs>
+  <linearGradient id="ts" x1="-80" y1="-100" x2="80" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#cfe8ff"/><stop offset=".5" stop-color="#7fd8f0"/><stop offset="1" stop-color="#2fe0b0"/></linearGradient>
+  <radialGradient id="tn"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#5ff7ff"/><stop offset="1" stop-color="#5ff7ff" stop-opacity="0"/></radialGradient>
+  <filter id="tglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<path d="M0 -100L86.6 -50M86.6 -50L86.6 50M86.6 50L0 100M0 100L-86.6 50M-86.6 50L-86.6 -50M-86.6 -50L0 -100M0 -40L51.96 -70M0 -40L-51.96 -70M34.64 20L34.64 80M34.64 20L86.6 -10M-34.64 20L-86.6 -10M-34.64 20L-34.64 80M0 -40L0 40M34.64 -20L-34.64 20M34.64 20L-34.64 -20M34.64 -60L34.64 -20M34.64 -20L69.28 0M34.64 60L0 40M0 40L-34.64 60M-69.28 0L-34.64 -20M-34.64 -20L-34.64 -60M34.64 60L51.96 70M-34.64 60L-51.96 70" fill="none" stroke="url(#ts)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#tglow)"/>
+<circle cx="0" cy="0" r="9" fill="url(#tn)"/><circle cx="2.4492935982947065e-15" cy="40" r="6" fill="url(#tn)"/>
+</svg>
