@@ -814,7 +814,12 @@ function labDesigner(side) {
     svg.appendChild(g);
   }
   // the ship as it flies: rebuilt from its modules on every change, so fitting a part shows at once
-  let preview = svgEl('svg', { viewBox: [-W * 2.9, -S * 4.1, W * 5.8, S * 8.2].join(' '), class: 'lab-hull lab-preview', role: 'img', 'aria-label': 'Ship ' + side.toUpperCase() + ' as it looks in play' });
+  // fitted to the ship (plus room for the plumes behind it), so a small hull still fills the frame
+  const pv = des.hull.length ? des.hull.map((sg) => px(sg.at)) : [[0, 0]];
+  const pvx0 = Math.min(...pv.map((p) => p[0])) - S * 1.25, pvx1 = Math.max(...pv.map((p) => p[0])) + S * 1.25;
+  const pvy0 = Math.min(...pv.map((p) => p[1])) - S * 1.3, pvy1 = Math.max(...pv.map((p) => p[1])) + S * 2.4;
+  const pvw = Math.max(pvx1 - pvx0, (pvy1 - pvy0) * 0.75), pvcx = (pvx0 + pvx1) / 2;
+  let preview = svgEl('svg', { viewBox: [pvcx - pvw / 2, pvy0, pvw, pvy1 - pvy0].map((n) => Math.round(n * 10) / 10).join(' '), class: 'lab-hull lab-preview', role: 'img', 'aria-label': 'Ship ' + side.toUpperCase() + ' as it looks in play' });
   preview.appendChild(shipDefs());
   preview.appendChild(frigateDefs());
   try {

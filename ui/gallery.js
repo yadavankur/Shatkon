@@ -104,16 +104,16 @@ async function main() {
   };
   const put = (list, kind, part) => (hull, ix) => { for (const i of ix[list].slice(0, kind)) { const x = hull[i], slot = parts[part] && world.mount_parts && world.mount_parts[part] ? x.mounts : x.bays; if (slot.length < 3) slot.push(part); } };
   const seq = (...fs) => (hull, ix) => fs.forEach((f) => f(hull, ix));
-  evo(SHAPES.find((x) => x.id === 'lance'), [
+  evo(SHAPES.find((x) => x.id === 'wedge'), [
     ['bare hull', () => {}],
-    ['+ engines', seq(put('rear', 2, 'engine'), put('rear', 2, 'engine'))],
+    ['+ engines', seq(put('rear', 3, 'engine'), put('rear', 3, 'engine'))],
     ['+ lasers', put('front', 2, 'laser')],
     ['+ sensor', put('front', 1, 'sensor')],
-    ['+ armour', seq(put('front', 4, 'armour'), put('rear', 2, 'armour'))],
+    ['+ armour', seq(put('front', 4, 'armour'), put('rear', 3, 'armour'))],
     ['+ shields', put('rear', 2, 'shield')],
     ['+ missiles', seq(put('front', 1, 'magazine'), put('rear', 1, 'launcher'))],
     ['+ comms, PD', seq(put('rear', 1, 'comms'), put('front', 1, 'point_defence'))],
-  ], 'Module evolution · Lance');
+  ], 'Module evolution · Wedge (winged cruiser)');
   evo(SHAPES.find((x) => x.id === 'skiff'), [
     ['core only', () => {}], ['+ engine', put('rear', 1, 'engine')], ['+ 2nd engine', put('rear', 1, 'engine')], ['+ laser', put('rear', 1, 'laser')], ['+ armour', put('rear', 1, 'armour')], ['+ shield', put('rear', 1, 'shield')],
   ], 'Module evolution · Skiff');

@@ -137,7 +137,7 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .lab-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px}
 .lab-two{display:grid;grid-template-columns:minmax(150px,1fr) 1.3fr;gap:10px;align-items:start}
 .lab-hull{width:100%;max-width:260px;display:block;margin:auto}
-.lab-preview{max-width:220px;background:radial-gradient(circle,rgba(25,195,179,.08),transparent 70%)}
+.lab-preview{width:100%;max-width:360px;min-height:220px;max-height:420px;display:block;margin:0 auto;background:radial-gradient(circle,rgba(25,195,179,.08),transparent 70%)}
 .lab-cap{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:4px}
 .blink{animation:blink 2.2s steps(2,end) infinite}@keyframes blink{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}}
@@ -197,7 +197,7 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .curtain-box .big{font-size:22px;font-weight:700;color:var(--me);margin-bottom:6px}
 .curtain-box .btn{margin-top:10px;text-align:center}
 #fx{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
-#toast{position:absolute;left:50%;top:64px;transform:translate(-50%,-30px);opacity:0;pointer-events:none;z-index:4;padding:8px 18px;border-radius:999px;background:rgba(6,10,20,.92);border:1px solid var(--line);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:14px;white-space:nowrap}
+#toast{position:absolute;left:50%;top:40%;transform:translate(-50%,-30px);opacity:0;pointer-events:none;z-index:4;padding:8px 18px;border-radius:999px;background:rgba(6,10,20,.92);border:1px solid var(--line);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:14px;white-space:nowrap}
 #toast.show{animation:toast 1.9s ease-out both}
 #toast.p0{color:var(--p0);border-color:var(--p0)} #toast.p1{color:var(--p1);border-color:var(--p1)} #toast.flight{color:#ff9d4d;border-color:#ff9d4d} #toast.over{color:var(--good);border-color:var(--good);font-size:20px}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,-30px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-10px)}}
