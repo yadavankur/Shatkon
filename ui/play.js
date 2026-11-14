@@ -3,7 +3,7 @@
 
 import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
-import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1 } from './board.js';
+import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { initStory, openCampaign, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
@@ -34,6 +34,8 @@ let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
 let pendingFx = null;             // animations held back until the curtain lifts
 let ledgerOpen = false, sfxOn = true, actx = null;
+let shipStyle = 'schematic', haveModels = false;   // how ships are drawn: 'schematic' (parts and slots) or 'model' (art, where a ship has some)
+let drawerOpen = false, drawerSeen = '', detailsOpen = false;
 const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 
@@ -71,11 +73,20 @@ const turnOf = () => game.order[game.turn];
 const myTurn = () => game && game.phase === 'play' && (seat === 'all' || seat === 'pass' || (seat === 'cpu' ? turnOf() === 0 : turnOf() === seat));
 const isCodes = () => seat === 0 || seat === 1;
 const aiTurn = () => seat === 'cpu' && game && game.phase === 'play' && turnOf() === 1;
+// A ship the player can give orders to right now. Story chapters fly some ships themselves
+// (helm: script) or lock them; those take no orders, so tapping them opens no panel.
+function canCommand(x, v) {
+  if (!x || !x.mine || !myTurn() || curtainUp()) return false;
+  return !(v.story && (v.story.locked.includes(x.name) || (v.story.auto || []).includes(x.name)));
+}
+const pretty = (n) => String(n || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+// what to call a ship: its name in a story chapter, its name or id otherwise
+const shipName = (x) => (x && x.name ? (game && game.rules.campaign ? pretty(x.name) : x.name) : x ? x.id : '');
 function curtainUp() {
   return curtain !== null && seat === 'pass';
 }
 function selZoom() {
-  return $('#wrap').clientWidth > 600 ? 8 : 6;
+  return $('#wrap').clientWidth > 600 ? 9 : 6;
 }
 // smooth camera moves: render at the target camera, then tween the SVG viewBox
 let camTw = 0;
@@ -160,6 +171,7 @@ function undo() {
   if (!undoStack.length || !myTurn()) return;
   game = undoStack.pop();
   pending = null;
+  moveAnims = [];
   say('Undone.');
   save();
   render();
@@ -379,17 +391,82 @@ function pingFx(at, label, col, delay) {
   ringFx(at, col, 1.6, 1e3, (delay || 0) + 300, 2);
   if (label) textFx(at, [label], col, delay);
 }
+// Ships glide from hex to hex. The board always draws the true position; while a move is being
+// shown, the ship's drawing is shifted back along the way it came and the shift shrinks to nothing.
+let moveAnims = [];   // { id, from: [q, r], to: [q, r], t0, dur }
+let animRaf = 0;
+function animPos(id, now) {
+  let last = null;
+  for (const a of moveAnims) {
+    if (a.id !== id) continue;
+    if (now < a.t0) return last ? last.to : a.from;
+    if (now < a.t0 + a.dur) { const k = (now - a.t0) / a.dur, e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; return [a.from[0] + (a.to[0] - a.from[0]) * e, a.from[1] + (a.to[1] - a.from[1]) * e]; }
+    last = a;
+  }
+  return null;
+}
+function shipOffset(id, pos) {
+  if (!moveAnims.length) return null;
+  const p = animPos(id, performance.now());
+  return p ? [X(p) - X(pos), Y(p) - Y(pos)] : null;
+}
+function animTick(now) {
+  animRaf = 0;
+  const wrap = $('#wrap'), live = new Set();
+  for (const a of moveAnims) if (now < a.t0 + a.dur) live.add(a.id);
+  for (const id of new Set(moveAnims.map((a) => a.id))) {
+    const g = wrap && wrap.querySelector('g[data-ship="' + id + '"]');
+    if (!g) continue;
+    const s0 = game && game.ships.find((z) => z.id === id), off = live.has(id) && s0 ? shipOffset(id, s0.pos) : null;
+    if (off) g.setAttribute('transform', 'translate(' + f1(off[0]) + ',' + f1(off[1]) + ')'); else g.removeAttribute('transform');
+  }
+  moveAnims = moveAnims.filter((a) => live.has(a.id));
+  if (moveAnims.length) animRaf = requestAnimationFrame(animTick);
+}
+function moveFx(r, delay) {
+  if (reduceMotion) return 0;
+  const dur = Math.min(950, 280 + 170 * r.steps);
+  moveAnims.push({ id: r.ship, from: r.from, to: r.to, t0: performance.now() + delay, dur });
+  if (!animRaf) animRaf = requestAnimationFrame(animTick);
+  return dur;
+}
+// the hurl: the ship is gone from the state, so its hexes are drawn flying into the target
+function ramFx(r, delay) {
+  if (!r.from || !r.from.length) return 0;
+  const near = r.from.reduce((a, c) => (hex.dist(c, r.at) < hex.dist(a, r.at) ? c : a), r.from[0]), col = colOf(ownerOfId(r.ship)), dur = reduceMotion ? 200 : 620;
+  fx(dur, (x, k) => {
+    const a = hexPx(near), b = hexPx(r.at);
+    if (!a || !b) return;
+    const e = k * k, dx = (b[0] - a[0]) * e, dy = (b[1] - a[1]) * e, rad = hexUnit() / Math.sqrt(3);
+    for (const c of r.from) {
+      const p = hexPx(c);
+      if (!p) continue;
+      x.beginPath();
+      for (let i = 0; i < 6; i++) { const an = (Math.PI / 180) * (60 * i - 30), px = p[0] + dx + rad * Math.cos(an), py = p[1] + dy + rad * Math.sin(an); if (i) x.lineTo(px, py); else x.moveTo(px, py); }
+      x.closePath();
+      x.fillStyle = col; x.globalAlpha = 0.9; x.fill();
+      x.strokeStyle = '#04070f'; x.lineWidth = 2; x.stroke();
+    }
+    // a streak behind it
+    x.globalAlpha = 0.5 * k; x.strokeStyle = '#ffd27a'; x.lineWidth = 3; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(a[0] + dx, a[1] + dy); x.stroke();
+  }, delay);
+  return dur;
+}
 // missiles and drones flying through the flight phase, tick by tick
 let fxBusyUntil = 0;
-function flightFx(frames, evs, viewer) {
+function flightFx(frames, evs, viewer, base = 0) {
   let step = 300,
     sees = (ship, k) => viewer === 'all' || ship.owner === viewer || (frames[k].vis[viewer] || []).includes(ship.id),
     total = step * (frames.length - 1),
     flying = frames.some((state, k) =>
       state.objs.some((o) => (game.rules.munitions[o.kind] || {}).speed && sees(o, k))
     );
-  if (!flying) return 0;
-  fxBusyUntil = performance.now() + total + 600;
+  if (!flying) {
+    for (let i = frames[0].ev; i < frames[frames.length - 1].ev; i++) if (evs[i]) eventFx(evs[i], viewer, base);
+    return 0;
+  }
+  fxBusyUntil = Math.max(fxBusyUntil, performance.now() + base + total + 600);
   fx(total + 250, (x, t, now) => {
     let el = t * (total + 250),
       k = Math.min(frames.length - 2, Math.floor(el / step)),
@@ -448,14 +525,14 @@ function flightFx(frames, evs, viewer) {
       x.stroke();
       x.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
     }
-  });
-  toast('Flight phase', 'flight');
+  }, base);
+  setTimeout(() => toast('Flight phase', 'flight'), base);
   for (let k = 0; k < frames.length - 1; k++)
     for (let i = frames[k].ev; i < frames[k + 1].ev; i++) {
       let r = evs[i];
-      if (r) eventFx(r, viewer, step * (k + 0.8));
+      if (r) eventFx(r, viewer, base + step * (k + 0.8));
     }
-  return total;
+  return total + 250;
 }
 function eventFx(r, viewer, delay) {
   if (!(viewer === 'all' || r.seenBy.includes(viewer))) return;
@@ -491,18 +568,29 @@ function eventFx(r, viewer, delay) {
   }
 }
 function playFx(evs, viewer, flight) {
-  let inFlight = new Set();
-  if (flight && flight.length > 1) {
-    for (let i = flight[0].ev; i < flight[flight.length - 1].ev; i++) inFlight.add(i);
-    flightFx(flight, evs, viewer);
-  }
-  let gotBoom = false;
+  const sees = (r) => viewer === 'all' || r.seenBy.includes(viewer);
+  const fl = flight && flight.length > 1 ? flight : null, f0 = fl ? fl[0].ev : -1, f1x = fl ? fl[fl.length - 1].ev : -1;
+  const scanned = evs.some((z) => z.t === 'scan');
+  let t = 0, flown = false;
   evs.forEach((r, i) => {
-    if (!inFlight.has(i)) {
-      if (r.t === 'destroyed') gotBoom = true;
-      eventFx(r, viewer, r.t === 'sighted' && evs.some((z) => z.t === 'scan') ? 900 : 0);
-    }
+    if (fl && !flown && i >= f0) { flown = true; t += flightFx(fl, evs, viewer, t); }
+    if (fl && i >= f0 && i < f1x) return;                    // shown by the flight replay
+    if (r.t === 'move' && r.steps > 0 && sees(r)) { const d = moveFx(r, t); if (d) t += d + 140; return; }
+    if (r.t === 'ram' && sees(r)) { t += ramFx(r, t); return; }   // the blast and the damage follow it
+    eventFx(r, viewer, t + (r.t === 'sighted' && scanned ? 900 : 0));
   });
+  if (fl && !flown) t += flightFx(fl, evs, viewer, t);
+  if (t > 0) fxBusyUntil = Math.max(fxBusyUntil, performance.now() + t + 250);
+  return t;
+}
+// Cutscenes wait for the animation that caused them (the missile lands, then the scene plays).
+let storyAt = 0, storyWait = 0;
+function storyLater(g, dur) {
+  const now = performance.now(), wants = g.events.some((e) => e.t === 'scene') || g.phase === 'over';
+  const at = Math.max(storyAt, now + (wants ? Math.min(dur || 0, 6000) : 0));
+  if (at <= now + 5 && !storyWait) return storyEvents(g);
+  storyAt = at; storyWait++;
+  setTimeout(() => { storyWait--; storyEvents(g); }, Math.max(0, at - now));
 }
 function toast(text, cls) {
   let t = $('#toast');
@@ -535,7 +623,7 @@ function anyAction() {
 function aiStep() {
   aiTimer = null;
   if (!aiTurn()) return;
-  if (storyBusy()) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing
+  if (storyBusy() || storyWait > 0) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing, or about to
   let a;
   try {
     a = aiSteps++ > 30 ? { type: 'end' } : (game.rules.campaign ? E.campaignMove(game, 1) : computerMove(game, 1, aiLevel)) || { type: 'end' };
@@ -552,7 +640,7 @@ export function newGame() {
   game = E.start(rules, (Date.now() % 2147483647) | 0);
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
-  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null;
+  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   say(seat === 'cpu'
     ? 'New game against the computer. You are Player 1 (gold, bottom). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
     : 'New game. Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.');
@@ -565,8 +653,8 @@ export function startStoryGame(chRules, title) {
   looks = partLooks(game.rules);
   seat = 'cpu';
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
-  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null;
-  say(title + '. Tap one of your ships to begin.');
+  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
+  say(title + '. Tap a ship with a white halo to give it orders.');
   save(); render();
   storyEvents(game);
 }
@@ -577,7 +665,6 @@ function act(action, quiet, byAI) {
   const r = E.attempt(game, action);
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
   game = r.state; pending = null;
-  if (game.rules.campaign) storyEvents(game);   // cutscenes, barks, objectives, chapter end
   const mine = game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost').map(describe);
   // an action can be undone only if it told the player nothing new
   if (!byAI && game.phase === 'play' && (action.type === 'move' || action.type === 'launch')
@@ -590,8 +677,9 @@ function act(action, quiet, byAI) {
     pendingFx = [game.events, turnOf(), game.flight];
     report = makeReport(game.events, turnOf());
   } else {
-    setTimeout(() => playFx(r.state.events, fxViewer, r.state.flight), 30);
+    const ran = playFx(game.events, fxViewer, game.flight);
     report = makeReport(game.events, fxViewer) || (byAI ? report : null);
+    if (game.rules.campaign) storyLater(game, ran);   // cutscenes, barks, objectives, chapter end
   }
   let msg = mine.join(' ');
   if (game.phase === 'over' && game.winner === 'draw' && !/draw/.test(msg)) msg += (msg ? ' ' : '') + 'The round limit was reached' + (game.rules.objective && game.rules.objective.scoreAtLimit ? ' with the beacon score tied' : '') + ', so the game is a draw.';
@@ -600,14 +688,15 @@ function act(action, quiet, byAI) {
     undoStack = [];
     if (seat === 'pass' && game.phase === 'play') curtain = turnOf();
     if (game.phase === 'over') curtain = null;
-    if (byAI) say(game.phase === 'over' ? msg : 'The computer ended its turn. Your move: check \u201cSince your last turn\u201d below.');
-    else if (!quiet) say(game.phase === 'over' ? msg : seat === 'pass' ? 'Turn ended. Pass the device to Player ' + (turnOf() + 1) + '.' : 'Turn ended.');
+    if (byAI) say(game.phase === 'over' ? msg : 'The computer ended its turn. Your move.' + (report ? ' Open \u2630 for the impact report.' : ''));
+    else if (!quiet) say(game.phase === 'over' ? msg : seat === 'pass' ? 'Turn ended. Pass the device to Player ' + (turnOf() + 1) + '.' : isCodes() ? 'Turn ended. Your turn code is in the panel on the right: send it to your opponent.' : 'Turn ended.');
+    if (isCodes() && game.phase === 'play') drawerOpen = true;
     if (byAI && game.phase === 'play') yourTurnPing();
     if (game.phase === 'play') {
       const next = turnOf();
       const text = seat === 'cpu' ? (next === 0 ? 'Your turn' : 'Computer\'s turn') : seat === 'pass' ? 'Pass to Player ' + (next + 1)
         : isCodes() ? (next === seat ? 'Your turn' : 'Send your turn code') : 'Player ' + (next + 1) + '\'s turn';
-      setTimeout(() => toast(text, 'p' + next), game.flight && game.flight.length > 1 ? 300 * game.flight.length + 300 : 50);   // after the flight animation
+      setTimeout(() => toast(text, 'p' + next), Math.max(50, fxBusyUntil - performance.now()));   // after the animations
     }
     if (game.phase === 'over') setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (game.winner === 0 ? 'Victory!' : 'Defeat') : 'Player ' + (game.winner + 1) + ' wins', 'over'), 600);
   } else if (byAI) {
@@ -636,6 +725,11 @@ function whyText(w) {
   return 'Your ' + w.by + ' sees it from ' + plural(w.d, 'hex') + ' away: sensor ' + w.range + ' + its signature ' + w.sig + (w.flare ? ' (which includes ' + w.flare + ' of flare from firing)' : '') + ' reaches ' + (w.range + w.sig) + '.';
 }
 function describe(e) {
+  if (game && game.rules.campaign) {     // story chapters talk about ships by name
+    const N = (id) => { const z = typeof id === 'string' && game.ships.find((q) => q.id === id); return z && z.name ? pretty(z.name) : id; };
+    e = { ...e, ship: e.t === 'ram' || e.t === 'removed' ? e.ship : N(e.ship), into: Array.isArray(e.into) ? e.into.map(N) : N(e.into), id: e.t === 'sighted' || e.t === 'lost' ? N(e.id) : e.id,
+      target: e.t === 'launch' ? N(e.target) : e.target, ships: Array.isArray(e.ships) ? e.ships.map(N) : e.ships };
+  }
   switch (e.t) {
     case 'move': return e.ship + ' moved ' + plural(e.steps, 'hex') + '.';
     case 'sighted': return 'Spotted ' + (e.kind === 'ship' ? 'enemy ship ' + e.id : 'a ' + nice(e.kind)) + ' at ' + at(e.at) + '. ' + whyText(e.why);
@@ -658,10 +752,10 @@ function describe(e) {
     case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
     case 'grafted': return e.name + ' and ' + e.other + ' are grafted into one ship.';
     case 'docked': return e.name + ' and ' + e.other + ' are clamped together.';
-    case 'removed': return e.ship + (e.as === 'dark' ? ' went dark and drifted away.' : ' withdrew.');
-    case 'locked': return (e.ship || 'Your ships') + ' stopped answering the helm.';
+    case 'removed': return pretty(e.name || e.ship) + (e.as === 'dark' ? ' went dark and drifted away.' : ' withdrew.');
+    case 'locked': return (e.ship ? pretty(e.ship) : 'Your ships') + ' stopped answering the helm.';
     case 'forced': return null;
-    case 'ram': return e.ship + ' hurled itself into ' + e.target + ': ' + e.hits + ' hits.';
+    case 'ram': return pretty(e.name || e.ship) + ' hurled itself into ' + pretty(e.targetName || e.target) + ': ' + e.hits + ' hits.';
     case 'disabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' went offline.';
     case 'enabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' back online.';
     case 'rule_changed': return /link_range/.test(e.path) ? 'Comms are jammed: your ships share less of what they see.' : null;
@@ -742,8 +836,14 @@ function tap(c, v, opts) {
   if (pending && pending.type !== 'move') return;
   pending = null;
   const ship = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
-  if (ship && ship.mine && myTurn()) selectShip(ship.id, v);
-  else if (ship) { look = ship.id; say(ship.mine ? 'Your ship ' + ship.id + '.' : 'Enemy ship ' + ship.id + '. ' + (ship.seen ? whyText(ship.why) : 'The player to move cannot see it.')); }
+  if (ship && canCommand(ship, v)) selectShip(ship.id, v);
+  else if (ship && ship.mine) {            // one of yours that takes no orders: no panel, just the reason
+    look = null;
+    const auto = v.story && (v.story.auto || []).includes(ship.name), held = v.story && v.story.locked.includes(ship.name);
+    say(auto ? shipName(ship) + ' is flying itself: its crew follow their own orders, so there is nothing for you to command. Ships with a white halo are yours.'
+      : held ? shipName(ship) + ' is not answering the helm.' : !myTurn() ? 'Your ship ' + shipName(ship) + '. It is not your turn.' : 'Your ship ' + shipName(ship) + '.');
+  }
+  else if (ship) { look = ship.id; say('Enemy ship ' + shipName(ship) + '. ' + (ship.seen ? whyText(ship.why) : 'The player to move cannot see it.')); }
   else {
     const obj = v.objs.find((x) => hex.same(x.pos, c)), gh = v.ghosts.find((x) => x.cells.some((y) => hex.same(y, c)));
     say(at(c) + (obj ? ': ' + (obj.mine ? 'your ' : 'enemy ') + nice(obj.kind) + (obj.fuel != null ? ', ' + plural(obj.fuel, 'round') + ' of fuel left' : '') + '.'
@@ -754,7 +854,7 @@ function tap(c, v, opts) {
 }
 
 // the move guide for whoever is looking at the board (story chapters only)
-let guideSeen = '';
+let guideSeen = '', guideTimer = 0;
 // overlay off switch (tests, or a player who wants only the banner): ?guides=off, or localStorage shatkon.guides = off
 function guidesOff() {
   try { return new URLSearchParams(location.search).get('guides') === 'off' || localStorage.getItem(KEYS('shatkon.guides')) === 'off'; } catch { return false; }
@@ -790,28 +890,35 @@ function guideTap(c, v, gv) {
 function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
-  say(id + ' selected. ' + (st.moveLeft > 0 ? 'Green markers show where its centre can move; the number is how many hexes that uses. Tap one to preview the move.' : 'It cannot move further this turn.'));
+  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Green markers show where its centre can move; the number is how many hexes that uses. Tap one to preview the move.' : 'It cannot move further this turn.'));
   frame(ship.cells.concat(E.reach(game, id).map((r) => r.at)), selZoom());   // zoom to the ship and where it can go
 }
 
 // ---------- camera ----------
+// How much of each edge of the board the floating controls cover, in screen pixels.
+function insets() {
+  const st = $('#stage'), w = st ? st.clientWidth : 0, h = st ? st.clientHeight : 0, wide = w >= 760, open = !!(sel || look);
+  const sheet = !wide && open ? Math.min(h * 0.46, ($('#ctx') && !$('#ctx').hidden && $('#ctx').offsetHeight) || 190) + 8 : 0;
+  return { t: 58, b: 62 + sheet, l: 0, r: wide && open ? 336 : wide ? 0 : 0 };
+}
 function fitWidth() {
-  const R = game.rules.board.radius, box = $('#wrap');
-  let aspect = box.clientHeight / Math.max(1, box.clientWidth);
-  if (!(aspect > 0) || !isFinite(aspect)) aspect = 1;      // the board is hidden (Lab tab)
-  return Math.max(W * (2 * R + 1) + 16, (S * (3 * R + 5) + 16) / aspect);
+  const R = game.rules.board.radius, box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = box.clientHeight;
+  if (!(bh > 0)) return W * (2 * R + 1) + 16;      // the board is hidden (Lab tab)
+  const free = Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear
+  return Math.max(W * (2 * R + 1) + 16, ((S * (3 * R + 2) + 16) * bw) / free);
 }
 export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); }
 function frame(cells, minHexes) {       // bring a set of hexes into view, with a short glide
-  const box = $('#wrap');
-  let aspect = box.clientHeight / Math.max(1, box.clientWidth);
-  if (!(aspect > 0) || !isFinite(aspect)) aspect = 1;
+  const box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = Math.max(1, box.clientHeight);
   if (!cells.length) return wholeMap();
   const xs = cells.map((c) => FL * W * (c[0] + c[1] / 2)), ys = cells.map((c) => FL * 1.5 * S * c[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const from = cam.w > 0 && isFinite(cam.w) && isFinite(cam.x) && isFinite(cam.y) ? { x: cam.x, y: cam.y, w: cam.w } : null;
-  cam.x = (x0 + x1) / 2; cam.y = (y0 + y1) / 2;
-  cam.w = Math.min(fitWidth(), Math.max(minHexes * W, x1 - x0 + 2.5 * W, (y1 - y0 + 4 * S) / aspect));
+  const I = insets(), aw = Math.max(140, bw - I.l - I.r), ah = Math.max(140, bh - I.t - I.b);
+  const perPx = Math.max((minHexes * W) / bw, (x1 - x0 + 2.5 * W) / aw, (y1 - y0 + 4 * S) / ah);     // board units per screen pixel
+  cam.w = Math.min(fitWidth(), perPx * bw);
+  const k = cam.w / bw;
+  cam.x = (x0 + x1) / 2 + (k * (I.r - I.l)) / 2; cam.y = (y0 + y1) / 2 + (k * (I.b - I.t)) / 2;       // centre it in the free part
   camTween(from);
 }
 function zoomBy(k) { cam.w = Math.max(4 * W, Math.min(fitWidth(), cam.w * k)); }
@@ -1013,6 +1120,28 @@ function shipCard(x, v) {
     h('div', { class: 'parts' }, sg.parts ? (sg.parts.length ? sg.parts.map((p) => h('span', { class: 'chip' + (p.hp <= 0 ? ' dead' : p.hp < p.max ? ' hurt' : '') }, h('i', { style: 'background:' + looks[p.t].color }), nice(p.t) + (p.max > 1 ? ' ' + p.hp + '/' + p.max : ''))) : h('span', { class: 'muted' }, 'empty')) : h('span', { class: 'muted' }, 'unknown: scan from close range to see inside'))));
   return h('div', { class: 'card who' + x.owner }, h('h2', { style: 'color:var(--me)' }, x.id + (x.name ? ' "' + x.name + '"' : '') + (x.flagship ? ' (flagship)' : '') + (x.mine ? '' : ' (enemy)')), lines.map((l) => h('p', null, l)), rows);
 }
+// The key numbers of a ship, as small chips for its panel.
+function statChips(x, v) {
+  const out = [], chip = (label, val, zero) => out.push(h('span', { class: 'stat' + (zero ? ' zero' : '') }, label + ' ', h('b', null, val)));
+  if (x.hull != null) chip('Hull', x.hull + '%', x.hull <= 30);
+  if (x.mine || seat === 'all') {
+    const st = canCommand(x, v) ? E.shipStatus(game, x.id) : null;
+    if (st) {
+      chip('Move', st.moveLeft, !st.moveLeft);
+      if (st.beams) chip('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady);
+      for (const [k, n] of Object.entries(st.ammo)) chip(pretty(nice(k)) + 's', n, !n);
+    }
+    if (x.sensor != null) chip('Sensor', x.sensor);
+    if (x.signature != null) chip('Signature', x.signature);
+  } else {
+    chip('Intel', x.tier >= 3 ? '\u25A3 full readout' : '\u25C6 located');
+    let hp = 0, max = 0;
+    for (const sg of x.segs.filter((sg) => sg.parts)) for (const p of sg.parts) if (!game.rules.parts[p.t].recharges) { hp += sg.wrecked ? 0 : Math.max(0, p.hp); max += p.max; }
+    if (max) chip('Hull about', Math.round((100 * hp) / max) + '%');
+    chip('Segments', x.segs.length);
+  }
+  return h('div', { class: 'stats' }, out);
+}
 function codeBox(label, text, button) {
   const ta = h('textarea', { readonly: true, 'aria-label': label }, text);
   return h('div', { class: 'card' }, h('h2', null, label), ta, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => {
@@ -1035,6 +1164,7 @@ export function render() {
     if (val === 'story') { ev.target.value = seat === 'cpu' ? (aiLevel === 'easy' ? 'cpu-easy' : 'cpu') : String(seat); openCampaign(); return; }
     if (val.indexOf('cpu') === 0) { aiLevel = val === 'cpu-easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); val = 'cpu'; }
     seat = val === '0' || val === '1' ? Number(val) : val;
+    if (game && game.rules.campaign) { newGame(); return; }   // leaving the story: the chapter game can't become a skirmish, so start a fresh one
     sel = look = pending = null; mode = 'move'; cam.w = 0; undoStack = [];
     curtain = seat === 'pass' && game && game.phase === 'play' ? turnOf() : null;
     say({ cpu: 'Playing against the computer. You are Player 1.', pass: 'Pass and play: each player only sees what their own fleet sees. Hand the device over between turns.',
@@ -1062,46 +1192,40 @@ export function render() {
       fill(cur, [h('div', { class: 'curtain-box who' + p }, h('div', { class: 'big' }, 'Player ' + (p + 1) + '\'s turn'),
         h('p', null, 'Hand the device to Player ' + (p + 1) + '. Player ' + (2 - p) + ', no peeking at the board!'),
         h('button', { class: 'btn go', onclick: () => {
-          curtain = null; yourTurnPing(); render();
+          curtain = null; yourTurnPing();
           const pf = pendingFx; pendingFx = null;
-          if (pf) setTimeout(() => playFx(pf[0], pf[1], pf[2]), 200);
+          if (pf) playFx(pf[0], pf[1], pf[2]);
+          render();
           toast('Player ' + (p + 1) + '\'s turn', 'p' + p);
         } }, 'I\'m Player ' + (p + 1) + ': show my fleet'))]);
     } else cur.hidden = true;
   }
   $('#problems').textContent = '';
   if (problems.length) $('#problems').appendChild(h('div', { class: 'card warn' }, h('h2', null, 'The rule files have problems'), problems.map((p) => h('p', null, p))));
-  const bar = $('#turnbar'), fleet = $('#fleet'), tools = $('#tools'), wrap = $('#wrap'), panels = $('#panels'), hintEl = $('#hint'), camEl = $('#camera');
-  for (const e of [bar, fleet, tools, panels, camEl]) e.textContent = '';
+  const bar = $('#turnbar'), wrap = $('#wrap'), panels = $('#panels'), hintEl = $('#hint'), camEl = $('#camera'), ctx = $('#ctx'), tb = $('#turnbtns'), drawer = $('#drawer');
+  for (const e of [bar, panels, camEl, ctx, tb]) e.textContent = '';
   if (!game) { hintEl.textContent = 'Loading the rules.'; return; }
   if (!cam.w) wholeMap();
-  const v = E.view(game, who()), turn = turnOf(), mine = myTurn(), R = game.rules;
-  if (sel && !v.ships.some((x) => x.id === sel && x.mine)) sel = null;
+  cam.max = fitWidth();
+  const v = E.view(game, who()), turn = turnOf(), mine = myTurn(), R = game.rules, hid = curtainUp();
+  if (sel && !canCommand(v.ships.find((x) => x.id === sel), v)) sel = null;
+  if (pending || (look && !v.ships.some((x) => x.id === look))) look = null;
 
-  // turn bar: whose turn, where we are in the round, what is left to spend
+  // turn bar (top left): whose turn, where we are in the round, what is left to spend
   bar.className = 'who' + (game.phase === 'over' && v.winner !== 'draw' ? v.winner : turn);
   const stepNames = game.order.map((p) => 'Player ' + (p + 1)).concat('Flight');
-  fill(bar, [h('div', { class: 'big' }, game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
-      : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1)),
-    h('div', { class: 'line' }, h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n)),
+  fill(bar, [h('div', { class: 'line top' },
+      h('span', { class: 'big' }, game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
+        : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1)),
+      h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n)),
       v.objective ? h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '') : null),
     mine ? h('div', { class: 'line' },
       h('span', null, 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
-      h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), ' (moving costs 1 per segment per hex)'), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
+      h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), h('span', { class: 'wide' }, ' (moving costs 1 per segment per hex)')), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
 
-  // fleet strip: every ship of the player to move, with what it has left
-  if (mine) for (const x of v.ships.filter((s) => s.mine)) {
-    const st = E.shipStatus(game, x.id), stat = (label, val, zero) => h('span', { class: zero ? 'zero' : '' }, label + ' ', h('b', null, val));
-    const seized = v.story && v.story.locked.includes(x.name), auto = v.story && (v.story.auto || []).includes(x.name);
-    fleet.appendChild(h('button', { class: 'shipchip who' + x.owner + (seized ? ' lockedchip' : ''), 'aria-pressed': String(sel === x.id), onclick: () => { selectShip(x.id, v); render(); } },
-      h('div', { class: 'nm' }, (x.flagship ? '★ ' : '') + x.id + ' ' + (v.story ? x.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : x.name) + (auto ? ' \u00b7 flying itself' : seized ? ' \u00b7 not answering' : '')),
-      h('div', { class: 'st' }, stat('Move', st.moveLeft, !st.moveLeft), st.beams ? stat('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady) : null,
-        Object.entries(st.ammo).map(([k, n]) => stat(nice(k) + 's', n, !n)))));
-  }
-
-  // board
+  // board: it fills the screen. Ships you can command wear a halo; the rest of yours are marked as busy.
   const opts = options(v);
   const plan = pending && pending.type === 'launch' ? E.forecast(game, pending) : null;
   let ghost = null;
@@ -1111,104 +1235,140 @@ export function render() {
   }
   const plans = v.objs.filter((o) => o.mine && game.phase === 'play').map((o) => ({ id: o.id, f: E.forecast(game, o.id) })).filter((x) => x.f);
   const guide = guideNow(), gkey = guide ? guide.id + ':' + guide.step : '';
-  if (guide && gkey !== guideSeen) {          // first show: bring the ship and where it should go into view
-    const gs = v.ships.find((x) => x.id === guide.ship);
-    if (gs) frame(gs.cells.concat(guide.best ? [guide.best] : guide.reticle ? [guide.reticle.at] : []), selZoom());
-  }
-  guideSeen = gkey;
+  if (guide && gkey !== guideSeen) {          // first show: bring the ship and where it should go into view...
+    const wait = fxBusyUntil - performance.now();
+    if (wait > 50) { clearTimeout(guideTimer); guideTimer = setTimeout(render, wait + 40); }   // ...once the animation that led to it has played
+    else {
+      const gs = v.ships.find((x) => x.id === guide.ship);
+      if (gs) frame(gs.cells.concat(guide.best ? [guide.best] : guide.reticle ? [guide.reticle.at] : []), selZoom());
+      guideSeen = gkey;
+    }
+  } else guideSeen = gkey;
+  const halo = new Set(v.ships.filter((x) => canCommand(x, v)).map((x) => x.id));
+  const idle = new Set(v.ships.filter((x) => x.mine && mine && !halo.has(x.id)).map((x) => x.id));
   wrap.textContent = '';
-  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c) => tap(c, v, opts), pending, hidden: curtainUp() }));
-  fill(camEl, [h('button', { 'aria-label': 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '−'), h('button', { 'aria-label': 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'),
-    h('button', { onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, 'Whole map')]);
+  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c) => tap(c, v, opts), pending, hidden: hid,
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render() }));
+  if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
+  fill(camEl, [h('button', { 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
+    h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6')]);
 
-  // actions
+  // the ship panel: orders and key numbers for the ship you tapped (what is known, for an enemy)
+  const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
+  const tools = h('div', { id: 'tools' });
   if (mine && pending) {
     fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, pending.type === 'move' ? 'Move here' : pending.type === 'scan' ? 'Scan now' : 'Launch ' + nice(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
-  } else if (mine) {
-    const me = sel && v.ships.find((x) => x.id === sel), st = me ? E.shipStatus(game, sel) : null, lo = me ? E.launchOptions(game, sel) : null;
-    const shots = me ? E.beamTargets(game, sel) : [];
+  } else if (mine && sel) {
+    const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
+    const shots = E.beamTargets(game, sel);
     const help = { move: 'Tap a green marker to see where the ship would end up, then tap it again to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
-    const lim = v.story && me ? (v.story.limits || {})[me.name] : null;
+    const lim = v.story ? (v.story.limits || {})[me.name] : null;
     const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
     const btn = (m, label, sub, on, cells) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on && !barred(m)), disabled: !on || barred(m), title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); if (cells && cells.length) frame(cells, selZoom()); render(); } }, label, h('small', null, barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub));
-    const launchWhy = (kind) => !st ? 'select a ship' : !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
+    const launchWhy = (kind) => !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const foes = v.ships.filter((x) => !x.mine && x.seen);
+    const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     fill(tools, [
-      btn('move', 'Move', !st ? 'select a ship' : st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', !!st && st.moveLeft > 0, me && me.cells),
-      btn('fire', 'Fire', !st ? 'select a ship' : !st.beams ? 'no laser' : !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((t) => t.target)).size, 'target') : 'nothing in range', shots.length > 0, me ? me.cells.concat(shots.map((t) => t.at)) : null),
-      btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), me ? me.cells.concat(foes.filter((f) => lo && lo.locks.includes(f.id)).flatMap((f) => f.cells)) : null),
-      btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), me && me.cells),
+      btn('move', 'Move', st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', st.moveLeft > 0, me.cells),
+      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : 'nothing in range', shots.length > 0, me.cells.concat(shots.map((x) => x.at))) : null,
+      has('missile') ? btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), me.cells.concat(foes.filter((z) => lo && lo.locks.includes(z.id)).flatMap((z) => z.cells))) : null,
+      has('seeker_drone') ? btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), me.cells) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
-      h('button', { class: 'btn', disabled: !(st && st.scanReady), onclick: () => {
+      h('button', { class: 'btn', disabled: !st.scanReady, onclick: () => {
         mode = 'scan'; pending = { type: 'scan', ship: sel }; cam.w = 0;
         const [r1, r2] = me.scanR;
         say('Scan preview (' + me.scan.name + ', ' + plural(me.scan.forward, 'row') + ' from your edge): everything inside the green ring (' + r1 + ' hexes) gets a full readout, hidden mines included. The amber ring ('
           + r2 + ' hexes) only picks up faint contacts. ' + scanNextText(me.scan) + ' Scanning lights your ship up for a round. Press Scan now.');
         render();
-      } }, 'Scan', h('small', null, !st ? 'select a ship' : st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now'),
-        st && !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan) && v.cp ? h('small', null, 'then ' + me.scan.r[0] + ' / ' + me.scan.r[1]) : null),
+      } }, 'Scan', h('small', null, st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now'),
+        !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan) && v.cp ? h('small', null, 'then ' + me.scan.r[0] + ' / ' + me.scan.r[1]) : null),
       v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'Detonate', 'a drone', v.cp >= R.cost.detonate, null) : null,
-      ...(v.story && me ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
+      ...(v.story ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
         const a = game.ships.find((z) => z.id === me.id);
         return game.ships.filter((z) => !z.dead && z.owner === a.owner && z.id !== a.id && E.gap(a, z) === 1).map((z) =>
           h('button', { class: 'btn', disabled: v.cp < 1, onclick: () => act({ type: k, ship: a.id, with: z.id }) }, (k === 'graft' ? 'Graft' : 'Dock') + ' ' + z.name,
             h('small', null, k === 'graft' ? 'fuse into one ship' : 'clamp together (costs a point a turn)')));
-      }) : []),
-      h('span', { class: 'sp' }),
-      undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
-      h('button', { class: 'btn go' + (v.cp === 1 ? ' last' : ''), onclick: () => act({ type: 'end' }) }, v.cp === 1 ? 'Last action' : 'End turn',
-        h('small', null, v.cp === 1 ? 'your turn ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
-        v.cp >= R.cost.fire && v.ships.some((z) => z.mine && E.beamTargets(game, z.id).length) ? h('small', { class: 'warnnote' }, '\u26A0 laser can fire') : null)]);
+      }) : [])]);
   }
+  const closeBtn = (fn) => h('button', { class: 'ctx-x', 'aria-label': 'Close', onclick: () => { fn(); render(); } }, '\u00D7');
+  if (game.phase === 'over' && !hid) {
+    ctx.hidden = false;
+    if (R.campaign) {
+      ctx.className = 'who' + (game.winner === 0 ? 0 : 1);
+      fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, storyOverText(game))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn go', onclick: () => openCampaign() }, 'Campaign map'),
+          game.script && game.script.result === 'lose' ? h('button', { class: 'btn', onclick: () => retryChapter(game) }, 'Retry chapter') : null)]);
+    } else {
+      const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
+      ctx.className = 'who' + (v.winner === 'draw' ? turn : v.winner);
+      fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
+        h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
+        h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'))]);
+    }
+  } else if (shown) {
+    const own = shown.id === sel && !look, more = h('details', { class: 'more' }, h('summary', null, 'Parts and details'), shipCard(shown, v));
+    more.open = detailsOpen;
+    more.addEventListener('toggle', () => { detailsOpen = more.open; });
+    ctx.hidden = false;
+    ctx.className = 'who' + shown.owner;
+    fill(ctx, [h('div', { class: 'ctx-head' },
+        h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
+        closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } say(''); })),
+      statChips(shown, v), own ? tools : null, more]);
+  } else { ctx.hidden = true; ctx.className = ''; }
 
-  const rc = reportCard();
-  if (rc) panels.appendChild(rc);
-  if (game.phase === 'over' && game.rules.campaign) {
-    panels.appendChild(h('div', { class: 'card over who' + (game.winner === 0 ? 0 : 1) }, h('h2', null, storyOverText(game)),
-      h('div', { class: 'row' },
-        h('button', { class: 'btn go', onclick: () => openCampaign() }, 'Campaign map'),
-        game.script && game.script.result === 'lose' ? h('button', { class: 'btn', onclick: () => retryChapter(game) }, 'Retry chapter') : null)));
-  } else if (game.phase === 'over') {
-    const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
-    panels.appendChild(h('div', { class: 'card over who' + (v.winner === 'draw' ? turn : v.winner) },
-      h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins'),
-      h('p', null, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed above.'),
-      h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'))));
-  }
+  // end of turn (bottom right): always in the same place
+  if (mine && !hid) fill(tb, [
+    undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
+    h('button', { class: 'btn go' + (v.cp === 1 ? ' last' : ''), onclick: () => act({ type: 'end' }) }, v.cp === 1 ? 'Last action' : 'End turn',
+      h('small', null, v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
+      v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length) ? h('small', { class: 'warnnote' }, '\u26A0 laser can fire') : null)]);
 
   hintEl.className = hintErr ? 'err' : '';
-  hintEl.textContent = hint || (mine ? 'Tap one of your ships to select it.' : aiTurn() ? 'The computer is taking its turn\u2026' : '');
+  hintEl.textContent = hint || (mine ? 'Tap one of your ships (white halo) to give it orders.' : aiTurn() ? 'The computer is taking its turn\u2026' : isCodes() && game.phase === 'play' ? 'Waiting for player ' + (turn + 1) + '. Open \u2630 to paste their turn code.' : '');
 
-  // what happened since this player last acted
+  // the drawer (\u2630): impact report, what happened, display settings, the key, game codes
+  const rc = reportCard();
+  if (rc) panels.appendChild(rc);
   if (game.phase === 'play' && mine && v.news.length)
     panels.appendChild(h('div', { class: 'card news' }, h('h2', null, v.round === 1 ? 'What you know so far' : 'Since your last turn'), h('ul', { class: 'feed' }, v.news.slice(-10).map((e) => h('li', null, describe(e))))));
-
-  const shown = v.ships.find((x) => x.id === (sel || look));
-  if (shown) panels.appendChild(shipCard(shown, v));
   if (game.phase === 'play' && isCodes() && !mine)
     panels.appendChild(pasteBox('Paste player ' + (turn + 1) + '\'s turn code:', 'Play their turn', (text) => {
-      try { game = E.applyTurnCode(game, text); code = ''; report = makeReport(game.events, seat); setTimeout(() => playFx(game.events, seat, game.flight), 60); say('Their turn has been played. Yours now.'); save(); }
+      try { game = E.applyTurnCode(game, text); code = ''; report = makeReport(game.events, seat); playFx(game.events, seat, game.flight); drawerOpen = false; say('Their turn has been played. Yours now.'); save(); }
       catch (e) { say(e.message.charAt(0).toUpperCase() + e.message.slice(1) + '.', true); }
       render();
     }));
   if (code && isCodes()) panels.appendChild(codeBox('Your turn code: send this to your opponent', code, 'Copy turn code'));
-
+  const styleBtn = (val, label, on) => h('button', { 'aria-pressed': String(shipStyle === val), disabled: !on, onclick: () => { shipStyle = val; store.set('shatkon.ships', val); render(); } }, label);
+  const artCount = v.ships.filter((x) => modelFor(x.name, x.segs.map((sg) => sg.off))).length;
+  panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Display'),
+    h('div', { class: 'row', style: 'align-items:center' }, h('span', null, 'Ships drawn as'), h('div', { class: 'seg', role: 'group', 'aria-label': 'How ships are drawn' }, styleBtn('schematic', 'Schematic', true), styleBtn('model', 'Models', haveModels))),
+    h('p', { class: 'muted' }, 'Schematic shows every part in its slot. Models draws a ship\u2019s art where it has some and the schematic where it does not'
+      + (haveModels ? ' (' + artCount + ' of ' + plural(v.ships.length, 'ship') + ' on this board have art).' : ' (no art pack was found).') + ' A ship\u2019s parts are always listed in its panel.')));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Key'),
     h('div', { class: 'parts' }, Object.entries(looks).map(([name, l]) => h('span', { class: 'chip' }, h('i', { style: 'background:' + l.color }), l.letter + ' ' + nice(name)))),
-    h('p', { class: 'muted' }, 'Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
+    h('p', { class: 'muted' }, 'A white halo marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
   if (v.feed.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, v.feed.slice(-12).reverse().map((e) => h('li', null, 'Round ' + e.r + ': ' + describe(e))))));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
-    h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) newGame(); } }, 'New game'),
-    h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code')),
+    h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
+    h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
+    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer')),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
   panels.appendChild(pasteBox('Load a game code', 'Load game', async (text) => {
-    try { game = await E.importGame(text); looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; say('Game loaded.'); save(); }
+    try { game = await E.importGame(text); looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; moveAnims = []; drawerOpen = false; say('Game loaded.'); save(); }
     catch (e) { say(e.message.charAt(0).toUpperCase() + e.message.slice(1) + '.', true); }
     render();
   }));
+  // a red dot on \u2630 while there is a report or news the player has not opened yet
+  const newsKey = rc || (mine && v.news.length) ? game.round + ':' + game.turn + ':' + (report ? report.length : 0) : '';
+  if (drawerOpen && newsKey) drawerSeen = newsKey;
+  drawer.hidden = !drawerOpen || hid;
+  const mb = $('#menubtn');
+  if (mb) { mb.classList.toggle('dot', !!newsKey && newsKey !== drawerSeen); mb.setAttribute('aria-expanded', String(drawerOpen)); }
   // the computer moves after the animations have had time to play
   if (aiTurn() && !aiTimer) aiTimer = setTimeout(aiStep, Math.max(1000, fxBusyUntil - performance.now() + 400));
 }
@@ -1231,6 +1391,9 @@ function initExtras() {
     );
     $('#helpbtn').addEventListener('click', () => showHelp(true));
   }
+  const setDrawer = (on) => { drawerOpen = on; render(); };
+  if ($('#menubtn')) $('#menubtn').addEventListener('click', () => setDrawer(!drawerOpen));
+  if ($('#drawerclose')) $('#drawerclose').addEventListener('click', () => setDrawer(false));
   if ($('#sfx'))
     $('#sfx').addEventListener('click', () => {
       sfxOn = !sfxOn;
@@ -1249,11 +1412,14 @@ function initExtras() {
   document.addEventListener('keydown', (ev) => {
     if (!game || /^(TEXTAREA|INPUT|SELECT)$/.test((ev.target || {}).tagName || '')) return;
     if (ev.key === 'Escape') {
-      if (pending) {
+      if (drawerOpen) {
+        drawerOpen = false;
+        render();
+      } else if (pending) {
         pending = null;
         say('Cancelled.');
         render();
-      } else if (sel) {
+      } else if (sel || look) {
         sel = look = null;
         mode = 'move';
         say('');
@@ -1291,6 +1457,10 @@ function initExtras() {
   if (savedSeat === '0' || savedSeat === '1') seat = Number(savedSeat);
   else if (savedSeat === 'all' || savedSeat === 'pass' || savedSeat === 'cpu') seat = savedSeat;
   sfxOn = store.get('shatkon.sfx') !== '0';
+  shipStyle = store.get('shatkon.ships') === 'model' ? 'model' : 'schematic';
+  // ship art: any pack in the story/ships.json format (see ui/board.js). Without one, ships stay schematic.
+  try { const r = await fetch('story/ships.json'); if (r.ok) { setModels(await r.json()); haveModels = true; } } catch (e) {}
+  if (!haveModels) shipStyle = 'schematic';
   aiLevel = store.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
   if (/\/beta\//.test(location.pathname)) { const bb = $('#betabadge'); if (bb) bb.hidden = false; document.title = 'Shatkon BETA'; }
   initExtras();
@@ -1304,8 +1474,8 @@ function initExtras() {
     } catch (e) { game = null; }
   }
   // a small hook for automated tests
-  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
+  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
   labRoute();
   if (!game) newGame(); else render();
-  window.addEventListener('resize', () => { if (game) render(); });
+  window.addEventListener('resize', () => { if (!game) return; if (cam.max && cam.w >= cam.max * 0.98) cam.w = 0; render(); });   // a whole-map view stays a whole-map view
 })();

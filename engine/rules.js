@@ -2,7 +2,7 @@
 // "rules" object the engine can use, and lists every problem it finds on the way:
 // unknown parts, overfull segments, missing couplings, budget, bad placements.
 
-import { key, add, dist, disc, inHexagon, EDGE, connected } from './hex.js';
+import { key, add, dist, disc, inHexagon, EDGE, connected, symmetry } from './hex.js';
 
 const num = (v, d) => (typeof v === 'number' ? v : d);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -45,7 +45,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     ticks: Math.max(1, num((t.flight_phase || {}).ticks, 6)),
     turnLimit: num(t.turn_limit, 30),
     cost: {},
-    seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false },
+    seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false, symmetric: seg.symmetric_hulls !== false },
     move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
     det: {
       smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
@@ -127,6 +127,8 @@ export function buildRules(world, mapFile, fleetsFile) {
       if (new Set(ship.segs.map((s) => key(s.off))).size !== n) problems.push(`${label}: two segments share the same hex.`);
       if (!connected(ship.segs.map((s) => s.off))) problems.push(`${label}: the segments are not all joined together.`);
       const joined = sh.joined === true;   // docked or grafted ships keep every core and need no extra couplings
+      // hulls must mirror or turn onto themselves (a hull welded together in play is taken as it comes)
+      if (rules.seg.symmetric && !joined && !symmetry(ship.segs.map((s) => s.off))) problems.push(`${label}: the hull is lopsided. A hull has to be symmetrical: move or add a segment so one half mirrors the other.`);
       if (joined ? cores < 1 : cores !== 1) problems.push(`${label}: needs exactly one core; it has ${cores}.`);
       if (!joined && rules.seg.couplings && couplings < n - 1) problems.push(`${label}: ${n} segments need ${n - 1} couplings; it has ${couplings}.`);
       let loaded = 0;

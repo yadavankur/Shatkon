@@ -28,8 +28,8 @@ chapter:
   player:
     ships: [kestrel, sparrow, halcyon, tern]   # hulls kestrel@ch4a (flagship), sparrow@ch3, halcyon@ch3, tern@ch3
     deployment:
-      - { ship: kestrel, at: [-3, 7] }   # cells [-3,6] [-4,7] [-3,7] [-2,7]; its rear hexes [-4,8] [-3,8] are free for Tern
-      - { ship: tern,    at: [-1, 6] }   # cells [-1,6] [0,6]
+      - { ship: kestrel, at: [-3, 7] }   # cells [-3,6] [-2,6] [-4,7] [-3,7]; its rear hexes [-4,8] [-3,8] are free for Tern
+      - { ship: tern,    at: [0, 6] }    # cells [0,6] [1,6]: one hex clear of Kestrel
       - { ship: sparrow, at: [-6, 6] }
       - { ship: halcyon, at: [-7, 7] }   # cells [-7,7] [-6,7] [-7,8]
   # Fleet thrust 11 for 10 segments: average 1, up to 2 hexes a turn.

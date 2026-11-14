@@ -96,7 +96,7 @@ const r1 = rulesFor('ch1');
   {
     let at6 = null;
     const { g: g6 } = play(r1, 1, (p, gg) => { const v6 = E.guideView(gg, 0); if (v6 && v6.step === 2 && !at6) { at6 = v6; return true; } return false; },
-      (gg, seat) => { if (seat !== 0) return null; const v6 = E.guideView(gg, 0); if (!v6 || v6.step !== 1) return null; const kk = ship(gg, 'kestrel'); const go = E.reach(gg, kk.id).find((x) => v6.turnEnd && H.same(x.at, v6.turnEnd)); return go && !gg.players[0].movedThisTurn ? { type: 'move', ship: kk.id, path: go.path } : null; });
+      (gg, seat) => { if (seat !== 0) return null; const v6 = E.guideView(gg, 0); if (!v6 || v6.step !== 1) return null; const kk = ship(gg, 'kestrel'); const go = E.reach(gg, kk.id).find((x) => v6.turnEnd && H.same(x.at, v6.turnEnd)); return go && !gg.players[0].movedThisTurn ? { type: 'move', ship: kk.id, path: go.path } : { type: 'end' }; });   // hold fire while closing: Kestrel now starts near enough for a long shot to end the chapter first
     const kk = ship(g6, 'kestrel'), ss = ship(g6, 'seed');
     check(6, 'ch1: step 2 after Kestrel comes within 4, reticle solid on the Seed', !!at6 && at6.label === 'Fire on the Seed' && at6.reticle && at6.reticle.kind === 'fire' && !at6.reticle.dashed && E.gap(kk, ss) <= 4, at6 ? `gap ${E.gap(kk, ss)}, dashed ${at6.reticle && at6.reticle.dashed}` : 'never reached step 2');
   }

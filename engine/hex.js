@@ -91,3 +91,35 @@ export function connected(cells) {
   }
   return seen.size === all.size;
 }
+
+// Is this set of hexes symmetrical? True when a mirror line or a turn (60, 120 or 180 degrees)
+// maps the shape onto itself. The centre of the symmetry need not be a hex centre.
+// Returns 'mirror', 'turn' or null. One or two hexes are always symmetrical.
+const SYM = [];
+for (let k = 0; k < 6; k++) {
+  // cube coordinates [x, y, z] = [q, -q-r, r]; a 60-degree turn is (x, y, z) -> (-z, -x, -y)
+  const turn = (c) => { let v = [c[0], -c[0] - c[1], c[1]]; for (let i = 0; i < k; i++) v = [-v[2], -v[0], -v[1]]; return v; };
+  if (k) SYM.push({ kind: 'turn', f: (c) => { const v = turn(c); return [v[0], v[2]]; } });
+  SYM.push({ kind: 'mirror', f: (c) => { const v = turn(c); return [v[0], v[1]]; } });   // swap y and z, then turn
+}
+const shapeKey = (cells) => {
+  const mq = Math.min(...cells.map((c) => c[0])), mr = Math.min(...cells.filter((c) => c[0] === mq).map((c) => c[1]));
+  return cells.map((c) => (c[0] - mq) + ',' + (c[1] - mr)).sort().join(' ');
+};
+export function symmetry(cells) {
+  if (cells.length <= 2) return 'mirror';
+  const want = shapeKey(cells);
+  let turn = false;
+  for (const s of SYM) if (shapeKey(cells.map(s.f)) === want) { if (s.kind === 'mirror') return 'mirror'; turn = true; }
+  return turn ? 'turn' : null;
+}
+
+// How many hex sides of a shape face open space (fewer = more compact), and the fewest
+// possible for that many hexes (a spiral around one hex).
+export function exposedSides(cells) {
+  const all = new Set(cells.map(key));
+  let n = 0;
+  for (const c of cells) for (let d = 0; d < 6; d++) if (!all.has(key(step(c, d)))) n++;
+  return n;
+}
+export const fewestSides = (n) => (n < 1 ? 0 : 2 * Math.ceil(Math.sqrt(12 * n - 3)));

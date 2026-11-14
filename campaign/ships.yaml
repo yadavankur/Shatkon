@@ -40,7 +40,9 @@ kestrel@ch2:
     - { at: [0, 0],  bays: [core, sensor, magazine],   mounts: [launcher, armour, armour] }
     - { at: [1, 0],  bays: [coupling, engine, engine], mounts: [laser, armour, armour] }
 
-# Ch3 refit: a 4th segment at the front [0,-1] carrying the salvaged shield lattice.
+# Ch3 refit: a 4th segment at the front [0,-1] carrying the salvaged shield lattice, and the starboard
+# segment re-seated beside it at [1,-1]: a compact rhombus, two rows of two. The old T ([0,-1] on
+# a line of three) was lopsided, and hulls must be symmetrical (world: symmetric_hulls).
 # Sensor 6, signature 4, thrust 4, 2 lasers, launcher, 4 missiles, 4 shields.
 kestrel@ch3:
   flagship: true
@@ -50,7 +52,7 @@ kestrel@ch3:
     - { at: [0, -1], bays: [coupling, sensor, engine],   mounts: [shield, shield, armour] }
     - { at: [-1, 0], bays: [engine, engine, coupling],   mounts: [laser, armour, shield] }
     - { at: [0, 0],  bays: [core, magazine, magazine],   mounts: [launcher, armour, armour] }
-    - { at: [1, 0],  bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
+    - { at: [1, -1], bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
 
 # Ch4A: same frame, the Twin's point defence fitted in place of one armour plate.
 kestrel@ch4a:
@@ -61,11 +63,11 @@ kestrel@ch4a:
     - { at: [0, -1], bays: [coupling, sensor, engine],   mounts: [shield, shield, armour] }
     - { at: [-1, 0], bays: [engine, engine, coupling],   mounts: [laser, armour, shield] }
     - { at: [0, 0],  bays: [core, magazine, magazine],   mounts: [launcher, point_defence, armour] }
-    - { at: [1, 0],  bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
+    - { at: [1, -1], bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
 
 # Ch5: Kestrel (ch4a) + Tern grafted at the rear. Tern's two segments sit at [-1,1] and [0,1]
 # (Tern's [0,0] -> [-1,1], Tern's [1,0] -> [0,1]). Shape: the centre plus 5 of the 6 ring hexes
-# (only [1,-1] is empty). The seam has fused Tern's core into a coupling, so the hull is also
+# (only [1,0] is empty): three staggered rows of two, symmetrical. The seam has fused Tern's core into a coupling, so the hull is also
 # legal under main's buildRules (1 core, 5 couplings); joined + seams mark it as grafted.
 # (The engine's own Graft would keep Tern's core: harmless, a weave seam costs no command points.)
 # This hull is the canonical post-graft Kestrel: it wins over the hull carried out of ch4A,
@@ -81,7 +83,7 @@ kestrel@ch5:
     - { at: [0, -1], bays: [coupling, sensor, engine],   mounts: [shield, shield, armour] }
     - { at: [-1, 0], bays: [engine, engine, coupling],   mounts: [laser, armour, shield] }
     - { at: [0, 0],  bays: [core, magazine, magazine],   mounts: [launcher, point_defence, armour] }
-    - { at: [1, 0],  bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
+    - { at: [1, -1], bays: [coupling, engine, sensor],   mounts: [laser, armour, shield] }
     - { at: [-1, 1], bays: [coupling, engine, sensor],   mounts: [laser, shield, armour] }   # was Tern [0,0] (core fused into the seam)
     - { at: [0, 1],  bays: [coupling, engine, engine],   mounts: [laser, armour, armour] }   # was Tern [1,0]
 

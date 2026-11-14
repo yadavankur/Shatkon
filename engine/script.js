@@ -437,7 +437,7 @@ export function ram(state, s, t, force, seg) {
   const order = t.segs.map((_, i) => i).sort((a, b) => near(a) - near(b));
   if (Number.isInteger(seg) && seg >= 0 && seg < t.segs.length) { order.splice(order.indexOf(seg), 1); order.unshift(seg); }   // the script picked the end to strike
   const impact = add(t.pos, t.segs[order[0]].off), total = R.hitsPerSeg * s.segs.filter((sg) => !sg.wrecked).length;
-  emit(state, { t: 'ram', ship: s.id, name: s.name, target: t.id, targetName: t.name, at: impact, hits: total }, everyone(state));
+  emit(state, { t: 'ram', ship: s.id, name: s.name, target: t.id, targetName: t.name, at: impact, hits: total, from: footprint(s) }, everyone(state));   // from: its hexes, so a screen can show the hurl
   if (state.script) state.script.flags['rammed:' + s.name] = true;
   emit(state, { t: 'blast', kind: 'ram', owner: s.owner, at: impact }, everyone(state));
   destroy(state, s, 'rammed');
