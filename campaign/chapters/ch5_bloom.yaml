@@ -1,0 +1,116 @@
+# ============================================================
+#  CHAPTER 5  -  THE BLOOM            map: ch5_bloom (radius 10)
+#  The strongest fleet the crew has had. The first seven-cell Weave ship arrives and jams
+#  comms. When Kestrel engages, the Graft seam wakes: shields drop, controls lock, Kestrel
+#  drifts toward the Bloom. Li turns Halcyon toward Kestrel. Cliff: to be continued.
+#
+#  Key numbers (see CHECKS.md):
+#   - The Bloom spawns at the start of round 2 at [4,-8] (inside the nebula front),
+#     13 hexes from Kestrel's front cell.
+#   - Kestrel (sensor 8) sees the Bloom at 11 outside the nebula, 9 inside (signature 5, 3
+#     in nebula); it is lit for 2 rounds on arrival anyway. Laser range 8.
+#   - Seam wakes when Kestrel fires at the Bloom (needs 8 hexes) or comes within 6:
+#     about 5-7 hexes of closing, ~3 rounds for a 6-segment ship. Fallback round 5.
+#   - After the seam, Kestrel is forced toward the Bloom each turn (the engine's move_toward:
+#     the reachable spot closest to it, paid from the player's thrust; Kestrel is 6 thrust a
+#     hex so ~1-2 hexes a turn). li_moves: Halcyon within 2 hexes of Kestrel, at least a turn
+#     after the seam (Halcyon starts 4 away, cap 2 hexes a turn), or 2 rounds after the seam
+#     (round 7 at the latest). PR #2 sims: seam r5 (fallback), li_moves and cliff r6.
+#   - The Bloom soaks 7 hits a round with shields and stops 3 missiles a round.
+# ============================================================
+
+chapter:
+  id: ch5
+  title: "The Bloom"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 12
+  map: maps/ch5_bloom.yaml
+  # Turn limit 12: unreachable, the cliff ends the chapter by round 7.
+
+  player:
+    ships: [kestrel, halcyon, sparrow]   # hulls kestrel@ch5 (flagship, grafted), halcyon@ch3, sparrow@ch3
+    deployment:
+      - { ship: kestrel, at: [-3, 7] }   # cells [-3,6] [-2,6] [-4,7] [-3,7] [-4,8] [-3,8]
+      - { ship: halcyon, at: [2, 6] }    # cells [2,6] [3,6] [2,7]: 4 hexes from Kestrel's nearest cell
+      - { ship: sparrow, at: [-6, 6] }
+  # Fleet thrust 11 for 10 segments: average 1, up to 2 hexes a turn. Kestrel costs 6 a hex.
+
+  enemy:
+    ships: []                            # the Bloom (hull bloom@ch5, flagship) arrives in round 2
+    deployment: []
+    ai: { default: siege }
+
+  groups:
+    bloom_arrival:
+      side: enemy
+      ships: [bloom]
+      zone: bloom_entry                  # used only if the `at` spot is missing
+      at:
+        bloom: [4, -8]                   # centre + ring: rows -9 to -7
+
+  ai_profiles:
+    # Holds position, never chases, shoots only Sparrow and Halcyon (only_targets, PR #2), lasers
+    # and missiles, as hard as it can. Kestrel is not a target: the Bloom wants it whole (it is
+    # being pulled in). v2: no 2-hits-a-round cap, no missile block.
+    siege: { level: normal, stance: hold, target: [sparrow, halcyon], only_targets: [sparrow, halcyon], scans: false }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: cliff }
+        - protect: { ship: halcyon, until: cliff }
+        - protect: { ship: sparrow, until: cliff }
+        - objective: "Hold the line at the nebula front."
+
+    - id: arrival
+      when: { round: 2 }
+      do:
+        - spawn: bloom_arrival
+        - light: { ship: bloom, rounds: 2 }
+        - set_rule: { path: "bay_parts.comms.link_range", value: 3 }   # jamming: comms 12 -> 3
+        - set_rule: { path: "bay_parts.core.link_range", value: 2 }    # core links 4 -> 2
+        - scene: ch5_bloom
+        - bark: b5_jammed
+        - ai: { ship: bloom, profile: siege }
+        - objective: "Engage the Bloom."
+
+    - id: seam_wakes
+      when:
+        any:
+          - all: [ arrival, { fired_at: { by: kestrel, target: bloom } } ]
+          - all: [ arrival, { distance_below: { a: kestrel, b: bloom, hexes: 7 } } ]   # within 6
+          - { round: 5 }
+      do:
+        - scene: ch5_seam_wakes
+        - lock: { ship: kestrel, actions: all, until: end }
+        - disable: { ship: kestrel, parts: [shield, point_defence], until: end }
+        - force: { ship: kestrel, do: [ { move_toward: bloom } ], each_turn: true, until: end }
+        - light: { ship: kestrel, rounds: 99 }
+        - bark: b5_kestrel_unresponsive
+        - objective: "Kestrel isn't answering. Get Halcyon to Kestrel."
+
+    - id: li_coming
+      flavor: true
+      when: { after: { beat: seam_wakes, turns: 1 } }
+      do:
+        - bark: b5_li_coming
+
+    - id: li_moves
+      when:
+        any:
+          - all: [ { after: { beat: seam_wakes, turns: 1 } }, { distance_below: { a: halcyon, b: kestrel, hexes: 3 } } ]   # within 2, a turn after the seam
+          - { after: { beat: seam_wakes, rounds: 2 } }
+      do:
+        - scene: ch5_li_moves
+
+    - id: cliff
+      when: li_moves
+      do:
+        - end: { result: to_be_continued }       # plays scenes.tbc (ch5_cliff)
+
+  win:  []
+  lose: []                               # nothing can die before the cliff
+  scenes: { intro: ch5_intro, win: [], lose: ch5_defeat, tbc: ch5_cliff }   # ch5_defeat: new in story pack v2 (unreachable while the rails hold)
+  rewards: {}

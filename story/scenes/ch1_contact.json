@@ -1,0 +1,67 @@
+{
+ "id": "ch1_contact",
+ "stage": "vista_corridor",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "finch_pilot",
+   "expression": "worried",
+   "text": "Contact, bearing zero-one-zero, inside the rock wall. It's... not on any registry.",
+   "via": "comms"
+  },
+  {
+   "show_ship": "seed"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "shock",
+   "text": "It's glowing. Why is it glowing? Ships don't glow."
+  },
+  {
+   "speaker": "weave",
+   "expression": "pulse",
+   "glyphs": true,
+   "text": "(untranslated: five pulses, rising, then silence)"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "That's no beacon code. It's a pattern. Fives. It's counting at us."
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "determined",
+   "text": "Wren and Kite, sliding out to the flanks. Nanda, you hold the middle.",
+   "via": "comms"
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "determined",
+   "text": "Holding the middle. Not panicking. Logging everything.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "All ships, weapons free, but keep your distance. Nobody gets cute."
+  },
+  {
+   "speaker": "weave",
+   "expression": "hostile",
+   "glyphs": true,
+   "text": "(untranslated: five pulses, sharp)"
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "mid_battle"
+}

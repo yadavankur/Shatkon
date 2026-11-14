@@ -1,0 +1,59 @@
+{
+ "id": "ch5_seam_wakes",
+ "stage": "kestrel_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "flash"
+  },
+  {
+   "effect": "glitch"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "shock",
+   "text": "Shields are dropping. No, they're being dropped, from the inside!"
+  },
+  {
+   "speaker": "weave",
+   "expression": "calm",
+   "glyphs": true,
+   "text": "[partial translation] CELL. YOU ARE ALREADY PART."
+  },
+  {
+   "speaker": "captain",
+   "expression": "shock",
+   "text": "The helm's locked. I have no helm!"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "shock",
+   "text": "It's the seam. The seam is glowing red, all the way down!"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "Ashfall's prototype. Oh no. Oh no, no. I put it on us. I put it on us myself."
+  },
+  {
+   "effect": "shake"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "worried",
+   "text": "We're moving. Captain, we're moving toward it."
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "mid_battle"
+}

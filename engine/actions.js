@@ -2,7 +2,7 @@
 // Each function checks the action is allowed, then changes the state.
 
 import { key, add, step, dist, line, turnDiff, dirToward } from './hex.js';
-import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell } from './state.js';
+import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater } from './state.js';
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
@@ -40,6 +40,7 @@ function touches(state, o, ship) {
 export function doMove(state, a) {
   const p = current(state), pl = state.players[p], ship = ownShip(state, a.ship, p), spend = pay(state, p, 'move');
   if (!pl.canMove) no('the fleet does not have enough thrust banked to move this turn');
+  if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
   const n = ship.segs.length, cap = moveCap(state, p), done = pl.moved[ship.id] || 0;
@@ -117,7 +118,8 @@ export function doFire(state, a) {
   for (let i = 1; i < cells.length && !hd; i++) {
     const o = occ.get(key(cells[i]));
     if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked) { hitShip = o.ship; hitSeg = o.seg; hd = i; break; }
-    const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0));   // own mines still stop it
+    const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0)   // own mines still stop it
+      && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed)));
     if (ob) { hitObj = ob; hd = i; }
   }
   let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));

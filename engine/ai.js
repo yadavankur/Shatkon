@@ -6,8 +6,13 @@
 
 import * as E from './index.js';
 
-export function computerMove(state, seat, level = 'normal') {
+// opts (story campaigns, see campaignMove): profiles { shipId: profile }, rand (seeded),
+// nameOf(id), via { shipName: true } (already went through its path_via zone), hitsSoFar.
+export function computerMove(state, seat, level = 'normal', opts = {}) {
   const easy = level === 'easy';
+  const rnd = opts.rand || Math.random, P0 = opts.profiles || {}, prof = (s) => P0[s.id] || {};
+  const nameOf = opts.nameOf || (() => null);
+  const capHit = (() => { const caps = Object.values(P0).map((p) => p.max_hits_per_round).filter((x) => typeof x === 'number'); return caps.length && (opts.hitsSoFar || 0) >= Math.min(...caps); })();
   const H = E.hex,
     R = state.rules;
   const v = E.view(state, seat);
@@ -43,9 +48,15 @@ export function computerMove(state, seat, level = 'normal') {
   // 1. Fire: best laser shot available (prefer flagship, then most hits, then incoming missiles)
   let best = null;
   for (const s of mine) {
+    const pr = prof(s);
+    if (capHit) break;
+    if (typeof pr.fire_chance === 'number' && rnd() > pr.fire_chance) continue;
     for (const t of E.beamTargets(state, s.id)) {
       const tgt = shipById(t.target);
+      if (Array.isArray(pr.only_targets) && !(tgt && pr.only_targets.includes(nameOf(tgt.id)))) continue;   // story: shoot these and nothing else
       let score = t.hits * 10;
+      if (tgt && Array.isArray(pr.target) && pr.target.includes(nameOf(tgt.id))) score += 15;
+      if (tgt && pr.target === 'smallest') score += 8 - tgt.segs.length;
       if (tgt)
         score += tgt.segs.length >= 5 ? 6 : 3; // enemy flagship is unknown; guess the big one
       else {
@@ -70,25 +81,27 @@ export function computerMove(state, seat, level = 'normal') {
     const all = mine.flatMap((s) =>
       E.beamTargets(state, s.id).map((t) => ({ type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at }))
     );
-    if (all.length && Math.random() < 0.5) return all[Math.floor(Math.random() * all.length)];
+    if (all.length && rnd() < 0.5) return all[Math.floor(rnd() * all.length)];
   }
   if (best && best.score >= 10) return best.action;
   // 2. Launch a locked missile at a visible ship within sensible range
-  for (const s of mine) {
+  for (const s of capHit ? [] : mine) {
     const lo = E.launchOptions(state, s.id);
     if (!lo || !lo.kinds.includes('missile') || !lo.locks.length) continue;
     const targets = lo.locks
       .map(shipById)
       .filter(Boolean)
+      .filter((t) => !Array.isArray(prof(s).only_targets) || prof(s).only_targets.includes(nameOf(t.id)))
       .map((t) => ({ t, d: minDist(s.cells, t.cells) }))
-      .filter((x) => x.d <= (easy ? 3 : 5)) // close range: little time to react, point defence gets fewer shots
-      .sort((a, b) => b.t.segs.length - a.t.segs.length || a.d - b.d);
+      .filter((x) => x.d <= (prof(s).launch_range ?? (easy ? 3 : 5))) // close range: little time to react, point defence gets fewer shots
+      .sort((a, b) => (prof(s).target === 'smallest' ? a.t.segs.length - b.t.segs.length : b.t.segs.length - a.t.segs.length) || a.d - b.d);
+    if (Array.isArray(prof(s).target)) targets.sort((a, b) => (prof(s).target.includes(nameOf(b.t.id)) ? 1 : 0) - (prof(s).target.includes(nameOf(a.t.id)) ? 1 : 0));
     if (!targets.length) continue;
     const t = targets[0].t;
     let start = lo.starts[0];
     for (const st of lo.starts) if (minDist([st], t.cells) < minDist([start], t.cells)) start = st;
     const act = { type: 'launch', ship: s.id, kind: 'missile', start, target: t.id, route: [] };
-    if (easy && Math.random() < 0.5) continue; // easy: hesitates
+    if (easy && rnd() < 0.5) continue; // easy: hesitates
     return act;
   }
   // 2b. Scan when blind: no enemy located and a scan is ready. Scans only work on a
@@ -98,7 +111,7 @@ export function computerMove(state, seat, level = 'normal') {
   const bigSeen = foes.some((f) => f.segs.length >= 5);
   if (!easy && !bigSeen && P.cp >= 1) {
     const ready = mine.filter(
-      (s) => !(s.used || {}).scan && s.scanR && (s.scan.tier >= 1 || (v.contacts || []).length)
+      (s) => prof(s).scans !== false && !(s.used || {}).scan && s.scanR && (s.scan.tier >= 1 || (v.contacts || []).length)
     );
     const contacts = v.contacts || [];
     if (ready.length && (contacts.length || v.round >= 3 || foes.length)) {
@@ -108,9 +121,9 @@ export function computerMove(state, seat, level = 'normal') {
     }
   }
   // easy: often wanders instead of picking the best move
-  if (easy && Math.random() < 0.35) {
+  if (easy && rnd() < 0.35) {
     const opts = mine.flatMap((s) => E.reach(state, s.id).map((r) => ({ type: 'move', ship: s.id, path: r.path })));
-    if (opts.length) return opts[Math.floor(Math.random() * opts.length)];
+    if (opts.length) return opts[Math.floor(rnd() * opts.length)];
   }
   // 3. Move: pick the ship whose best destination improves its position the most
   const enemyHome = v.zones.find((z) => z.name.indexOf(v.players[seat]) !== 0);
@@ -124,7 +137,7 @@ export function computerMove(state, seat, level = 'normal') {
   const myScore = (v.scores || [])[seat] || 0, theirScore = (v.scores || [])[1 - seat] || 0;
   const objPull = !obj ? 0 : theirScore > myScore ? 2 : theirScore === myScore ? 1.2 : 0.6;
   const onObj = (cells) => obj && cells.some((c) => H.dist(c, obj.at) <= obj.radius);
-  const knownMines = new Set(
+  const knownMines = mine.length && mine.every((s) => prof(s).avoid_mines === false) ? new Set() : new Set(
     v.objs.filter((o) => !o.mine && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
   );
   const goalCells = foes.length
@@ -184,17 +197,33 @@ export function computerMove(state, seat, level = 'normal') {
       return x === undefined ? 99 : x;
     };
   };
+  const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));
     if (cells.some((c) => knownMines.has(H.key(c)))) return -1e6;
     let score = 0;
+    const pr = prof(s);
+    // story profiles: a route to follow first, a ship to keep away from, running away, marching on
+    const via = pr.path_via && !(opts.via || {})[nameOf(s.id)] ? zoneOf(pr.path_via) : null;
+    if (pr.stand_off && typeof pr.stand_off === 'object') {
+      const from = foes.find((f) => nameOf(f.id) === pr.stand_off.from);
+      if (from) { const d0 = minDist(cells, from.cells); if (d0 < pr.stand_off.hexes) score -= (pr.stand_off.hexes - d0) * 6; }
+    }
+    if (pr.stance === 'flee') return score + (foes.length ? minDist(cells, foes.flatMap((f) => f.cells)) : 0);
+    if (pr.stance === 'advance' || (via && via.length && !foes.length)) {
+      const goal = via && via.length ? via : [homePoint];
+      return score - minDist(cells, goal) * 1.2;
+    }
     const hasLaser = s.segs.some((g) => (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].range));
     if (foes.length) {
-      const target = foes
-        .slice()
-        .sort((a, b) => b.segs.length - a.segs.length || minDist(s.cells, a.cells) - minDist(s.cells, b.cells))[0];
+      let pool = foes.slice();
+      if (Array.isArray(pr.target)) { const named = pool.filter((f) => pr.target.includes(nameOf(f.id))); if (named.length) pool = named; }
+      const target = pool
+        .sort((a, b) => (pr.target === 'smallest' ? a.segs.length - b.segs.length : pr.target === 'nearest' ? 0 : b.segs.length - a.segs.length) || minDist(s.cells, a.cells) - minDist(s.cells, b.cells))[0];
       const d = minDist(cells, target.cells);
       let want = (easy ? [2, 3] : v.round > 8 ? [3, 4] : [5, 6])[s.flagship ? 1 : 0]; // normal keeps a cautious stand-off distance
+      if (typeof pr.stand_off === 'number') want = pr.stand_off;
+      if (pr.stance === 'charge') want = 1;
       score -= d > want ? stepsToRange(s, target, want)(center) * 3 : (want - d) * 3;
       if (hasLaser) {
         // a clear 2-hit shot (4 hexes) is worth much more than a 1-hit plink that shields soak
@@ -204,9 +233,17 @@ export function computerMove(state, seat, level = 'normal') {
             const dd = H.dist(c, tc);
             if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 5 : 2);
           }
+        // no clear line on the target: a clear line on any other foe still beats sitting blind
+        if (!shot)
+          for (const f of foes) {
+            if (f === target) continue;
+            for (const c of cells) for (const tc of f.cells) { const dd = H.dist(c, tc); if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 3 : 1.5); }
+          }
+        // nothing to shoot from here at all: don't wait, look for a line (cornered defence gains little)
+        if (!shot && d <= want + 2) score -= 2.5;
         score += shot;
       }
-      if (d <= 1) score -= 4; // don't ram
+      if (d <= 1 && pr.stance !== 'charge') score -= 4; // don't ram
     } else {
       // scout ahead, flagship trails the scout a little
       const d = minDist(cells, goalCells);
@@ -223,6 +260,7 @@ export function computerMove(state, seat, level = 'normal') {
   };
   let bestMove = null;
   for (const s of mine) {
+    if (prof(s).stance === 'hold') continue;
     const here = scorePos(s, s.pos);
     for (const r of E.reach(state, s.id)) {
       const gain = scorePos(s, r.at) - here - r.path.length * 0.05;
@@ -233,4 +271,22 @@ export function computerMove(state, seat, level = 'normal') {
   if (bestMove) return bestMove.action;
   if (best) return best.action; // a weak shot is better than nothing
   return { type: 'end' };
+}
+
+// The computer in a story chapter: each ship follows its profile from the chapter file.
+// Randomness is seeded from the game state, so a replay makes the same choices.
+export function campaignMove(state, seat) {
+  const C = state.rules.campaign, sc = state.script;
+  if (!C || !sc) return computerMove(state, seat, 'normal');
+  const profiles = {};
+  let level = 'normal';
+  for (const s of state.ships) if (!s.dead && s.owner === seat) {
+    const name = sc.ai[s.name] || sc.ai['side:' + seat] || C.ai[s.name] || (C.ai.sides || [])[seat];
+    const p = name ? C.aiProfiles[name] : null;
+    if (p) { profiles[s.id] = p; if (p.level === 'easy') level = 'easy'; }
+  }
+  let t = (state.rng ^ Math.imul(state.seq + 1, 2654435761)) | 0;
+  const rand = () => { t = (t + 0x6d2b79f5) | 0; let x = Math.imul(t ^ (t >>> 15), t | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const names = Object.fromEntries(state.ships.map((s) => [s.id, s.name]));
+  return computerMove(state, seat, level, { profiles, rand, nameOf: (id) => names[id] || null, via: sc.via, hitsSoFar: sc.hits[seat + ':' + state.round] || 0 });
 }

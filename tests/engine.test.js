@@ -1,7 +1,7 @@
 import { holders as E_holders } from '../engine/objective.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, shipStatus, forecast, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
+import { buildRules, start, apply, attempt, view, reach, beamTargets, launchOptions, shipStatus, forecast, aimLaunch, turnCode, applyTurnCode, exportGame, importGame, hashState, hex, shipStats } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
 import { sensorOf, signatureOf, visibleTo, sigBreak, detectRange, passiveRange } from '../engine/detect.js';
 import { scanInfo } from '../engine/scan.js';
@@ -183,17 +183,19 @@ test('scans get stronger the further forward the ship is', () => {
 });
 
 test('lasers: range, falloff, asteroids, and firing lights the shooter up when it hits', () => {
-  let { game: g } = battle({ terrain: [{ type: 'asteroid', at: [3, 0], size: 1 }], p1: [scout('A', [0, 2])], p2: [pod('X', [0, -1], ['core', 'engine', 'sensor'], ['armour'])], extra2: [] });
+  let { game: g } = battle({ terrain: [{ type: 'asteroid', at: [3, 0], size: 1 }], p1: [scout('A', [0, 2])], p2: [pod('X', [0, -1], ['core', 'engine', 'sensor'], ['armour', 'armour'])], extra2: [] });
   const shots = beamTargets(g, '1a');
+  const L = g.rules.parts.laser, hitsAt = (d) => L.hits - Math.floor((d - 1) / L.loses_1_hit_every);
   assert.equal(shots.length, 1);
-  assert.equal(shots[0].hits, 2);
+  assert.equal(shots[0].hits, hitsAt(3), 'full hits up close');
   g = apply(g, { type: 'fire', ship: '1a', seg: shots[0].seg, part: shots[0].part, at: shots[0].at });
-  assert.equal(ship(g, '2a').segs[0].parts.find((p) => p.t === 'armour').hp, 0);
+  assert.equal(ship(g, '2a').segs[0].parts.filter((p) => p.t === 'armour').reduce((n, p) => n + p.hp, 0), 4 - hitsAt(3), 'the hits went into the armour');
   assert.equal(attempt(g, { type: 'fire', ship: '1a', seg: 0, part: 3, at: [0, -1] }).why, 'that weapon has already fired this turn');
   assert.equal(signatureOf(g, ship(g, '1a')), 1 + 3, 'a hit adds flare 3');
-  // far target: one hit only; blocked target: refused
+  // far target: one hit fewer; blocked target: refused
   let far = battle({ p1: [scout('A', [0, 3])], p2: [scout('X', [0, -2])] }).game;
-  assert.equal(beamTargets(far, '1a')[0].hits, 1);
+  assert.equal(beamTargets(far, '1a')[0].hits, hitsAt(5));
+  assert.equal(hitsAt(5), hitsAt(3) - 1);
   let blocked = battle({ terrain: [{ type: 'asteroid', at: [0, 0], size: 1 }], p1: [scout('A', [0, 2])], p2: [scout('X', [0, -2])] }).game;
   assert.equal(beamTargets(blocked, '1a').length, 0);
   assert.equal(attempt(blocked, { type: 'fire', ship: '1a', seg: 0, part: 3, at: [0, -2] }).why, 'an asteroid blocks the line of fire');
@@ -534,4 +536,31 @@ test('with beams_pass_own_munitions on, lasers pass your own missiles but not yo
   assert.deepEqual(run(false, false), { blocked: true, hurt: false }, 'off: the beam stops at your own missile');
   assert.deepEqual(run(true, false), { blocked: false, hurt: true }, 'on: it flies past your missile and hits');
   assert.deepEqual(run(true, true), { blocked: true, hurt: false }, 'on: your own mine still stops it');
+});
+
+test('a missile can be aimed at any hex and flies the straight hex line to it', () => {
+  const { game } = battle({ p1: [pod('Gun', [0, 6], ['core', 'magazine', 'sensor'], ['launcher'], { load: { missile: 1 } })], p2: [scout('Far', [0, -9])] });
+  for (const aim of [[5, 0], [-4, 1], [2, -6], [-6, 6]]) {
+    const a = aimLaunch(game, '1a', 'missile', aim);
+    assert.ok(a, 'aimed at ' + aim);
+    const r = attempt(game, a);
+    assert.ok(r.ok, r.why);
+    // walk the route: it must pass through the aimed hex
+    let c = a.start, hit = c[0] === aim[0] && c[1] === aim[1];
+    for (const d of a.route) { c = [c[0] + [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]][d][0], c[1] + [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]][d][1]]; if (c[0] === aim[0] && c[1] === aim[1]) hit = true; }
+    assert.ok(hit, 'the path reaches ' + aim);
+  }
+});
+
+test('shields stay down while they keep being hit, and come back after a quiet round', () => {
+  const { game } = battle({ p1: [scout('A', [0, 6])], p2: [pod('S', [0, -6], ['core', 'engine', 'sensor'], ['shield', 'armour', 'armour'])] });
+  const g = structuredClone(game); g.rules = game.rules;
+  const s = g.ships.find((x) => x.name === 'S'), sh = () => s.segs[0].parts.find((p) => p.t === 'shield');
+  applyHits(g, s, 0, 1, 'test');
+  assert.equal(sh().hp, 0);
+  let g2 = apply(apply(g, { type: 'end' }), { type: 'end' });   // the round ends; the shield was hit this round
+  const sh2 = g2.ships.find((x) => x.name === 'S').segs[0].parts.find((p) => p.t === 'shield');
+  assert.equal(sh2.hp, g.rules.parts.shield.recharge_if_unhit ? 0 : 1);
+  g2 = apply(apply(g2, { type: 'end' }), { type: 'end' });     // a quiet round
+  assert.equal(g2.ships.find((x) => x.name === 'S').segs[0].parts.find((p) => p.t === 'shield').hp, 1);
 });

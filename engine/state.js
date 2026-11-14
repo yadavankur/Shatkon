@@ -50,9 +50,29 @@ export function workingParts(state, ship) {
   const out = [];
   ship.segs.forEach((sg, si) => {
     if (sg.wrecked) return;
-    sg.parts.forEach((p, pi) => { if (p.hp > 0) out.push({ p, si, pi, c: state.rules.parts[p.t] }); });
+    sg.parts.forEach((p, pi) => { if (p.hp > 0 && !p.off) out.push({ p, si, pi, c: state.rules.parts[p.t] }); });   // p.off: switched off by a story script
   });
   return out;
+}
+// A ship built with engines that has none working (destroyed or switched off) is dead in the
+// water: it can't move. (A ship designed with no engines at all is carried by the fleet as before.)
+export function deadInWater(state, ship) {
+  let had = false;
+  for (const sg of ship.segs) for (const p of sg.parts) if (state.rules.parts[p.t] && num(state.rules.parts[p.t].thrust) > 0) {
+    had = true;
+    if (!sg.wrecked && p.hp > 0 && !p.off) return false;
+  }
+  return had;
+}
+
+// Story campaigns can protect a ship until a story beat has happened (see engine/script.js).
+export function isProtected(state, ship) {
+  const sc = state.script;
+  if (!sc || !sc.protect) return false;
+  const k = ship.name in sc.protect ? ship.name : 'side:' + ship.owner;
+  if (!(k in sc.protect)) return false;
+  const until = sc.protect[k];
+  return until === 'end' || !sc.fired[until];
 }
 export const sumAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => n + num(x.c[attr]), 0);
 export const maxAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => Math.max(n, num(x.c[attr])), 0);

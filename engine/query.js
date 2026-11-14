@@ -2,14 +2,14 @@
 // what can it shoot, what can it lock on to. These use only what the player knows.
 
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
-import { geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
+import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
 import { networkSees, netMoved } from './detect.js';
 import { moveCap } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
-  if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move) return [];
+  if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
   const n = ship.segs.length;
   const max = Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
   if (max <= 0) return [];
@@ -80,6 +80,21 @@ export function launchOptions(state, shipId) {
   }
   const locks = state.ships.filter((s) => !s.dead && s.owner !== p && networkSees(state, ship, s)).map((s) => s.id);
   return { kinds, starts: [...starts.values()], locks };
+}
+
+// A launch aimed at any hex: the missile (or drone) leaves from the launch hex nearest the aim and
+// flies the straight hex line toward it, then carries straight on (and its seeker can take over).
+// Returns a normal launch action ({ start, route }), or null if this ship can't launch now.
+export function aimLaunch(state, shipId, kind, aim, target = null) {
+  const lo = launchOptions(state, shipId), m = state.rules.munitions[kind];
+  if (!lo || !m || !lo.kinds.includes(kind) || !lo.starts.length || !Array.isArray(aim)) return null;
+  let start = lo.starts[0];
+  for (const st of lo.starts) if (dist(st, aim) < dist(start, aim)) start = st;
+  const ship = shipById(state, shipId), cells = line(start, aim), route = [];
+  for (let i = 1; i < cells.length; i++) route.push(dirToward(cells[i - 1], cells[i]));
+  if (!route.length) { let near = footprint(ship)[0]; for (const c of footprint(ship)) if (dist(c, start) < dist(near, start)) near = c; route.push(dirToward(near, start)); }
+  const max = num(m.speed) * num(m.fuel, 1);
+  return { type: 'launch', ship: shipId, kind, start, target: target && lo.locks.includes(target) ? target : null, route: route.slice(0, max) };
 }
 
 // A plain summary of what a ship can still do this turn, and why not when it cannot.

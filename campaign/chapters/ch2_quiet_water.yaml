@@ -1,0 +1,174 @@
+# ============================================================
+#  CHAPTER 2  -  QUIET WATER          map: ch2_quiet_water (radius 8)
+#  Two Seeds come for Kestrel, one down each flank. An asteroid mass fills the middle of the
+#  board, so each comes south down its lane, and the crew's survey charges are strung right
+#  across both lanes. A Seed that hits a charge is left dead in the water (its engines torn
+#  out); Kestrel and Sparrow finish it where it lies. The mines decide the battle.
+#
+#  Combat v2: `munitions.mine.strikes: engines` sends each charge hit to the working engine
+#  nearest the blast; 5 hits take both of a Seed's engines and land 3 more on the struck
+#  segment. `engines_out` fires the dead-in-water beat; a ship with no working engine cannot
+#  move (engine fix, campaign-engine 8c9d910), so no AI change is needed: it keeps shooting.
+#
+#  Key numbers (see CHECKS.md):
+#   - Start: seed_a in the north-west, 7 rows from the west belt (row 1); seed_b in the top of
+#     the east lane, 4 rows (the Seeds share one thrust pool: they take turns moving).
+#   - Seeds: 4 engines for 4 segments, one thrust pool: 2 hexes a turn between them (about 1
+#     each); a Seed dead in the water takes its engines out of the pool.
+#   - A lane is 2-4 hexes wide and its whole row 1 is mined (3 charges per lane), so a Seed
+#     that comes south past the mass must touch a charge. A move stops on the charge.
+#   - The Seeds close to 3 hexes of Kestrel; no lane hex north of the belt is that close, so
+#     they come through.
+#   - Charges: 5 hits, engines first (strikes: engines), signature -12:
+#     unseeable, and the Seeds have never met them (they do not scan for them).
+#   - Fallback round 9: a Seed still under way is crippled by a charge "walked" to it (a scripted
+#     5-hit mine blast, which follows strikes: engines), per Seed, so both always end dead in
+#     the water.
+#   - Kestrel sees a Seed at 6 (sensor 4 + signature 2); the belts are 7-8 hexes from its start.
+#     Fleet thrust 4 + 1 for 4 segments: Kestrel (3 a hex) makes 1-2 hexes a turn.
+# ============================================================
+
+chapter:
+  id: ch2
+  title: "Quiet Water"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 20
+    "munitions.mine.signature": -12      # far below the default -6: effectively unseeable
+    "munitions.mine.hits": 5             # a charge: 5 hits (world default 4)
+    "munitions.mine.strikes": engines    # Combat v2: each charge hit lands on the nearest working engine
+    "damage.beams_pass_mines": true      # lasers fly over the charges, so nobody shoots them by accident
+  map: maps/ch2_quiet_water.yaml
+
+  player:
+    ships: [kestrel, sparrow]          # hulls kestrel@ch2 (flagship), sparrow@ch1
+    deployment:
+      - { ship: kestrel, at: [0, 3] }    # cells [-1,3] [0,3] [1,3]: between the two lane mouths
+      - { ship: sparrow, at: [-1, 5] }
+      # survey charges, pre-placed across both lanes (the player does not place them in v1)
+      - { mine: [-8, 1] }
+      - { mine: [-7, 1] }
+      - { mine: [-6, 1] }
+      - { mine: [5, 1] }
+      - { mine: [6, 1] }
+      - { mine: [7, 1] }
+  # Fleet thrust 4 + 1 = 5 for 4 segments: average 1, up to 2 hexes a turn. Kestrel costs 3 a hex.
+
+  enemy:
+    ships: [seed_a, seed_b]            # hulls seed_a@ch2 (flagship), seed_b@ch2
+    deployment:
+      - { ship: seed_a, at: [-2, -6] }   # north-west: cells [-2,-6] [-1,-6]
+      - { ship: seed_b, at: [7, -3] }    # north-east, in the top of the east lane: cells [7,-3] [8,-3]
+    ai: { default: hunter }
+
+  ai_profiles:
+    # Competent: hunt Kestrel (the biggest gun) by the shortest way round the mass and close to
+    # 3 hexes - shielded hulls win at 2-hit range - missiles inside 5. They never scan: they
+    # have not met mines.
+    hunter: { level: normal, stance: hunt, stand_off: 3, scans: false, launch_range: 5 }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: end }
+        - protect: { ship: sparrow, until: end }   # assumption: Sparrow is needed in ch3-5
+        # The charges decide it: no Seed dies before it is dead in the water (a charge's spill-over
+        # hits after the engines could otherwise finish a battered Seed outright).
+        - protect: { ship: seed_a, until: a_dead }
+        - protect: { ship: seed_b, until: b_dead }
+        # The Weave have Kestrel's scent (the survey beacon): they know where it is all battle,
+        # and come for it round the mass instead of waiting in the north.
+        - reveal: { ship: kestrel, to: enemy, rounds: 30 }
+        - bark: b2_mines_set
+        - objective: "Hold between the lanes. Let them come to the charges."
+
+    - id: contact
+      when: { any: [ { sees: { side: player, ship: seed_a } }, { sees: { side: player, ship: seed_b } }, { round: 3 } ] }
+      do:
+        - reveal: { ship: seed_a, to: player, rounds: 1 }
+        - reveal: { ship: seed_b, to: player, rounds: 1 }
+        - scene: ch2_contact
+
+    - id: in_the_lanes
+      flavor: true
+      when: { any: [ { in_zone: { side: enemy, zone: lane_w } }, { in_zone: { side: enemy, zone: lane_e } } ] }
+      do:
+        - bark: b2_choke
+
+    # Dead in the water: a charge has torn out a Seed's engines (engines_out), by a real charge or
+    # the round-9 fallback's. It cannot move, still fires, and its shields still recharge between
+    # volleys (Combat v2: only after a round unhit).
+    - id: a_dead
+      when: { engines_out: seed_a }
+      do:
+        - bark: b2_dead_in_water
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel
+        clear: { destroyed: seed_a }
+        steps:
+          - label: "Close to 4 hexes"
+            move_to: { near: seed_a, within: 4 }
+            done: reached
+          - label: "Finish it"
+            fire_at: seed_a
+            done: { destroyed: seed_a }
+    - id: b_dead
+      when: { engines_out: seed_b }
+      do:
+        - bark: b2_dead_in_water
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: kestrel
+        clear: { destroyed: seed_b }
+        steps:
+          - label: "Close to 4 hexes"
+            move_to: { near: seed_b, within: 4 }
+            done: reached
+          - label: "Finish it"
+            fire_at: seed_b
+            done: { destroyed: seed_b }
+
+    # Fallback, per Seed: round 9 and still under way -> a charge goes off under it anyway (a
+    # scripted blast that uses up the nearest charge and, like a real one, strikes the engines).
+    # Both Seeds always end dead in the water.
+    - id: a_fallback
+      fallback_for: a_dead
+      when: { all: [ { round: 9 }, { not: a_dead } ] }
+      do:
+        - damage: { ship: seed_a, seg: 1, hits: 5, from_mine: true }   # a charge's 5 hits, engines first
+    - id: b_fallback
+      fallback_for: b_dead
+      when: { all: [ { round: 9 }, { not: b_dead } ] }
+      do:
+        - damage: { ship: seed_b, seg: 1, hits: 5, from_mine: true }   # a charge's 5 hits, engines first
+
+    - id: first_mine
+      when: { any: [ a_dead, b_dead ] }
+      do:
+        - scene: ch2_first_mine
+        - bark: b2_mine_boom                  # the a_dead / b_dead guide shows the way (no objective line)
+
+    - id: second_seed
+      flavor: true
+      when: { all: [ first_mine, { not: { all: [ a_dead, b_dead ] } }, { any: [ { sees: { side: player, ship: seed_a } }, { sees: { side: player, ship: seed_b } } ] } ] }
+      do:
+        - bark: b2_second_seed
+
+    - id: both_dead_in_water
+      when: { all: [ a_dead, b_dead ] }
+      do: []                                  # the second Seed's guide is up (no objective line)
+
+    # Safety net: the chapter cannot be lost on time.
+    - id: finish_fallback
+      fallback_for: win
+      when: { round: 17 }
+      do:
+        - damage: { ship: seed_a, seg: 0, hits: 12, cause: scripted }
+        - damage: { ship: seed_b, seg: 0, hits: 12, cause: scripted }
+
+  win:  [ { all: [ { destroyed: seed_a }, { destroyed: seed_b } ] } ]
+  lose: [ { destroyed: kestrel } ]
+  scenes: { intro: ch2_intro, win: [ch2_victory, ch2_salvage], lose: ch2_defeat }
+  rewards:
+    capabilities: [shield]
+    # next chapter the loader picks kestrel@ch3 and sparrow@ch3 (<id>@<chapter> hulls)

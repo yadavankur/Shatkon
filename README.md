@@ -51,6 +51,9 @@ The default map is `rules/map_skirmish.yaml`, a small board where the fleets mee
 | `engine/scan.js` | How strong a scan is from where the ship stands. |
 | `engine/flight.js` | The flight phase: missiles and drones. |
 | `engine/objective.js` | The beacon: who holds it, scoring, and who wins at the round limit. |
+| `engine/chapter.js` | Story campaigns: builds a chapter's rules from its files, carries results (rewards, grafted hulls) to the next chapter. |
+| `ui/campaign.js` | The story campaign screen: campaign map, saved progress, cutscenes and barks (from `story/player.js` when it exists, plain text cards until then), the chapter 4 fork, chapter results. |
+| `engine/script.js` | Story scripts: triggers and actions that steer a chapter, plus split, dock, graft and seized ships. See `docs/campaign-engine.md`. |
 | `engine/turn.js` | The turn loop. |
 | `engine/view.js` | Cuts the full state down to what one player may see. |
 | `engine/query.js` | "Where can this ship go? What can it shoot?" |

@@ -312,6 +312,17 @@ function labProfile(A, Bd, d, situ, tiers, knobs) {
 }
 
 // ship stats from the engine (ship built inside a sandbox)
+// How a hull's outline rates: it has to be symmetrical, and compact shapes show fewer sides.
+function shapeText(cells) {
+  let sym = hex.symmetry(cells),
+    sides = hex.exposedSides(cells),
+    best = hex.fewestSides(cells.length);
+  return (
+    (sym === 'mirror' ? 'symmetrical (mirror)' : sym === 'turn' ? 'symmetrical (by a half or third turn)' : '⚠ lopsided: not allowed') +
+    '; ' + sides + ' open sides' +
+    (sides <= best ? ' (as compact as ' + plural(cells.length, 'segment') + ' can be)' : ' (a compact shape has ' + best + ': prefer a triangle, diamond or flower)')
+  );
+}
 function labStats(des) {
   let built = labRules([des], [], { R: 14 }),
     fleetProblems = built.problems.filter(
@@ -957,6 +968,7 @@ function labDesigner(side) {
       ...[
         ['Cost', st.cost + ' of ' + st.budget + (st.cost > st.budget ? ' \u26A0 over budget' : '')],
         ['Segments', st.segments + ' (max ' + rules.seg.max + ')'],
+        ['Shape', shapeText(des.hull.map((g) => g.at))],
         ['Thrust / speed', st.thrust + ' thrust \u2192 up to ' + plural(st.speed, 'hex') + ' a turn on its own'],
         ['Sensor range', plural(st.sensor, 'hex')],
         ['Signature', sigTxt],
