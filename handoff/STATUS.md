@@ -17,4 +17,5 @@
 - All 5 chapters load and finish in engine_check. 74 tests pass.
 
 ## In progress / waiting
+- **feature-campaign-fixes** (15 Nov, Ankur's playtest, made directly in beta/): full-screen board with a ship panel instead of the ship strip, halos on ships you can command, ship outlines, animated ship moves and rams, ship art option, symmetric-hull rule, ch1 redeployed, Kestrel refit reshaped. Not yet on campaign-engine: a beta refresh from that branch would undo it. See to-maps.md and to-story.md.
 - story: scene editor `story/editor.html`; no text in art (see to-story.md).
