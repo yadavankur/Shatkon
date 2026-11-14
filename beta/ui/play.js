@@ -1035,6 +1035,7 @@ export function render() {
     if (val === 'story') { ev.target.value = seat === 'cpu' ? (aiLevel === 'easy' ? 'cpu-easy' : 'cpu') : String(seat); openCampaign(); return; }
     if (val.indexOf('cpu') === 0) { aiLevel = val === 'cpu-easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); val = 'cpu'; }
     seat = val === '0' || val === '1' ? Number(val) : val;
+    if (game && game.rules.campaign) { newGame(); return; }   // leaving the story: the chapter game can't become a skirmish, so start a fresh one
     sel = look = pending = null; mode = 'move'; cam.w = 0; undoStack = [];
     curtain = seat === 'pass' && game && game.phase === 'play' ? turnOf() : null;
     say({ cpu: 'Playing against the computer. You are Player 1.', pass: 'Pass and play: each player only sees what their own fleet sees. Hand the device over between turns.',
