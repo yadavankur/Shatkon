@@ -519,7 +519,8 @@ function setRule(state, path, value) {
   const C = state.rules.campaign, src = structuredClone(C.src);
   setPath(src.world, path, value);
   const built = buildRules(src.world, src.map, src.fleets).rules;
-  const next = { ...built, fleets: state.rules.fleets, campaign: { ...C, src } };
+  // rules0: the rules the battle started with, so a battle log can replay it from the start
+  const next = { ...built, fleets: state.rules.fleets, campaign: { ...C, src, rules0: C.rules0 || state.rules } };
   state.rules = next;
   emit(state, { t: 'rule_changed', path, value }, everyone(state));
 }

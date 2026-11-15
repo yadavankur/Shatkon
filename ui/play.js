@@ -1156,6 +1156,38 @@ function codeBox(label, text, button) {
     else { ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} }
   } }, button)));
 }
+// ---------- battle log ----------
+// One JSON file: a readable recap ("summary") at the top, then every turn, then the replay data.
+// Mid-game it only holds what the player whose eyes the screen shows could see.
+function battleLogFile() {
+  const log = E.battleLog(game, { viewer: who(), seat });
+  const d = new Date(), two = (n) => String(n).padStart(2, '0');
+  const name = 'shatkon-battle-' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + '.json';
+  return { log, name, text: JSON.stringify(log, null, 1) };
+}
+function downloadLog() {
+  try {
+    const { name, text, log } = battleLogFile();
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = h('a', { href: url, download: name, style: 'display:none' });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    say('Battle log saved as ' + name + (log.viewer === 'all' ? '.' : ' (only what you could see, since the game is still going).'));
+  } catch (e) { say('Could not make the battle log: ' + e.message + '.', true); }
+  render();
+}
+function copyLog() {
+  let f;
+  try { f = battleLogFile(); } catch (e) { say('Could not make the battle log: ' + e.message + '.', true); return render(); }
+  const show = () => { drawerOpen = true; logBox = f.text; say('Your browser would not copy it automatically: the log is in the menu (\u2630). Select it all and copy.'); render(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(f.text).then(() => { say('Battle log copied. Paste it into a message or a note to keep it.'); render(); }, show);
+  else show();
+}
+let logBox = null;
+const logButtons = () => [
+  h('button', { class: 'btn', onclick: downloadLog, title: 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
+  h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log')];
+
 function pasteBox(label, button, onText) {
   const ta = h('textarea', { 'aria-label': label, placeholder: 'Paste here' });
   return h('div', { class: 'card' }, h('h2', null, label), ta, h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => onText(ta.value) }, button)));
@@ -1307,13 +1339,14 @@ export function render() {
       fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, storyOverText(game))),
         h('div', { class: 'row' },
           h('button', { class: 'btn go', onclick: () => openCampaign() }, 'Campaign map'),
-          game.script && game.script.result === 'lose' ? h('button', { class: 'btn', onclick: () => retryChapter(game) }, 'Retry chapter') : null)]);
+          game.script && game.script.result === 'lose' ? h('button', { class: 'btn', onclick: () => retryChapter(game) }, 'Retry chapter') : null),
+        h('div', { class: 'row' }, logButtons())]);
     } else {
       const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
       ctx.className = 'who' + (v.winner === 'draw' ? turn : v.winner);
       fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
         h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
-        h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'))]);
+        h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'), logButtons())]);
     }
   } else if (shown) {
     const own = shown.id === sel && !look, more = h('details', { class: 'more' }, h('summary', null, 'Parts and details'), shipCard(shown, v));
@@ -1348,6 +1381,7 @@ export function render() {
       catch (e) { say(e.message.charAt(0).toUpperCase() + e.message.slice(1) + '.', true); }
       render();
     }));
+  if (logBox) panels.appendChild(codeBox('Battle log', logBox, 'Copy log'));
   if (code && isCodes()) panels.appendChild(codeBox('Your turn code: send this to your opponent', code, 'Copy turn code'));
   const styleBtn = (val, label, on) => h('button', { 'aria-pressed': String(shipStyle === val), disabled: !on, onclick: () => { shipStyle = val; store.set('shatkon.ships', val); render(); } }, label);
   const artCount = v.ships.filter((x) => modelFor(x.name, x.segs.map((sg) => sg.off))).length;
@@ -1363,6 +1397,8 @@ export function render() {
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
     h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer')),
+    h('div', { class: 'row' }, logButtons()),
+    h('p', { class: 'muted' }, 'The battle log is every turn of this game, what each ship did and what it hit, with a short recap at the top. Before the game ends it only holds what you could see.'),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
   panels.appendChild(pasteBox('Load a game code', 'Load game', async (text) => {
     try { game = await E.importGame(text); looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; moveAnims = []; drawerOpen = false; say('Game loaded.'); save(); }
@@ -1397,7 +1433,7 @@ function initExtras() {
     );
     $('#helpbtn').addEventListener('click', () => showHelp(true));
   }
-  const setDrawer = (on) => { drawerOpen = on; render(); };
+  const setDrawer = (on) => { drawerOpen = on; if (!on) logBox = null; render(); };
   if ($('#menubtn')) $('#menubtn').addEventListener('click', () => setDrawer(!drawerOpen));
   if ($('#drawerclose')) $('#drawerclose').addEventListener('click', () => setDrawer(false));
   if ($('#sfx'))
