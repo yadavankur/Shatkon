@@ -1,6 +1,13 @@
-# Status (updated 2026-11-14 by engine)
+# Status (updated 2026-11-15 by gamedev)
 
 ## Branches and PRs
+- **main** (d82473a): PR #2 campaign-engine merged (6e05002), PR #18 ship facelift merged. Live at https://yadavankur.github.io/Shatkon/ (play.html, docs/, beta/).
+- **engine-fixes**: PR #19 → main (open, gamedev).
+- **facelift-ships-p4**: PR #20 → main (open, gamedev; ship art only).
+- **battle-log**: gamedev, PR coming (gameplay log, download button, tools/analyse-log.mjs).
+- **feature/move-target-affordance**: engine (Claude), local; rebase on main.
+
+## Older notes (14 Nov, before PR #2 merged)
 - **main**: live game + /beta/. Beta = campaign-engine 960a0f7.
 - **campaign-engine**: PR #2 → main (open, for Ankur's review). Contains campaign-v2, story v2, all engine work.
 - **campaign-v2**: maps bot's final v2 (ch1 rework, guide data in ch1/ch2/ch4A); fully merged into campaign-engine.
