@@ -97,6 +97,11 @@ function enemyAt(state, at, p) {
   return state.objs.find((x) => x.owner !== p && x.pos[0] === at[0] && x.pos[1] === at[1]) || null;
 }
 
+// Does this shot earn the attack-run bonus? The ship must have moved this turn.
+export function attackRunFor(state, ship) {
+  return !!state.rules.det.attackRun && netMoved(state, ship) >= 1;
+}
+
 export function doFire(state, a) {
   const p = current(state), ship = ownShip(state, a.ship, p), spend = pay(state, p, 'fire');
   const sg = ship.segs[a.seg], part = sg && !sg.wrecked ? sg.parts[a.part] : null, c = part && state.rules.parts[part.t];
@@ -123,7 +128,7 @@ export function doFire(state, a) {
     if (ob) { hitObj = ob; hd = i; }
   }
   let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
-  if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+  if (hits > 0 && attackRunFor(state, ship, a.seg, a.at)) hits += state.rules.det.attackRun;
   addFlare(state, ship, hd && hits > 0 ? 'beamHit' : 'fire');
   const end = cells[hd || cells.length - 1].slice();
   emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);
@@ -134,7 +139,10 @@ export function doFire(state, a) {
 }
 
 export function doLaunch(state, a) {
-  const p = current(state), ship = ownShip(state, a.ship, p), spend = pay(state, p, 'launch');
+  const p = current(state), ship = ownShip(state, a.ship, p);
+  // salvo (world: actions.launch.salvo): a ship's first launch of the turn costs the command point,
+  // the rest of its launchers fire on the same order
+  const spend = state.rules.salvo && ship.used.salvo ? () => {} : pay(state, p, 'launch');
   const m = state.rules.munitions[a.kind];
   if (!m || !num(m.speed) || m.setup_only) no('that cannot be launched');
   if (!(ship.load[a.kind] > 0)) no('this ship has none of those left');
@@ -157,6 +165,7 @@ export function doLaunch(state, a) {
     target = t;
   }
   spend(); ship.used[L.si + '.' + L.pi] = 1; ship.load[a.kind]--;
+  if (state.rules.salvo) ship.used.salvo = 1;
   const dir = route.length ? route[0] : target ? dirToward(start, nearestCell(target, start)) : dirToward(nearestCell(ship, start), start);
   const obj = makeObj(state, a.kind, p, start, dir, { target: target ? target.id : null, lock: !!target, route: route.slice(), src: ship.id });
   state.objs.push(obj);

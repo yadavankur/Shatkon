@@ -94,7 +94,13 @@ export function explode(state, obj, struck) {
   for (const x of state.ships.filter((s) => !s.dead).concat(state.objs))
     if (Math.min(...cellsOf(x).map((c) => dist(c, center))) <= lit) state.lit[x.id] = state.round + 1;
   if (struck && m.strikes === 'engines') strikeEngines(state, struck, num(m.hits), obj.kind);
-  else if (struck) applyHits(state, struck.ship, struck.seg, num(m.hits), obj.kind);
+  else if (struck) {
+    // wrecks_segment: a warhead that gets through takes the whole segment. A working shield on
+    // that segment takes the blow instead: the shield goes down and the hull takes the usual hits.
+    const sg = struck.ship.segs[struck.seg];
+    const shielded = sg.parts.some((p) => p.hp > 0 && !p.off && state.rules.parts[p.t].recharges);
+    applyHits(state, struck.ship, struck.seg, m.wrecks_segment === true && !shielded ? sg.parts.reduce((n, p) => n + (p.off ? 0 : Math.max(0, p.hp)), 1) : num(m.hits), obj.kind);
+  }
   const r = num(m.blast_radius);
   for (const s of state.ships) {
     if (s.dead || (!state.rules.friendlyFire && s.owner === obj.owner)) continue;

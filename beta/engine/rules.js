@@ -81,6 +81,7 @@ export function buildRules(world, mapFile, fleetsFile) {
   for (const a of ['move', 'fire', 'launch', 'scan', 'detonate']) rules.cost[a] = num((act[a] || {}).cost, 1);
   // the sacrificial hurl: story scripts and the computer only (no player button)
   const rm = act.ram || {};
+  rules.salvo = (act.launch || {}).salvo === true;   // one command point fires every ready launcher on the ship
   rules.ram = { hitsPerSeg: num(rm.hits_per_segment, 4), reachBonus: num(rm.reach_bonus, 2), pierces: rm.pierces_shields !== false };
 
   const R = rules.board.radius;

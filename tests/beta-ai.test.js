@@ -124,3 +124,48 @@ test('a personality that has scanned its targets sends its missile at the one wi
   assert.equal(after.type, 'launch');
   assert.equal(after.target, '1b', 'the scan showed point defence on the big one');
 });
+
+// ---- missiles (beta rules) ----
+const launcherBoat = (name, at) => ({ name, at, flagship: true, load: { missile: 3 }, hull: [{ at: [0, 0], bays: ['core', 'engine', 'magazine'], mounts: ['launcher', 'launcher'] }, { at: [1, 0], bays: ['coupling', 'engine', 'sensor'], mounts: [] }] });
+const fly = (g) => endTurn(endTurn(g));   // both seats end: the flight phase runs
+
+test('wrecks_segment: one missile takes a whole unshielded segment, so one kills a one-hex boat', () => {
+  const boat = { name: 'Boat', at: [0, 3], flagship: true, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['armour', 'armour'] }] };
+  for (const on of [true, false]) {
+    let g = endTurn(battle({ p1: [boat], p2: [launcherBoat('L', [0, -1])], tweak: (w) => { w.munitions.missile.wrecks_segment = on; } }));
+    g = E.apply(g, E.aimLaunch(g, '2a', 'missile', [0, 3], '1a'));
+    g = endTurn(g);
+    assert.equal(g.ships.find((s) => s.id === '1a').dead, on, on ? 'wrecked outright' : 'three hits only dent two armour plates');
+  }
+});
+
+test('wrecks_segment: a working shield takes the missile instead (shield down, ordinary hits)', () => {
+  const boat = { name: 'Boat', at: [0, 3], flagship: true, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['shield', 'armour', 'armour'] }] };
+  let g = endTurn(battle({ p1: [boat], p2: [launcherBoat('L', [0, -1])], tweak: (w) => { w.munitions.missile.wrecks_segment = true; } }));
+  g = E.apply(g, E.aimLaunch(g, '2a', 'missile', [0, 3], '1a'));
+  g = endTurn(g);
+  const s = g.ships.find((x) => x.id === '1a');
+  assert.equal(s.dead, false);
+  assert.equal(s.segs[0].wrecked, false);
+});
+
+test('a missile flies through a wrecked segment to the one behind it', () => {
+  const ship = { name: 'Long', at: [0, 3], flagship: true, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['armour'] }, { at: [0, -1], bays: ['coupling', 'engine'], mounts: [] }] };
+  let g = endTurn(battle({ p1: [ship], p2: [launcherBoat('L', [0, -2])], tweak: (w) => { w.munitions.missile.wrecks_segment = true; } }));
+  const front = g.ships.find((s) => s.id === '1a').segs[1];
+  front.wrecked = true; front.parts.forEach((p) => { p.hp = 0; });
+  g = E.apply(g, E.aimLaunch(g, '2a', 'missile', [0, 3], '1a'));
+  g = endTurn(g);
+  assert.equal(g.ships.find((s) => s.id === '1a').dead, true, 'it passed the wreck at [0,2] and took the core segment at [0,3]');
+});
+
+test('salvo rule: one command point fires every ready launcher on the ship', () => {
+  const tgt = gunboat('T', [0, 4]);
+  let g = endTurn(battle({ p1: [tgt], p2: [launcherBoat('L', [0, -1])], tweak: (w) => { w.actions.launch.salvo = true; } }));
+  const cp = g.players[1].cp;
+  g = E.apply(g, E.aimLaunch(g, '2a', 'missile', [0, 4]));
+  assert.equal(g.players[1].cp, cp - 1);
+  g = E.apply(g, E.aimLaunch(g, '2a', 'missile', [0, 4]));
+  assert.equal(g.players[1].cp, cp - 1, 'the second launcher fired on the same order');
+  assert.equal(E.launchOptions(g, '2a'), null, 'both launchers are spent');
+});

@@ -4,7 +4,7 @@
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap } from './actions.js';
+import { moveCap, attackRunFor } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
@@ -59,7 +59,7 @@ export function beamTargets(state, shipId) {
       // never offer a shot whose beam would hit one of your own ships first
       for (let j = 1; j < cells.length - 1; j++) { const o = occ.get(key(cells[j])); if (o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked) return; }
       let hits = Math.max(0, w.c.hits - (w.c.loses_1_hit_every ? Math.floor((d - 1) / w.c.loses_1_hit_every) : 0));
-      if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+      if (hits > 0 && attackRunFor(state, ship, w.si, c)) hits += state.rules.det.attackRun;
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
   }
@@ -69,7 +69,7 @@ export function beamTargets(state, shipId) {
 // What a ship could launch, where from, and which enemy ships it could lock on to.
 export function launchOptions(state, shipId) {
   const p = current(state), ship = shipById(state, shipId);
-  if (!ship || ship.owner !== p || state.players[p].cp < state.rules.cost.launch) return null;
+  if (!ship || ship.owner !== p || (state.players[p].cp < state.rules.cost.launch && !(state.rules.salvo && ship.used.salvo))) return null;
   if (!workingParts(state, ship).some((x) => x.c.launches && !ship.used[x.si + '.' + x.pi])) return null;
   const kinds = Object.keys(ship.load).filter((k) => ship.load[k] > 0);
   if (!kinds.length) return null;

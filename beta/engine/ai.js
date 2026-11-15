@@ -29,8 +29,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const v = E.view(state, seat);
   if (v.phase !== 'play' || v.toMove !== seat) return null;
   const P = state.players[seat];
-  if (P.cp <= 0) return { type: 'end' };
   const mine = v.ships.filter((s) => s.mine);
+  // out of command points: the turn is over, unless a ship is mid-salvo (its other launchers fire free)
+  if (P.cp <= 0 && !(R.salvo && mine.some((s) => (s.used || {}).salvo && E.launchOptions(state, s.id)))) return { type: 'end' };
   const foes = v.ships.filter((s) => !s.mine && s.seen);
   const blockSight = new Set();
   for (const t of R.terrain)
@@ -46,6 +47,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     return true;
   };
   const shipById = (id) => v.ships.find((s) => s.id === id);
+  // an enemy whose every part a scan has shown, with nothing left to shoot or launch: a decoy, or disarmed
+  const harmless = (t) => !!t && !t.mine && t.segs.every((g) => g.wrecked || g.parts) &&
+    !t.segs.some((g) => !g.wrecked && g.parts.some((p) => p.hp > 0 && ((R.parts[p.t].range && R.parts[p.t].hits) || R.parts[p.t].launches)));
   // fuzzy contacts: the computer only knows "somewhere in this circle", so it treats
   // every hex of the circle as a possible position (same info the human gets)
   const circleCells = (c) => {
@@ -83,6 +87,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
             ? 25
             : 2;
       }
+      // a personality told to ignore harmless ships does not spend a shot (and light itself up) on one
+      if (pers && tgt && pr.ignores_harmless === true && harmless(tgt)) score = 1;
       if (!best || score > best.score)
         best = { score, hits: t.hits, ship: s, tgt, action: { type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at } };
     }
@@ -260,6 +266,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     return m;
   };
+  // unarmed_ships: bait = a ship with no weapons (a decoy, a picket) runs ahead of the fleet instead
+  // of sitting beside the flagship: the enemy that shoots it lights itself up
+  const bait = (s) => !!pers && prof(s).unarmed_ships === 'bait' && !s.flagship && !lasersOf(s).length &&
+    !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)));
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));
@@ -280,12 +290,14 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     const hasLaser = s.segs.some((g) => (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].range));
     if (foes.length) {
       let pool = foes.slice();
+      if (pers && pr.ignores_harmless === true) { const armed = pool.filter((f) => !harmless(f)); if (armed.length) pool = armed; }
       if (Array.isArray(pr.target)) { const named = pool.filter((f) => pr.target.includes(nameOf(f.id))); if (named.length) pool = named; }
       const target = pool
         .sort((a, b) => (pr.target === 'smallest' ? a.segs.length - b.segs.length : pr.target === 'nearest' ? 0 : b.segs.length - a.segs.length) || minDist(s.cells, a.cells) - minDist(s.cells, b.cells))[0];
       const d = minDist(cells, target.cells);
       let want = (easy ? [2, 3] : v.round > 8 ? [3, 4] : [5, 6])[s.flagship ? 1 : 0]; // normal keeps a cautious stand-off distance
       if (Array.isArray(pr.range)) want = pr.range[s.flagship ? 1 : 0];   // a personality fights from its own range
+      if (bait(s)) want = 2;   // a decoy goes right up to them: something to shoot at, and eyes up close
       if (typeof pr.stand_off === 'number') want = pr.stand_off;
       if (pr.stance === 'charge') want = 1;
       score -= d > want ? stepsToRange(s, target, want)(center) * 3 : (want - d) * 3;
@@ -329,7 +341,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     // a personality keeps its fleet together: an escort that runs ahead alone is picked off
     if (pers && pr.keep_together && !s.flagship) {
       const flag = mine.find((m) => m.flagship && m.id !== s.id);
-      if (flag) score -= Math.max(0, minDist(cells, flag.cells) - pr.keep_together) * 2;
+      // bait runs ahead, but only `bait_lead` hexes: far enough to be shot at first, near enough for the guns behind it to answer
+      if (flag) score -= Math.max(0, minDist(cells, flag.cells) - (bait(s) ? pr.bait_lead ?? 4 : pr.keep_together)) * 2;
     }
     if (obj) {
       // the scout goes for the beacon; the flagship joins in when behind on points
