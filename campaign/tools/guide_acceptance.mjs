@@ -167,8 +167,11 @@ const r1 = rulesFor('ch1');
   check('F2', 'ch2 fallback (damage from_mine, strikes: engines): engines_out, a_dead / b_dead fire, Seeds cannot move', beat(g, 'a_fallback') && beat(g, 'a_dead') && beat(g, 'b_dead') && noReach(a) && noReach(b), `a_dead ${beat(g, 'a_dead')}, b_dead ${beat(g, 'b_dead')}`);
 }
 {
-  // ch4A tow: the partial locks carry a reason; a move order for Tern is refused with it
-  const r4 = rulesFor('ch4a');
+  // ch4A tow: the partial locks carry a reason; a move order for Tern is refused with it.
+  // In the shipped chapter Tern usually starts within 2 hexes of Kestrel, so the scripted graft
+  // fires in the same step as the tow and the chapter ends before a lock can be tried. Here the
+  // "touching after the tow" graft trigger is taken out, so the tow (and its locks) stays up.
+  const r4 = rulesFor('ch4a', (ch) => { const gr = ch.script.find((e) => e.id === 'grafted'); gr.when.any = gr.when.any.filter((c) => !(c.all && c.all.includes('tow'))); });
   const { g } = play(r4, 1, (p, gg) => beat(gg, 'tow') && S.current(gg) === 0 && gg.phase === 'play');
   const t = ship(g, 'tern'), k = ship(g, 'kestrel');
   const why = (sh) => { const st = { ...g, players: g.players }; const r = E.attempt(st, { type: 'move', ship: sh.id, path: [0] }); return r.ok ? '(accepted)' : r.why; };

@@ -672,9 +672,9 @@ function act(action, quiet, byAI) {
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
   game = r.state; pending = null;
   const mine = game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost').map(describe);
-  // an action can be undone only if it told the player nothing new
-  if (!byAI && game.phase === 'play' && (action.type === 'move' || action.type === 'launch')
-    && game.events.every((e) => !e.seenBy.includes(p) || e.t === 'move' || e.t === 'launch' || e.t === 'lost')) undoStack.push(prev);
+  // an action can be undone only if it told the player nothing new: no news for them and no change
+  // to what they know (a sighting, a lost contact, a fuzzy contact, a ghost clearing, a hit...)
+  if (!byAI && (action.type === 'move' || action.type === 'launch') && E.undoSafe(prev, game, p)) undoStack.push(prev);
   else undoStack = [];
   sfxFor(action, game.events, viewer);
   // animations and the impact report. In pass and play they wait until the next player lifts the curtain.

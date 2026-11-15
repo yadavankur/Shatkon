@@ -10,12 +10,13 @@
 // Player actions added here: dock, graft (see doJoin).
 
 import { add, key, dist, step } from './hex.js';
-import { no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater } from './state.js';
+import { Illegal, no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater } from './state.js';
 import { visibleTo, refreshSight } from './detect.js';
 import { applyHits, removeObj, strikeEngines } from './damage.js';
 import { doMove, doFire, doLaunch } from './actions.js';
 import { reach, beamTargets, aimLaunch } from './query.js';
 import { buildRules } from './rules.js';
+import { fnv, stable } from './codec.js';
 
 const SIDE = { player: 0, human: 0, enemy: 1, weave: 1 };
 const sideOf = (s) => (typeof s === 'number' ? s : SIDE[s]);
@@ -475,7 +476,7 @@ function runPlan(state, s, plan) {
           if (!t) { o.done = true; moved = false; continue; }
           if (ram(state, s, t, false, o.seg)) o.done = true; else forced(state, s, { move_toward: v });
         }
-      } catch (e) { /* an order that can't be carried out this turn waits */ }
+      } catch (e) { refused(state, e, 'plan'); }   // an order that can't be carried out this turn waits
     }
   });
 }
@@ -511,7 +512,14 @@ function forced(state, s, order) {
       const shot = beamTargets(state, s.id).find((x) => x.target === t.id);
       if (shot) { doFire(state, { type: 'fire', ship: s.id, seg: shot.seg, part: shot.part, at: shot.at }); emit(state, { t: 'forced', ship: s.id, order: 'fire' }, everyone(state)); }
     }
-  } catch (e) { /* an order that can't be carried out is skipped */ }
+  } catch (e) { refused(state, e, 'force'); }   // an order that can't be carried out is skipped
+}
+// A story order the rules refuse (Illegal) is expected and quietly waits or is skipped. Anything
+// else is a real bug: it is reported as a script_failed event (engine_check counts those) instead of
+// vanishing, but the game carries on.
+function refused(state, e, what) {
+  if (e instanceof Illegal) return;
+  emit(state, { t: 'script_failed', action: what, why: String((e && e.message) || e) }, everyone(state));
 }
 
 // Change a world-file value mid-battle: rebuild the rules from the patched world.
@@ -521,6 +529,7 @@ function setRule(state, path, value) {
   const built = buildRules(src.world, src.map, src.fleets).rules;
   const next = { ...built, fleets: state.rules.fleets, campaign: { ...C, src } };
   state.rules = next;
+  state.rid = fnv(stable(next)).toString(36);   // a story rule change is not tampering: a saved game must still load
   emit(state, { t: 'rule_changed', path, value }, everyone(state));
 }
 export function setPath(obj, path, value) {

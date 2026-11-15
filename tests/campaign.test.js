@@ -526,3 +526,22 @@ test('guide: a zone counts any cell of a long ship, as `reached` does', () => {
   assert.ok(v.dest.length > 2 && !v.blockedFrom.length);
   for (const a of v.dest) assert.ok(k.segs.some((sg) => z.has((a[0] + sg.off[0]) + ',' + (a[1] + sg.off[1]))));
 });
+
+test('story orders: a refused order waits quietly, a real bug is reported as script_failed', () => {
+  // `follow` needs a list of hexes; a number makes the plan code itself fail (a TypeError, not a refusal)
+  const ch = chapter({
+    player: { ships: ['kestrel', { id: 'sparrow', helm: 'script' }], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'plan', when: 'start', do: [{ orders: { ship: 'sparrow', do: [{ follow: 5 }] } }] }] });
+  const seen = [];
+  let h = start(load(ch), 3);
+  for (let i = 0; i < 3 && h.phase === 'play'; i++) { h = apply(h, { type: 'end' }); seen.push(...h.events); }
+  assert.ok(seen.some((e) => e.t === 'script_failed' && e.action === 'plan'), 'the broken order is reported, not swallowed');
+  assert.equal(h.phase, 'play', 'and the game carries on');
+  // an order the rules simply refuse (here: a hold, then nothing to do) produces no script_failed
+  const ok = chapter({
+    player: { ships: ['kestrel', { id: 'sparrow', helm: 'script' }], deployment: [{ ship: 'kestrel', at: [0, 7] }, { ship: 'sparrow', at: [2, 6] }] },
+    script: [{ id: 'plan', when: 'start', do: [{ orders: { ship: 'sparrow', do: [{ follow: [[2, 4], [2, 2]] }, { ram: 'seed' }] } }] }] });
+  let k = start(load(ok), 3); const ev = [];
+  for (let i = 0; i < 8 && k.phase === 'play'; i++) { k = apply(k, { type: 'end' }); ev.push(...k.events); }
+  assert.ok(!ev.some((e) => e.t === 'script_failed'));
+});

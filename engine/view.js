@@ -8,6 +8,27 @@ import { scanInfo, scanRadii } from './scan.js';
 import { cellsOf } from './state.js';
 import { thrustIncome, fleetSegs, moveCap } from './actions.js';
 
+// What player p knows about the other side, as one comparable string: the enemy ships and
+// munitions in sight (where, what is wrecked, what scans told them), ghosts, fuzzy contacts,
+// and the story state. If an action changes this, it told the player something new.
+export function knowledge(state, p) {
+  const v = view(state, p);
+  return JSON.stringify([
+    v.ships.filter((s) => !s.mine).map((s) => [s.id, s.pos, s.tier, s.segs.map((g) => [g.wrecked, g.parts && g.parts.map((x) => x.t + ':' + x.hp)])]),
+    v.objs.filter((o) => !o.mine).map((o) => [o.id, o.pos]),
+    v.ghosts, v.contacts, v.story && [v.story.objective, v.story.unlocked, v.story.result, v.story.locked],
+    v.phase, v.winner,
+  ]);
+}
+// May player p take back the action that turned `before` into `after`? Only if it told them
+// nothing: no event for them other than their own move or launch, and no change to what they
+// know (a ship sighted or lost, a contact appearing, a ghost clearing, a scan, a hit, a story beat).
+export function undoSafe(before, after, p) {
+  if (!before || !after || after.phase !== 'play' || current(after) !== p) return false;
+  if (after.events.some((e) => e.seenBy.includes(p) && !((e.t === 'move' || e.t === 'launch') && after.ships.some((x) => x.id === e.ship && x.owner === p)))) return false;
+  return knowledge(before, p) === knowledge(after, p);
+}
+
 export function view(state, who) {
   const all = who === 'all', p = all ? current(state) : who, pl = state.players[p], rules = state.rules;
   const vis = new Set(pl.vis);

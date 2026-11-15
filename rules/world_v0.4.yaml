@@ -143,7 +143,7 @@ damage:
     - "take the ones with the lowest layer number"
     - "one of them, picked at random, loses 1 hp"
     - "a hit that finds nothing left to damage wrecks the segment"
-  wrecked_segment: "stays attached, still weighs the ship down, and shots pass through it"
+  wrecked_segment: "stays attached, still weighs the ship down, and shots pass through it (beams, missiles and drones alike)"
   ship_dead_when:             # any one of these kills the ship
     - core_destroyed
     - nothing_but_engines     # it has lost parts and only engines and the core still work

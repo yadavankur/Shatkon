@@ -5,6 +5,7 @@
 //   const action = computerMove(game, 1, 'normal');   // null when it is not this seat's turn
 
 import * as E from './index.js';
+import { beamHitsAt } from './actions.js';
 
 // opts (story campaigns, see campaignMove): profiles { shipId: profile }, rand (seeded),
 // nameOf(id), via { shipName: true } (already went through its path_via zone), hitsSoFar.
@@ -214,7 +215,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       const goal = via && via.length ? via : [homePoint];
       return score - minDist(cells, goal) * 1.2;
     }
-    const hasLaser = s.segs.some((g) => (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].range));
+    const { hasLaser, hFull, hitsAt } = laserReach(R, s.segs);
     if (foes.length) {
       let pool = foes.slice();
       if (Array.isArray(pr.target)) { const named = pool.filter((f) => pr.target.includes(nameOf(f.id))); if (named.length) pool = named; }
@@ -226,18 +227,19 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       if (pr.stance === 'charge') want = 1;
       score -= d > want ? stepsToRange(s, target, want)(center) * 3 : (want - d) * 3;
       if (hasLaser) {
-        // a clear 2-hit shot (4 hexes) is worth much more than a 1-hit plink that shields soak
+        // a clear full-strength shot is worth much more than a weakened long-range plink that
+        // shields soak (stock laser: full strength out to 4 hexes, weaker from 5 to 8)
         let shot = 0;
         for (const c of cells)
           for (const tc of target.cells) {
-            const dd = H.dist(c, tc);
-            if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 5 : 2);
+            const hh = hitsAt(H.dist(c, tc));
+            if (hh > 0 && clearLine(c, tc)) shot = Math.max(shot, hh >= hFull ? 5 : 2);
           }
         // no clear line on the target: a clear line on any other foe still beats sitting blind
         if (!shot)
           for (const f of foes) {
             if (f === target) continue;
-            for (const c of cells) for (const tc of f.cells) { const dd = H.dist(c, tc); if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 3 : 1.5); }
+            for (const c of cells) for (const tc of f.cells) { const hh = hitsAt(H.dist(c, tc)); if (hh > 0 && clearLine(c, tc)) shot = Math.max(shot, hh >= hFull ? 3 : 1.5); }
           }
         // nothing to shoot from here at all: don't wait, look for a line (cornered defence gains little)
         if (!shot && d <= want + 2) score -= 2.5;
@@ -289,4 +291,17 @@ export function campaignMove(state, seat) {
   const rand = () => { t = (t + 0x6d2b79f5) | 0; let x = Math.imul(t ^ (t >>> 15), t | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
   const names = Object.fromEntries(state.ships.map((s) => [s.id, s.name]));
   return computerMove(state, seat, level, { profiles, rand, nameOf: (id) => names[id] || null, via: sc.via, hitsSoFar: sc.hits[seat + ':' + state.round] || 0 });
+}
+
+// A ship's working lasers, straight from the rules (range, hits, falloff), so Combat v2's 3-hit
+// laser or a Lab rule change moves the computer's idea of a good firing spot with them.
+// segs: the ship's segments as view() gives them. hitsAt(d): best hits at d hexes (0 = out of
+// range); hFull: hits at point-blank range (a "full-strength" shot).
+export function laserReach(R, segs) {
+  const lasers = segs.flatMap((g) => (g.wrecked ? [] : (g.parts || []).filter((p) => p.hp > 0 && R.parts[p.t] && R.parts[p.t].range && R.parts[p.t].hits).map((p) => R.parts[p.t])));
+  return {
+    hasLaser: lasers.length > 0,
+    hFull: lasers.reduce((m, c) => Math.max(m, beamHitsAt(c, 1)), 0),
+    hitsAt: (d) => lasers.reduce((m, c) => (d >= 1 && d <= c.range ? Math.max(m, beamHitsAt(c, d)) : m), 0),
+  };
 }
