@@ -366,6 +366,16 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const pl of plans) drawPlan(pl.f, false);
   drawPlan(plan, true);
 
+  // choosing where to move: dim the rest of the board so the ways out stand out. The ship itself stays bright.
+  const moves = [...opts].filter(([, o]) => o.mark === 'move');
+  const mover = moves.length ? v.ships.find((x) => x.id === sel) : null;
+  if (mover) {
+    svg.querySelector('defs').appendChild(s('mask', { id: 'movescrim', maskUnits: 'userSpaceOnUse', x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh) },
+      s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#fff' }),
+      s('path', { d: mover.cells.map((c) => cellPath(c, 1.08)).join(''), fill: '#000' })));
+    svg.appendChild(s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#02040a', 'fill-opacity': 0.55, mask: 'url(#movescrim)', 'pointer-events': 'none', class: 'movescrim' }));
+  }
+
   if (ghost) {
     const gc = col(ghost.owner), ax = X(ghost.from), ay = Y(ghost.from), bx = X(ghost.to), by = Y(ghost.to), ang = Math.atan2(by - ay, bx - ax), hd = 5;
     svg.appendChild(s('path', { d: ghost.cells.map((c) => cellPath(c, 1.0)).join(''), fill: gc, 'fill-opacity': 0.18, stroke: '#ffffff', 'stroke-width': 1.3, 'stroke-dasharray': '3 2' }));
@@ -417,9 +427,30 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const [k, o] of opts) {
     const c = hex.unkey(k), cx = f1(X(c)), cy = f1(Y(c));
     if (o.mark === 'move') {
-      svg.appendChild(s('path', { d: cellPath(c, 0.9), fill: '#58d6a0', 'fill-opacity': 0.1, stroke: '#58d6a0', 'stroke-width': 0.6, 'stroke-opacity': 0.7 }));
-      svg.appendChild(s('circle', { cx, cy, r: f1(Math.min(S * 0.5, 8.5 / px)), fill: '#58d6a0', stroke: '#06140e', 'stroke-width': f1(1 / px) }));
-      svg.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(10), 'font-weight': 700, fill: '#06140e' }, o.label));
+      // The centre hex of a big ship's one-step move lies under the ship itself, so a marker there says nothing.
+      // Those get their chip and an arrow on the ship's outer edge, on the side it would move towards.
+      const path = o.action.path, own = mover && mover.cells.some((x) => hex.same(x, c));
+      const chosen = pending && pending.type === 'move' && pending.ship === sel && pending.path.length === path.length && pending.path.every((d, i) => d === path[i]);
+      const rc = Math.min(S * 0.62, (chosen ? 14 : 12) / px), green = chosen ? '#ffffff' : '#6dffc0';
+      let qx = X(c), qy = Y(c), ux = 0, uy = 0;
+      if (own && path.length === 1) {
+        const set = new Set(mover.cells.map(hex.key)), d = path[0];
+        const mx = mover.cells.reduce((n, x) => n + X(x), 0) / mover.cells.length, my = mover.cells.reduce((n, x) => n + Y(x), 0) / mover.cells.length;
+        const edge = mover.cells.filter((x) => !set.has(hex.key(hex.step(x, d))));
+        const from = (edge.length ? edge : mover.cells).reduce((a, b) => (Math.hypot(X(b) - mx, Y(b) - my) < Math.hypot(X(a) - mx, Y(a) - my) ? b : a));
+        const to = hex.step(from, d), vx = X(to) - X(from), vy = Y(to) - Y(from), len = Math.hypot(vx, vy) || 1;
+        ux = vx / len; uy = vy / len; qx = X(from) + vx * 0.82; qy = Y(from) + vy * 0.82;
+      }
+      const g = s('g', { 'data-tap': k, class: 'movechip' });
+      if (!own) g.appendChild(s('path', { d: cellPath(c, 0.94), fill: '#58f0b0', 'fill-opacity': 0.22, stroke: '#6dffc0', 'stroke-width': f1(1.5), class: 'movepulse' }));
+      g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc), fill: 'none', stroke: green, 'stroke-width': f1(1.6 / px), 'stroke-opacity': 0.7, class: 'moveping' }));
+      if (ux || uy) {   // a pointer on the outward side of the chip
+        const tx = qx + ux * rc * 1.9, ty = qy + uy * rc * 1.9, bx = qx + ux * rc * 0.8, by = qy + uy * rc * 0.8, nx = -uy * rc * 0.75, ny = ux * rc * 0.75;
+        g.appendChild(s('path', { d: `M${f1(tx)},${f1(ty)}L${f1(bx + nx)},${f1(by + ny)}L${f1(bx - nx)},${f1(by - ny)}Z`, fill: green, stroke: '#06140e', 'stroke-width': f1(1 / px), 'stroke-linejoin': 'round' }));
+      }
+      g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc), fill: green, stroke: '#06140e', 'stroke-width': f1(1.2 / px) }));
+      g.appendChild(s('text', { x: f1(qx), y: f1(qy), 'font-size': fs(chosen ? 13 : 12), 'font-weight': 800, fill: '#06140e' }, chosen ? '✓' : o.label));
+      svg.appendChild(g);
     } else if (o.mark === 'way') svg.appendChild(s('circle', { cx, cy, r: 3, fill: '#5cc8ff', 'fill-opacity': 0.85, stroke: '#060a14', 'stroke-width': 0.6 }));
     else {
       const colr = o.mark === 'target' ? '#ff6b6b' : '#f5b942';
@@ -476,6 +507,8 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   svg.addEventListener('pointercancel', lift);
   svg.addEventListener('click', (ev) => {
     if (dragged) { dragged = false; return; }
+    const chip = ev.target.closest && ev.target.closest('[data-tap]');      // a move chip stands for its destination hex
+    if (chip) { onTap(hex.unkey(chip.getAttribute('data-tap'))); return; }
     const m = svg.getScreenCTM(); if (!m) return;
     let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
     p.x *= FL; p.y *= FL;               // back to unflipped board coordinates
