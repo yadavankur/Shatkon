@@ -10,8 +10,10 @@
 //   node tools/variants.mjs --suite pilots --log games.csv     one line per game: cell, seed, seats, winner, rounds
 //   add --missiles or --ships to any run for the missile counts or the per-personality table
 //
-// A cell is "variant | fleet:pilot v fleet:pilot". The first side is A. Game i of a cell uses
-// seed = --seed + floor(i / 2) * 7919; odd games swap the seats. The seed sets the random starting
+// A cell is "variant | fleet:pilot v fleet:pilot". The first side is A. Every match-up gets its own
+// first seed, worked out from --seed and the match-up's text (so different match-ups start from
+// different layouts, and every variant of one match-up plays the same games). Game i of a cell uses
+// seed = first seed + floor(i / 2) * 7919; odd games swap the seats. The seed sets the random starting
 // positions (every ship somewhere in its own home rows), the game's own dice, and, for a
 // mix(...) pilot, which ship flies which personality. So a cell, its seed and its game count
 // reproduce the same games exactly.
@@ -175,7 +177,15 @@ export function wilson(p, n) {
 }
 export function label(p, lo, hi) { return lo > 0.5 || hi < 0.5 ? 'clear' : p >= 0.65 || p <= 0.35 ? 'leaning' : 'unclear'; }
 
-export function runCell(cell, games, seed0, log) {
+// The first seed of a match-up: the base seed plus a number made from the match-up's text.
+export function cellSeed(cell, base) {
+  let h = 2166136261;
+  for (const ch of cell.text.slice(cell.text.indexOf('|') + 1).trim()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return base + ((h >>> 0) % 9973) * 13;
+}
+
+export function runCell(cell, games, base, log) {
+  const seed0 = cellSeed(cell, base);
   const out = { cell: cell.text, games, seed0, w: 0, l: 0, d: 0, noKill: 0, rounds: 0, seat0: 0, A: {}, B: {}, ships: [] };
   const add = (into, s) => { for (const k of Object.keys(s)) into[k] = (into[k] || 0) + s[k]; };
   const pa = policy(cell.a), pb = policy(cell.b);
@@ -243,7 +253,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const t00 = Date.now();
   for (const job of jobs) {
     const games = Number(opt('games', job.s.games || 10)), t0 = Date.now();
-    const seeds = `${seed0} + 7919k, k = 0..${Math.ceil(games / 2) - 1}, both seats`;
+    const seeds = `first seed + 7919k, k = 0..${Math.ceil(games / 2) - 1}, each from both seats (base seed ${seed0})`;
     const flags = (job.s.missiles || has('missiles') ? ' --missiles' : '') + (job.s.ships || has('ships') ? ' --ships' : '');
     if (md) {
       console.log(`\n### Suite: ${job.name}\n\n${job.note}\n\nCommand: \`node tools/variants.mjs --suite ${job.name} --games ${games} --seed ${seed0}\`. Seeds: ${seeds}. One row alone: \`node tools/variants.mjs --games ${games} --seed ${seed0}${flags} --cell "<cell>"\`.\n`);
@@ -254,12 +264,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const r = runCell(c, games, seed0, log);
       total += games; seat0 += r.seat0; n += games;
       const iv = `${pc(r.lo)} to ${pc(r.hi)}`;
-      if (md) console.log(`| ${r.cell} | ${r.w}-${r.l}-${r.d} | ${pc(r.p)} | ${iv} | ${r.label} | ${per(r.rounds, games)} | ${r.noKill} | ${r.seat0} |`);
+      if (md) console.log(`| ${r.cell} | ${r.seed0} | ${r.w}-${r.l}-${r.d} | ${pc(r.p)} | ${iv} | ${r.label} | ${per(r.rounds, games)} | ${r.noKill} | ${r.seat0} |`);
       else {
-        console.log(`${r.cell.padEnd(64)} ${`${r.w}-${r.l}-${r.d}`.padStart(8)}  A ${pc(r.p).padStart(4)}  [${iv}]  ${r.label.padEnd(8)} rounds ${per(r.rounds, games).padStart(5)}  no kill ${String(r.noKill).padStart(2)}  first-seat wins ${r.seat0}  forced moves ${r.A.forced}/${r.B.forced}`);
+        console.log(`${r.cell.padEnd(64)} ${`${r.w}-${r.l}-${r.d}`.padStart(8)}  A ${pc(r.p).padStart(4)}  [${iv}]  ${r.label.padEnd(8)} rounds ${per(r.rounds, games).padStart(5)}  no kill ${String(r.noKill).padStart(2)}  first seed ${r.seed0}  first-seat wins ${r.seat0}  forced moves ${r.A.forced}/${r.B.forced}`);
         console.log(`    reproduce: node tools/variants.mjs --games ${games} --seed ${seed0}${flags} --cell "${r.cell}"`);
       }
-      if (job.s.missiles || has('missiles')) console.log((md ? '| ↳ ' : '    ') + missileLine(r) + (md ? ' | | | | | | | |' : ''));
+      if (job.s.missiles || has('missiles')) console.log((md ? '| ↳ ' : '    ') + missileLine(r) + (md ? ' | | | | | | | | |' : ''));
       if (job.s.ships || has('ships')) console.log('\n' + shipTable(r) + '\n' + (md ? '\n| cell (A is the first side) | W-L-D for A | A share | 95% interval | label | rounds | no kill | first seat won |\n|---|---|---|---|---|---|---|---|' : ''));
     }
     const secs = ((Date.now() - t0) / 1000).toFixed(0);
