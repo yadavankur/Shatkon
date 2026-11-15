@@ -78,6 +78,51 @@ designs:
       - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
       - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
 
+  # ---- added for the variety study (tools/variants.mjs) ----
+  cruiser:                     # 3 segments, two lasers, a launcher with 2 missiles, a shield, point defence: the identical ship for personality teams
+    load: { missile: 2 }
+    hull:
+      - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+      - { at: [0, 0],  bays: [core, sensor, magazine],   mounts: [launcher, armour] }
+      - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, point_defence] }
+  dreadnought:                 # one big flagship: 7 segments, four lasers, six shields, two launchers, 12 engines
+    load: { missile: 3 }
+    hull:
+      - { at: [0, 0],  bays: [core, sensor, magazine] }
+      - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+      - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+      - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+      - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+      - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+      - { at: [0, 1],  bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+  shieldboat:                  # a gunboat with a shield and armour on both segments
+    hull:
+      - { at: [0, 0], bays: [core, engine, sensor],     mounts: [laser, shield, armour] }
+      - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, shield, armour] }
+  bastion:                     # 4-segment flagship, shield and armour on every segment, three lasers
+    hull:
+      - { at: [0, 0],  bays: [core, sensor, comms],      mounts: [shield, armour, point_defence] }
+      - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+      - { at: [0, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+      - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+  skiff:                       # the cheapest thing with a gun: one segment, one laser
+    hull:
+      - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+  shadow:                      # stealth flagship: 4 segments, a stealth part in every one, three lasers
+    hull:
+      - { at: [0, 0],  bays: [core, sensor, stealth] }
+      - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+      - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [laser, armour] }
+      - { at: [1, -1], bays: [engine, coupling, stealth], mounts: [laser, point_defence] }
+  seeker:                      # sees 6 hexes: two sensors, two lasers, point defence
+    hull:
+      - { at: [0, 0], bays: [core, sensor, sensor],     mounts: [laser] }
+      - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence] }
+  pd_escort:                   # anti-missile escort: point defence and a shield on both segments
+    hull:
+      - { at: [0, 0], bays: [core, engine, sensor],     mounts: [laser, point_defence, shield] }
+      - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
+
 
 # A fleet is a list of ships. The first one marked `flag` is the flagship (lose it and you lose).
 # `ai:` gives one ship its own personality; `missiles:` overrides how many it carries.
@@ -90,6 +135,34 @@ fleets:
   mixed3:       [ { ship: flagship, flag: true, ai: defensive }, { ship: gunboat, ai: aggressive }, { ship: missile_boat, ai: balanced } ]
   swarm5:       [ { ship: small_flagship, flag: true }, { ship: gunboat }, { ship: gunboat }, { ship: missile_boat }, { ship: picket } ]
   missile5:     [ { ship: small_flagship, flag: true }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat } ]
+  # ---- added for the variety study. COSTFILL ----
+  solo:         [ { ship: dreadnought, flag: true } ]
+  pair_guns:    [ { ship: small_flagship, flag: true }, { ship: gunboat } ]
+  shields3:     [ { ship: bastion, flag: true }, { ship: shieldboat }, { ship: shieldboat } ]
+  guns4:        [ { ship: brawler, flag: true }, { ship: gunboat }, { ship: gunboat }, { ship: gunboat } ]
+  mixed4:       [ { ship: small_flagship, flag: true }, { ship: gunboat }, { ship: missile_boat }, { ship: sniper } ]
+  stealth4:     [ { ship: shadow, flag: true }, { ship: sniper }, { ship: sniper }, { ship: scout } ]
+  cheap5:       [ { ship: small_flagship, flag: true }, { ship: skiff }, { ship: skiff }, { ship: skiff }, { ship: skiff } ]
+  guns5:        [ { ship: brawler, flag: true }, { ship: gunboat }, { ship: gunboat }, { ship: skiff }, { ship: skiff } ]
+  mixed5:       [ { ship: flagship, flag: true }, { ship: gunboat }, { ship: missile_boat }, { ship: sniper }, { ship: picket } ]
+  # identical ships, for the personality team tests (the pilot mix is set in the cell, see ai_variants.yaml)
+  team3:        [ { ship: cruiser, flag: true }, { ship: cruiser }, { ship: cruiser } ]
+  team4:        [ { ship: cruiser, flag: true }, { ship: cruiser }, { ship: cruiser }, { ship: cruiser } ]
+  team5:        [ { ship: cruiser, flag: true }, { ship: cruiser }, { ship: cruiser }, { ship: cruiser }, { ship: cruiser } ]
+  # fleets built to counter others (see `counters:` below)
+  anti_missile3: [ { ship: bastion, flag: true }, { ship: pd_escort }, { ship: pd_escort } ]
+  anti_stealth3: [ { ship: small_flagship, flag: true }, { ship: seeker }, { ship: seeker } ]
+  standoff3:     [ { ship: missile_flagship, flag: true }, { ship: sniper }, { ship: sniper } ]
+  heavy2:        [ { ship: dreadnought, flag: true }, { ship: gunboat } ]
+  wolfpack4:     [ { ship: small_flagship, flag: true }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat } ]
+
+# Which fleets each counter fleet was built to beat (a design guess, tested in the "counters" suite).
+counters:
+  anti_missile3: [missiles3, missile5, wolfpack4]     # point defence and shields everywhere
+  anti_stealth3: [snipers3, stealth4, decoys5]        # sensors to find them
+  standoff3:     [guns3, guns4, shields3]             # out-range the guns
+  heavy2:        [swarm5, cheap5, guns5]              # one hull too tough for small guns
+  wolfpack4:     [solo, stock, heavy2]                # many missiles at one big target
 
 
 # Tactics for tools/counter.mjs: ways to fly a fleet. A name on its own is a personality from the
