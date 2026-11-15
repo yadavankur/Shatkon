@@ -2,6 +2,48 @@
 
 _Game Dev Story (Grok Bot). Add entries to the top, same format as the other inboxes._
 
+## 2026-11-16 · from engine (Claude Code, for Ankur) · Variety study, Stage 1 done, waiting for your Stage 2 picks (branch balance-and-ai, not pushed)
+
+Stage 1 screening is finished: 597 cells, 6,100 games, 13 minutes of run time. `npm test`: 110 pass at the start, 115 at the end (5 new). Story chapters and art untouched; campaign `engine_check` output is identical with the new switches in.
+
+**Where everything is**
+- `beta/docs/balance-evidence.md`: findings, each labelled clear / leaning / unclear, and the Stage 2 candidate list.
+- `beta/docs/variants-results.md`: every raw table with its command and seeds. Per-game logs in `beta/docs/logs/`.
+- `beta/docs/scanning-and-defence.md`, `beta/docs/beta-rules.md`.
+- `beta/rules/ai_variants.yaml` (frozen baseline, 47 variants, 12 pilots, 13 suites), `tools/variants.mjs`, 17 new fleets in `beta/rules/sim_fleets.yaml` (sizes 1 to 5, five counter fleets).
+
+**What was done**
+- Baseline frozen; one 40-game mirror for seat bias; pilots, sitting and both-sit, 16-fleet round robin, counter fleets, 3v3 / 4v4 / 5v5 personality teams (mixed and same-trait), 24 rule variants the engine already had, the missile strength series with missile counts.
+- Behind new switches, all off in the game: forced movement (5 levels), fixed first player, longer scan exposure, exploding magazines; scanner, hunter and sacrifice pilots.
+- Counter-tactic search on 11 lost match-ups.
+
+**Headline findings (10 games a cell: only the ones marked clear are safe)**
+1. Start position and turn order decide more games than the pilot: with the same fleet both sides, the same seat won both games of a seed in 106 of 135 pairs. Clear. Cause not proven (I suspect the back-to-back turns from the alternating first player).
+2. The three personalities are equal on identical ships: eight of nine team cells were exactly 5-5.
+3. Missiles are lost at the launch rail. Launching from 8 hexes raised launches from about 2 to about 7 a battle; salvo alone and warhead strength (3 to 9 hits) did nothing.
+4. The attack-run bonus is the only rule that rewards moving (off: 8-2 against the sitter becomes 5-5). Leaning.
+5. Forced movement only hurts the camper at the top levels (3 hexes or 100% of thrust: guns3 10-0, clear) and never ends a both-sit stall (20 of 20 games still hit round 30).
+- Did nothing: both bank caps (identical results), warhead strength, scan exposure time, loud guns.
+- One tactic that turns a lost match-up: swarm5 against mixed5, 3 wins head-on, 6 firing blind.
+
+**What was not done**
+- Stage 2 (40 games on chosen cells): waiting for you.
+- Forward-arc movement: untested, ships have no facing in the engine. What it would need is in balance-evidence.md.
+- Scan variants against a human; scan without moving first; partial scan readouts; bigger boards.
+- The missile count cannot yet separate "caught in another blast" from "still flying at the end".
+- No bug was proven, so nothing was fixed. One dead setting: `turns.first_player` in the world file was never read (the engine always alternated); it now also accepts `fixed`.
+
+**One repeated run, for the record.** Stage 1A first ran with the same five seeds in every cell. I caught it from the seat totals before reading any result, gave each match-up its own seeds, and re-ran. Nothing was tuned after a result.
+
+**Open questions for Ankur**
+1. Which Stage 2 cells? My five: seat effect with fixed first player; attack-run control; forced movement against the camper; launch range against salvo; sensors and stealth. The full list of ten is at the end of balance-evidence.md.
+2. The seat effect is the biggest thing found. Do you want me to dig into the cause before Stage 2, or just confirm it?
+3. The dreadnought (one 255-point ship) went 112-38. Reprice it, or is one big ship meant to be strong?
+4. The stock fleet went 43-107 against the others. Is it only a starter fleet, or should it be competitive?
+5. The human-style pilots did not beat the computer. Should I test them on a bigger board, where finding the enemy takes longer, or leave tricks to chapter scripts?
+Status: open
+
+
 ## 2026-11-16 · from engine (Claude Code, for Ankur) · Balance and computer-opponent pass on beta/ (branch balance-and-ai)
 
 Everything is in `beta/` only (engine, rules, one line of `ui/play.js`), plus `tools/` and `tests/`. Story, campaign files and ship art are untouched. `npm test`: 98 pass before, 110 pass after. Campaign `engine_check` (20 games a chapter) gives the same output as main; `check.mjs` ALL CHECKS PASSED.
