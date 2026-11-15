@@ -153,3 +153,21 @@ test('campaign guide acceptance: all checks pass (12b and F3 included)', () => {
   assert.match(r.stdout, /PASS {2}F3\./);
   assert.match(r.stdout, /15 passed, 0 failed/);
 });
+
+test('game codes: a story chapter that changes the rules mid-battle (ch5 jamming) still saves and reloads', async () => {
+  const { buildChapter, newCampaign, campaignMove } = await import('../engine/index.js');
+  const { camp } = await import('../campaign/tools/lib.mjs');
+  const C = camp('campaign.yaml'), chDoc = camp('chapters/ch5_bloom.yaml');
+  const { rules } = buildChapter({ world: shippedFiles().world, map: camp(chDoc.chapter.map), ships: camp('ships.yaml'), chapter: chDoc, campaign: C, progress: newCampaign(C) });
+  let g = start(rules, 5), steps = 0;
+  const rules0 = g.rules;
+  for (let n = 0; g.phase === 'play' && g.rules === rules0 && n < 400; n++) {
+    let a = steps++ > 30 ? { type: 'end' } : campaignMove(g, g.order[g.turn]) || { type: 'end' };
+    if (!attempt(g, a).ok) a = { type: 'end' };
+    if (a.type === 'end') steps = 0;
+    g = apply(g, a);
+  }
+  assert.notEqual(g.rules, rules0, 'the jamming rule change happened');
+  const back = await importGame(await exportGame(g));
+  assert.equal(back.rules.parts.comms ? back.rules.parts.comms.link_range : 3, 3);
+});

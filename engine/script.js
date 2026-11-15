@@ -16,6 +16,7 @@ import { applyHits, removeObj, strikeEngines } from './damage.js';
 import { doMove, doFire, doLaunch } from './actions.js';
 import { reach, beamTargets, aimLaunch } from './query.js';
 import { buildRules } from './rules.js';
+import { fnv, stable } from './codec.js';
 
 const SIDE = { player: 0, human: 0, enemy: 1, weave: 1 };
 const sideOf = (s) => (typeof s === 'number' ? s : SIDE[s]);
@@ -528,6 +529,7 @@ function setRule(state, path, value) {
   const built = buildRules(src.world, src.map, src.fleets).rules;
   const next = { ...built, fleets: state.rules.fleets, campaign: { ...C, src } };
   state.rules = next;
+  state.rid = fnv(stable(next)).toString(36);   // a story rule change is not tampering: a saved game must still load
   emit(state, { t: 'rule_changed', path, value }, everyone(state));
 }
 export function setPath(obj, path, value) {
