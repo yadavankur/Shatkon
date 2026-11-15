@@ -1121,6 +1121,7 @@ function shipCard(x, v) {
     const terms = !sb ? [] : ['base ' + sb.base + ' (' + plural(sb.base, 'segment') + ')']
       .concat(sb.stealth ? [sgn(-sb.used) + ' from ' + plural(sb.stealth, 'stealth part') + (sb.used < sb.stealth ? ' (floor ' + sb.floor + ': ' + plural(sb.stealth - sb.used, 'part') + ' spare)' : '')] : [])
       .concat(sb.haze ? [sgn(sb.haze) + ' nebula'] : [])
+      .concat(sb.emitter ? ['+' + sb.emitter + ' decoy emitter'] : [])
       .concat(sb.flare ? ['+' + sb.flare + ' flare from firing/launching/scanning'] : [])
       .concat(sb.motion < 0 ? ['\u2212' + -sb.motion + ' sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
     lines.push('Signature ' + x.signature + (terms.length ? ' = ' + terms.join(', ') : '') + '. An enemy with sensor ' + v.shownSensor + ' spots it from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex') + '.'
