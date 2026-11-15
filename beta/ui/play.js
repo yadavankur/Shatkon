@@ -606,6 +606,8 @@ function makeReport(evs, viewer) {
   let rows = evs.filter((r) => (r.t === 'damage' || r.t === 'hit') && (viewer === 'all' || r.seenBy.includes(viewer)));
   return rows.length ? rows : null;
 }
+// salvo rule: a ship that has launched this turn may still fire its other launchers with no points left
+const salvoLeft = (p) => !!game.rules.salvo && game.ships.some((x) => !x.dead && x.owner === p && x.used && x.used.salvo && E.launchOptions(game, x.id));
 function anyAction() {
   let t = turnOf();
   return game.ships.some(
@@ -703,7 +705,7 @@ function act(action, quiet, byAI) {
     say(msg || 'The computer is taking its turn\u2026');
   } else {
     say(msg || 'Done.');
-    if (game.phase === 'play' && turnOf() === p && (game.players[p].cp <= 0 || !anyAction())) {      // nothing left to do
+    if (game.phase === 'play' && turnOf() === p && ((game.players[p].cp <= 0 && !salvoLeft(p)) || !anyAction())) {      // nothing left to do
       const kept = hint;
       act({ type: 'end' }, true);
       say(kept + (game.players[p].cp > 0 ? ' No actions left, so the turn ended.' : ' That was your last action, so the turn ended.'));

@@ -90,3 +90,19 @@ fleets:
   mixed3:       [ { ship: flagship, flag: true, ai: defensive }, { ship: gunboat, ai: aggressive }, { ship: missile_boat, ai: balanced } ]
   swarm5:       [ { ship: small_flagship, flag: true }, { ship: gunboat }, { ship: gunboat }, { ship: missile_boat }, { ship: picket } ]
   missile5:     [ { ship: small_flagship, flag: true }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat } ]
+
+
+# Tactics for tools/counter.mjs: ways to fly a fleet. A name on its own is a personality from the
+# world file (or camp: stay home and shuffle a hex before each shot); a block is a personality
+# written out here. The tool flies the weaker fleet each way against an opponent that just fights
+# head-on, to find the trick that turns a losing match-up.
+tactics:
+  head_on: balanced
+  aggressive: aggressive
+  defensive: defensive
+  camp: camp
+  spread_out:    { range: [3, 4], keep_together: 0, missile_range: 5 }
+  max_range:     { range: [8, 8], keep_together: 3, missile_range: 12 }
+  long_missiles: { range: [5, 6], keep_together: 2, missile_range: 12 }
+  blind_fire:    { range: [5, 6], keep_together: 2, missile_range: 12, blind_fire: true, blind_fire_at_home: true, blind_fire_keeps: 0 }
+  bait:          { range: [3, 4], keep_together: 3, missile_range: 5, unarmed_ships: bait, bait_lead: 3 }

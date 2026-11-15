@@ -43,7 +43,9 @@ turns:
 actions:
   move:     { cost: 1, note: "one ship moves; you choose how far (see movement)" }
   fire:     { cost: 1, note: "fire one beam weapon; each weapon fires once a turn" }
-  launch:   { cost: 1, note: "launch one missile or drone; each launcher launches once a turn" }
+  launch:   { cost: 1, salvo: true, note: "launch a missile or drone; each launcher launches once a turn. Salvo: a ship's first launch of the turn costs the point, its other launchers then fire on the same order" }
+                              # salvo: false = every launch costs a point. In fleet-against-fleet simulations
+                              # missile ships then got 4 to 7 of 15 missiles away per battle and lost 2 games in 3.
   scan:     { cost: 1, note: "active scan around one of your ships, once per ship per turn and only after it has moved this turn; rings grow the further forward it is" }
   detonate: { cost: 1, note: "blow up one of your own drones" }
   ram:                         # the sacrificial hurl: only story scripts can order it (no player button)
@@ -249,7 +251,11 @@ munitions:
     speed: 6                  # hexes per round
     fuel: 3                   # rounds before it burns out
     turn_rate: 1              # 60-degree turns allowed per tick
-    hits: 3                   # to the segment it strikes
+    hits: 3                   # to the segment it strikes, when a shield takes the blow (see wrecks_segment)
+    wrecks_segment: true      # a missile that gets through wrecks the segment it strikes outright: one sinks a
+                              # one-hex boat, two or three a 3-segment ship. A working shield on that segment
+                              # takes the blow instead: the shield goes down and the segment takes `hits`.
+                              # false = always just `hits` (the old rule).
     blast_radius: 1           # 1 hit to every other segment this close
     seeker_range: 2           # how close it must be to find a target by itself
     cost: 8
@@ -297,7 +303,8 @@ ai:
     #                  strength out to 4 hexes and reaches 8.
     # keep_together:   escorts stay within this many hexes of the flagship (0 = roam freely).
     #                  In simulations this mattered most: a fleet that arrives together wins.
-    # missile_range:   launches at a target this close or closer
+    # missile_range:   launches at a target this close or closer. 5 was too timid (gun fleets had
+    #                  been firing for two rounds by then); 12 made missile fleets win 3 games in 4.
     # attack_run:      steps one hex before firing when it has a command point to spare,
     #                  for the +1 hit (detection.attack_run_bonus). false = fires from where it stands.
     # missiles_avoid_point_defence: once a scan has shown which targets have working point
@@ -306,19 +313,19 @@ ai:
       note: "closes to point-blank range and launches early"
       range: [2, 3]
       keep_together: 3
-      missile_range: 6
+      missile_range: 8
       attack_run: true
     balanced:
       note: "fights at full laser strength, fleet in close order"
       range: [3, 4]
       keep_together: 3
-      missile_range: 5
+      missile_range: 8
       attack_run: true
     defensive:
       note: "stands off at long range with its escort tucked in, and backs away if you close"
       range: [5, 6]
       keep_together: 2
-      missile_range: 6
+      missile_range: 8
       attack_run: true
 
 
