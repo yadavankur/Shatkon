@@ -124,21 +124,3 @@ test('a personality that has scanned its targets sends its missile at the one wi
   assert.equal(after.type, 'launch');
   assert.equal(after.target, '1b', 'the scan showed point defence on the big one');
 });
-
-test('a personality with no enemy in sight does not light itself up by shooting a mine', () => {
-  // player 1's ship is far out of sight; its mine sits near the computer's ship and a scan reveals it
-  let g = battle({ radius: 12, p1: [gunboat('A', [0, 11])], p2: [gunboat('B', [0, -3])], extra1: [{ mine: [0, 0] }] });
-  g = endTurn(g);
-  g = E.apply(g, { type: 'move', ship: '2a', path: [5] });
-  g = E.apply(g, { type: 'scan', ship: '2a' });
-  const v = E.view(g, 1);
-  assert.ok(v.objs.some((o) => o.kind === 'mine' && !o.mine), 'the scan found the mine');
-  assert.equal(v.ships.filter((s) => !s.mine).length, 0, 'and no enemy ship is in sight');
-  assert.ok(E.beamTargets(g, '2a').length > 0, 'it could shoot the mine');
-  for (let i = 0; i < 6; i++) {
-    const a = computerMove(g, 1, 'normal', { personality: 'balanced' });
-    assert.notEqual(a.type, 'fire');
-    if (a.type === 'end') break;
-    g = E.apply(g, a);
-  }
-});

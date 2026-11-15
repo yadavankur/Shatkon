@@ -338,20 +338,22 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     return pick && pick.action;
   }
+  // variety: a personality does not play the same opening every game. Each move's score is nudged
+  // by up to +/- variety/2, from a number fixed for this game and this moment (so a replay of the
+  // same game still makes the same choices).
+  const vary = pers && pers.variety > 0 ? E.seededRandom(E.fnv((state.fzSalt | 0) + '|' + state.seq + '|' + seat)) : null;
   let bestMove = null;
   for (const s of mine) {
     if (prof(s).stance === 'hold') continue;
     const here = scorePos(s, s.pos);
     for (const r of E.reach(state, s.id)) {
-      const gain = scorePos(s, r.at) - here - r.path.length * 0.05;
+      const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + (vary ? (vary() - 0.5) * pers.variety : 0);
       if (gain > (easy ? 1.5 : 0.5) && (!bestMove || gain > bestMove.gain))
         bestMove = { gain, action: { type: 'move', ship: s.id, path: r.path } };
     }
   }
   if (bestMove) return bestMove.action;
-  // a weak shot is better than nothing; but a personality with no enemy in sight keeps its guns
-  // cold rather than light itself up by shooting a mine (a beam that hits flares the shooter)
-  if (best && !(pers && !foes.length)) return best.action;
+  if (best) return best.action; // a weak shot is better than nothing
   return { type: 'end' };
 }
 

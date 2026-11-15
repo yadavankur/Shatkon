@@ -4,6 +4,7 @@
 //   node tools/sim.mjs --games 200             more games per pairing (default 100)
 //   node tools/sim.mjs --a normal --b sit      one pairing
 //   node tools/sim.mjs --set detection.still_signature_bonus=-1   try a rule change without editing the file
+//   node tools/sim.mjs --deploy random          every ship starts somewhere else in its home zone each game
 //   node tools/sim.mjs --map map_open_space.yaml
 //   node tools/sim.mjs --fleet missile          a stock fleet variant (see FLEETS below)
 //
@@ -105,6 +106,33 @@ export function policy(name) {
   return (g, seat) => computerMove(g, seat, 'normal', { personality: name });
 }
 
+// The same rules with every ship set down somewhere else in its own home zone (mines stay put).
+// The computer has no dice of its own, so from the shipped starting positions every game opens
+// the same way; random starts show whether a result holds beyond that one opening.
+export function shuffled(rules, seed) {
+  const H = E.hex, R = rules.board.radius;
+  let t = seed | 0;
+  const rnd = () => { t = (t + 0x6d2b79f5) | 0; let x = Math.imul(t ^ (t >>> 15), t | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+  const blocked = new Set();
+  for (const tr of rules.terrain) if ((rules.terrainTypes[tr.type] || {}).blocks_movement) tr.cells.forEach((c) => blocked.add(H.key(c)));
+  const fleets = rules.fleets.map((fl) => {
+    const zone = rules.zones.find((z) => z.name.indexOf(fl.name) === 0), taken = new Set();
+    const deployment = fl.deployment.map((d) => {
+      if (!d.ship || !zone) return d;
+      const ship = fl.ships.find((x) => x.name === d.ship), spots = [];
+      for (let q = -R; q <= R; q++) for (let r = -R; r <= R; r++) {
+        const cells = ship.segs.map((g) => H.add([q, r], g.off));
+        if (cells.every((c) => H.inHexagon(c, R) && !blocked.has(H.key(c)) && !taken.has(H.key(c)) && H.EDGE[zone.edge](c, R) < zone.depth)) spots.push([q, r]);
+      }
+      const at = spots.length ? spots[Math.floor(rnd() * spots.length)] : d.at;
+      ship.segs.forEach((g) => taken.add(H.key(H.add(at, g.off))));
+      return { ...d, at };
+    });
+    return { ...fl, deployment };
+  });
+  return { ...rules, fleets };
+}
+
 // Plays one game. Returns { winner (0, 1 or 'draw'), rounds, by, stats per seat }.
 export function playGame(rules, polA, polB, seed) {
   let g = E.start(rules, seed);
@@ -129,14 +157,15 @@ export function playGame(rules, polA, polB, seed) {
 }
 
 // Plays a pairing from both seats. Returns totals from A's point of view.
-export function series(rules, a, b, games, seed0 = 1) {
+export function series(rules, a, b, games, seed0 = 1, deploy = 'file') {
   const pa = policy(a), pb = policy(b);
   const out = { a, b, games: 0, winA: 0, winB: 0, draws: 0, timeouts: 0, seat0: 0, rounds: 0, A: null, B: null };
   const addStats = (into, s) => { for (const k of Object.keys(s)) into[k] = (into[k] || 0) + s[k]; return into; };
   out.A = {}; out.B = {};
   for (let i = 0; i < games; i++) {
     const swap = i % 2 === 1, seed = seed0 + (i >> 1) * 7919;
-    const r = swap ? playGame(rules, pb, pa, seed) : playGame(rules, pa, pb, seed);
+    const rr = deploy === 'random' ? shuffled(rules, seed) : rules;
+    const r = swap ? playGame(rr, pb, pa, seed) : playGame(rr, pa, pb, seed);
     const aSeat = swap ? 1 : 0;
     out.games++; out.rounds += r.rounds;
     if (r.by === 'turn_limit') out.timeouts++;
@@ -155,7 +184,7 @@ export function row(r) {
 export const HEAD = `${'pairing (A v B)'.padEnd(26)} ${'A win'.padStart(5)} ${'B win'.padStart(5)} ${'draw'.padStart(5)} ${'no kill'.padStart(8)} ${'rounds'.padStart(7)} ${'A hexes'.padStart(7)} ${'B hexes'.padStart(7)} ${'A idle'.padStart(6)} ${'B idle'.padStart(6)} ${'P1 win'.padStart(6)}`;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const games = Number(opt('games', 100)), sets = optAll('set'), map = opt('map'), fleet = opt('fleet');
+  const games = Number(opt('games', 100)), sets = optAll('set'), map = opt('map'), fleet = opt('fleet'), deploy = opt('deploy', 'file');
   const rules = loadRules({ map, fleet, sets });
   const names = Object.keys((rules.ai || {}).personalities || {});
   let pairs;
@@ -166,7 +195,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     for (const n of names) pairs.push([n, 'sit']);
     for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j]]);
   }
-  console.log(`map ${map || 'default'}, fleet ${fleet || 'stock'}, ${games} games per pairing${sets.length ? ', with ' + sets.join(', ') : ''}`);
+  console.log(`map ${map || 'default'}, fleet ${fleet || 'stock'}, ${deploy === 'random' ? 'random starting positions' : 'shipped starting positions'}, ${games} games per pairing${sets.length ? ', with ' + sets.join(', ') : ''}`);
   console.log(HEAD);
-  for (const [a, b] of pairs) console.log(row(series(rules, a, b, games)));
+  for (const [a, b] of pairs) console.log(row(series(rules, a, b, games, 1, deploy)));
 }
