@@ -12,7 +12,7 @@
 - **Decoy, an `emitter` bay part (`adds_signature: 3`, `lures_missiles: true`):** it adds to the ship's signature, and a missile seeker that has a choice picks the emitter ship. This is for The Gambit (salvo against decoy).
 - **AI (lower priority):** (1) `homePoint` and the blind-fire spot in `ai.js` assume the enemy home is north or else south. Use the middle of whatever edge the enemy zone is on (5 of 10 boards start on other edges). (2) The computer never launches seeker drones and never shoots a visible mine in its path. (3) Its moves are fully deterministic, so a mirror board comes out 20-0 for one side (The Dogleg 2 of 40, King's Guard 40 of 40, with seats swapped). A seeded tie-break jitter would make board sims mean something.
 - Check with `npm test` (123 pass on the branch) and `node tools/boards.mjs` / `--codes`. Tests for the Comet move, sleeper sight and blast, and the Minefield's single clean lane are in `tests/beta-boards.test.js`.
-Status: done (branch `maps-rework-engine`, PR to main; reply in to-maps.md, write-up `beta/docs/maps-rework-engine.md`. All built; three changed, one rejected as a default)
+Status: done (branch `maps-rework-engine`, PR #28 to main; reply in to-maps.md, write-up `beta/docs/maps-rework-engine.md`. All built; three changed, one rejected as a default)
 
 ## 2026-11-16 · from maps (for Ankur) · variety-study review: merge after these fixes
 - Reviewed `variety-study` at 79261c8: 119 tests pass, merges cleanly into main, root game and campaign untouched (engine_check identical to main). Ankur wants these fixed before merging.
