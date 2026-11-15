@@ -8,6 +8,8 @@
 import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { s as svgEl, partLooks } from './board.js';
+import { drawShip, shipDefs } from './ships.js';
+import { drawFrigate, frigateDefs } from './frigate.js';
 import { $, h, rules, game, store, say, reduceMotion, newGame, plural, wholeMap, render, setRules } from './play.js';
 const { hex } = E;
 
@@ -694,7 +696,7 @@ function labRerender() {
   labRender();
 }
 
-const LAB_COLORS = { a: '#f5b942', b: '#5cc8ff' };
+const LAB_COLORS = { a: '#7fd8f0', b: '#ff8bd8' };   // team colours (ui/ships.js TEAM)
 
 function labDesigner(side) {
   let des = LAB[side],
@@ -811,6 +813,19 @@ function labDesigner(side) {
     }
     svg.appendChild(g);
   }
+  // the ship as it flies: rebuilt from its modules on every change, so fitting a part shows at once
+  // fitted to the ship (plus room for the plumes behind it), so a small hull still fills the frame
+  const pv = des.hull.length ? des.hull.map((sg) => px(sg.at)) : [[0, 0]];
+  const pvx0 = Math.min(...pv.map((p) => p[0])) - S * 1.25, pvx1 = Math.max(...pv.map((p) => p[0])) + S * 1.25;
+  const pvy0 = Math.min(...pv.map((p) => p[1])) - S * 1.3, pvy1 = Math.max(...pv.map((p) => p[1])) + S * 2.4;
+  const pvw = Math.max(pvx1 - pvx0, (pvy1 - pvy0) * 0.75), pvcx = (pvx0 + pvx1) / 2;
+  let preview = svgEl('svg', { viewBox: [pvcx - pvw / 2, pvy0, pvw, pvy1 - pvy0].map((n) => Math.round(n * 10) / 10).join(' '), class: 'lab-hull lab-preview', role: 'img', 'aria-label': 'Ship ' + side.toUpperCase() + ' as it looks in play' });
+  preview.appendChild(shipDefs());
+  preview.appendChild(frigateDefs());
+  try {
+    const partsOf = (sg) => [...(sg.bays || []), ...(sg.mounts || [])].filter((t) => t && rules.parts && rules.parts[t]).map((t) => ({ t, hp: rules.parts[t].hp || 1, max: rules.parts[t].hp || 1 }));
+    if (des.hull.length) preview.appendChild((side === 'b' ? drawShip : drawFrigate)({ cells: des.hull.map((sg) => sg.at), segs: des.hull.map((sg) => ({ parts: partsOf(sg), wrecked: false })), owner: side === 'b' ? 1 : 0, rules, xy: px, S, forward: [0, -1], detail: 1, flagship: des.flagship }));
+  } catch (e) {}
   let slotSel = (arr, k, opts) =>
     h(
       'select',
@@ -911,7 +926,7 @@ function labDesigner(side) {
     h(
       'div',
       { class: 'lab-two' },
-      svg,
+      h('div', { class: 'lab-art' }, svg, h('div', { class: 'lab-cap' }, 'As it flies'), preview),
       h(
         'div',
         { class: 'lab-seg' },

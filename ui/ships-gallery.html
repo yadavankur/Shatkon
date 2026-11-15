@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shatkon - Ship gallery</title>
+<link rel="icon" href="data:,">
+<style>
+:root{--bg:#040812;--bg2:#08111f;--line:#1f3552;--text:#dcecff;--muted:#7f93ad;--teal:#7fd8f0;--pink:#ff8bd8;--neon:#5ff7ff}
+*{box-sizing:border-box}
+body{margin:0;color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:radial-gradient(ellipse at 20% 0%,rgba(25,195,179,.12),transparent 55%),radial-gradient(ellipse at 90% 30%,rgba(155,107,255,.10),transparent 50%),var(--bg);min-height:100vh}
+header{padding:22px 18px 6px;max-width:1280px;margin:auto}
+h1{margin:0;font-size:24px;letter-spacing:.16em;font-weight:700;background:linear-gradient(90deg,#cfe8ff,#7fd8f0,#2fe0b0);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin:28px 0 4px}
+p.lead,p.note{color:var(--muted);margin:6px 0 10px;max-width:880px}
+main{max-width:1280px;margin:auto;padding:0 18px 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.grid.sheet{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.grid.evo{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.card{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(12,24,48,.85),rgba(6,12,24,.9));padding:8px 10px 10px;overflow:hidden}
+.card h3{margin:0;font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
+.card h3 small{color:var(--muted);font-weight:400}
+.card .sub{color:var(--muted);font-size:11.5px;min-height:1.2em}
+.pair{display:flex;gap:4px}
+.pair svg,.card>svg{display:block;width:100%;height:auto}
+.pair>div{flex:1;min-width:0}
+.tag{font-size:10.5px;color:var(--muted);text-align:center;letter-spacing:.08em;text-transform:uppercase}
+.t1 h3{color:var(--pink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:12.5px;margin:6px 0 4px}
+.legend b{color:var(--text);font-weight:600}
+a{color:var(--teal)}
+#err{color:#ff7a7a}
+.twinkle{animation:twinkle 5.5s ease-in-out infinite}@keyframes twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+.sk-thrust{animation:thrust .9s ease-in-out infinite alternate}@keyframes thrust{from{opacity:.78}to{opacity:1}}
+.sk-shield{animation:skshield 3.2s ease-in-out infinite}@keyframes skshield{0%,100%{stroke-opacity:.35}50%{stroke-opacity:.7}}
+.sk-ember{animation:ember 1.7s ease-in-out infinite alternate}@keyframes ember{from{opacity:.45}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.twinkle,.sk-thrust,.sk-shield,.sk-ember{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SHATKON · SHIP GALLERY</h1>
+  <p class="lead">Your ships (<code>ui/frigate.js</code>) are classic sci-fi vessels assembled from the modules actually fitted: one fused hull plate over the hex cluster (hex-angle chamfers, faint seams), a broad armoured keel down the bow line with a teal stripe, broad struts out to off-axis hexes. Each hex is laid out by where it sits: prow wedge and sensor nose at the bow, engine block and plumes at the stern, wing armour and hard points on the flanks, bridge on the core. Bow toward the enemy; the ship never leaves its own hexes.
+  The Weave (<code>ui/ships.js</code>) keeps its organic hex hulls, where parts change the surface instead.</p>
+  <div class="legend"><span><b>Core</b> bridge tower (flagship: bigger, star)</span><span><b>Engine</b> thruster block / nacelles</span><span><b>Laser</b> twin turret, aims</span><span><b>Launcher</b> VLS missile pod</span><span><b>PD</b> CIWS turret</span><span><b>Sensor</b> dish + array</span><span><b>Comms</b> antenna mast</span><span><b>Shield</b> hex glass emitters + hex energy skin</span><span><b>Armour</b> thick bolted rim (more plates, thicker)</span><span><b>Stealth</b> graphite facets, light rim</span><span><b>Magazine</b> VLS hatches</span><span><b>Coupling</b> keel joint</span></div>
+  <p class="note">Teal/blue = your side, purple/pink = the enemy. <a href="../play.html">Play</a> · <a href="../index.html">Rule viewer</a></p>
+  <p id="err"></p>
+</header>
+<main id="out"></main>
+<script src="../lib/yaml.min.js"></script>
+<script type="module" src="gallery.js"></script>
+</body>
+</html>
