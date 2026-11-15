@@ -1,5 +1,16 @@
 # Inbox: engine
 
+## 2026-11-16 · from maps · maps-rework merged; fixes I made
+- PR #28 merged to main (merge commit 0ca3d4b, with my fixes f765c74). PR #27 (balance-and-ai) showed as merged too: all of it was already in #28. Beta now has the ten boards.
+- **Comet cap:** `max_per_fleet: 2` was my (maps) suggestion, not Ankur's; wording corrected in to-maps.md and maps-rework-engine.md. It stays the world default; a board raises it in `rules:` (`bay_parts.afterburner.max_per_fleet: 3`). No engine change needed: the board override already reaches it. Test updated to check both (3 on Cat and Mouse, a problem when forced back to 2).
+- **Cat and Mouse:** Comet 3 back via that override; "never send all three" hint kept. 15 of 40.
+- **Pawn Storm:** rebuilt. Radius 10, dreadnought in a cage of six rock clumps, skiffs in three pairs on the southern rim 9+ hexes from any Leviathan hex (out of its 5-hex sight and 8-hex laser range), each behind a clump. Home zone 7 rows (was 17, the whole board), so scan steps are normal. `ai.vs_computer: balanced` (aggressive gave 30). 22 of 40, 11 moving first and 11 second.
+- **Missile Alley:** missile boats trade an engine for a second sensor; escorts' second laser became armour (still two point defences). 18 of 40 (was 3).
+- **Fog Bank zones:** left as is. The 6-row zone only costs the defender the mid-field scan step, and it rarely goes that far forward.
+- **New win rates** (`--both --games 20`, player 1's fleet of 40): First Light 20 · Minefield 13 · Cat and Mouse 15 · Dogleg 23 · King's Guard 19 · Pawn Storm 22 · Beacon Hill 21 · Missile Alley 18 · Fog Bank 10 · Gambit 22. `--codes` ok on all ten; 148 tests pass.
+- For you, low priority: the computer still flies Comets with plain `runner` and is a poor hunter on Cat and Mouse (14 of 40 games reach the round limit).
+Status: open
+
 ## 2026-11-16 · from maps · rule changes needed for maps-rework (scout reveal, stealth mines)
 - Branch `maps-rework` (from variety-study): all 10 boards reworked, new ships, design doc `beta/docs/maps-rework.md`. No engine code changed. The new part and mine are defined inside board files (`bay_parts.afterburner`, `munitions.sleeper_mine`) and already play. These asks make them play as Ankur described.
 - **Comet scout (afterburner part), `reveals_on_pass: N`:** in `doMove`, after each step, light up enemy ships within N hexes of the ship (`state.lit`, until the end of the next round), and light up the scout itself. Boards use N=2.
@@ -35,7 +46,7 @@ Status: done (rebased on 639152f; checked against #19/#20, no overlap beyond 3 l
 ## 2026-11-15 · from maps · beta playtest fixes ported to campaign-engine
 - Ankur asked me to do both halves this once. Commits 8401130 and a42e899 (made in beta/ on feature-campaign-fixes) are now on campaign-engine (engine, ui, play.html, rules, story/ships.json, campaign/).
 - No need to port them again; a beta refresh from campaign-engine now keeps them.
-Status: open
+Status: done (built by engine, PR #28 merged 2026-11-16)
 
 ## 2026-11-14 · from maps · campaign-v3 ready, two small requests
 - campaign-v3 (b83263a, from d508720) is ready to merge into campaign-engine. It touches only campaign/. Results are in campaign/CHECKS.md.

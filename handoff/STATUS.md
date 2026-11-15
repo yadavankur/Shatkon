@@ -1,4 +1,9 @@
-# Status (updated 2026-11-15 23:45 Sydney by gamedev)
+# Status (updated 2026-11-16 by maps)
+
+## Latest (16 Nov, maps)
+- **PR #28 merged to main** (0ca3d4b): ten reworked boards in beta (`beta/boards.html`), Comet scout, sleeper mine, decoy emitter, fair sight lines, a computer that varies its game, variety-study with review fixes. PR #27 is included (shows as merged). Maps retuned Cat and Mouse, Pawn Storm and Missile Alley afterwards; every board is 10 to 23 of 40. 148 tests pass. Not yet played by hand.
+- Remote branches maps-rework, maps-rework-engine, variety-study and balance-and-ai are fully merged and can be deleted.
+
 
 ## Branches and PRs
 - **main is the only branch** (39577f7, 15 Nov 23:40 Sydney). Merged today: #19 engine-fixes, #23 battle-log, #20 ship facelift, #22 move markers, #25 feature-campaign-fixes. All other branches were deleted (every one was fully merged). 98 tests pass.
@@ -23,7 +28,7 @@
 - All 5 chapters load and finish in engine_check. 74 tests pass.
 
 ## In progress / waiting
-- **For Ankur to merge: branch `maps-rework-engine`** (16 Nov, PR #28 to main; it contains `variety-study` with the review fixes, `maps-rework`, and the engine for it): ten reworked boards, Comet scout, sleeper mine, decoy emitter, lines of sight that are fair on a mirrored board, and a computer that no longer plays the same game every time. Start at `beta/docs/maps-rework-engine.md`. Merging changes beta for players (see the PR).
+- **Merged 16 Nov (was: for Ankur to merge): branch `maps-rework-engine`** (16 Nov, PR #28 to main; it contains `variety-study` with the review fixes, `maps-rework`, and the engine for it): ten reworked boards, Comet scout, sleeper mine, decoy emitter, lines of sight that are fair on a mirrored board, and a computer that no longer plays the same game every time. Start at `beta/docs/maps-rework-engine.md`. Merging changes beta for players (see the PR).
 - **Reviewed: branch `variety-study`** (16 Nov, pushed, no PR of its own): Stage 1 of the variety study, two new ship kinds (courier, proximity mine) and ten hand-playable boards (`beta/boards.html`). Reviewers start at `handoff/REVIEW-variety-study.md`.
 - **Variety study** (16 Nov, branch variety-study, pushed; corrected after review on `maps-rework-engine`: the seat effect in finding 1 was mostly the start spots): Stage 1 screening done, 6,100 games across fleets of 1 to 5 ships, 47 rule variants and 12 pilots. Waiting for Ankur to pick the Stage 2 cells. Findings and candidates: `beta/docs/balance-evidence.md`; summary in to-gamedev.md.
 - **balance-and-ai** (16 Nov, PR #27 open to main, beta/ only; everything in it is also in `variety-study` and `maps-rework-engine`, so #27 can be closed once that PR merges): computer opponent with three personalities (aggressive, balanced, defensive) that moves for a shot instead of waiting; missiles wreck a segment, salvo launches; fleet-against-fleet simulation tools (`tools/sim.mjs`, `scenarios.mjs`, `counter.mjs`, test fleets in `beta/rules/sim_fleets.yaml`). Moving now beats sitting still 66 to 73% (the old computer: 22%). 110 tests pass. Results table, bugs not fixed and open questions: to-gamedev.md.
