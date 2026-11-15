@@ -7,7 +7,10 @@
 //   node tools/sim.mjs --map map_open_space.yaml
 //   node tools/sim.mjs --fleet missile          a stock fleet variant (see FLEETS below)
 //
-// Policies: easy, normal (the stock levels), sit (normal, but never moves a ship),
+//   node tools/sim.mjs --pairs balanced/sit,old/sit       several pairings
+//
+// Policies: easy, normal (the stock levels), old (normal as it was before personalities),
+// sit (old, but never moves a ship), sit:balanced (that personality, but never moves a ship),
 // and any personality named in the world file's `ai.personalities` (aggressive, defensive, balanced).
 // Each pairing is played from both seats with the same seeds, so seat and first-move luck cancel.
 
@@ -89,6 +92,13 @@ export function policy(name) {
     const profiles = Object.fromEntries(g.ships.filter((s) => s.owner === seat).map((s) => [s.id, { stance: 'hold' }]));
     return computerMove(g, seat, 'normal', { profiles });
   };
+  // sit:balanced = that personality's shooting and launching, but it never moves a ship
+  if (name.startsWith('sit:')) return (g, seat) => {
+    const pers = name.slice(4), base = ((g.rules.ai || {}).personalities || {})[pers] || {};
+    const profiles = Object.fromEntries(g.ships.filter((s) => s.owner === seat).map((s) => [s.id, { ...base, stance: 'hold' }]));
+    return computerMove(g, seat, 'normal', { profiles, personality: pers });
+  };
+  if (name === 'old') return (g, seat) => computerMove(g, seat, 'normal', { personality: false });   // the stock AI before personalities
   if (name === 'easy' || name === 'normal') return (g, seat) => computerMove(g, seat, name);
   return (g, seat) => computerMove(g, seat, 'normal', { personality: name });
 }
@@ -147,6 +157,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const names = Object.keys((rules.ai || {}).personalities || {});
   let pairs;
   if (opt('a')) pairs = [[opt('a'), opt('b', 'normal')]];
+  else if (opt('pairs')) pairs = opt('pairs').split(',').map((x) => x.split('/'));
   else {
     pairs = [['normal', 'normal'], ['normal', 'sit'], ['normal', 'easy']];
     for (const n of names) pairs.push([n, 'sit']);

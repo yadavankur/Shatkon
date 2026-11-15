@@ -356,7 +356,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
 export function personalityOf(state, level, opts = {}) {
   const AI = state.rules.ai || {}, all = AI.personalities || {}, names = Object.keys(all);
   if (opts.personality) return all[opts.personality] || null;
-  if (level !== 'normal' || opts.profiles || state.rules.campaign || !names.length) return null;
+  if (opts.personality === false || level !== 'normal' || opts.profiles || state.rules.campaign || !names.length) return null;
   const want = AI.vs_computer;
   if (want === 'random') return all[names[Math.abs(state.fzSalt | 0) % names.length]];
   return all[want] || null;
