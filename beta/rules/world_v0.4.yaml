@@ -205,8 +205,28 @@ bay_parts:
     own_move: 5               # hexes a turn, outside the fleet's thrust pool and move limit
     evades_beyond: 3          # a beam from further away than this misses
     death_flash: 3            # ships this close are revealed to everyone when it is destroyed
+    holds_objective: false    # too small and fast to hold ground: it neither scores a beacon nor contests one
     layer: 5
     cost: 8
+  afterburner:
+    note: "a Comet's drive: a throwaway scout. 8 hexes a turn on its own for 3 turns, then it is burnt out and crawls 1. While it burns it lights up every enemy ship it flies within 2 hexes of, and itself. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it. At most 2 a fleet"
+    own_move: 8               # hexes a turn, outside the fleet's thrust pool and move limit
+    burn_turns: 3             # turns on which it moves at own_move; after that it is burnt out
+    burnt_move: 1             # hexes a turn once burnt out (still on its own drive)
+    reveals_on_pass: 2        # while it burns: after each hex, enemy ships this close are lit up for everyone
+                              # until the end of the next round, and so is the scout (it is loud). Mines are not shown
+    evades_beyond: 2
+    death_flash: 5
+    holds_objective: false
+    max_per_fleet: 2          # buildRules reports a problem when more ships than this in one fleet carry the part
+    layer: 5
+    cost: 10
+  emitter:
+    note: "a decoy emitter: the ship looks 3 segments bigger to sensors, and any missile whose seeker can see it goes for it instead of its target"
+    adds_signature: 3         # added to the ship's signature while it works (it is seen from further away)
+    lures_missiles: true      # a seeker that sees this ship drops its lock and its route and turns on it
+    layer: 4
+    cost: 4
   coupling:
     note: "joins a segment to the ship; one needed for every segment after the first"
     couples: true
@@ -302,6 +322,28 @@ munitions:
     max_per_player: 4
     cost: 12
 
+  sleeper_mine:               # a deep mine: almost undetectable, breaks a ship's back, and creeps
+    speed: 0
+    hits: 5
+    wrecks_segments: 2        # the segment that sets it off and the nearest other segment of that ship are wrecked
+                              # outright (the core's segment last). A one- or two-hex ship dies; a 7-hex ship loses two
+    ignores_shields: true     # a shield does not take the blow
+    blast_radius: 1
+    blast_hits: 5             # other ships within 1 hex take this many hits a segment (the struck ship takes no splash on top)
+    trigger_range: 1
+    signature: -10            # only a ship with sensor 11+ ever sees it, from 1 hex (sensor 12: 2 hexes)
+    scan_resist: 2            # an active scan shows it only within this many hexes of the scanning ship (no faint contact beyond)
+    drift: 1                  # hexes it creeps at the end of each flight phase toward an enemy ship it senses...
+    drift_sense: 3            # ...within this many hexes
+    prefers: largest          # of several ships in range it goes for the one with the most segments standing
+    drift_quiet: false        # false: a mine that crept and did not go off gives the ship it is after a faint contact
+    beams_pass: true          # a laser aimed at something else flies over it. Without this any shot across its hex
+                              # destroyed it unseen: its own side's fire swept the field (see docs/maps-rework-engine.md)
+    strikes: layers
+    setup_only: true
+    max_per_player: 3
+    cost: 15
+
 
 # ------------------------------------------------------------
 # 11. TERRAIN TYPES  (placed by the map file)
@@ -318,6 +360,19 @@ terrain:
 #  ignore them: their ships follow the chapter file's ai_profiles.
 ai:
   vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)
+  variety:                    # so the computer does not play the same game every time (personalities only)
+    tie_break: 0.02           # equal choices are split by a tiny nudge taken from the game's seed. 0 = the old
+                              # behaviour: first in the list wins, which made mirror boards come out 20-0
+    opening_lanes: true       # until it finds you, it comes up the left, the middle or the right (one per game)
+    lane_rounds: 4            # ...for this many rounds, then straight at your home edge
+  tricks:
+    launches_drones: true     # a carrier with nothing located sends a reporting drone ahead, and blows one up next to 2+ segments
+    drones_in_flight: 2       # how many it keeps up at once
+    shoots_mines: 4           # a mine it can see within this many hexes of one of its ships gets shot (false = ignores mines)
+    mines_as_bait_rounds: 0   # N: for the first N rounds a side that laid mines waits behind them and stands where a
+                              # mine lies between it and you; after that it comes out. 0 = never (it would rather
+                              # hunt than sit). The Minefield and Fog Bank boards set 8
+    decoys_as_bait: true      # unarmed escorts (decoys, couriers, scouts) run ahead of the fleet to be shot at first
   personalities:
     # range:           hexes it tries to fight from: [escorts, flagship]. The laser is at full
     #                  strength out to 4 hexes and reaches 8.

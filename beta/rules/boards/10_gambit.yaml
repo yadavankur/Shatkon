@@ -71,13 +71,13 @@ player_1:
         - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
     - name: "Lure 1"                # decoy
       hull:
-        - { at: [0, 0], bays: [core, engine] }
+        - { at: [0, 0], bays: [core, engine, emitter] }
     - name: "Lure 2"                # decoy
       hull:
-        - { at: [0, 0], bays: [core, engine] }
+        - { at: [0, 0], bays: [core, engine, emitter] }
     - name: "Lure 3"                # decoy
       hull:
-        - { at: [0, 0], bays: [core, engine] }
+        - { at: [0, 0], bays: [core, engine, emitter] }
   deployment:
     - { ship: "Patron", at: [4, 4] }
     - { ship: "Hush", at: [7, 1] }

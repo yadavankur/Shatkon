@@ -147,6 +147,12 @@ export function buildRules(world, mapFile, fleetsFile) {
       fleet.ships.push(ship); fleet.cost += ship.cost;
     }
     if (fleet.ships.filter((s) => s.flagship).length !== 1) problems.push(`${name}: needs exactly one flagship.`);
+    // max_per_fleet on a part: at most that many ships in a fleet may carry it
+    for (const [pn, p] of Object.entries(parts)) {
+      if (typeof p.max_per_fleet !== 'number') continue;
+      const have = fleet.ships.filter((s) => s.segs.some((sg) => sg.parts.includes(pn))).length;
+      if (have > p.max_per_fleet) problems.push(`${name}: ${have} ships carry "${pn}"; the limit is ${p.max_per_fleet} a fleet.`);
+    }
 
     // ---- starting positions ----
     const zone = rules.zones.find((z) => z.name.indexOf(name) === 0);
@@ -189,14 +195,14 @@ export function buildRules(world, mapFile, fleetsFile) {
 
 // Used by tests and by screens that want to show a ship's headline numbers before a game starts.
 export function shipStats(rules, ship) {
-  let thrust = 0, sensor = 0, hides = 0, link = 0;
+  let thrust = 0, sensor = 0, hides = 0, link = 0, loud = 0;
   for (const sg of ship.segs) for (const pn of sg.parts) {
     const p = rules.parts[pn] || {};
-    thrust += num(p.thrust, 0); sensor += num(p.sensor_range, 0) + num(p.adds_range, 0); hides += num(p.hides, 0);
+    thrust += num(p.thrust, 0); sensor += num(p.sensor_range, 0) + num(p.adds_range, 0); hides += num(p.hides, 0); loud += num(p.adds_signature, 0);
     link = Math.max(link, num(p.link_range, 0));
   }
   const floor = Math.ceil(ship.segs.length / num((rules.det || {}).stealthFloorDiv, 3));
-  return { segments: ship.segs.length, thrust, sensor, signature: Math.max(floor, ship.segs.length - hides), link, cost: ship.cost };
+  return { segments: ship.segs.length, thrust, sensor, signature: Math.max(floor, ship.segs.length - hides) + loud, link, cost: ship.cost };
 }
 
 export { dist };

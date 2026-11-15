@@ -1,7 +1,7 @@
 // What a player can do on their turn: move, fire, launch, scan, detonate.
 // Each function checks the action is allowed, then changes the state.
 
-import { key, add, step, dist, line, turnDiff, dirToward } from './hex.js';
+import { key, add, step, dist, sightLine, turnDiff, dirToward } from './hex.js';
 import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater, maxAttr } from './state.js';
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
@@ -25,8 +25,24 @@ function pay(state, p, what) {
 export const thrustIncome = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p).reduce((n, s) => n + sumAttr(state, s, 'thrust'), 0);
 // own_move (a sprint drive): the ship moves that many hexes a turn by itself. It takes nothing from
 // the fleet's thrust pool and does not count in the fleet's weight.
-export const ownMove = (state, ship) => sumAttr(state, ship, 'own_move');
-export const fleetSegs = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p && !ownMove(state, s)).reduce((n, s) => n + s.segs.length, 0);
+// burn_turns (an afterburner): the drive gives its own_move for that many turns on which the ship
+// moved, then it is burnt out and the ship moves burnt_move hexes a turn (1 unless the part says).
+export const hasOwnDrive = (state, ship) => workingParts(state, ship).some((x) => num(x.c.own_move) > 0);
+const burnPart = (state, ship) => workingParts(state, ship).find((x) => num(x.c.own_move) > 0 && num(x.c.burn_turns) > 0) || null;
+// Burn turns used before this turn (a move already made this turn does not count against itself).
+function burnsUsed(state, ship) {
+  const movedNow = current(state) === ship.owner && (state.players[ship.owner].moved[ship.id] || 0) > 0;
+  return (ship.burn || 0) - (movedNow ? 1 : 0);
+}
+export const burntOut = (state, ship) => { const b = burnPart(state, ship); return !!b && burnsUsed(state, ship) >= b.c.burn_turns; };
+export function ownMove(state, ship) {
+  const b = burnPart(state, ship);
+  if (b && burnsUsed(state, ship) >= b.c.burn_turns) return Math.max(0, num(b.c.burnt_move, 1));
+  return sumAttr(state, ship, 'own_move');
+}
+// How many burn turns a ship has left (null for a ship with no afterburner).
+export const burnLeft = (state, ship) => { const b = burnPart(state, ship); return b ? Math.max(0, b.c.burn_turns - burnsUsed(state, ship)) : null; };
+export const fleetSegs = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p && !hasOwnDrive(state, s)).reduce((n, s) => n + s.segs.length, 0);
 export function moveCap(state, p) {
   const segs = fleetSegs(state, p);
   return segs ? Math.floor(thrustIncome(state, p) / segs) + state.rules.move.capBonus : 0;
@@ -46,7 +62,9 @@ export function doMove(state, a) {
   if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
-  const own = ownMove(state, ship), n = own ? 0 : ship.segs.length, cap = own || moveCap(state, p), done = pl.moved[ship.id] || 0;
+  const drive = hasOwnDrive(state, ship), n = drive ? 0 : ship.segs.length, cap = drive ? ownMove(state, ship) : moveCap(state, p), done = pl.moved[ship.id] || 0;
+  // reveals_on_pass: a scout under afterburner lights up enemy ships it flies past, and itself
+  const passN = drive && !burntOut(state, ship) ? sumAttr(state, ship, 'reveals_on_pass') : 0, passed = [];
   if (done + path.length > cap) no('a ship can move at most ' + cap + ' hexes a turn');
   if (path.length * n > pl.thrust) no('not enough thrust');
   // refuse paths through things the player knows about
@@ -75,6 +93,10 @@ export function doMove(state, a) {
       break;
     }
     ship.pos = np; taken++;
+    if (passN > 0) {
+      state.lit[ship.id] = state.round + 1;
+      for (const x of state.ships) if (!x.dead && x.owner !== p && gap(ship, x) <= passN) { state.lit[x.id] = state.round + 1; if (!passed.includes(x.id)) passed.push(x.id); }
+    }
     let boom = false;
     for (let i = 0; i < ship.segs.length && !ship.dead; i++) {
       const h = segHex(ship, i);
@@ -90,16 +112,23 @@ export function doMove(state, a) {
     if (boom || ship.dead) break;
   }
   pl.thrust -= taken * n;
+  if (taken && !done && !ship.dead) {
+    const b = burnPart(state, ship);
+    if (b) { ship.burn = (ship.burn || 0) + 1; if (ship.burn === b.c.burn_turns) emit(state, { t: 'burnt_out', ship: ship.id, move: Math.max(0, num(b.c.burnt_move, 1)) }, [p]); }
+  }
   pl.moved[ship.id] = done + taken;
+  if (passed.length) emit(state, { t: 'pass_reveal', ship: ship.id, found: passed }, state.players.map((_, i) => i));
   const seen = [p].concat(foe(state, p).filter((q) => visibleTo(state, q).has(ship.id)));
   emit(state, { t: 'move', ship: ship.id, from, to: ship.pos.slice(), steps: taken }, seen);
 }
 
 // The enemy thing on a hex: a ship segment that is still standing, or a small object.
-function enemyAt(state, at, p) {
+// Two things can share a hex (a missile flying over a hidden mine): the one the shooter can see is the target.
+function enemyAt(state, at, p, shooter) {
   const o = occupancy(state).get(key(at));
   if (o && o.ship.owner !== p && !o.ship.segs[o.seg].wrecked) return o.ship;
-  return state.objs.find((x) => x.owner !== p && x.pos[0] === at[0] && x.pos[1] === at[1]) || null;
+  const here = state.objs.filter((x) => x.owner !== p && x.pos[0] === at[0] && x.pos[1] === at[1]);
+  return (shooter && here.find((x) => networkSees(state, shooter, x))) || here[0] || null;
 }
 
 // Does this shot earn the attack-run bonus? The ship must have moved this turn.
@@ -116,11 +145,11 @@ export function doFire(state, a) {
   if (!Array.isArray(a.at)) no('no target given');
   const src = segHex(ship, a.seg), d = dist(src, a.at);
   if (d < 1 || d > c.range) no('the target is out of range');
-  const target = enemyAt(state, a.at, p);
+  const target = enemyAt(state, a.at, p, ship);
   if (!target) no('there is nothing to shoot at on that hex');
   if (!networkSees(state, ship, target)) no('this ship cannot see that target');
-  const g = geom(state.rules), cells = line(src, a.at);
-  for (let i = 1; i < cells.length - 1; i++) if (g.blockSight.has(key(cells[i]))) no('an asteroid blocks the line of fire');
+  const g = geom(state.rules), cells = sightLine(src, a.at, (c) => g.blockSight.has(key(c)));
+  if (!cells) no('an asteroid blocks the line of fire');
   spend(); ship.used[used] = 1;
   // the beam stops at the first thing it meets, even something the shooter could not see
   const occ = occupancy(state);
@@ -129,7 +158,9 @@ export function doFire(state, a) {
     const o = occ.get(key(cells[i]));
     if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked) { hitShip = o.ship; hitSeg = o.seg; hd = i; break; }
     const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0)   // own mines still stop it
-      && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed)));
+      && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed))
+      // beams_pass (a deep mine): a beam aimed at something else flies over it; only a shot aimed at the mine itself hits it
+      && !(state.rules.munitions[x.kind].beams_pass === true && x !== target));
     if (ob) { hitObj = ob; hd = i; }
   }
   let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
@@ -200,6 +231,9 @@ export function doScan(state, a) {
   let found = 0, pinged = 0;
   for (const t of state.ships.filter((x) => !x.dead && x.owner !== p).concat(state.objs.filter((x) => x.owner !== p))) {
     const d = gap(sh, t);
+    // scan_resist: a deep mine shows up on a scan only this close to the scanning ship, and never as a faint contact
+    const resist = t.segs ? 0 : num(state.rules.munitions[t.kind].scan_resist);
+    if (resist && d > resist) continue;
     if (d <= r1) {
       pl.revealed[t.id] = state.round + 1;
       found++;

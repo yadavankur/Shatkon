@@ -26,6 +26,15 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const capHit = (() => { const caps = Object.values(P0).map((p) => p.max_hits_per_round).filter((x) => typeof x === 'number'); return caps.length && (opts.hitsSoFar || 0) >= Math.min(...caps); })();
   const H = E.hex,
     R = state.rules;
+  // ai.variety and ai.tricks (world file): personalities only. Story chapters and "easy" are untouched.
+  const V = (pers && (R.ai || {}).variety) || {}, T = (pers && (R.ai || {}).tricks) || {};
+  // tie_break: equal choices used to go to whichever came first in the list (the lowest direction,
+  // the first ship), so the same board turned round played a different game and a mirror board came
+  // out 20-0. Now each choice gets a tiny nudge from the game's own seed: the same game replays
+  // exactly, a new game breaks its ties differently.
+  const TB = typeof V.tie_break === 'number' ? V.tie_break : 0;
+  const noise = (tag) => (TB ? (E.seededRandom(E.fnv((state.fzSalt | 0) + '|' + state.round + '|' + seat + '|' + tag))() - 0.5) * TB : 0);
+  const isMine = (kind) => { const m = R.munitions[kind]; return !!m && !m.speed && !!m.hits; };
   const v = E.view(state, seat);
   if (v.phase !== 'play' || v.toMove !== seat) return null;
   const P = state.players[seat];
@@ -41,11 +50,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     for (const a of A) for (const b of B) m = Math.min(m, H.dist(a, b));
     return m;
   };
-  const clearLine = (a, b) => {
-    const l = H.line(a, b);
-    for (let i = 1; i < l.length - 1; i++) if (blockSight.has(H.key(l[i]))) return false;
-    return true;
-  };
+  const clearLine = (a, b) => !!H.sightLine(a, b, (c) => blockSight.has(H.key(c)));
   const shipById = (id) => v.ships.find((s) => s.id === id);
   // an enemy whose every part a scan has shown, with nothing left to shoot or launch: a decoy, or disarmed
   const harmless = (t) => !!t && !t.mine && t.segs.every((g) => g.wrecked || g.parts) &&
@@ -94,16 +99,13 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       else {
         const o = v.objs.find((o) => o.id === t.target);
         // shoot down missiles that are close to my ships
-        score =
-          o &&
-          o.kind === 'missile' &&
-          minDist(
-            [o.pos],
-            mine.flatMap((m) => m.cells)
-          ) <= 6
-            ? 25
-            : 2;
+        const near = o ? minDist([o.pos], mine.flatMap((m) => m.cells)) : 99;
+        score = o && o.kind === 'missile' && near <= 6 ? 25
+          // shoots_mines: N = a mine it can see within N hexes of one of its ships is worth a shot (it is in the way)
+          : o && isMine(o.kind) && typeof T.shoots_mines === 'number' && near <= T.shoots_mines ? 12
+          : 2;
       }
+      score += noise('f' + s.id + t.seg + '.' + t.part + H.key(t.at));
       // a personality told to ignore harmless ships does not spend a shot (and light itself up) on one
       if (pers && tgt && pr.ignores_harmless === true && harmless(tgt)) score = 1;
       if (!best || score > best.score)
@@ -146,6 +148,27 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     if (easy && rnd() < 0.5) continue; // easy: hesitates
     return act;
   }
+  // 2c. Drones (tricks.launches_drones): a carrier with nothing located sends a reporting drone toward
+  // where it thinks the enemy is, and keeps `drones_in_flight` up. A drone next to two or more
+  // enemy segments (and none of its own side's) is blown up there.
+  if (T.launches_drones === true && !capHit) {
+    const scouts = Object.keys(R.munitions).filter((k) => R.munitions[k].reports && R.munitions[k].speed);
+    for (const o of v.objs) {
+      const m = R.munitions[o.kind];
+      if (!o.mine || !m.remote_detonate || P.cp < R.cost.detonate) continue;
+      const r = m.blast_radius || 0, inBlast = (x) => x.cells.filter((c, i) => !x.segs[i].wrecked && H.dist(c, o.pos) <= r).length;
+      if (r > 0 && foes.reduce((n, f) => n + inBlast(f), 0) >= 2 && !mine.some((x) => inBlast(x))) return { type: 'detonate', obj: o.id };
+    }
+    const flying = v.objs.filter((o) => o.mine && scouts.includes(o.kind)).length;
+    if (!foes.length && flying < (T.drones_in_flight ?? 2)) for (const s of mine) {
+      const lo = E.launchOptions(state, s.id), kind = lo && lo.kinds.find((k) => scouts.includes(k));
+      if (!kind) continue;
+      const spots = (v.contacts || []).filter((c) => c.kind === 'ship').map((c) => c.at).concat(v.ghosts.filter((g) => g.kind === 'ship').map((g) => g.pos));
+      const aim = spots.sort((a, b) => minDist(s.cells, [a]) - minDist(s.cells, [b]))[0] || enemyHomePoint(v, seat, R);
+      const act = aim && E.aimLaunch(state, s.id, kind, aim);
+      if (act && E.attempt(state, act).ok) return act;
+    }
+  }
   // 2a. Blind fire: no lock needed. A personality with `blind_fire` sends a missile down the line
   // to where it believes the enemy is (a rough contact, a last-seen position, or, with
   // `blind_fire_at_home`, the middle of the enemy's home rows) and lets the missile's own seeker
@@ -161,8 +184,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       const reachHex = m.speed * (m.fuel || 1);
       const spots = (v.contacts || []).filter((c) => c.kind === 'ship').map((c) => c.at).concat(v.ghosts.filter((g) => g.kind === 'ship').map((g) => g.pos));
       if (!spots.length && pr.blind_fire_at_home && v.round >= (pr.blind_fire_from_round ?? 2)) {
-        const z = v.zones.find((zz) => zz.name.indexOf(v.players[seat]) !== 0 && zz.edge);
-        if (z) spots.push(z.edge === 'north' ? [0, -(v.board.radius - 1)] : [0, v.board.radius - 1]);
+        const hp = enemyHomePoint(v, seat, R);
+        if (hp) spots.push(hp);
       }
       const aim = spots.filter((c) => minDist(s.cells, [c]) <= reachHex).sort((a, b) => minDist(s.cells, [a]) - minDist(s.cells, [b]))[0];
       if (!aim) continue;
@@ -194,17 +217,30 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     if (opts.length) return opts[Math.floor(rnd() * opts.length)];
   }
   // 3. Move: pick the ship whose best destination improves its position the most
-  const enemyHome = v.zones.find((z) => z.name.indexOf(v.players[seat]) !== 0);
-  const homePoint = enemyHome
-    ? enemyHome.edge === 'north'
-      ? [0, -(v.board.radius - 2)]
-      : [0, v.board.radius - 2]
-    : [0, 0];
+  const homePoint = enemyHomePoint(v, seat, R) || [0, 0];
   // the map objective: hold it to score; behind on points means push harder
   const obj = v.objective;
   const myScore = (v.scores || [])[seat] || 0, theirScore = (v.scores || [])[1 - seat] || 0;
   const objPull = !obj ? 0 : theirScore > myScore ? 2 : theirScore === myScore ? 1.2 : 0.6;
   const onObj = (cells) => obj && cells.some((c) => H.dist(c, obj.at) <= obj.radius);
+  const canHold = (s) => !s.segs.some((g) => (g.parts || []).some((p) => R.parts[p.t].holds_objective === false));
+  // variety.opening_lanes: with nothing located yet, each game the fleet comes up the left, the middle
+  // or the right (picked from the game's seed) for the first lane_rounds rounds, instead of always
+  // marching down the same line
+  const lanePoint = (() => {
+    if (V.opening_lanes !== true || obj || v.round > (V.lane_rounds ?? 4)) return null;
+    const side = (E.fnv('lane|' + (state.fzSalt | 0) + '|' + seat) % 3) - 1, home = enemyHomePoint(v, 1 - seat, R);
+    if (!side || !home || !enemyHomePoint(v, seat, R)) return null;
+    const a = home, b = homePoint, d = [b[0] - a[0], b[1] - a[1]], len = H.dist(a, b) || 1;
+    // a quarter turn in cube coordinates: (turn +60) minus (turn -60) is square to the line home-to-home
+    const x = d[0], z = d[1], y = -x - z, perp = [-z + y, -y + x];
+    for (let w = v.board.radius * 0.45; w >= 1; w -= 1) {
+      const k = (side * w) / (len * Math.sqrt(3));
+      const c = H.cubeRound((a[0] + b[0]) / 2 + perp[0] * k, (a[1] + b[1]) / 2 + perp[1] * k);
+      if (H.dist([0, 0], c) <= v.board.radius - 1 && !blockSight.has(H.key(c))) return c;
+    }
+    return null;
+  })();
   const knownMines = mine.length && mine.every((s) => prof(s).avoid_mines === false) ? new Set() : new Set(
     // (a personality also plans round its own mines: with friendly fire on, it may not cross them either)
     v.objs.filter((o) => (!o.mine || (pers && R.friendlyFire)) && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
@@ -217,7 +253,20 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
         ? v.ghosts.flatMap((g) => g.cells)
         : obj
           ? [obj.at]
-          : [homePoint];
+          : [lanePoint || homePoint];
+  // tricks.mines_as_bait_rounds: N = for the first N rounds a side that laid mines waits behind them and
+  // stands where a mine lies between its ships and the enemy, so the enemy comes to it through the
+  // field. 0 (the world file's setting) = never: against a player who also waits, it would be a stall.
+  const myMines = v.round <= (T.mines_as_bait_rounds || 0) ? v.objs.filter((o) => o.mine && isMine(o.kind)) : [];
+  const holdAt = (() => {
+    if (myMines.length < 2) return null;
+    const home = enemyHomePoint(v, 1 - seat, R);
+    if (!home) return null;
+    // the mine nearest home, and two hexes behind it
+    const m = myMines.slice().sort((a, b) => H.dist(a.pos, home) - H.dist(b.pos, home))[0];
+    const l = H.line(m.pos, home);
+    return l[Math.min(2, l.length - 1)];
+  })();
   // path-aware approach: BFS over centres where the whole ship fits, so a ship parked
   // behind an asteroid works its way round instead of stalling
   const blockMove = new Set();
@@ -287,7 +336,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   // of sitting beside the flagship: the enemy that shoots it lights itself up
   // bait_ship: smallest = the smallest escort is sent ahead as bait even if it is armed (a sacrifice)
   const baitId = (mine.filter((m) => !m.flagship).sort((a, b) => a.segs.length - b.segs.length || a.id - b.id)[0] || {}).id;
-  const bait = (s) => !!pers && !s.flagship && ((prof(s).bait_ship === 'smallest' && mine.length > 1 && s.id === baitId) || (prof(s).unarmed_ships === 'bait' && !lasersOf(s).length &&
+  // (tricks.decoys_as_bait: every unarmed escort is bait, whatever its personality says)
+  const bait = (s) => !!pers && !s.flagship && ((prof(s).bait_ship === 'smallest' && mine.length > 1 && s.id === baitId) || ((prof(s).unarmed_ships === 'bait' || T.decoys_as_bait === true) && !lasersOf(s).length &&
     !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)))));
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
   const scorePos = (s, center) => {
@@ -348,12 +398,21 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
         score += shot;
       }
       if (d <= 1 && pr.stance !== 'charge') score -= 4; // don't ram
+      if (myMines.length && !bait(s)) {
+        // a mine of ours between this ship and its target, two to four hexes in front of the ship
+        let a = cells[0], b = target.cells[0];
+        for (const c of cells) for (const tc of target.cells) if (H.dist(c, tc) < H.dist(a, b)) { a = c; b = tc; }
+        const way = H.line(a, b);
+        if (myMines.some((m) => { const ds = H.dist(a, m.pos); return ds >= 2 && ds <= 4 && H.dist(m.pos, b) < H.dist(a, b) && way.some((c) => H.dist(c, m.pos) <= 1); })) score += 2.5;
+      }
+    } else if (holdAt && !bait(s)) {
+      score -= minDist(cells, [holdAt]) * (s.flagship ? 1 : 0.8);
     } else {
       // scout ahead, flagship trails the scout a little
       let d = minDist(cells, goalCells);
       // a personality counts the hexes of the way round, so an asteroid in between does not strand it
       if (pers && d > 1) { const way = stepsToRange(s, { cells: goalCells }, 1, 'goal')(center); if (way < 99) d = way + 1; }
-      score -= d * (s.flagship ? 0.7 : 1);
+      score -= d * (s.flagship ? 0.7 : bait(s) && T.decoys_as_bait === true ? 1.4 : 1);
       const others = mine.filter((m) => m.id !== s.id);
       if (s.flagship && others.length) score -= Math.max(0, minDist(cells, others[0].cells) - 5) * 0.8;
     }
@@ -363,7 +422,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       // bait runs ahead, but only `bait_lead` hexes: far enough to be shot at first, near enough for the guns behind it to answer
       if (flag) score -= Math.max(0, minDist(cells, flag.cells) - (bait(s) ? pr.bait_lead ?? 4 : pr.keep_together)) * 2;
     }
-    if (obj) {
+    if (obj && canHold(s)) {
       // the scout goes for the beacon; the flagship joins in when behind on points
       const w = s.flagship ? (theirScore > myScore ? objPull * 0.6 : 0.2) : objPull;
       score += onObj(cells) ? 3 * w : -minDist(cells, [obj.at]) * 0.5 * w;
@@ -408,7 +467,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     if (prof(s).stance === 'hold') continue;
     const here = scorePos(s, s.pos);
     for (const r of E.reach(state, s.id)) {
-      const gain = scorePos(s, r.at) - here - r.path.length * 0.05;
+      const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + noise('m' + s.id + H.key(r.at));
       if (gain > (easy ? 1.5 : 0.5) && (!bestMove || gain > bestMove.gain))
         bestMove = { gain, action: { type: 'move', ship: s.id, path: r.path } };
     }
@@ -416,6 +475,23 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   if (bestMove) return bestMove.action;
   if (best) return best.action; // a weak shot is better than nothing
   return { type: 'end' };
+}
+
+// The middle of the enemy's home zone, whichever of the six edges it is on: where the computer
+// heads, and aims a blind missile, when it has nothing better to go on. (It used to assume the
+// enemy was north or else south, so on a flank or diagonal board it marched at its own corner.)
+// It is the open hex nearest the middle of the open hexes of the zone's first rows, so on a canyon or
+// alley board it is the mouth, never a hex inside the rock.
+export function enemyHomePoint(v, seat, rules) {
+  const H = E.hex, R = v.board.radius;
+  const z = v.zones.find((zz) => zz.edge && H.EDGE[zz.edge] && zz.name.indexOf(v.players[1 - seat]) === 0);
+  if (!z) return null;
+  const rock = new Set((v.terrain || []).filter((t) => ((rules.terrainTypes || {})[t.type] || {}).blocks_movement).flatMap((t) => t.cells.map(H.key)));
+  const rows = Math.min(2, Math.max(0, z.depth - 1));
+  const cells = H.disc([0, 0], R).filter((c) => H.EDGE[z.edge](c, R) <= rows && !rock.has(H.key(c)));
+  if (!cells.length) return null;
+  const q = cells.reduce((n, c) => n + c[0], 0) / cells.length, r = cells.reduce((n, c) => n + c[1], 0) / cells.length;
+  return cells.reduce((best, c) => (Math.hypot(c[0] - q + (c[1] - r) / 2, (c[1] - r) * 0.866) < Math.hypot(best[0] - q + (best[1] - r) / 2, (best[1] - r) * 0.866) ? c : best));
 }
 
 // Which personality a seat plays. Story chapters and ships with their own profiles have none.

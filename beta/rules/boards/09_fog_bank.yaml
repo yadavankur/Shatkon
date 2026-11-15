@@ -29,7 +29,7 @@ board:
   try: "You can see your own mines. Fight from behind them: show a ship just beyond a mine and let them come to you through it. Only a scan finds your mines, and a scan lights up the ship that sends it; in the fog a ship also sees 3 less."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     ai.vs_computer: "aggressive"
-    munitions.sleeper_mine: { note: "a deep mine: signature -10, so only a ship with sensor 11+ sees it, and only from 1 hex (sensor 12: 2 hexes). Goes off when an enemy comes next to it; wrecks the segment and hits every segment next to it 5 times", speed: 0, hits: 5, wrecks_segment: true, blast_radius: 1, blast_hits: 5, trigger_range: 1, signature: -10, strikes: layers, setup_only: true, max_per_player: 3, cost: 15 }
+    ai.tricks.mines_as_bait_rounds: 8      # engine: the side with the mines waits behind them for 8 rounds
 
 budget: 99999                 # boards are not held to the fleet budget
 

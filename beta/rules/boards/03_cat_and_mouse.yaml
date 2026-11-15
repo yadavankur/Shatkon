@@ -32,7 +32,6 @@ board:
     bay_parts.core.sensor_range: 1
     ai.vs_computer: "balanced"
     ai.personalities.runner: { note: "a scout: runs ahead of the fleet on its own", range: [3, 4], keep_together: 0, missile_range: 8, attack_run: true, unarmed_ships: "bait" }
-    bay_parts.afterburner: { note: "a comet's drive: 8 hexes a turn on its own, outside the fleet's thrust. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it", own_move: 8, evades_beyond: 2, death_flash: 5, layer: 5, cost: 10 }
 
 budget: 99999                 # boards are not held to the fleet budget
 
@@ -85,10 +84,6 @@ player_1:
       ai: runner
       hull:
         - { at: [0, 0], bays: [core, afterburner, sensor] }
-    - name: "Comet 3"                # NEW comet: afterburner scout, 8 hexes a turn, flash 5 when it dies
-      ai: runner
-      hull:
-        - { at: [0, 0], bays: [core, afterburner, sensor] }
   deployment:
     - { ship: "Tom", at: [-3, 10] }
     - { ship: "Bloodhound", at: [-7, 10] }
@@ -96,7 +91,6 @@ player_1:
     - { ship: "Deerhound", at: [-6, 9] }
     - { ship: "Comet 1", at: [-9, 10] }
     - { ship: "Comet 2", at: [-4, 9] }
-    - { ship: "Comet 3", at: [1, 10] }
 
 player_2:
   ships:

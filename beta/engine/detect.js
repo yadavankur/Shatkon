@@ -47,7 +47,8 @@ export function sigBreak(state, ship) {
   let haze = 0;
   for (const h of cellsOf(ship)) { const z = g.haze.get(key(h)); if (z) haze = Math.min(haze, num(z.signature_bonus)); }
   const flare = flareOf(state, ship), motion = motionSig(state, ship);
-  return { base, stealth, used: base - hull, floor, hull, haze, flare, motion, total: hull + haze + flare + motion };
+  const emitter = sumAttr(state, ship, 'adds_signature');   // a decoy emitter makes a small ship look like a big one
+  return { base, stealth, used: base - hull, floor, hull, haze, flare, motion, emitter, total: hull + haze + flare + motion + emitter };
 }
 
 export function signatureOf(state, x) {

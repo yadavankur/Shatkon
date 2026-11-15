@@ -25,7 +25,6 @@ board:
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     ai.vs_computer: "balanced"
     ai.personalities.runner: { note: "a scout: runs ahead of the fleet on its own", range: [3, 4], keep_together: 0, missile_range: 8, attack_run: true, unarmed_ships: "bait" }
-    bay_parts.afterburner: { note: "a comet's drive: 8 hexes a turn on its own, outside the fleet's thrust. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it", own_move: 8, evades_beyond: 2, death_flash: 5, layer: 5, cost: 10 }
 
 budget: 99999                 # boards are not held to the fleet budget
 

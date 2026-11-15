@@ -30,7 +30,7 @@ board:
   try: "Lead with the Dowser: its 12 sensor sees a sleeper mine from 2 hexes and a proximity mine from 4, so stop and shoot the mine before you step next to it. In a nebula the Dowser is as blind as everyone else. There is one clean lane; the Dowser finds it, a scan finds it, or your hull does."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     ai.vs_computer: "balanced"
-    munitions.sleeper_mine: { note: "a deep mine: signature -10, so only a ship with sensor 11+ sees it, and only from 1 hex (sensor 12: 2 hexes). Goes off when an enemy comes next to it; wrecks the segment and hits every segment next to it 5 times", speed: 0, hits: 5, wrecks_segment: true, blast_radius: 1, blast_hits: 5, trigger_range: 1, signature: -10, strikes: layers, setup_only: true, max_per_player: 3, cost: 15 }
+    ai.tricks.mines_as_bait_rounds: 8      # engine: the side with the mines waits behind them for 8 rounds
 
 budget: 99999                 # boards are not held to the fleet budget
 
