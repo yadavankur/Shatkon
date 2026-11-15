@@ -4,7 +4,7 @@
 - **main** (d82473a): PR #2 campaign-engine merged (6e05002), PR #18 ship facelift merged. Live at https://yadavankur.github.io/Shatkon/ (play.html, docs/, beta/).
 - **engine-fixes**: PR #19 → main (open, gamedev).
 - **facelift-ships-p4**: PR #20 → main (open, gamedev; ship art only).
-- **battle-log**: gamedev, PR coming (gameplay log, download button, tools/analyse-log.mjs).
+- **battle-log**: PR #23 → main (open, gamedev): battle log download (☰ Game card + game-over box) and tools/analyse-log.mjs. Merges cleanly with #19 and #20.
 - **feature/move-target-affordance**: engine (Claude), local; rebase on main.
 
 ## Older notes (14 Nov, before PR #2 merged)
