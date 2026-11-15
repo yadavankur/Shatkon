@@ -58,6 +58,7 @@ export function frigateDefs() {
   d.push(el('radialGradient', { id: 'fgBubble' }, el('stop', { offset: '.6', 'stop-color': FC.cyan, 'stop-opacity': '0' }), el('stop', { offset: '1', 'stop-color': FC.cyan, 'stop-opacity': '.18' })));
   d.push(el('radialGradient', { id: 'fgScorch' }, el('stop', { offset: '0', 'stop-color': '#050506', 'stop-opacity': '.85' }), el('stop', { offset: '.6', 'stop-color': '#1d1611', 'stop-opacity': '.55' }), el('stop', { offset: '1', 'stop-color': '#1d1611', 'stop-opacity': '0' })));
   d.push(el('radialGradient', { id: 'fgEmber' }, el('stop', { offset: '0', 'stop-color': '#ffd38a', 'stop-opacity': '1' }), el('stop', { offset: '.45', 'stop-color': FC.ember, 'stop-opacity': '.6' }), el('stop', { offset: '1', 'stop-color': FC.ember, 'stop-opacity': '0' })));
+  d.push(el('radialGradient', { id: 'fgNozzle' }, el('stop', { offset: '0', 'stop-color': '#ffffff', 'stop-opacity': '.9' }), el('stop', { offset: '.4', 'stop-color': FC.cyan, 'stop-opacity': '.6' }), el('stop', { offset: '1', 'stop-color': FC.blue, 'stop-opacity': '0' })));
   return el('defs', { class: 'frigate-defs' }, d);
 }
 
@@ -95,8 +96,9 @@ export function drawFrigate(o) {
   // where each hex sits on the ship: decides where (not whether) the fitted parts go
   let coreI = segs.findIndex((sg, i) => cnt(i, 'core'));
   if (coreI < 0) coreI = P.map((p, i) => [Math.hypot(U[i], Vv[i] * 1.2), i]).sort((a2, z2) => a2[0] - z2[0])[0][1];
-  const uTop = Math.max(...U);
+  const uTop = Math.max(...U), TAPER = n === 1 ? 0.2 : 0.36;
   const pos = P.map((p, i) => ({ front: !ahead(i), stern: !behind(i), flank: Math.abs(Vv[i]) >= 0.6, core: i === coreI, side: Vv[i] >= 0 ? 1 : -1 }));
+  const isBow = (i) => (pos[i].front && U[i] >= uTop - 0.3) || n === 1;
   pos.forEach((q) => { q.role = q.core ? 'core' : q.flank ? 'flank' : q.front ? 'bow' : q.stern ? 'stern' : 'mid'; });
 
   const root = el('g', { class: 'frigate' });
@@ -122,7 +124,16 @@ export function drawFrigate(o) {
   // 2. one fused hull over the whole cluster: the hex-cluster outline, inset, outer corners cut at
   //    hex angles; a chamfer band all round (lit on the top-left edges, shaded bottom-right) and a
   //    raised deck inside it. Hex seams are faint panel lines only.
-  const outer = hullLoops(P, nb, S, S * 0.07, S * 0.16), inner = hullLoops(P, nb, S, S * 0.2, S * 0.12);
+  // taper (strictly hexagonal: whole edges move in, parallel to themselves, corners keep 120
+  // degrees): bow hexes narrow toward the prow, flank hexes thin toward the wing tip
+  const taper = (i, e) => {
+    const a = (Math.PI / 3) * e, nrm = [Math.cos(a), Math.sin(a)], fb = dot(nrm, b), sa = Math.abs(dot(nrm, perp)), sd = dot(nrm, perp) * pos[i].side, q = pos[i];
+    let t = 0;
+    if (isBow(i)) t += fb > 0.3 ? TAPER * fb : (q.flank ? sd > 0.3 : sa > 0.5) && fb > -0.3 ? 0.16 : 0;
+    if (q.flank && !isBow(i) && sd > 0.3 && fb > -0.6) t += 0.13;
+    return S * t;
+  };
+  const outer = hullLoops(P, nb, S, S * 0.07, S * 0.12, taper), inner = hullLoops(P, nb, S, S * 0.2, S * 0.09, taper);
   const hullD = outer.map(poly).join(''), deckD = inner.map(poly).join('');
   const cid = 'fgc' + (++clipN), ccl = 'fgk' + clipN;
   root.appendChild(el('clipPath', { id: cid }, el('path', { d: hullD })));
@@ -130,7 +141,7 @@ export function drawFrigate(o) {
   // shield field: a hex-shaped energy skin just outside the hull
   let shUp = 0, shAll = 0; segs.forEach((s, i) => { if (!s.wrecked) { shUp += up(i, 'shield'); shAll += cnt(i, 'shield'); } });
   if (shAll) {
-    const fd = hullLoops(P, nb, S, -S * 0.04, S * 0.2).map(poly).join('');
+    const fd = hullLoops(P, nb, S, -S * 0.04, S * 0.16, taper).map(poly).join('');
     root.appendChild(el('path', { d: fd, fill: shUp ? FC.cyan : 'none', 'fill-opacity': 0.06, stroke: FC.cyan, 'stroke-width': f2(S * (0.04 + 0.015 * Math.min(4, shUp))), 'stroke-opacity': shUp ? 0.6 : 0.25, 'stroke-dasharray': shUp ? null : `${f2(S * 0.15)} ${f2(S * 0.12)}`, 'stroke-linejoin': 'miter', class: shUp ? 'sk-shield' : null }));
   }
   root.appendChild(el('path', { d: hullD, fill: 'none', stroke: FC.line, 'stroke-width': f2(S * 0.15), 'stroke-linejoin': 'miter' }));
@@ -189,6 +200,10 @@ export function drawFrigate(o) {
   const kw = n <= 2 ? 0.15 : n <= 4 ? 0.17 : 0.2;
   const W2 = (u, v) => [cx + S * (u * b[0] + v * perp[0]), cy + S * (u * b[1] + v * perp[1])];
   let axis = P.map((p, i) => i).filter((i) => Math.abs(Vv[i]) < 0.6);
+  // a pair of hexes either side of the bow line (the flower's prongs and tail, the H's ends) carry
+  // the keel along the edge they share, so it runs the ship's full length
+  const pairOf = (i) => P.findIndex((p, j) => j !== i && Math.abs(U[j] - U[i]) < 0.2 && Math.abs(Vv[j] + Vv[i]) < 0.2 && nb[i].includes(j));
+  P.forEach((p, i) => { if (!axis.includes(i) && Math.abs(Vv[i]) < 0.95 && pairOf(i) >= 0) axis.push(i); });
   if (!axis.length) { const mv = Math.min(...Vv.map(Math.abs)); axis = P.map((p, i) => i).filter((i) => Math.abs(Vv[i]) < mv + 0.1); }
   const vcA = axis.reduce((m, i) => m + Vv[i], 0) / axis.length, vMid = Math.abs(vcA) < 0.3 ? 0 : vcA;
   const inside = (u, v) => P.some((p, j) => Math.hypot(U[j] - u, Vv[j] - v) < 0.84);
@@ -213,8 +228,8 @@ export function drawFrigate(o) {
     spine.appendChild(el('path', { d, stroke: '#7c8896', 'stroke-width': f2(S * 0.08), 'stroke-linecap': 'butt', transform: `translate(${f2(LIGHT[0] * S * 0.05)},${f2(LIGHT[1] * S * 0.05)})` }));
   }
   {
-    const us = axis.map((i) => U[i]);
-    const u0 = Math.min(...us) - 0.6, u1 = Math.max(...us) + 0.62, tip = kw / Math.tan(Math.PI / 6);
+    const us = axis.map((i) => U[i]), reachF = (i) => (Math.abs(Vv[i]) < 0.6 ? 0.62 : 0.42), reachB = (i) => (Math.abs(Vv[i]) < 0.6 ? 0.6 : 0.42);
+    const u0 = Math.min(...axis.map((i) => U[i] - reachB(i))), u1 = Math.max(...axis.map((i) => U[i] + reachF(i))), tip = kw / Math.tan(Math.PI / 6);
     const K = (u, v) => W2(u, vMid + v);
     const outlineK = [K(u0, -kw * 0.7), K(u0 + 0.08, -kw), K(u1 - tip, -kw), K(u1, 0), K(u1 - tip, kw), K(u0 + 0.08, kw), K(u0, kw * 0.7)];
     spine.appendChild(el('path', { d: poly(outlineK), fill: 'url(#fgKeel)', stroke: FC.line, 'stroke-width': f2(S * 0.05), 'stroke-linejoin': 'miter' }));
@@ -243,6 +258,9 @@ export function drawFrigate(o) {
   // is the hex's stern a corner (pointy) or a flat edge, in the local frame?
   const cornerAft = [0, 1, 2, 3, 4, 5].some((v) => { const a = ((((60 * v - 30 - theta) % 360) + 540) % 360) - 180; return Math.abs(Math.abs(a) - 180) < 5; });
   const xAft = cornerAft ? -0.62 : -0.8, ySp = cornerAft ? 0.17 : 0.24;
+  // mid-ship deck variety: rank distinct mid-cell stations from bow to stern (mirrored cells share a rank)
+  const midU = [...new Set(pos.map((q, j) => (q.role === 'mid' || (q.role === 'stern' && n > 2) ? Math.round(U[j] * 4) : null)).filter((v) => v !== null))].sort((a2, z2) => z2 - a2);
+  const deckRank = (i) => (midU.indexOf(Math.round(U[i] * 4)) + (Math.abs(Vv[i]) > 0.3 ? 1 : 0) + 1) % 4;
   const detail = el('g', null);
   g.appendChild(detail);
   segs.forEach((sg, i) => {
@@ -259,14 +277,39 @@ export function drawFrigate(o) {
       addC(el('path', { d: `M0.48,${f2(yi + s * 0.04)}L-0.58,${f2(yi + s * 0.04)}`, stroke: '#8c98a6', 'stroke-width': '0.03', opacity: 0.8 }));
       addC(el('path', { d: `M0.4,${f2(s * 0.56)}L-0.5,${f2(s * 0.56)}`, stroke: FC.teal, 'stroke-width': far ? '0.07' : '0.045', class: 'sk-emit' }));
       if (!far && ar) for (let j = 0; j < 3; j++) addC(el('circle', { cx: f2(0.35 - j * 0.38), cy: f2(yi + s * 0.1), r: '0.025', fill: FC.line, opacity: 0.8 }));
+      // big hulls: vary the deck inboard of the wing from hex to hex (radiator fins, a hatch row)
+      const fv = n >= 5 && !far && !cnt(i, 'engine') ? ((Math.round(U[i] * 4) % 3) + 3) % 3 : 0;
+      if (fv === 1) addC(el('path', { d: [0, 1, 2, 3, 4].map((k) => `M${f2(0.1 - k * 0.12)},${f2(yi - s * 0.04)}V${f2(yi - s * 0.2)}`).join(''), stroke: '#9aa6b4', 'stroke-width': '0.03' }));
+      else if (fv === 2) for (let k = 0; k < 3; k++) addC(el('rect', { x: f2(0.05 - k * 0.17), y: f2(s > 0 ? yi - 0.2 : yi + 0.06), width: '0.13', height: '0.14', fill: FC.plate, stroke: FC.line, 'stroke-width': '0.015' }));
     } else if (q.role === 'mid' || (q.role === 'stern' && n > 2)) {
-      // mid-ship: raised deck housings either side of the keel
-      for (const t of [-1, 1]) { const y0 = yk + t * (kw + 0.1); if (Math.abs(y0) > 0.7) continue; addC(el('path', { d: poly([[0.36, y0], [0.22, y0 + t * 0.24], [-0.42, y0 + t * 0.24], [-0.56, y0]]), fill: FC.plate, stroke: FC.line, 'stroke-width': '0.025' })); if (!far) addC(el('path', { d: `M0.2,${f2(y0 + t * 0.12)}L-0.3,${f2(y0 + t * 0.12)}`, stroke: FC.panel, 'stroke-width': '0.03', 'stroke-dasharray': '0.08 0.05' })); }
+      // mid-ship decks vary along a big hull (mirror pairs match): housings, a hangar bay,
+      // radiator fins, a cargo grid
+      const variant = n >= 5 ? deckRank(i) % 4 : 0;
+      for (const t of [-1, 1]) {
+        const y0 = yk + t * (kw + 0.1); if (Math.abs(y0) > 0.7) continue;
+        if (variant === 0) {
+          addC(el('path', { d: poly([[0.36, y0], [0.22, y0 + t * 0.24], [-0.42, y0 + t * 0.24], [-0.56, y0]]), fill: FC.plate, stroke: FC.line, 'stroke-width': '0.025' }));
+          if (!far) addC(el('path', { d: `M0.2,${f2(y0 + t * 0.12)}L-0.3,${f2(y0 + t * 0.12)}`, stroke: FC.panel, 'stroke-width': '0.03', 'stroke-dasharray': '0.08 0.05' }));
+        } else if (variant === 1) {
+          // hangar bay: a dark door with landing lights
+          addC(el('path', { d: poly([[0.3, y0 + t * 0.02], [0.16, y0 + t * 0.3], [-0.4, y0 + t * 0.3], [-0.4, y0 + t * 0.02]]), fill: '#232a33', stroke: FC.line, 'stroke-width': '0.03' }));
+          if (!far) for (let k = 0; k < 4; k++) addC(el('circle', { cx: f2(0.15 - k * 0.17), cy: f2(y0 + t * 0.06), r: '0.022', fill: FC.cyan, opacity: 0.9 }));
+        } else if (variant === 2) {
+          // radiator fins
+          addC(el('path', { d: poly([[0.34, y0], [0.2, y0 + t * 0.26], [-0.46, y0 + t * 0.26], [-0.46, y0]]), fill: FC.panel, stroke: FC.line, 'stroke-width': '0.025' }));
+          if (!far) addC(el('path', { d: [0, 1, 2, 3, 4, 5].map((k) => `M${f2(0.16 - k * 0.11)},${f2(y0 + t * 0.04)}V${f2(y0 + t * 0.22)}`).join(''), stroke: '#a7b3c1', 'stroke-width': '0.03' }));
+        } else {
+          // cargo grid
+          addC(el('path', { d: poly([[0.3, y0], [0.16, y0 + t * 0.26], [-0.44, y0 + t * 0.26], [-0.44, y0]]), fill: FC.lo, stroke: FC.line, 'stroke-width': '0.025' }));
+          if (!far) for (let k = 0; k < 4; k++) addC(el('rect', { x: f2(0.06 - k * 0.13), y: f2(t > 0 ? y0 + 0.05 : y0 - 0.2), width: '0.1', height: '0.15', fill: FC.plate, stroke: FC.panel, 'stroke-width': '0.015' }));
+        }
+      }
     }
     // bow: prow armour wedge (60 degree chevron) with a teal chevron light
-    if ((q.front && U[i] >= uTop - 0.3) || n === 1) {
-      const k = q.flank ? 0.8 : 1, ty = q.flank ? 0 : yk;
-      const T = [0.98, ty], A1 = [0.98 - 0.52 * k, ty - 0.3 * k], A2 = [0.98 - 0.52 * k, ty + 0.3 * k], B1 = [A1[0] - 0.26 * k, A1[1]], B2 = [A2[0] - 0.26 * k, A2[1]], Ti = [0.98 - 0.26 * k, ty];
+    if (isBow(i)) {
+      // the wedge sits just inside the tapered prow
+      const k = q.flank ? 0.7 : 0.85, ty = q.flank ? 0 : yk, xt = (cornerAft ? 0.93 : 0.8) - TAPER * (cornerAft ? 1 : 0.9) - 0.04;
+      const T = [xt, ty], A1 = [xt - 0.52 * k, ty - 0.3 * k], A2 = [xt - 0.52 * k, ty + 0.3 * k], B1 = [A1[0] - 0.26 * k, A1[1]], B2 = [A2[0] - 0.26 * k, A2[1]], Ti = [xt - 0.26 * k, ty];
       addC(el('path', { d: poly([T, A2, B2, Ti, B1, A1]), fill: up(i, 'stealth') ? 'url(#fgSt)' : 'url(#fgKeel)', stroke: FC.line, 'stroke-width': '0.03', 'stroke-linejoin': 'miter' }));
       addC(el('path', { d: `M${f2(A1[0] - 0.12 * k)},${f2(A1[1])}L${f2(T[0] - 0.13 * k)},${f2(ty)}L${f2(A2[0] - 0.12 * k)},${f2(A2[1])}`, fill: 'none', stroke: FC.teal, 'stroke-width': far ? '0.06' : '0.035', class: 'sk-emit' }));
     }
@@ -290,18 +333,30 @@ export function drawFrigate(o) {
         plumes.appendChild(pg);
       });
     } else if (en.length) {
-      // engines with hull behind them: side thruster pods
+      // engines with hull behind them: nacelles on short pylons beside the keel (or inboard of
+      // the wing), an intake at the front, a ringed exhaust bell and a glow at the back
+      const sides = q.flank ? [-s] : [1, -1];
       en.forEach((e, j) => {
-        const y = (j % 2 ? -1 : 1) * 0.5;
-        addC(el('path', { d: poly([[-0.05, y - 0.09], [-0.5, y - 0.1], [-0.58, y - 0.06], [-0.58, y + 0.06], [-0.5, y + 0.1], [-0.05, y + 0.09]]), fill: e.up ? 'url(#fgKeel)' : FC.dead, stroke: FC.line, 'stroke-width': '0.025' }));
-        if (e.up) addC(el('rect', { x: '-0.6', y: f2(y - 0.06), width: '0.04', height: '0.12', fill: FC.cyan, opacity: 0.85 })); else deck(scorch(-0.3, y, 0.14));
+        const t = sides[j % sides.length], off = Math.floor(j / sides.length);
+        const y = q.flank ? s * (0.06 - 0.24 * off) : yk + t * (kw + 0.2 + 0.24 * off);
+        if (Math.abs(y) > 0.66) return;
+        const w = 0.1, xf = 0.42, xr = -0.52, dx = w * 0.577;
+        const dead = !e.up;
+        if (!q.flank) { const ke = yk + t * kw; addC(el('rect', { x: '-0.22', y: f2(Math.min(y, ke)), width: '0.24', height: f2(Math.abs(y - ke)), fill: FC.panelLo, stroke: FC.line, 'stroke-width': '0.02' })); }
+        addC(el('path', { d: poly([[xf, y], [xf - dx, y - w], [xr, y - w], [xr - 0.04, y - w * 0.8], [xr - 0.04, y + w * 0.8], [xr, y + w], [xf - dx, y + w]]), fill: dead ? FC.dead : 'url(#fgPw)', stroke: FC.line, 'stroke-width': '0.03', 'stroke-linejoin': 'miter' }));
+        if (!far) addC(el('path', { d: `M${f2(xf - dx - 0.02)},${f2(y)}L${f2(xr + 0.06)},${f2(y)}`, stroke: dead ? FC.deadLine : FC.teal, 'stroke-width': '0.03', class: dead ? null : 'sk-emit' }));
+        addC(el('path', { d: poly([[xf - 0.02, y], [xf - dx * 0.8, y - w * 0.55], [xf - dx * 0.8 - 0.06, y - w * 0.55], [xf - dx * 0.8 - 0.06, y + w * 0.55], [xf - dx * 0.8, y + w * 0.55]]), fill: FC.panelLo }));
+        addC(el('path', { d: poly([[xr - 0.04, y - w * 0.8], [xr - 0.13, y - w * 1.0], [xr - 0.13, y + w * 1.0], [xr - 0.04, y + w * 0.8]]), fill: dead ? FC.dead : '#2b323b', stroke: FC.line, 'stroke-width': '0.025' }));
+        if (!dead) { addC(el('rect', { x: f2(xr - 0.15), y: f2(y - w * 0.75), width: '0.035', height: f2(w * 1.5), fill: FC.cyan })); addC(el('circle', { cx: f2(xr - 0.2), cy: f2(y), r: '0.1', fill: 'url(#fgNozzle)' })); }
+        else deck(scorch(-0.1, y, 0.16));
       });
     }
     // sensors: on the bow they form a sensor nose; elsewhere a dish on the deck
     list(i, 'sensor').forEach((sn, j) => {
       const nose = q.front && !q.flank && j === 0;
-      const x = nose ? 0.62 : 0.05, y = nose ? yk : yk + (j % 2 ? 1 : -1) * (kw + 0.2);
-      if (nose && !far) addC(el('path', { d: poly([[0.86, yk], [0.62, yk - 0.13], [0.42, yk - 0.13], [0.42, yk + 0.13], [0.62, yk + 0.13]]), fill: sn.up ? FC.panel : FC.dead, stroke: FC.line, 'stroke-width': '0.025' }));
+      const nx = (cornerAft ? 0.93 : 0.8) - TAPER - 0.22;
+      const x = nose ? nx : 0.05, y = nose ? yk : yk + (j % 2 ? 1 : -1) * (kw + 0.2);
+      if (nose && !far) addC(el('path', { d: poly([[nx + 0.24, yk], [nx, yk - 0.13], [nx - 0.2, yk - 0.13], [nx - 0.2, yk + 0.13], [nx, yk + 0.13]]), fill: sn.up ? FC.panel : FC.dead, stroke: FC.line, 'stroke-width': '0.025' }));
       if (!far && sn.up && !nose) add(el('path', { d: `M${f2(x - 0.3)},${f2(y)}h0.16M${f2(x - 0.26)},${f2(y + 0.06)}h0.1`, stroke: FC.cyan, 'stroke-width': '0.022', 'stroke-opacity': 0.7 }));
       deck(el('circle', { cx: f2(x), cy: f2(y), r: '0.1', fill: sn.up ? FC.plate : FC.dead, stroke: FC.line, 'stroke-width': '0.025' }));
       deck(el('circle', { cx: f2(x), cy: f2(y), r: '0.06', fill: sn.up ? FC.panelLo : '#0b0c0f' }));
@@ -408,10 +463,10 @@ function crack(c, r, n, col, op) {
 // The outline(s) of a hex cluster as point loops, inset by `ins`, with every outer (convex) corner
 // bevelled by `bev`. nb[i][e] = index of the hex across edge e of hex i (corner e to e+1), or -1.
 // Loops come out in the same order with the same point counts for any ins/bev, so two insets pair up.
-function hullLoops(P, nb, S, ins, bev) {
+export function hullLoops(P, nb, S, ins, bev, extra) {
   const vk = (p) => Math.round(p[0] * 20) + ',' + Math.round(p[1] * 20), count = new Map(), edges = new Map();
   P.forEach((p) => { for (let v = 0; v < 6; v++) { const k = vk(corner(p, S, v)); count.set(k, (count.get(k) || 0) + 1); } });
-  P.forEach((p, i) => { for (let e = 0; e < 6; e++) if (nb[i][e] < 0) { const a = corner(p, S, e), z = corner(p, S, e + 1); edges.set(vk(a), { a, z }); } });
+  P.forEach((p, i) => { for (let e = 0; e < 6; e++) if (nb[i][e] < 0) { const a = corner(p, S, e), z = corner(p, S, e + 1); edges.set(vk(a), { a, z, i, e }); } });
   const out = [], used = new Set();
   for (const [k0] of edges) {
     if (used.has(k0)) continue;
@@ -421,8 +476,13 @@ function hullLoops(P, nb, S, ins, bev) {
     const pts = [];
     loop.forEach((ed, j) => {
       const prev = loop[(j + loop.length - 1) % loop.length];
-      const n1 = inward(prev.a, prev.z), n2 = inward(ed.a, ed.z), den = 1 + dot(n1, n2);
-      const q = [ed.a[0] + (ins * (n1[0] + n2[0])) / den, ed.a[1] + (ins * (n1[1] + n2[1])) / den];
+      // each edge moves in by ins plus its own taper; the corner is where the two moved edges meet,
+      // so every edge stays parallel to a hex edge and every corner keeps its hex angle
+      const n1 = inward(prev.a, prev.z), n2 = inward(ed.a, ed.z);
+      const d1 = ins + (extra ? extra(prev.i, prev.e) : 0), d2 = ins + (extra ? extra(ed.i, ed.e) : 0);
+      const det = n1[0] * n2[1] - n1[1] * n2[0];
+      const x = Math.abs(det) > 1e-6 ? [(d1 * n2[1] - d2 * n1[1]) / det, (n1[0] * d2 - n2[0] * d1) / det] : [n1[0] * d1, n1[1] * d1];
+      const q = [ed.a[0] + x[0], ed.a[1] + x[1]];
       if (count.get(vk(ed.a)) === 1) {
         const t1 = unitv([prev.a[0] - prev.z[0], prev.a[1] - prev.z[1]]), t2 = unitv([ed.z[0] - ed.a[0], ed.z[1] - ed.a[1]]);
         pts.push([q[0] + t1[0] * bev, q[1] + t1[1] * bev], [q[0] + t2[0] * bev, q[1] + t2[1] * bev]);
