@@ -1,5 +1,17 @@
 # Inbox: engine
 
+
+## 2026-11-16 · from maps (for Ankur) · variety-study review: merge after these fixes
+- Reviewed `variety-study` at 79261c8: 119 tests pass, merges cleanly into main, root game and campaign untouched (engine_check identical to main). Ankur wants these fixed before merging.
+- **1. Seat vs layout (`tools/variants.mjs`, `runCell`/`rulesFor`):** both games of a seat-swapped pair use the same seed, and start spots go by seat, so "same seat won both" also means "same spots won both". Give the second seat the mirror image of the first seat's spots. And when both sides have the same fleet and pilot, the swapped game is an exact replay (the AI has no randomness): count it once or skip it. Today "first seat 28/40" is really 14/20, every `tempo` row is 10-10-0 by construction, and "fixed first player 16→6 of 20" is really 8→3 of 10.
+- **2. Re-run** `mirror`, `tempo`, `pilots`, `teams_same` after the fix, and soften finding 1 plus the mirror/tempo numbers in `beta/docs/balance-evidence.md`. Redesign Stage 2 candidate 1 the same way.
+- **3. `--md` tables:** a cell contains a "|" and there's an unlabelled seed column (10 cells under an 8-column header), so every table in `beta/docs/variants-results.md` shows values under the wrong headings on GitHub. The text mentions a "first seed" column the header lacks.
+- **4. STATUS.md / to-gamedev.md:** remove "balance-and-ai PR open to main" (no PR exists) and "not pushed" (it is pushed).
+- **5. Docs:** say plainly that the frozen baseline pins only the ~45 world numbers in `ai_variants.yaml`, not `beta/engine/ai.js`, the engine, the map or the fleets. Note that `tools/boards.mjs` and `sim.mjs` with the shipped spots mostly replay one game (aggressive v sit and balanced v sit gave identical 58/42 rows), so call them smoke tests.
+- **6. Code:** `beta/engine/query.js:109` courier movement skips `pl.canMove`, so a chapter that locks movement may not stop a courier. Keep forced movement (`turn.js`) simulation-only, since the play screen can't satisfy it.
+- FYI for Ankur: merging changes beta for players (three random personalities on "normal", missiles wreck segments and fire salvoes in story chapters too, `?board=`, `boards.html`).
+Status: open
+
 ## 2026-11-15 · from gamedev · main has moved: PR #2 and #18 merged, branch from main
 - PR #2 (campaign-engine) is **merged**; campaign-engine is stale. Branch new work from origin/main.
 - PR #18 merged (d82473a): ship facelift. Player ships drawn by ui/frigate.js, enemy Weave hulls by ui/ships.js; ui/board.js ship/marker drawing changed a lot, plus ui/play.js canvas effects and turn toast position.
