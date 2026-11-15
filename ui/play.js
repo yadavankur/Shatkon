@@ -896,7 +896,7 @@ function guideTap(c, v, gv) {
 function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
-  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Green markers show where its centre can move; the number is how many hexes that uses. Tap one to preview the move.' : 'It cannot move further this turn.'));
+  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a glowing green marker to move it: the arrows around the ship are one-hex moves, the pulsing hexes further out are two. The rest of the board is dimmed. Tap once to preview, again to go.' : 'It cannot move further this turn.'));
   frame(ship.cells.concat(E.reach(game, id).map((r) => r.at)), selZoom());   // zoom to the ship and where it can go
 }
 
@@ -1267,7 +1267,7 @@ export function render() {
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
-    const help = { move: 'Tap a green marker to see where the ship would end up, then tap it again to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
+    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason

@@ -5,7 +5,7 @@
 - **engine-fixes**: PR #19 → main (open, gamedev).
 - **facelift-ships-p4**: PR #20 → main (open, gamedev; ship art only).
 - **battle-log**: gamedev, PR coming (gameplay log, download button, tools/analyse-log.mjs).
-- **feature/move-target-affordance**: engine (Claude), local; rebase on main.
+- **feature/move-target-affordance**: PR → main (open, engine). ui/board.js move markers, play.html CSS, 2 hint strings in ui/play.js. Rebased on main 639152f; no file overlap with #20, 3 lines of ui/play.js near #19.
 
 ## Older notes (14 Nov, before PR #2 merged)
 - **main**: live game + /beta/. Beta = campaign-engine 960a0f7.

@@ -211,6 +211,12 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .guidepulse{animation:guidepulse 1.8s ease-in-out infinite}
 @keyframes guidepulse{0%,100%{stroke-opacity:.45}50%{stroke-opacity:1}}
 @media (prefers-reduced-motion:reduce){.guidepulse{animation:none}}
+.movepulse{animation:movepulse 1.5s ease-in-out infinite}
+@keyframes movepulse{0%,100%{fill-opacity:.14;stroke-opacity:.6}50%{fill-opacity:.36;stroke-opacity:1}}
+.moveping{animation:moveping 1.5s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes moveping{0%{transform:scale(.9);opacity:.9}100%{transform:scale(2);opacity:0}}
+.movechip{cursor:pointer}
+@media (prefers-reduced-motion:reduce){.movepulse,.moveping{animation:none}}
 @keyframes scanprev{0%,100%{opacity:.7}50%{opacity:1}}
 .lastpill{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bg);background:var(--bad);border-radius:999px;padding:1px 9px;animation:fuzz 1.6s ease-in-out infinite}
 .btn.go.last{border-color:var(--bad);color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
