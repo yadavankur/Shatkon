@@ -6,7 +6,7 @@
 
 import { apply } from './turn.js';
 import { current } from './state.js';
-import { hashState, parseAction, actionText, pack, unpack, scramble } from './codec.js';
+import { hashState, parseAction, actionText, pack, unpack, scramble, fnv, stable } from './codec.js';
 
 const enc = new TextEncoder(), dec = new TextDecoder();
 
@@ -60,16 +60,43 @@ async function squeeze(bytes, how) {
 // it to start a game or to recover one.
 export async function exportGame(state) {
   const { events, flight, ...rest } = state;
-  const raw = enc.encode(JSON.stringify(rest));
+  // a seal over the exact text, so a code that was edited by hand or damaged in transit is caught
+  const body = JSON.stringify(rest), raw = enc.encode(JSON.stringify({ seal: fnv(body).toString(36), game: JSON.parse(body) }));
   if (typeof CompressionStream === 'function') return 'SKG1:' + pack(await squeeze(raw, 'in'));
   return 'SKJ1:' + pack(raw);
 }
+const bad = (why) => { throw new Error(why); };
+const DAMAGED = 'that game code is damaged or incomplete; ask for it again and copy all of it';
+const EDITED = 'that game code has been changed since it was made, so it cannot be trusted; ask for a fresh one';
 export async function importGame(code) {
   const text = String(code).replace(/\s+/g, ''), kind = text.slice(0, 5);
-  if (kind !== 'SKG1:' && kind !== 'SKJ1:') throw new Error('that does not look like a game code');
-  let bytes = unpack(text.slice(5));
-  if (kind === 'SKG1:') bytes = await squeeze(bytes, 'out');
-  const state = JSON.parse(dec.decode(bytes));
+  if (kind !== 'SKG1:' && kind !== 'SKJ1:') bad('that does not look like a game code');
+  let doc;
+  try {
+    let bytes = unpack(text.slice(5));
+    if (kind === 'SKG1:') bytes = await squeeze(bytes, 'out');
+    doc = JSON.parse(dec.decode(bytes));
+  } catch (e) { bad(DAMAGED); }
+  let state = doc;
+  if (doc && typeof doc === 'object' && 'seal' in doc) {
+    // sealed codes (this version on): the seal must match the game text exactly
+    if (!doc.game || typeof doc.game !== 'object' || fnv(JSON.stringify(doc.game)).toString(36) !== doc.seal) bad(EDITED);
+    state = doc.game;
+  }
+  checkShape(state);
+  // the rules fingerprint taken when the game started must still match the rules inside
+  if (state.rid && fnv(stable(state.rules)).toString(36) !== state.rid) bad(EDITED);
   state.events = [];
   return state;
+}
+// A game code from an older version has no seal: at least make sure it is a whole, sane game.
+function checkShape(s) {
+  const int = (x) => Number.isInteger(x);
+  const ok = s && typeof s === 'object' && s.v === 1 && s.rules && typeof s.rules === 'object' && s.rules.parts && s.rules.board
+    && Array.isArray(s.players) && s.players.length >= 2 && Array.isArray(s.ships) && Array.isArray(s.objs)
+    && int(s.round) && s.round >= 1 && (s.phase === 'play' || s.phase === 'over') && Array.isArray(s.order)
+    && s.ships.every((x) => x && typeof x.id === 'string' && int(x.owner) && x.owner >= 0 && x.owner < s.players.length
+      && Array.isArray(x.pos) && x.pos.length === 2 && x.pos.every(int) && Array.isArray(x.segs) && x.segs.length > 0
+      && x.segs.every((g) => g && Array.isArray(g.off) && Array.isArray(g.parts) && g.parts.every((pt) => pt && s.rules.parts[pt.t] && typeof pt.hp === 'number')));
+  if (!ok) bad(DAMAGED);
 }

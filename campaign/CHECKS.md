@@ -1,5 +1,12 @@
 # CHECKS: Shatkon: The Weave, chapters 1-5 (campaign-v3, Combat v2)
 
+**Re-run 15 Nov 2026 on branch `engine-fixes` (from main 6e05002):** `check.mjs` ALL CHECKS PASSED;
+`engine_check.mjs --games 40 --seed 1` every chapter finishes 40/40 with no script_failed events
+(same results as main); `guide_acceptance.mjs` **15/15** (F3 now keeps the tow up by taking out
+the "touching after the tow" graft trigger, because in the shipped chapter Tern starts within 2
+hexes of Kestrel and the graft ends ch4A in the same step as the tow); `node --test` **86/86**.
+The older results below were measured on campaign-v3 and are kept for history.
+
 All results are on branch `campaign-v3`: `origin/campaign-engine` **d508720** (engine 781a5a1:
 gaps 1-6, 8, 9 fixed, move guides built), plus campaign/ changes. The engine used is this
 branch's own (`--engine .`). Run on 14 Nov 2026 (Sydney time).

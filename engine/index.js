@@ -12,7 +12,7 @@ import { startScript } from './script.js';
 
 export { buildRules, shipStats } from './rules.js';
 export { apply, attempt } from './turn.js';
-export { view } from './view.js';
+export { view, knowledge, undoSafe } from './view.js';
 export { reach, beamTargets, launchOptions, shipStatus, forecast, aimLaunch } from './query.js';
 export { turnCode, readTurnCode, applyTurnCode, exportGame, importGame } from './sync.js';
 export { hashState, actionText, parseAction } from './codec.js';

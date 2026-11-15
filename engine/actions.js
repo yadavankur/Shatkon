@@ -97,6 +97,18 @@ function enemyAt(state, at, p) {
   return state.objs.find((x) => x.owner !== p && x.pos[0] === at[0] && x.pos[1] === at[1]) || null;
 }
 
+// Hits a beam weapon (its part rules c) does at distance d, before any attack-run bonus.
+// The one place the falloff is worked out: doFire, beamTargets and the computer player use it.
+export function beamHitsAt(c, d) {
+  return Math.max(0, num(c.hits) - (c.loses_1_hit_every ? Math.floor((d - 1) / c.loses_1_hit_every) : 0));
+}
+// ...and with the attack-run bonus for a ship that has moved this turn.
+export function beamHits(state, ship, c, d) {
+  let hits = beamHitsAt(c, d);
+  if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+  return hits;
+}
+
 export function doFire(state, a) {
   const p = current(state), ship = ownShip(state, a.ship, p), spend = pay(state, p, 'fire');
   const sg = ship.segs[a.seg], part = sg && !sg.wrecked ? sg.parts[a.part] : null, c = part && state.rules.parts[part.t];
@@ -122,8 +134,7 @@ export function doFire(state, a) {
       && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed)));
     if (ob) { hitObj = ob; hd = i; }
   }
-  let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
-  if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+  const hits = beamHits(state, ship, c, hd);
   addFlare(state, ship, hd && hits > 0 ? 'beamHit' : 'fire');
   const end = cells[hd || cells.length - 1].slice();
   emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);
@@ -141,7 +152,10 @@ export function doLaunch(state, a) {
   const L = workingParts(state, ship).find((x) => x.c.launches && !ship.used[x.si + '.' + x.pi]);
   if (!L) no('this ship has no launcher ready');
   const g = geom(state.rules), start = a.start;
-  if (!Array.isArray(start) || !g.inside(start) || g.blockMove.has(key(start)) || occupancy(state).has(key(start))) no('it cannot be launched into that hex');
+  // only what this player knows about can refuse a launch hex: a ship hidden there (in a nebula,
+  // say) does not, or the refusal would give it away. The missile is launched and hits it instead.
+  const occ = Array.isArray(start) ? occupancy(state).get(key(start)) : null, known = occ && knownTo(state, p, occ.ship);
+  if (!Array.isArray(start) || !g.inside(start) || g.blockMove.has(key(start)) || known) no('it cannot be launched into that hex');
   if (!footprint(ship).some((h) => dist(h, start) === 1)) no('it must be launched into a hex next to the ship');
   const route = Array.isArray(a.route) ? a.route : [];
   if (route.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that route cannot be read');
@@ -162,6 +176,12 @@ export function doLaunch(state, a) {
   state.objs.push(obj);
   addFlare(state, ship, 'launch');
   emit(state, { t: 'launch', ship: ship.id, kind: a.kind, obj: obj.id, target: obj.target }, [p]);
+  // launched straight into a hidden ship: it goes off there and then (a wrecked segment it passes)
+  if (occ && !occ.ship.segs[occ.seg].wrecked) explode(state, obj, { ship: occ.ship, seg: occ.seg });
+}
+// Is this ship known to player p right now (theirs, or in sight)?
+export function knownTo(state, p, s) {
+  return s.owner === p || state.players[p].vis.includes(s.id);
 }
 
 // An active scan around one of your ships. Everything inside the clear ring is revealed

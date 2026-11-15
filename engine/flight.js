@@ -54,7 +54,8 @@ function stepObj(state, o, m, turnsLeft) {
     emit(state, { t: 'obj_lost', obj: o.id, kind: o.kind, why: g.inside(np) ? 'hit an asteroid' : 'left the board' }, [p]);
     return turnsLeft;
   }
-  const oc = occ.get(k);
+  // wrecked segments are passed, as beams pass them (world YAML: "shots pass through it")
+  const oc0 = occ.get(k), oc = oc0 && !oc0.ship.segs[oc0.seg].wrecked ? oc0 : null;
   const passes = oc && oc.ship.owner === p && state.rules.ownMissilesPass;
   if (oc && !passes && (oc.ship.owner !== p || state.rules.friendlyFire)) { explode(state, o, { ship: oc.ship, seg: oc.seg }); return turnsLeft; }
   o.pos = np;

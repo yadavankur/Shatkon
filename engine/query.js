@@ -4,7 +4,7 @@
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap } from './actions.js';
+import { moveCap, beamHits, knownTo } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
@@ -58,8 +58,7 @@ export function beamTargets(state, shipId) {
       for (let j = 1; j < cells.length - 1; j++) if (g.blockSight.has(key(cells[j]))) return;
       // never offer a shot whose beam would hit one of your own ships first
       for (let j = 1; j < cells.length - 1; j++) { const o = occ.get(key(cells[j])); if (o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked) return; }
-      let hits = Math.max(0, w.c.hits - (w.c.loses_1_hit_every ? Math.floor((d - 1) / w.c.loses_1_hit_every) : 0));
-      if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+      const hits = beamHits(state, ship, w.c, d);
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
   }
@@ -76,7 +75,8 @@ export function launchOptions(state, shipId) {
   const g = geom(state.rules), occ = occupancy(state), starts = new Map();
   for (const h of footprint(ship)) for (let d = 0; d < 6; d++) {
     const c = step(h, d), k = key(c);
-    if (g.inside(c) && !g.blockMove.has(k) && !occ.has(k)) starts.set(k, c);
+    const o = occ.get(k);   // a ship this player can't see doesn't block (that would give it away)
+    if (g.inside(c) && !g.blockMove.has(k) && !(o && knownTo(state, p, o.ship))) starts.set(k, c);
   }
   const locks = state.ships.filter((s) => !s.dead && s.owner !== p && networkSees(state, ship, s)).map((s) => s.id);
   return { kinds, starts: [...starts.values()], locks };
