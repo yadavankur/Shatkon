@@ -1,0 +1,95 @@
+# ============================================================
+#  BOARD: Fog Bank
+#
+#  You are outgunned two to one: the starter fleet against a brawler and three gunboats. But you have laid four proximity mines in the lanes between the rocks, and they do not know where.
+#
+#  Try: You can see your own mines. Sit behind them and let the enemy come through the lanes; show a ship beyond a mine to draw them over it. A mine takes the segment that trips it and hits every segment next to it 4 times.
+#
+#  You are player_1 (south). The computer is player_2 (north).
+#  Open it at  play.html?board=09_fog_bank   Edit anything here and reload.
+# ============================================================
+
+board:
+  name: "Fog Bank"
+  idea: "You are outgunned two to one: the starter fleet against a brawler and three gunboats. But you have laid four proximity mines in the lanes between the rocks, and they do not know where."
+  try: "You can see your own mines. Sit behind them and let the enemy come through the lanes; show a ship beyond a mine to draw them over it. A mine takes the segment that trips it and hits every segment next to it 4 times."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "aggressive"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Fog Bank"
+  board: { shape: hexagon, radius: 8 }
+  zones:
+    player_1_home: { edge: south, depth: 4 }
+    player_2_home: { edge: north, depth: 4 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 6 }
+  terrain:
+    - { type: nebula, at: [0, 0], radius: 3 }
+    - { type: asteroid, at: [-6, 2], size: 3 }
+    - { type: asteroid, at: [-2, 2], size: 1 }
+    - { type: asteroid, at: [2, 2], size: 1 }
+    - { type: asteroid, at: [5, 2], size: 3 }
+
+player_1:
+  ships:
+    - name: "Blob B"                # flagship
+      flagship: true
+      load: { missile: 2 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, comms] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, coupling, stealth] }
+    - name: "Blob A"                # scout
+      hull:
+        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [armour] }
+        - { at: [0, 0], bays: [core, engine, coupling] }
+        - { at: [1, 0], bays: [sensor, engine, stealth], mounts: [laser] }
+    - name: "Swift"                # dart
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+  deployment:
+    - { ship: "Blob B", at: [-3, 6] }
+    - { ship: "Blob A", at: [-7, 7] }
+    - { ship: "Swift", at: [0, 7] }
+    - { naval_mine: [-4, 2] }
+    - { naval_mine: [0, 2] }
+    - { naval_mine: [3, 2] }
+    - { naval_mine: [-1, 4] }
+
+player_2:
+  ships:
+    - name: "Maul"                # brawler
+      flagship: true
+      hull:
+        - { at: [0, 0], bays: [core, sensor, comms] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, coupling, stealth] }
+    - name: "Fang"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Claw"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Tusk"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Maul", at: [3, -6] }
+    - { ship: "Fang", at: [7, -7] }
+    - { ship: "Claw", at: [0, -7] }
+    - { ship: "Tusk", at: [7, -6] }

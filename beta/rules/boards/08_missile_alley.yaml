@@ -1,0 +1,93 @@
+# ============================================================
+#  BOARD: Missile Alley
+#
+#  Open space, nowhere to hide. You have 18 missiles and one laser. They have point defence and a shield on every ship, and they are coming.
+#
+#  Try: Each point defence stops one missile a round, and a shield takes one blow. A ship fires all its launchers on one order: put three missiles on one target in the same round and the third lands. You can launch without a lock at a rough contact.
+#
+#  You are player_1 (south). The computer is player_2 (north).
+#  Open it at  play.html?board=08_missile_alley   Edit anything here and reload.
+# ============================================================
+
+board:
+  name: "Missile Alley"
+  idea: "Open space, nowhere to hide. You have 18 missiles and one laser. They have point defence and a shield on every ship, and they are coming."
+  try: "Each point defence stops one missile a round, and a shield takes one blow. A ship fires all its launchers on one order: put three missiles on one target in the same round and the third lands. You can launch without a lock at a rough contact."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "aggressive"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Missile Alley"
+  board: { shape: hexagon, radius: 10 }
+  zones:
+    player_1_home: { edge: south, depth: 4 }
+    player_2_home: { edge: north, depth: 4 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: asteroid, at: [-5, 0], size: 1 }
+    - { type: asteroid, at: [5, 0], size: 1 }
+
+player_1:
+  ships:
+    - name: "Arsenal"                # missile_flagship
+      flagship: true
+      load: { missile: 9 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, magazine] }
+        - { at: [1, 0], bays: [engine, magazine, coupling], mounts: [launcher, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
+        - { at: [0, -1], bays: [engine, magazine, coupling], mounts: [armour, laser] }
+        - { at: [-1, 0], bays: [engine, magazine, coupling], mounts: [launcher] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, engine, coupling] }
+    - name: "Quiver"                # missile_boat
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
+        - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
+    - name: "Sling"                # missile_boat
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
+        - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
+    - name: "Sheaf"                # missile_boat
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
+        - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
+  deployment:
+    - { ship: "Arsenal", at: [-4, 8] }
+    - { ship: "Quiver", at: [-9, 9] }
+    - { ship: "Sling", at: [-1, 9] }
+    - { ship: "Sheaf", at: [-10, 8] }
+
+player_2:
+  ships:
+    - name: "Aegis"                # bastion
+      flagship: true
+      hull:
+        - { at: [0, 0], bays: [core, sensor, comms], mounts: [shield, armour, point_defence] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+    - name: "Buckler"                # pd_escort
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, point_defence, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
+    - name: "Targe"                # pd_escort
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, point_defence, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
+    - name: "Pike"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Aegis", at: [4, -8] }
+    - { ship: "Buckler", at: [8, -9] }
+    - { ship: "Targe", at: [2, -9] }
+    - { ship: "Pike", at: [9, -8] }

@@ -2,7 +2,7 @@
 // Each function checks the action is allowed, then changes the state.
 
 import { key, add, step, dist, line, turnDiff, dirToward } from './hex.js';
-import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater } from './state.js';
+import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater, maxAttr } from './state.js';
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
@@ -23,7 +23,10 @@ function pay(state, p, what) {
 
 // ---- thrust: one pool for the whole fleet ----
 export const thrustIncome = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p).reduce((n, s) => n + sumAttr(state, s, 'thrust'), 0);
-export const fleetSegs = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p).reduce((n, s) => n + s.segs.length, 0);
+// own_move (a sprint drive): the ship moves that many hexes a turn by itself. It takes nothing from
+// the fleet's thrust pool and does not count in the fleet's weight.
+export const ownMove = (state, ship) => sumAttr(state, ship, 'own_move');
+export const fleetSegs = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p && !ownMove(state, s)).reduce((n, s) => n + s.segs.length, 0);
 export function moveCap(state, p) {
   const segs = fleetSegs(state, p);
   return segs ? Math.floor(thrustIncome(state, p) / segs) + state.rules.move.capBonus : 0;
@@ -43,7 +46,7 @@ export function doMove(state, a) {
   if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
-  const n = ship.segs.length, cap = moveCap(state, p), done = pl.moved[ship.id] || 0;
+  const own = ownMove(state, ship), n = own ? 0 : ship.segs.length, cap = own || moveCap(state, p), done = pl.moved[ship.id] || 0;
   if (done + path.length > cap) no('a ship can move at most ' + cap + ' hexes a turn');
   if (path.length * n > pl.thrust) no('not enough thrust');
   // refuse paths through things the player knows about
@@ -76,7 +79,9 @@ export function doMove(state, a) {
     for (let i = 0; i < ship.segs.length && !ship.dead; i++) {
       const h = segHex(ship, i);
       for (const o of state.objs.slice()) {
-        if (!objById(state, o.id) || o.pos[0] !== h[0] || o.pos[1] !== h[1] || !touches(state, o, ship)) continue;
+        // trigger_range: a proximity mine goes off when an enemy segment comes this close (contact for everyone else)
+        const near = o.owner !== ship.owner ? num(state.rules.munitions[o.kind].trigger_range) : 0;
+        if (!objById(state, o.id) || dist(o.pos, h) > near || !touches(state, o, ship)) continue;
         explode(state, o, { ship, seg: i }); boom = true;
         if (ship.dead) break;
       }
@@ -129,12 +134,18 @@ export function doFire(state, a) {
   }
   let hits = Math.max(0, c.hits - (c.loses_1_hit_every ? Math.floor((hd - 1) / c.loses_1_hit_every) : 0));
   if (hits > 0 && attackRunFor(state, ship, a.seg, a.at)) hits += state.rules.det.attackRun;
+  // evades_beyond: a nimble ship cannot be hit by a beam from further away than this
+  if (hitShip && hits > 0) { const ev = maxAttr(state, hitShip, 'evades_beyond'); if (ev && hd > ev) hits = 0; }
   addFlare(state, ship, hd && hits > 0 ? 'beamHit' : 'fire');
   const end = cells[hd || cells.length - 1].slice();
   emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);
   // anyone who can see the shooter sees the beam
   state.players.forEach((_, q) => { if (q !== p && visibleTo(state, q).has(ship.id)) emit(state, { t: 'enemy_fire', ship: ship.id, from: src.slice(), end, hits }, [q]); });
-  if (hitShip && hits > 0) applyHits(state, hitShip, hitSeg, hits, part.t);
+  if (hitShip && hits > 0) {
+    applyHits(state, hitShip, hitSeg, hits, part.t);
+    // death_flash: the ship that shot it down is caught in the flash too
+    if (hitShip.dead && hitShip.segs.some((g) => g.parts.some((x) => num(state.rules.parts[x.t].death_flash)))) state.lit[ship.id] = state.round + 1;
+  }
   else if (hitObj && hits > 0) { removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, at: hitObj.pos.slice() }, state.players.map((_, i) => i)); }
 }
 

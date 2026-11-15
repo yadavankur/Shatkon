@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shatkon boards</title>
+<style>
+  body { margin: 0; background: #0d1117; color: #dbe2ea; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { color: #9aa7b4; margin: 0 0 20px; }
+  a.board { display: block; padding: 14px 16px; margin: 0 0 10px; border: 1px solid #2a3442; border-radius: 8px; color: inherit; text-decoration: none; background: #141b24; }
+  a.board:hover, a.board:focus { border-color: #5aa0e6; }
+  a.board b { display: block; font-size: 17px; }
+  a.board span { display: block; color: #9aa7b4; font-size: 14px; }
+  a.board i { display: block; font-style: normal; font-size: 14px; margin-top: 6px; }
+  code { background: #1c2632; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Ten boards to try</h1>
+<p class="lead">You are the south fleet; the computer is north. Each board is one text file in <code>rules/boards/</code>: edit it and reload. To play a friend by pasted codes, open the board, choose a seat in the game's own menu and send the game code; your friend does not need the board link.</p>
+
+<a class="board" href="play.html?board=01_first_light"><b>1. First Light</b><span>Even duel. A 4-segment flagship and a gunboat each, three rocks.</span><i>Try: step a hex before you fire; keep the gunboat close.</i></a>
+<a class="board" href="play.html?board=02_minefield"><b>2. The Minefield</b><span>A wall of rock with three gaps, mined. One gap is clean. New: proximity mines, couriers.</span><i>Try: run a courier to the wall and scan. Only a scan shows a mine.</i></a>
+<a class="board" href="play.html?board=03_cat_and_mouse"><b>3. Cat and Mouse</b><span>Extreme stealth: fleets pass two hexes apart unseen. Two couriers each. Bigger board.</span><i>Try: scout with couriers; a courier shot down lights up everything near it and the ship that shot it.</i></a>
+<a class="board" href="play.html?board=04_the_strait"><b>4. The Strait</b><span>One gap three hexes wide. A shielded fleet holds the far side.</span><i>Try: mass first, keep one shield down two turns running, then go through together.</i></a>
+<a class="board" href="play.html?board=05_kings_guard"><b>5. King's Guard</b><span>Chess: each flagship is an unarmed king. Two gunboats, a sniper and a courier fight for it.</span><i>Try: decide what guards and what hunts. Find their king first.</i></a>
+<a class="board" href="play.html?board=06_pawn_storm"><b>6. Pawn Storm</b><span>Six one-laser skiffs and a small flagship against one dreadnought with six shields.</span><i>Try: two skiffs on the same segment in one turn; the second shot gets through.</i></a>
+<a class="board" href="play.html?board=07_beacon_hill"><b>7. Beacon Hill</b><span>Hold the beacon in the central nebula to score. Five points wins. Holding it shows where you are.</span><i>Try: take the first point with the courier and cover the approaches with guns.</i></a>
+<a class="board" href="play.html?board=08_missile_alley"><b>8. Missile Alley</b><span>Open space. You have 18 missiles and one laser; they have point defence and shields on every ship.</span><i>Try: three missiles on one ship in one round. The third lands.</i></a>
+<a class="board" href="play.html?board=09_fog_bank"><b>9. Fog Bank</b><span>Outgunned two to one, but you have laid four proximity mines in the lanes and they do not know where.</span><i>Try: sit behind your mines and draw them through.</i></a>
+<a class="board" href="play.html?board=10_gambit"><b>10. The Gambit</b><span>Hidden snipers that will not come to you. You have three worthless decoys.</span><i>Try: give up a decoy; the sniper that shoots it shows itself. Have your guns in place first.</i></a>
+
+<p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code>.</p>
+</main>
+</body>
+</html>

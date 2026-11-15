@@ -74,6 +74,9 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
   if (boom) ship.segs.forEach((g, i) => { if (i !== si && !g.wrecked && dist(segHex(ship, i), at) <= 1) applyHits(state, ship, i, mx, 'magazine', { chain: true }); });
   if (!guard && !ship.dead && isDead(state, ship)) {
     ship.dead = true;
+    // death_flash: a ship built to be lost lights up every ship within this many hexes as it goes
+    const flash = Math.max(0, ...ship.segs.flatMap((g) => g.parts.map((x) => num(state.rules.parts[x.t].death_flash))));
+    if (flash) for (const x of state.ships) if (!x.dead && Math.min(...cellsOf(x).map((c) => dist(c, at))) <= flash) state.lit[x.id] = state.round + 1;
     for (const pl of state.players) delete pl.seen[ship.id];
     emit(state, { t: 'destroyed', ship: ship.id, name: ship.name, owner: ship.owner, flagship: ship.flagship }, state.players.map((_, i) => i));
   }
@@ -111,7 +114,7 @@ export function explode(state, obj, struck) {
     if (s.dead || (!state.rules.friendlyFire && s.owner === obj.owner)) continue;
     for (let i = 0; i < s.segs.length && !s.dead; i++) {
       if (s.segs[i].wrecked || (struck && s === struck.ship && i === struck.seg)) continue;
-      if (dist(center, segHex(s, i)) <= r && (struck || r > 0)) applyHits(state, s, i, 1, obj.kind + ' blast');
+      if (dist(center, segHex(s, i)) <= r && (struck || r > 0)) applyHits(state, s, i, num(m.blast_hits) || 1, obj.kind + ' blast');   // blast_hits: a big charge does more than 1
     }
   }
   if (r > 0) for (const o of state.objs.slice()) {

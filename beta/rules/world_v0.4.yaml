@@ -200,6 +200,13 @@ bay_parts:
     link_range: 12
     layer: 4
     cost: 5
+  sprint_drive:
+    note: "a courier's drive: the ship moves up to 5 hexes a turn on its own, taking nothing from the fleet's thrust. Nimble (lasers only hit it from 3 hexes or closer) and fragile; when it dies the flash lights up every ship within 3 hexes, and the ship that shot it"
+    own_move: 5               # hexes a turn, outside the fleet's thrust pool and move limit
+    evades_beyond: 3          # a beam from further away than this misses
+    death_flash: 3            # ships this close are revealed to everyone when it is destroyed
+    layer: 5
+    cost: 8
   coupling:
     note: "joins a segment to the ship; one needed for every segment after the first"
     couples: true
@@ -281,6 +288,19 @@ munitions:
     setup_only: true          # placed secretly before the game
     max_per_player: 6
     cost: 5
+
+  naval_mine:                 # a one-hex hull with no core and no engine: the room goes to the charge
+    speed: 0
+    hits: 4
+    wrecks_segment: true      # the segment that sets it off is gone (a working shield takes the blow instead)
+    blast_radius: 1
+    blast_hits: 4             # ...and every other segment within 1 hex takes this many hits: two or three segments in all
+    trigger_range: 1          # goes off when an enemy segment comes within this many hexes (it does not need to be touched)
+    signature: -8             # no engine, no core: even quieter than a contact mine. Only an active scan finds it
+    strikes: layers
+    setup_only: true
+    max_per_player: 4
+    cost: 12
 
 
 # ------------------------------------------------------------

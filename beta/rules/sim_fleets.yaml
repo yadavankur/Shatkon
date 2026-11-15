@@ -123,6 +123,23 @@ designs:
       - { at: [0, 0], bays: [core, engine, sensor],     mounts: [laser, point_defence, shield] }
       - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
 
+  # ---- new kinds of ship (see beta/docs/ships-and-boards.md) ----
+  dart:                        # a courier: 5 hexes a turn on its own drive, sees 4 hexes, no weapons, dies to one close shot
+    hull:
+      - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+  king:                        # a command ship with no weapons at all: armour, shields, point defence, and it must be guarded
+    hull:
+      - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [armour, shield] }
+      - { at: [0, 0],  bays: [core, comms, sensor],       mounts: [point_defence, armour] }
+      - { at: [1, 0],  bays: [engine, coupling, stealth], mounts: [armour, shield] }
+
+  command_corvette:            # the small flagship with its core behind armour and a shield (one lucky shot no longer kills it)
+    load: { missile: 3 }
+    hull:
+      - { at: [0, 0],  bays: [core, magazine, sensor],   mounts: [armour, shield] }
+      - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+      - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+      - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
 
 # A fleet is a list of ships. The first one marked `flag` is the flagship (lose it and you lose).
 # `ai:` gives one ship its own personality; `missiles:` overrides how many it carries.

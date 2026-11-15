@@ -36,7 +36,9 @@ let pendingFx = null;             // animations held back until the curtain lift
 let ledgerOpen = false, sfxOn = true, actx = null;
 let shipStyle = 'schematic', haveModels = false;   // how ships are drawn: 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
-const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
+// play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
+const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
+const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k) + (BOARD ? '.board.' + BOARD : '');   // the beta page keeps its own saves
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 
 async function loadRules() {
@@ -48,10 +50,19 @@ async function loadRules() {
     for (const n of names) texts[n] = await get(n);
   }
   const parsed = Object.fromEntries(Object.entries(texts).map(([n, t]) => [n, YAML.parse(t)])), docs = Object.values(parsed);
-  const world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
+  let world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
   // the fleets file names its map; with several maps listed, that one is played
   const named = fleets && parsed[fleets.map];
-  const map = named && named.map ? named : docs.find((d) => d && d.map);
+  let map = named && named.map ? named : docs.find((d) => d && d.map);
+  if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
+    const r = await fetch('rules/boards/' + BOARD + '.yaml?t=' + Date.now());
+    if (!r.ok) throw new Error('could not read rules/boards/' + BOARD + '.yaml');
+    const b = YAML.parse(await r.text());
+    world = structuredClone(world);
+    for (const [k, v] of Object.entries((b.board || {}).rules || {})) { const ks = k.split('.'); let o = world; for (const x of ks.slice(0, -1)) o = o[x] = o[x] ?? {}; o[ks.at(-1)] = v; }
+    map = fleets = b;
+    if (b.board && b.board.name) document.title = b.board.name + ' · Shatkon';
+  }
   const built = E.buildRules(world, map, fleets);
   rules = built.rules; problems = built.problems;
   setLabDocs({ world, map, fleets });   // the Lab builds its variants from the same files

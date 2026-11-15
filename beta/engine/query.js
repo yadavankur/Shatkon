@@ -2,16 +2,16 @@
 // what can it shoot, what can it lock on to. These use only what the player knows.
 
 import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
-import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
+import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap, attackRunFor } from './actions.js';
+import { moveCap, attackRunFor, ownMove } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
   if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
-  const n = ship.segs.length;
-  const max = Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
+  const own = ownMove(state, ship), n = ship.segs.length;
+  const max = own ? own - (pl.moved[ship.id] || 0) : Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
   if (max <= 0) return [];
   const g = geom(state.rules), occ = occupancy(state), vis = new Set(pl.vis);
   // things the player knows would blow up under the ship: their own mines, and enemy objects in view
@@ -60,6 +60,7 @@ export function beamTargets(state, shipId) {
       for (let j = 1; j < cells.length - 1; j++) { const o = occ.get(key(cells[j])); if (o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked) return; }
       let hits = Math.max(0, w.c.hits - (w.c.loses_1_hit_every ? Math.floor((d - 1) / w.c.loses_1_hit_every) : 0));
       if (hits > 0 && attackRunFor(state, ship, w.si, c)) hits += state.rules.det.attackRun;
+      if (t.segs && d > (maxAttr(state, t, 'evades_beyond') || Infinity)) hits = 0;   // too nimble to hit from this far
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
   }
@@ -105,7 +106,7 @@ export function shipStatus(state, shipId) {
   const beams = parts.filter((x) => num(x.c.range) && num(x.c.hits)), launchers = parts.filter((x) => x.c.launches);
   const ready = (list) => list.filter((x) => !ship.used[x.si + '.' + x.pi]).length;
   return {
-    moveLeft: pl.canMove ? Math.max(0, Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n))) : 0,
+    moveLeft: ownMove(state, ship) ? Math.max(0, ownMove(state, ship) - (pl.moved[ship.id] || 0)) : pl.canMove ? Math.max(0, Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n))) : 0,
     costPerHex: n,
     beams: beams.length, beamsReady: ready(beams),
     launchers: launchers.length, launchersReady: ready(launchers),

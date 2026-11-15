@@ -1,0 +1,88 @@
+# ============================================================
+#  BOARD: Pawn Storm
+#
+#  Six one-laser skiffs and a small flagship against one dreadnought with six shields. You get more orders than you can use; it gets one hull that shrugs off single shots.
+#
+#  Try: A shield soaks the first hit on its segment each round. Put two skiffs on the SAME segment in one turn: the second shot gets through. Keep your flagship out of its reach (it moves 2 hexes a turn).
+#
+#  You are player_1 (south). The computer is player_2 (north).
+#  Open it at  play.html?board=06_pawn_storm   Edit anything here and reload.
+# ============================================================
+
+board:
+  name: "Pawn Storm"
+  idea: "Six one-laser skiffs and a small flagship against one dreadnought with six shields. You get more orders than you can use; it gets one hull that shrugs off single shots."
+  try: "A shield soaks the first hit on its segment each round. Put two skiffs on the SAME segment in one turn: the second shot gets through. Keep your flagship out of its reach (it moves 2 hexes a turn)."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "aggressive"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Pawn Storm"
+  board: { shape: hexagon, radius: 8 }
+  zones:
+    player_1_home: { edge: south, depth: 5 }
+    player_2_home: { edge: north, depth: 5 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: asteroid, at: [-2, 2], size: 1 }
+    - { type: asteroid, at: [2, 1], size: 1 }
+    - { type: asteroid, at: [-5, 3], size: 1 }
+    - { type: asteroid, at: [4, 2], size: 1 }
+    - { type: asteroid, at: [0, -2], size: 1 }
+
+player_1:
+  ships:
+    - name: "Queenside"                # small_flagship
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Pawn a"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn b"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn c"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn d"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn e"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn f"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+  deployment:
+    - { ship: "Queenside", at: [-4, 7] }
+    - { ship: "Pawn a", at: [-7, 4] }
+    - { ship: "Pawn b", at: [-5, 4] }
+    - { ship: "Pawn c", at: [-3, 4] }
+    - { ship: "Pawn d", at: [-1, 4] }
+    - { ship: "Pawn e", at: [1, 4] }
+    - { ship: "Pawn f", at: [3, 4] }
+
+player_2:
+  ships:
+    - name: "Leviathan"                # dreadnought
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, sensor, magazine] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+        - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+  deployment:
+    - { ship: "Leviathan", at: [3, -6] }
