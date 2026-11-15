@@ -60,6 +60,16 @@ baseline:
     munitions.missile.wrecks_segment: true
     munitions.missile.blast_radius: 1
     munitions.missile.seeker_range: 2
+    # how the computer varies its game (added 16 Nov 2026, engine for the maps rework). Pinned at the
+    # world file's values on that day, so later tuning there does not move the study
+    ai.variety.tie_break: 0.02
+    ai.variety.opening_lanes: true
+    ai.variety.lane_rounds: 4
+    ai.tricks.launches_drones: true
+    ai.tricks.drones_in_flight: 2
+    ai.tricks.shoots_mines: 4
+    ai.tricks.mines_as_bait_rounds: 0
+    ai.tricks.decoys_as_bait: true
 
 
 # ------------------------------------------------------------

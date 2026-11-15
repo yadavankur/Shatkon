@@ -1,25 +1,32 @@
 # Balance evidence, Stage 1 (screening)
 
+> **Read this first (added 16 Nov 2026 after review).**
+> - **What "frozen baseline" means.** `beta/rules/ai_variants.yaml` pins about 55 numbers of the world file (command points, costs, flares, scan rings, part and missile strengths, and from today the computer's variety and tricks switches). It does **not** pin the computer player (`beta/engine/ai.js`), the engine, the skirmish map or the test fleets. A change to any of those moves these results, and the engine and the computer have both changed since the first run.
+> - **Findings 1 and 2 are corrected below.** The other findings stand on the first run, whose win-loss figures for two different sides are a fair pair; their "first seat won" columns are not a seat effect.
+> - **`tools/boards.mjs` and `tools/sim.mjs` are smoke tests.** They play from the shipped starting spots. Until today the computer had no randomness, so those runs mostly replayed one game with different dice (aggressive against a sitter and balanced against a sitter gave the same 58/42 row). `boards.mjs` now varies with the seed (`ai.variety`), which makes it a better smoke test, not a balance result.
+
 16 Nov 2026. Stage 1 is a screen: about 10 games a cell across 597 cells (6,100 games). It can only show big effects. Every number here is from `beta/docs/variants-results.md`; the suite is named so the rows can be found. Nothing has been confirmed at 40 games yet.
 
 **Labels.** *Clear*: the 95% interval excludes 50%. *Leaning*: 65/35 or beyond, interval still includes 50%. *Unclear*: neither. **Measured** means the number is in a table. **Inferred** means it is my reading of why.
 
 ## The five most useful findings
 
-### 1. Where you start and who moves first decides more games than the pilot does
+### 1. Where a fleet starts matters; who moves first does not show a steady effect (corrected 16 Nov after review)
 
-- **What it means for play:** two equal fleets do not get an equal fight; one seat is usually ahead before a decision is made.
-- **Measured:** each seed is played twice with the seats swapped. The same *seat* won both games in 67 of 90 pairs in `pilots` (16 of its 18 cells have the same fleet on both sides, flown by different pilots) and in 39 of 45 pairs in `teams_same` (identical ships, different pilots). With different fleets it was 302 of 600 pairs (`fleets`). In the 40-game mirror the first seat won 28 of 40. In other mirrors the favoured seat changed with the fleet: `solo` first seat 2 of 20, `stock` 16 of 20 (`tempo`).
-- **Inferred:** the first player alternates each round, so each player gets two turns back to back every other round. Whoever gets a double turn as the fleets come into range fires twice before the reply. Which seat that is depends on closing speed and the random start. I did not prove this mechanism.
-- **Label:** clear that the seat matters (106 of 135 pairs in those two suites). Unclear what causes it.
-- **Variant tried:** `first_fixed` (same player first every round, a new switch). First-seat wins in five mirrors went from 16, 2, 12, 12, 10 of 20 to 6, 10, 8, 10, 6 of 20. Leaning towards more even, not proven.
+- **Correction.** The first version of this finding said the seat decides more games than the pilot. That was wrong: the tool gave start spots by seat and replayed the same seed with the seats swapped, so "the same seat won both" also meant "the same spots won both", and mirror cells replayed one game twice. The tool now gives each side its own formation whichever seat it sits in (`tools/variants.mjs`, "Seat and layout"). `mirror`, `tempo`, `pilots` and `teams_same` were re-run; those are the numbers below. The re-run is also on a newer engine (fair lines of sight, a computer with seeded tie-breaks and opening lanes), so the change is not from the tool fix alone.
+- **Measured, re-run:** in the 40-game mirror the first seat won 23 of 40 (57%, interval 42% to 71%, unclear). The old "28 of 40" was 14 of 20 different games. In `pilots` the same *seat* won both games of a pair in 39 of 90 pairs and the same *side* won both in 50 of 90. In `teams_same` it was 10 and 35 of 45. With the seat and the spots tied together it had been 67 of 90 and 39 of 45 for the seat. Over all four re-run suites the first seat won 272 of 510 games (53%).
+- **By fleet (`tempo`, 20 games each, same fleet and pilot both sides):** first-seat wins were stock 8, solo 5, team3 7, guns4 15, mixed5 15. Three of those are clear (solo against the first seat, guns4 and mixed5 for it), in opposite directions, and the five add up to 50 of 100.
+- **Inferred:** what the first run measured was mostly the starting formation. A lucky layout wins from either seat. Whether small fleets really do better moving second and big fleets moving first needs 40 games a cell.
+- **Label:** unclear for a seat effect overall. Leaning that it depends on fleet size.
+- **Variant tried:** `first_fixed` (same player first every round). First-seat wins in the five mirrors went from 8, 5, 7, 15, 15 of 20 to 6, 13, 12, 10, 9 of 20: 50 of 100 both ways. It moves individual fleets toward even (guns4, mixed5) or past it (solo), and does nothing overall. The earlier "16 to 6 of 20" was 8 to 3 of 10 games counted twice.
 
-### 2. Personality barely matters when the ships are identical
+### 2. Personality matters more than first reported, on identical ships too (corrected 16 Nov after review)
 
-- **What it means for play:** aggressive, balanced and defensive are different to watch but not different in strength. That is fair, and it also means a clever pilot cannot yet rescue a bad start.
-- **Measured:** `teams_same`, nine cells at 3v3, 4v4 and 5v5: eight were exactly 5-5 and one was 3-7 (5v5 balanced against defensive, leaning). In `pilots`, aggressive beat defensive 7-3 (stock), 8-2 (guns3) and 8-2 (mixed5) but lost 4-6 on mixed4. Aggressive against balanced was 5-5, 5-5, 5-5 and 4-6.
-- **Mixed teams** (`teams_mixed`, 20 to 40 ships per personality, so thin): at 5v5 defensive ships were alive at the end 75% of the time and first to die 5% of the time, against 53% and 28% for aggressive ones. At 3v3 the three were within 10 points of each other. Kills per ship ranged from 0.30 to 0.55 with no pattern.
-- **Label:** leaning that aggressive beats defensive on mixed-type fleets; unclear on identical ships; leaning that defensive ships survive longer in a 5-ship mixed team.
+- **Correction.** "Eight of nine cells exactly 5-5" in `teams_same` was built in by the tool: same spots, same seed, seats swapped, so each side won one game of every pair. With each side keeping its own formation, none of the nine cells is 5-5 by construction.
+- **Measured, re-run** (`teams_same`, 10 games a cell): 3v3 aggressive beat balanced 8-2 and defensive 7-3, balanced lost to defensive 3-7. 4v4: aggressive lost to balanced 3-7 and to defensive 2-8, balanced beat defensive 7-3. 5v5: 6-4, 5-5 and 7-3. Seven of nine cells lean; none is clear, and the direction changes with fleet size.
+- **`pilots`, re-run:** aggressive against defensive was 4-6 (stock), 6-4 (guns3), 4-6 (mixed4) and 5-5 (mixed5). Aggressive against balanced was 4-6, 6-4, 1-9 (clear) and 6-3-1. The first run's "aggressive beats defensive 7-3, 8-2, 8-2" did not repeat.
+- **Mixed teams** (`teams_mixed`, first run, not re-run; 20 to 40 ships per personality, so thin): at 5v5 defensive ships were alive at the end 75% of the time and first to die 5% of the time, against 53% and 28% for aggressive ones. At 3v3 the three were within 10 points of each other.
+- **Label:** unclear which personality is stronger. The earlier "they are equal" was not evidence either way. Ten games a cell cannot settle it.
 
 ### 3. Missiles are lost at the launch rail, not at the target
 
@@ -91,7 +98,7 @@ Point defence at 0 or 2 stops, shields that soak 2 hits or none, and a scan that
 
 Each line is one or two cells. I recommend the first five.
 
-1. **Seat effect and the fixed first player.** `baseline` and `first_fixed` on the stock, solo and team3 mirrors. If fixed order evens the seats, it is the cheapest fairness fix found.
+1. **Seat effect by fleet size.** `baseline` and `first_fixed` on the solo, team3, guns4 and mixed5 mirrors, 40 different seeds each (a mirror cell now plays one game a seed). The question is no longer "does fixed order even the seats" (overall the seats are already even: 50 of 100) but "do small fleets do better moving second and big fleets moving first, and does fixed order remove that".
 2. **Attack run as the control.** `baseline` and `attack_run_off` on stock balanced against sitter, and mixed5 aggressive against defensive.
 3. **Forced movement against the camper.** `baseline`, `move_3` and `move_100pct` on stock and guns3 balanced against camper, plus guns3 against snipers3 to measure the side effect.
 4. **Launch range against salvo.** `m_old_1x`, `m_salvo_only`, `m_range_only` and `baseline` on missile5 against mixed4 and missiles3 against guns3.

@@ -13,10 +13,17 @@
 // A cell is "variant | fleet:pilot v fleet:pilot". The first side is A. Every match-up gets its own
 // first seed, worked out from --seed and the match-up's text (so different match-ups start from
 // different layouts, and every variant of one match-up plays the same games). Game i of a cell uses
-// seed = first seed + floor(i / 2) * 7919; odd games swap the seats. The seed sets the random starting
-// positions (every ship somewhere in its own home rows), the game's own dice, and, for a
-// mix(...) pilot, which ship flies which personality. So a cell, its seed and its game count
-// reproduce the same games exactly.
+// seed = first seed + floor(i / 2) * 7919; odd games swap the seats. The seed sets each side's random
+// formation, the game's own dice, and, for a mix(...) pilot, which ship flies which personality. So a
+// cell, its seed and its game count reproduce the same games exactly.
+//
+// Seat and layout are kept apart. A formation belongs to a side, not to a seat: each side's ships are
+// set down at random as if it sat in seat 1, and whichever side sits in seat 2 gets the half-turn
+// image of its formation (the skirmish map is the same after a half turn). So when the seats swap,
+// each side keeps its own formation and only who moves first changes. (Before, start spots went by
+// seat, so "the same seat won both games of a pair" also meant "the same spots won both".)
+// When both sides are the same fleet with the same pilot there is nothing to swap: every game gets
+// its own seed, and A is simply the first seat.
 //
 // Each cell reports wins-losses-draws for side A, A's share (a draw counts half), a 95% Wilson
 // interval on that share, and a label: clear (the interval excludes 50%), leaning (share at or
@@ -103,11 +110,29 @@ export function rulesFor(cell, seed, swap) {
   for (const name of Object.keys(V.pilots)) world.ai.personalities['p_' + name] = pilotBlock(name, variant);
   const rnd = mulberry(seed ^ 0x5bd1e995);
   const sa = side(cell.a, rnd), sb = side(cell.b, rnd);
-  const built = E.buildRules(world, map, { budget: 99999, player_1: swap ? sb : sa, player_2: swap ? sa : sb });
-  const real = built.problems.filter((p) => !/starts|outside|overlap/.test(p));
-  if (real.length) throw new Error(cell.text + ': ' + real.join(' | '));
-  return shuffled(built.rules, seed);
+  const build = (one, two) => {
+    const built = E.buildRules(world, map, { budget: 99999, player_1: one, player_2: two });
+    const real = built.problems.filter((p) => !/starts|outside|overlap/.test(p));
+    if (real.length) throw new Error(cell.text + ': ' + real.join(' | '));
+    return built.rules;
+  };
+  // each side's own formation, laid out as if it sat in seat 1
+  const formA = shuffled(build(sa, sb), seed).fleets[0].deployment, formB = shuffled(build(sb, sa), seed ^ 0x2545f491).fleets[0].deployment;
+  const rules = build(swap ? sb : sa, swap ? sa : sb), neg = (c) => [-c[0] || 0, -c[1] || 0], H = E.hex, R = rules.board.radius;
+  rules.fleets[0].deployment = swap ? formB : formA;
+  // seat 2: the half-turn image of its own formation, hulls turned with it
+  for (const sh of rules.fleets[1].ships) for (const sg of sh.segs) sg.off = neg(sg.off);
+  rules.fleets[1].deployment = (swap ? formA : formB).map((d) => ({ ...d, at: neg(d.at) }));
+  const zone = rules.zones.find((z) => z.name.indexOf(rules.fleets[1].name) === 0);
+  const rock = new Set(rules.terrain.filter((t) => (rules.terrainTypes[t.type] || {}).blocks_movement).flatMap((t) => t.cells.map(H.key)));
+  for (const d of rules.fleets[1].deployment) for (const sg of rules.fleets[1].ships.find((x) => x.name === d.ship).segs) {
+    const c = H.add(d.at, sg.off);
+    if (!H.inHexagon(c, R) || rock.has(H.key(c)) || (zone && H.EDGE[zone.edge](c, R) >= zone.depth)) throw new Error(cell.text + ': the map is not the same after a half turn, so seat 2 cannot mirror its formation at [' + c + ']');
+  }
+  return rules;
 }
+// Both sides the same fleet with the same single pilot: swapping the seats would change nothing.
+export const sameSides = (cell) => !cell.a.pilot.mix && !cell.b.pilot.mix && cell.a.fleet === cell.b.fleet && cell.a.pilot.name === cell.b.pilot.name;
 
 const policy = (spec) => {
   const personality = 'p_' + (spec.pilot.mix ? 'balanced' : spec.pilot.name);   // a mix: every ship carries its own
@@ -189,8 +214,10 @@ export function runCell(cell, games, base, log) {
   const out = { cell: cell.text, games, seed0, w: 0, l: 0, d: 0, noKill: 0, rounds: 0, seat0: 0, A: {}, B: {}, ships: [] };
   const add = (into, s) => { for (const k of Object.keys(s)) into[k] = (into[k] || 0) + s[k]; };
   const pa = policy(cell.a), pb = policy(cell.b);
+  const same = sameSides(cell);
+  out.same = same;
   for (let i = 0; i < games; i++) {
-    const swap = i % 2 === 1, seed = seed0 + (i >> 1) * 7919, aSeat = swap ? 1 : 0;
+    const swap = !same && i % 2 === 1, seed = seed0 + (same ? i : i >> 1) * 7919, aSeat = swap ? 1 : 0;
     const r = playGame(rulesFor(cell, seed, swap), swap ? [pb, pa] : [pa, pb], seed);
     out.rounds += r.rounds;
     if (r.by === 'turn_limit') out.noKill++;
@@ -220,6 +247,9 @@ export function suiteCells(name) {
 }
 
 const pc = (x) => Math.round(100 * x) + '%';
+// markdown tables: a "|" inside a cell has to be escaped, and every column needs a heading
+const bar = (t) => String(t).replace(/\|/g, '\\|');
+const MD_HEAD = '| cell (A is the first side) | first seed | W-L-D for A | A share | 95% interval | label | rounds | no kill | first seat won |\n|---|---|---|---|---|---|---|---|---|';
 const per = (x, n) => (x / n).toFixed(1);
 function missileLine(r) {
   const f = (s) => `launched ${per(s.launched, r.games)}, stopped by point defence ${per(s.stopped, r.games)}, shot down ${per(s.shot, r.games)}, ran out or flew off ${per(s.lost, r.games)}, landed ${per(s.landed, r.games)}, caught in another blast or still flying at the end ${per(s.launched - s.stopped - s.shot - s.lost - s.landed, r.games)}, ships sunk ${per(s.mkills, r.games)}`;
@@ -253,24 +283,24 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const t00 = Date.now();
   for (const job of jobs) {
     const games = Number(opt('games', job.s.games || 10)), t0 = Date.now();
-    const seeds = `first seed + 7919k, k = 0..${Math.ceil(games / 2) - 1}, each from both seats (base seed ${seed0})`;
+    const seeds = `first seed + 7919k, k = 0..${Math.ceil(games / 2) - 1}, each from both seats, each side keeping its own formation (base seed ${seed0}); a cell with the same fleet and pilot on both sides plays k = 0..${games - 1} once each`;
     const flags = (job.s.missiles || has('missiles') ? ' --missiles' : '') + (job.s.ships || has('ships') ? ' --ships' : '');
     if (md) {
       console.log(`\n### Suite: ${job.name}\n\n${job.note}\n\nCommand: \`node tools/variants.mjs --suite ${job.name} --games ${games} --seed ${seed0}\`. Seeds: ${seeds}. One row alone: \`node tools/variants.mjs --games ${games} --seed ${seed0}${flags} --cell "<cell>"\`.\n`);
-      console.log('| cell (A is the first side) | W-L-D for A | A share | 95% interval | label | rounds | no kill | first seat won |\n|---|---|---|---|---|---|---|---|');
+      console.log(MD_HEAD);
     } else console.log(`\n== ${job.name}: ${job.note} (${job.cells.length} cells, ${games} games each, seeds ${seeds})`);
     let seat0 = 0, n = 0;
     for (const c of job.cells) {
       const r = runCell(c, games, seed0, log);
       total += games; seat0 += r.seat0; n += games;
       const iv = `${pc(r.lo)} to ${pc(r.hi)}`;
-      if (md) console.log(`| ${r.cell} | ${r.seed0} | ${r.w}-${r.l}-${r.d} | ${pc(r.p)} | ${iv} | ${r.label} | ${per(r.rounds, games)} | ${r.noKill} | ${r.seat0} |`);
+      if (md) console.log(`| ${bar(r.cell)}${r.same ? ' (same sides: A is the first seat, one game a seed)' : ''} | ${r.seed0} | ${r.w}-${r.l}-${r.d} | ${pc(r.p)} | ${iv} | ${r.label} | ${per(r.rounds, games)} | ${r.noKill} | ${r.seat0} |`);
       else {
         console.log(`${r.cell.padEnd(64)} ${`${r.w}-${r.l}-${r.d}`.padStart(8)}  A ${pc(r.p).padStart(4)}  [${iv}]  ${r.label.padEnd(8)} rounds ${per(r.rounds, games).padStart(5)}  no kill ${String(r.noKill).padStart(2)}  first seed ${r.seed0}  first-seat wins ${r.seat0}  forced moves ${r.A.forced}/${r.B.forced}`);
         console.log(`    reproduce: node tools/variants.mjs --games ${games} --seed ${seed0}${flags} --cell "${r.cell}"`);
       }
-      if (job.s.missiles || has('missiles')) console.log((md ? '| ↳ ' : '    ') + missileLine(r) + (md ? ' | | | | | | | | |' : ''));
-      if (job.s.ships || has('ships')) console.log('\n' + shipTable(r) + '\n' + (md ? '\n| cell (A is the first side) | W-L-D for A | A share | 95% interval | label | rounds | no kill | first seat won |\n|---|---|---|---|---|---|---|---|' : ''));
+      if (job.s.missiles || has('missiles')) console.log((md ? '| ↳ ' + bar(missileLine(r)) + ' | | | | | | | | |' : '    ' + missileLine(r)));
+      if (job.s.ships || has('ships')) console.log('\n' + shipTable(r) + '\n' + (md ? '\n' + MD_HEAD : ''));
     }
     const secs = ((Date.now() - t0) / 1000).toFixed(0);
     console.log(`${md ? '\n' : ''}${job.name}: ${job.cells.length} cells, ${n} games, ${secs} s. First seat won ${seat0} of ${n}.`);
