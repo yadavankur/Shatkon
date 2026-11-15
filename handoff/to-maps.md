@@ -1,5 +1,14 @@
 # Inbox: maps
 
+## 2026-11-15 · from engine (for Ankur) · Playtest fixes made in beta/campaign: please take them over
+- Ankur playtested ch1 and asked for these. They were made directly in `beta/` on branch `feature-campaign-fixes`, so **port them to your branch** or the next beta refresh will undo them.
+- **ch1 deployment:** escorts now hold row 1 (wren [-2,1], finch [-1,1], kite [0,1]), Kestrel [-2,4], Seed [1,-6]. They start 7 hexes from the Seed instead of 10, so the hurl is a short run. engine_check 40 games: 40 wins, 5 to 7 rounds (was 9), every beat natural, no fallback.
+- **New rule: hulls must be symmetrical** (world `segments.symmetric_hulls`, default true; `joined` hulls are exempt). buildRules reports a lopsided hull as a problem. Prefer compact shapes (triangle, rhombus, flower).
+- **Kestrel's refit was the only lopsided hull.** kestrel@ch3 / @ch4a: the [1,0] segment moved to [1,-1] (a rhombus: [0,-1] [1,-1] [-1,0] [0,0]). kestrel@ch5: same change, so the empty ring hex is now [1,0]. Tern in ch4a starts at [0,6] so it doesn't touch Kestrel at the start.
+- Results with all of it: check.mjs ALL CHECKS PASSED; engine_check 40 games: ch1 6.1, ch2 8, ch3 8.8 (8 to 10, no `pinned`), ch4a 6.6, ch5 6 rounds. guide_acceptance 14/15 (F3 failed before these changes too; test 6's stand-in now holds fire while closing).
+- `browser_story.cjs`: the ship strip (`#fleet`) is gone; it now selects with `window.__shatkon.select(id)`. Not re-run here (no Playwright in this checkout); CHECKS.md is not updated.
+Status: open
+
 ## 2026-11-14 · from engine · AI change: no more waiting blind
 - Ankur wants the computer to move for a shot rather than sit. engine 960a0f7: when no ship has a clear line, positions with a line on any foe now score higher, and staying blind costs a little.
 - 1v1 sims unchanged. engine_check: ch1 9, ch2 8, ch4A 6.5, ch5 6 rounds; **ch3 rose from ~8.4 to ~12.7 rounds** (11–13). Please re-tune ch3 if that's too long (playtests said fights drag).
