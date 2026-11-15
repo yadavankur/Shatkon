@@ -76,8 +76,6 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
             ? 25
             : 2;
       }
-      // personalities finish what they started: a ship already holed is worth more than a fresh one
-      if (pers && tgt && pr.focus_fire !== false) score += tgt.segs.filter((g) => g.wrecked).length * 2 - H.dist(s.pos, t.at) * 0.05;
       if (!best || score > best.score)
         best = { score, hits: t.hits, ship: s, tgt, action: { type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at } };
     }
@@ -105,6 +103,11 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       .filter((x) => x.d <= (prof(s).launch_range ?? prof(s).missile_range ?? (easy ? 3 : 5))) // close range: little time to react, point defence gets fewer shots
       .sort((a, b) => (prof(s).target === 'smallest' ? a.t.segs.length - b.t.segs.length : b.t.segs.length - a.t.segs.length) || a.d - b.d);
     if (Array.isArray(prof(s).target)) targets.sort((a, b) => (prof(s).target.includes(nameOf(b.t.id)) ? 1 : 0) - (prof(s).target.includes(nameOf(a.t.id)) ? 1 : 0));
+    // a personality that has scanned its targets saves its missiles for one with no working point defence
+    if (pers && prof(s).missiles_avoid_point_defence !== false) {
+      const pd = (t) => (t.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].stops_per_round)) ? 1 : 0);
+      targets.sort((a, b) => pd(a.t) - pd(b.t));
+    }
     if (!targets.length) continue;
     const t = targets[0].t;
     let start = lo.starts[0];
@@ -346,7 +349,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
   }
   if (bestMove) return bestMove.action;
-  if (best) return best.action; // a weak shot is better than nothing
+  // a weak shot is better than nothing; but a personality with no enemy in sight keeps its guns
+  // cold rather than light itself up by shooting a mine (a beam that hits flares the shooter)
+  if (best && !(pers && !foes.length)) return best.action;
   return { type: 'end' };
 }
 

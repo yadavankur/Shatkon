@@ -13,6 +13,8 @@
 // sit (old, but never moves a ship), sit:balanced (that personality, but never moves a ship),
 // and any personality named in the world file's `ai.personalities` (aggressive, defensive, balanced).
 // Each pairing is played from both seats with the same seeds, so seat and first-move luck cancel.
+// Columns: "no kill" = games that ran to the round limit; "hexes" = hexes moved per game;
+// "idle" = turns ended without doing anything; "P1 win" = games won from the first seat.
 
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -33,18 +35,18 @@ const optAll = (name) => args.flatMap((a, i) => (a === '--' + name ? [args[i + 1
 // Stock fleet variants for the "does it hold for other fleets" question.
 const seg = (at, bays, mounts = []) => ({ at, bays, mounts });
 export const FLEETS = {
-  // a flagship that is mostly missiles (the fleet the 13 Nov findings worried about)
+  // a flagship that is mostly missiles: 16 of them and three launchers (the 13 Nov findings' worry)
   missile: (f) => {
     const flag = f.player_1.ships.find((s) => s.flagship);
-    flag.load = { missile: 6 };
+    flag.load = { missile: 16 };
     flag.hull = [
       seg([0, 0], ['core', 'magazine', 'magazine']),
-      seg([1, 0], ['engine', 'engine', 'coupling'], ['launcher', 'shield']),
+      seg([1, 0], ['engine', 'magazine', 'coupling'], ['launcher', 'shield']),
       seg([1, -1], ['engine', 'sensor', 'coupling'], ['launcher', 'point_defence']),
-      seg([0, -1], ['engine', 'coupling', 'stealth'], ['armour']),
-      seg([-1, 0], ['engine', 'coupling', 'stealth']),
-      seg([-1, 1], ['engine', 'coupling', 'stealth'], ['armour']),
-      seg([0, 1], ['engine', 'coupling', 'stealth']),
+      seg([0, -1], ['engine', 'magazine', 'coupling'], ['armour', 'laser']),
+      seg([-1, 0], ['engine', 'magazine', 'coupling'], ['launcher']),
+      seg([-1, 1], ['engine', 'magazine', 'coupling'], ['armour']),
+      seg([0, 1], ['engine', 'engine', 'coupling']),
     ];
     f.budget = 999;
   },
@@ -129,7 +131,7 @@ export function playGame(rules, polA, polB, seed) {
 // Plays a pairing from both seats. Returns totals from A's point of view.
 export function series(rules, a, b, games, seed0 = 1) {
   const pa = policy(a), pb = policy(b);
-  const out = { a, b, games: 0, winA: 0, winB: 0, draws: 0, timeouts: 0, rounds: 0, A: null, B: null };
+  const out = { a, b, games: 0, winA: 0, winB: 0, draws: 0, timeouts: 0, seat0: 0, rounds: 0, A: null, B: null };
   const addStats = (into, s) => { for (const k of Object.keys(s)) into[k] = (into[k] || 0) + s[k]; return into; };
   out.A = {}; out.B = {};
   for (let i = 0; i < games; i++) {
@@ -139,6 +141,7 @@ export function series(rules, a, b, games, seed0 = 1) {
     out.games++; out.rounds += r.rounds;
     if (r.by === 'turn_limit') out.timeouts++;
     if (r.winner === 'draw') out.draws++; else if (r.winner === aSeat) out.winA++; else out.winB++;
+    if (r.winner === 0) out.seat0++;
     addStats(out.A, r.stats[aSeat]); addStats(out.B, r.stats[1 - aSeat]);
   }
   return out;
@@ -147,9 +150,9 @@ export function series(rules, a, b, games, seed0 = 1) {
 const pct = (n, d) => (d ? Math.round((100 * n) / d) : 0) + '%';
 export function row(r) {
   const idle = (s) => pct(s.idleTurns, s.turns);
-  return `${(r.a + ' v ' + r.b).padEnd(26)} ${pct(r.winA, r.games).padStart(5)} ${pct(r.winB, r.games).padStart(5)} ${pct(r.draws, r.games).padStart(5)} ${pct(r.timeouts, r.games).padStart(8)} ${(r.rounds / r.games).toFixed(1).padStart(7)} ${(r.A.hexes / r.games).toFixed(1).padStart(7)} ${(r.B.hexes / r.games).toFixed(1).padStart(7)} ${idle(r.A).padStart(6)} ${idle(r.B).padStart(6)}`;
+  return `${(r.a + ' v ' + r.b).padEnd(26)} ${pct(r.winA, r.games).padStart(5)} ${pct(r.winB, r.games).padStart(5)} ${pct(r.draws, r.games).padStart(5)} ${pct(r.timeouts, r.games).padStart(8)} ${(r.rounds / r.games).toFixed(1).padStart(7)} ${(r.A.hexes / r.games).toFixed(1).padStart(7)} ${(r.B.hexes / r.games).toFixed(1).padStart(7)} ${idle(r.A).padStart(6)} ${idle(r.B).padStart(6)} ${pct(r.seat0, r.games).padStart(6)}`;
 }
-export const HEAD = `${'pairing (A v B)'.padEnd(26)} ${'A win'.padStart(5)} ${'B win'.padStart(5)} ${'draw'.padStart(5)} ${'no kill'.padStart(8)} ${'rounds'.padStart(7)} ${'A hexes'.padStart(7)} ${'B hexes'.padStart(7)} ${'A idle'.padStart(6)} ${'B idle'.padStart(6)}`;
+export const HEAD = `${'pairing (A v B)'.padEnd(26)} ${'A win'.padStart(5)} ${'B win'.padStart(5)} ${'draw'.padStart(5)} ${'no kill'.padStart(8)} ${'rounds'.padStart(7)} ${'A hexes'.padStart(7)} ${'B hexes'.padStart(7)} ${'A idle'.padStart(6)} ${'B idle'.padStart(6)} ${'P1 win'.padStart(6)}`;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const games = Number(opt('games', 100)), sets = optAll('set'), map = opt('map'), fleet = opt('fleet');
