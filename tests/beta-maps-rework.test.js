@@ -289,8 +289,10 @@ test('the computer shoots a mine it can see near its ships', () => {
   assert.deepEqual(a.at, [-1, 0]);
 });
 
-test('Cat and Mouse keeps to the two-Comet limit', () => {
+test('Cat and Mouse raises the Comet limit to three on its own board; the world default of 2 still holds elsewhere', () => {
   const { rules, problems } = loadBoard('03_cat_and_mouse');
   assert.deepEqual(problems, []);
-  assert.equal(rules.fleets[0].ships.filter((s) => s.segs.some((sg) => sg.parts.includes('afterburner'))).length, 2);
+  assert.equal(rules.fleets[0].ships.filter((s) => s.segs.some((sg) => sg.parts.includes('afterburner'))).length, 3);
+  const capped = loadBoard('03_cat_and_mouse', { set: { 'bay_parts.afterburner.max_per_fleet': 2 } });
+  assert.ok(capped.problems.some((p) => /afterburner/.test(p) && /limit is 2/.test(p)));
 });

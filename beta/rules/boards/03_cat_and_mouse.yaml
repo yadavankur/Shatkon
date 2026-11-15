@@ -18,8 +18,9 @@
 #  (afterburner part, defined in this file) is the super-fast scout from Ankur's idea, built from
 #  existing rules: own_move 8, evades_beyond 2, death_flash 5.
 #
-#  Needs a new rule to play as designed: Comet reveal-on-pass (reveals_on_pass: 2) and a burn-out
-#  (burn_turns: 3), so it reveals as it flies, not only when it dies, and cannot scout forever.
+#  The afterburner part now lives in world_v0.4.yaml (reveals as it flies, burns out after 3 turns).
+#  The world limit is 2 Comets a fleet (a maps-bot suggestion, not a fixed rule); this board raises
+#  it to 3 with bay_parts.afterburner.max_per_fleet in rules: below.
 # ============================================================
 
 board:
@@ -30,6 +31,7 @@ board:
     bay_parts.stealth.hides: 2
     detection.stealth_floor_segments_per_point: 7
     bay_parts.core.sensor_range: 1
+    bay_parts.afterburner.max_per_fleet: 3    # world default is 2 a fleet (a maps-bot suggestion); this board is built around three
     ai.vs_computer: "balanced"
     ai.personalities.runner: { note: "a scout: runs ahead of the fleet on its own", range: [3, 4], keep_together: 0, missile_range: 8, attack_run: true, unarmed_ships: "bait" }
 
@@ -84,6 +86,10 @@ player_1:
       ai: runner
       hull:
         - { at: [0, 0], bays: [core, afterburner, sensor] }
+    - name: "Comet 3"                # NEW comet: afterburner scout, 8 hexes a turn, flash 5 when it dies
+      ai: runner
+      hull:
+        - { at: [0, 0], bays: [core, afterburner, sensor] }
   deployment:
     - { ship: "Tom", at: [-3, 10] }
     - { ship: "Bloodhound", at: [-7, 10] }
@@ -91,6 +97,7 @@ player_1:
     - { ship: "Deerhound", at: [-6, 9] }
     - { ship: "Comet 1", at: [-9, 10] }
     - { ship: "Comet 2", at: [-4, 9] }
+    - { ship: "Comet 3", at: [1, 9] }
 
 player_2:
   ships:

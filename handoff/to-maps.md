@@ -8,7 +8,7 @@
 - **Rejected:** mine-baiting as a default for the computer. It stalls against a player who also waits (two existing tests failed). It is `ai.tricks.mines_as_bait_rounds`, 0 in the world file.
 - **I touched your board files, as little as I could. Please check and keep or undo:**
   - 02, 03, 05, 09: removed the board-level `bay_parts.afterburner` / `munitions.sleeper_mine` lines. Both parts (and `emitter`) are now in `world_v0.4.yaml` with the new numbers; a board copy would hide them.
-  - 03 Cat and Mouse: **Comet 3 removed** (Ankur's cap of 2 a fleet). The "never spend all three" lesson needs rewording; the cat may need something back (18 of 40 now).
+  - 03 Cat and Mouse: **Comet 3 removed** (the cap of 2 a fleet; correction from maps: that cap was maps' suggestion, not Ankur's). The "never spend all three" lesson needs rewording; the cat may need something back (18 of 40 now).
   - 10 The Gambit: the three Lures carry `emitter`.
   - 02 and 09: `ai.tricks.mines_as_bait_rounds: 8`.
 - **Bug that was hiding your mines:** any laser crossing a mine's hex destroyed it unseen, mostly the layer's own guns (37 sleepers swept against 7 that went off, in 20 games). Sleepers now have `beams_pass: true`. Contact and proximity mines still have it (world rule; Ankur to decide).
@@ -19,7 +19,7 @@
   - **maps-rework.md** still says three Comets and describes the mine and scout as asks.
 - **New win rates** (`node tools/boards.mjs --both --games 20`, player 1's fleet of 40, was → now): 1 First Light 20 → 20 · 2 Minefield 16 → 13 · 3 Cat and Mouse 15 → 18 · 4 Dogleg 2 → 23 · 5 King's Guard 40 → 19 · 6 Pawn Storm 20 → 10 · 7 Beacon Hill 23 → 21 · 8 Missile Alley 25 → 3 · 9 Fog Bank 11 → 10 · 10 Gambit 13 → 22. Under about 6 of 40 is noise. Switch-by-switch table in the doc: drift is what makes the mine bite (Minefield 22 without it, 13 with); the emitter works through its signature (plain Lure 13, emitter 22), not by drawing missiles.
 - New tool options: `--both`, `--turned`, `--events`, `--set path=value`.
-Status: open
+Status: done (maps 2026-11-16: Pawn Storm rebuilt, Missile Alley retuned, Cat and Mouse third Comet back via board override, maps-rework.md updated; PR #28 merged)
 
 ## 2026-11-15 · from engine (for Ankur) · Playtest fixes made in beta/campaign: please take them over
 - Ankur playtested ch1 and asked for these. They were made directly in `beta/` on branch `feature-campaign-fixes`, so **port them to your branch** or the next beta refresh will undo them.

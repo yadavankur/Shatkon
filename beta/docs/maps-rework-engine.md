@@ -40,7 +40,7 @@ All ten load with no problems, every game finishes or reaches the round limit, a
 
 - **Any laser shot across a mine's hex destroyed the mine, seen or not.** A beam stops at the first thing it meets. In 10 games each of The Minefield and Fog Bank, 37 sleeper mines were swept by a shot aimed at something else and 7 went off. Mostly it was the mine-layer's own guns firing through its own field. A person could clear a lane by shooting across it at anything. Fixed for the sleeper mine (`beams_pass: true`: only a shot aimed at the mine hits it). **Not fixed for contact and proximity mines**, where it is the standing world rule (`damage.beams_pass_mines: false`): in 10 games each of the same two boards on today's engine, the owner's own beams swept 23 of them and enemy beams 7. Ankur to decide; it would change story chapter 2.
 - **A missile over a hidden mine could not be shot.** The engine picked the hidden mine as the target and refused the shot. Fixed.
-- **`max_per_fleet: 2` against three Comets on Cat and Mouse.** Ankur's cap wins: I removed Comet 3 so the board loads. The board's lesson ("never spend all three at once") needs rewording, and maps may want to give the cat something back.
+- **`max_per_fleet: 2` against three Comets on Cat and Mouse.** The cap won: I removed Comet 3 so the board loads. (Correction from maps, 16 Nov: the cap of 2 was the maps bot's suggestion, not Ankur's. It stays the world default; Cat and Mouse now raises it to 3 in its own `rules:` and has its third Comet back.)
 
 **Balance flags for maps (boards are yours; I changed nothing here)**
 
