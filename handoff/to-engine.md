@@ -12,6 +12,16 @@
 - **Decoy, an `emitter` bay part (`adds_signature: 3`, `lures_missiles: true`):** it adds to the ship's signature, and a missile seeker that has a choice picks the emitter ship. This is for The Gambit (salvo against decoy).
 - **AI (lower priority):** (1) `homePoint` and the blind-fire spot in `ai.js` assume the enemy home is north or else south. Use the middle of whatever edge the enemy zone is on (5 of 10 boards start on other edges). (2) The computer never launches seeker drones and never shoots a visible mine in its path. (3) Its moves are fully deterministic, so a mirror board comes out 20-0 for one side (The Dogleg 2 of 40, King's Guard 40 of 40, with seats swapped). A seeded tie-break jitter would make board sims mean something.
 - Check with `npm test` (123 pass on the branch) and `node tools/boards.mjs` / `--codes`. Tests for the Comet move, sleeper sight and blast, and the Minefield's single clean lane are in `tests/beta-boards.test.js`.
+
+## 2026-11-16 · from maps (for Ankur) · variety-study review: merge after these fixes
+- Reviewed `variety-study` at 79261c8: 119 tests pass, merges cleanly into main, root game and campaign untouched (engine_check identical to main). Ankur wants these fixed before merging.
+- **1. Seat vs layout (`tools/variants.mjs`, `runCell`/`rulesFor`):** both games of a seat-swapped pair use the same seed, and start spots go by seat, so "same seat won both" also means "same spots won both". Give the second seat the mirror image of the first seat's spots. And when both sides have the same fleet and pilot, the swapped game is an exact replay (the AI has no randomness): count it once or skip it. Today "first seat 28/40" is really 14/20, every `tempo` row is 10-10-0 by construction, and "fixed first player 16→6 of 20" is really 8→3 of 10.
+- **2. Re-run** `mirror`, `tempo`, `pilots`, `teams_same` after the fix, and soften finding 1 plus the mirror/tempo numbers in `beta/docs/balance-evidence.md`. Redesign Stage 2 candidate 1 the same way.
+- **3. `--md` tables:** a cell contains a "|" and there's an unlabelled seed column (10 cells under an 8-column header), so every table in `beta/docs/variants-results.md` shows values under the wrong headings on GitHub. The text mentions a "first seed" column the header lacks.
+- **4. STATUS.md / to-gamedev.md:** remove "balance-and-ai PR open to main" (no PR exists) and "not pushed" (it is pushed).
+- **5. Docs:** say plainly that the frozen baseline pins only the ~45 world numbers in `ai_variants.yaml`, not `beta/engine/ai.js`, the engine, the map or the fleets. Note that `tools/boards.mjs` and `sim.mjs` with the shipped spots mostly replay one game (aggressive v sit and balanced v sit gave identical 58/42 rows), so call them smoke tests.
+- **6. Code:** `beta/engine/query.js:109` courier movement skips `pl.canMove`, so a chapter that locks movement may not stop a courier. Keep forced movement (`turn.js`) simulation-only, since the play screen can't satisfy it.
+- FYI for Ankur: merging changes beta for players (three random personalities on "normal", missiles wreck segments and fire salvoes in story chapters too, `?board=`, `boards.html`).
 Status: open
 
 ## 2026-11-15 · from gamedev · main has moved: PR #2 and #18 merged, branch from main
@@ -20,7 +30,6 @@ Status: open
 - Open, by gamedev: #19 engine-fixes (undo blocked after info is revealed, nebula launch hits hidden ships, missiles pass wrecked segs, AI reads laser numbers from rules, game-code verification, ch4A guide checks 15/15, shared hit calc); #20 facelift-ships-p4 (ship art only); battle-log (game log + download + tools/analyse-log.mjs), PR coming.
 - `feature/move-target-affordance` touches ui/board.js target markers: please rebase onto main (post-#18) and check against #19/#20 before opening the PR.
 Status: done (rebased on 639152f; checked against #19/#20, no overlap beyond 3 lines of ui/play.js; PR opened)
-
 
 ## 2026-11-15 · from maps · beta playtest fixes ported to campaign-engine
 - Ankur asked me to do both halves this once. Commits 8401130 and a42e899 (made in beta/ on feature-campaign-fixes) are now on campaign-engine (engine, ui, play.html, rules, story/ships.json, campaign/).
