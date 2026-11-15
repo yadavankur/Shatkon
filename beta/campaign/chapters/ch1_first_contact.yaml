@@ -8,8 +8,10 @@
 #  Kestrel in to finish it. The player commands Kestrel only.
 #
 #  No special rules. The pacing comes from what is on the board:
-#   - The escorts (helm: script, flown by `orders`) hold a line right across row 5, the
-#     corridor's full 4-hex width, 2 rows ahead of Kestrel. A laser cannot fire through your
+#   - The escorts (helm: script, flown by `orders`) hold a line right across row 1, the
+#     corridor's full 4-hex width, 3 rows ahead of Kestrel and only 6 hexes from the Seed:
+#     the fight starts at once and the hurl is a short run, not a march up the corridor
+#     (playtest, 15 Nov 2026: the fleet started bunched at the far end, 10 hexes away). A laser cannot fire through your
 #     own ships and a 3-hex Kestrel cannot pass the line, so Kestrel stays behind the screen
 #     until the escorts move (Finch's gap is one hex: a line of fire, not a way through).
 #   - The Seed plays competently: its missile for the scout, its gun for the escorts' guns
@@ -29,7 +31,8 @@
 #     4 hits x the rammer's living segments (Wren 4, Kite 8), piercing shields, on the segment
 #     the order names (`seg`: Wren 0 = the bow, Kite 1 = the stern) wherever the fight is.
 #     Fallback 4 rounds after the hurl: the same rams with force: true.
-#  Sims: see CHECKS.md (Finch to the missile, Wren on the bow, Kite on the stern, no fallback).
+#  Sims after the 15 Nov redeployment (engine_check, 40 games): 40 wins in 5 rounds, no fallback;
+#  Finch r2, guns gone r2, hurl r3, Wren rams r3, Kite r5, Seed dead r5. Older numbers: CHECKS.md (Finch to the missile, Wren on the bow, Kite on the stern, no fallback).
 # ============================================================
 
 chapter:
@@ -47,15 +50,15 @@ chapter:
       - { id: wren,  helm: script }
       - { id: kite,  helm: script }
     deployment:
-      - { ship: kestrel, at: [-3, 7] }   # cells [-4,7] [-3,7] [-2,7]: the rear of the corridor
-      - { ship: wren,    at: [-4, 5] }   # the screen: row 5 is 4 hexes wide here (q -4..-1)
-      - { ship: finch,   at: [-3, 5] }   # Nanda holds the middle
-      - { ship: kite,    at: [-2, 5] }   # cells [-2,5] [-1,5]
+      - { ship: kestrel, at: [-2, 4] }   # cells [-3,4] [-2,4] [-1,4]: the full width of row 4, three rows behind the screen
+      - { ship: wren,    at: [-2, 1] }   # the screen: row 1 is 4 hexes wide (q -2..1), 6 hexes from the Seed
+      - { ship: finch,   at: [-1, 1] }   # Nanda holds the middle
+      - { ship: kite,    at: [0, 1] }    # cells [0,1] [1,1]
 
   enemy:                            # seat 1, north
     ships: [seed]                        # hull seed@ch1 (flagship)
     deployment:
-      - { ship: seed, at: [1, -5] }      # cells [1,-5] [2,-5]: the front of its home zone
+      - { ship: seed, at: [1, -6] }      # cells [1,-6] [2,-6]: 7 hexes from the screen, just out of sight at the start
     ai: { default: hunter }
 
   ai_profiles:

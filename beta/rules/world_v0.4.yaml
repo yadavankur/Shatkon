@@ -68,6 +68,9 @@ segments:
   couplings_required: true    # every segment after the first needs one coupling part,
                               # which uses up a bay. This is the price of a bigger ship.
                               # Set to false to switch couplings off.
+  symmetric_hulls: true       # a hull must be symmetrical: a mirror line or a turn maps it onto
+                              # itself (a line, a triangle, a diamond, a flower). Lopsided hulls
+                              # (an L, a T) are refused. Compact shapes show fewer sides to fire.
 
 
 # ------------------------------------------------------------

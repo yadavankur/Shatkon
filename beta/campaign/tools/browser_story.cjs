@@ -99,7 +99,7 @@ async function campaignRun() {
       }
       if (st.seat === 0) {
         // try the Graft button when it shows (ch4A), else let campaignMove decide
-        if (st.id === 'ch4a' && !graftSeen) graftSeen = await page.evaluate(() => { const v = window.__shatkon.game; return !!(v.script.unlocked.graft); }) && await (async () => { const has = await page.evaluate(() => { const E = window.__E, g = window.__shatkon.game, k = g.ships.find((s) => s.name === 'kestrel' && !s.dead), t = g.ships.find((s) => s.name === 'tern' && !s.dead); return !!(k && t && E.gap(k, t) === 1) && k.id; }); if (!has) return false; const chips = await page.$$('#fleet button'); for (const b of chips) if ((await b.textContent()).includes(has + ' ')) { await b.click(); break; } await page.waitForTimeout(100); const btn = await page.$('#tools button:has-text("Graft tern")'); log('  Graft button shown with Kestrel selected and Tern touching:', !!btn); if (btn) { await page.screenshot({ path: SHOTS + '/story-graft-button.png' }); await btn.click(); await page.waitForTimeout(200); log('  grafted by the button:', await page.evaluate(() => !!window.__shatkon.game.script.flags['grafted:kestrel+tern'])); } return true; })();
+        if (st.id === 'ch4a' && !graftSeen) graftSeen = await page.evaluate(() => { const v = window.__shatkon.game; return !!(v.script.unlocked.graft); }) && await (async () => { const has = await page.evaluate(() => { const E = window.__E, g = window.__shatkon.game, k = g.ships.find((s) => s.name === 'kestrel' && !s.dead), t = g.ships.find((s) => s.name === 'tern' && !s.dead); return !!(k && t && E.gap(k, t) === 1) && k.id; }); if (!has) return false; await page.evaluate((id) => window.__shatkon.select(id), has); await page.waitForTimeout(100); const btn = await page.$('#tools button:has-text("Graft tern")'); log('  Graft button shown with Kestrel selected and Tern touching:', !!btn); if (btn) { await page.screenshot({ path: SHOTS + '/story-graft-button.png' }); await btn.click(); await page.waitForTimeout(200); log('  grafted by the button:', await page.evaluate(() => !!window.__shatkon.game.script.flags['grafted:kestrel+tern'])); } return true; })();
         const g = await page.evaluate(() => { const E = window.__E, g = window.__shatkon.game; if (g.script.unlocked.graft) { const k = g.ships.find((s) => s.name === 'kestrel' && !s.dead), t = g.ships.find((s) => s.name === 'tern' && !s.dead); if (k && t && E.gap(k, t) === 1) return { type: 'graft', ship: k.id, with: t.id }; } return null; });
         await page.evaluate((ga) => { const E = window.__E, g = window.__shatkon.game; let a = ga || E.campaignMove(g, 0); const r = E.attempt(g, a); if (!r.ok) a = { type: 'end' }; window.__shatkon.act(a); }, g);
         if (st.round + ':' + st.seat !== last) { last = st.round + ':' + st.seat; if (st.id === 'ch1' && st.round === 2) await page.screenshot({ path: SHOTS + '/story-ch1-r2.png' }); }
@@ -136,7 +136,7 @@ async function graftOnly() {
     if (st.seat !== 0) continue;
     if (st.un) {
       const kid = await page.evaluate(() => window.__shatkon.game.ships.find((s) => s.name === 'kestrel').id);
-      for (const b of await page.$$('#fleet button')) if ((await b.textContent()).includes(kid + ' ')) { await b.click(); break; }
+      await page.evaluate((id) => window.__shatkon.select(id), kid);
       await page.waitForTimeout(150);
       const btn = await page.$('#tools button:has-text("Graft")');
       console.log('round', st.round, 'graft unlocked; Graft button:', btn ? await btn.textContent() : 'MISSING');

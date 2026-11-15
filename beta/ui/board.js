@@ -24,6 +24,55 @@ function hexPath(cx, cy, r) {
   return d + 'Z';
 }
 const cellPath = (c, k = 0.96) => hexPath(X(c), Y(c), S * k);
+// The outline of a group of hexes: only the sides that face a hex outside the group.
+function outlinePath(cells) {
+  const inside = new Set(cells.map(hex.key));
+  let d = '';
+  for (const c of cells) for (let k = 0; k < 6; k++) {
+    const n = hex.step(c, k);
+    if (inside.has(hex.key(n))) continue;
+    const vx = X(n) - X(c), vy = Y(n) - Y(c), len = Math.hypot(vx, vy), mx = X(c) + vx / 2, my = Y(c) + vy / 2, px = (-vy / len) * (S / 2), py = (vx / len) * (S / 2);
+    d += 'M' + f1(mx - px) + ',' + f1(my - py) + 'L' + f1(mx + px) + ',' + f1(my + py);
+  }
+  return d;
+}
+
+// ---------- ship models (art) ----------
+// A model is a top-down picture of a hull on a clear background: { img, segments: [[q, r]...] }.
+// The picture is measured once (the box around its solid pixels) and scaled so that box is as wide
+// as the hull's hexes, with the tops lined up; pictures of any size or scale work. A ship uses a
+// model only when its hull is exactly the model's shape, so a refit without new art falls back
+// to the schematic. Add entries with setModels(); story/ships.json is in this format.
+let MODELS = {};
+export function setModels(m) { MODELS = m || {}; }
+const shapeOf = (offs) => { const mq = Math.min(...offs.map((c) => c[0])), mr = Math.min(...offs.filter((c) => c[0] === mq).map((c) => c[1])); return offs.map((c) => (c[0] - mq) + ',' + (c[1] - mr)).sort().join(' '); };
+// Find the solid part of a picture: { w, h, x0, x1, y0 } in the picture's own pixels.
+function measure(m, href, done) {
+  if (m._fit || m._busy) return;
+  m._busy = true;
+  const im = new Image();
+  im.onload = () => {
+    try {
+      const k = Math.min(1, 256 / im.naturalWidth), cw = Math.max(1, Math.round(im.naturalWidth * k)), ch = Math.max(1, Math.round(im.naturalHeight * k));
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0, cw, ch);
+      const d = cx.getImageData(0, 0, cw, ch).data;
+      let x0 = cw, x1 = -1, y0 = ch;
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (d[(y * cw + x) * 4 + 3] > 200) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; }
+      if (x1 > x0) m._fit = { w: im.naturalWidth, h: im.naturalHeight, x0: x0 / k, x1: (x1 + 1) / k, y0: y0 / k };
+    } catch (e) {}
+    if (!m._fit) m._bad = true;
+    if (done) done();
+  };
+  im.onerror = () => { m._bad = true; };
+  im.src = href;
+}
+export function modelFor(name, offs) {
+  if (!name) return null;
+  const want = shapeOf(offs), keys = Object.keys(MODELS).filter((k) => k === name || k.indexOf(name + '_') === 0).sort((a, b) => a.length - b.length);
+  for (const k of keys) { const m = MODELS[k]; if (m && m.img && Array.isArray(m.segments) && shapeOf(m.segments) === want) return m; }
+  return null;
+}
 function rnd(seed) { let t = seed | 0; return () => { t = (t + 0x6d2b79f5) | 0; let x = Math.imul(t ^ (t >>> 15), t | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }; }
 
 // A colour and a letter for every part, worked out from what the part does.
@@ -50,7 +99,8 @@ function diamond(cx, cy, k) {
   return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + f1(cx + S * (mx + (x - mx) * 0.8)) + ',' + f1(cy + S * (my + (y - my) * 0.8))).join('') + 'Z', x: cx + S * mx, y: cy + S * my };
 }
 
-export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null }) {
+export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null,
+  halo = null, idle = null, style = 'schematic', modelBase = '', offsets = null, nameOf = null, onCam = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -147,23 +197,41 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffb3b3', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
   }
 
-  // ships
+  // ships. Each one is a single outlined shape, so ships that touch still read as separate.
+  const tags = [];
   for (const x of v.ships) {
-    const c0 = col(x.owner), g = s('g', x.seen ? null : { opacity: 0.4 });
-    if (x.id === sel) g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1.12)).join(''), fill: c0, 'fill-opacity': 0.35, filter: 'url(#glow)' }));
+    const c0 = col(x.owner), off = offsets ? offsets(x.id, x.pos) : null;
+    const g = s('g', { 'data-ship': x.id, opacity: x.seen ? null : 0.4, transform: off ? `translate(${f1(off[0])},${f1(off[1])})` : null });
+    const rim = outlinePath(x.cells);
+    // a halo marks the ships you can give orders to; the selected one glows
+    if (x.id === sel) g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1.16)).join(''), fill: c0, 'fill-opacity': 0.4, filter: 'url(#glow)' }));
+    else if (halo && halo.has(x.id) && !hidden) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-opacity': 0.75, filter: 'url(#glow)', class: 'halo' }));
+    let model = style === 'model' ? modelFor(x.name, x.segs.map((sg) => sg.off)) : null;
+    if (model && !model._fit) { if (!model._bad) measure(model, modelBase + model.img, onCam); model = null; }   // schematic until the picture is measured
+    // the hull plate: one fused shape under the segments
+    g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
+    if (model) {
+      const us = x.segs.map((sg) => [W * (sg.off[0] + sg.off[1] / 2), 1.5 * S * sg.off[1]]);
+      // the hull's own box (unflipped, relative to the ship's centre hex): left, right, top
+      const hx0 = Math.min(...us.map((p) => p[0])) - W / 2, hx1 = Math.max(...us.map((p) => p[0])) + W / 2, hy0 = Math.min(...us.map((p) => p[1])) - S;
+      const F = model._fit, k = (hx1 - hx0) / (F.x1 - F.x0), iw = F.w * k, ih = F.h * k, ix = hx0 - F.x0 * k, iy = hy0 - F.y0 * k;
+      const ox = X(x.pos), oy = Y(x.pos);   // draw it unflipped around the ship's centre, then turn it with the board
+      g.appendChild(s('image', { href: modelBase + model.img, x: f1(ox + ix), y: f1(oy + iy), width: f1(iw), height: f1(ih), transform: FL < 0 ? `rotate(180 ${f1(ox)} ${f1(oy)})` : null, 'pointer-events': 'none' }));
+    }
     x.segs.forEach((sg, i) => {
       const c = x.cells[i], cx = X(c), cy = Y(c);
       if (sg.wrecked) {
-        g.appendChild(s('path', { d: cellPath(c), fill: '#151a28', stroke: '#566080', 'stroke-width': 0.7, 'stroke-dasharray': '1.5 1.5' }));
+        g.appendChild(s('path', { d: cellPath(c), fill: '#151a28', 'fill-opacity': model ? 0.85 : 1, stroke: '#566080', 'stroke-width': 0.7, 'stroke-dasharray': '1.5 1.5' }));
         g.appendChild(s('path', { d: `M${f1(cx - 4)},${f1(cy - 3)}L${f1(cx + 1)},${f1(cy)}L${f1(cx - 2)},${f1(cy + 4)}M${f1(cx + 4)},${f1(cy - 4)}L${f1(cx + 1)},${f1(cy)}`, stroke: '#566080', 'stroke-width': 0.6, fill: 'none' }));
         return;
       }
+      if (model) return;
       if (!detailed || !sg.parts) {
-        g.appendChild(s('path', { d: cellPath(c), fill: c0, 'fill-opacity': sg.parts ? 0.85 : 0.6, stroke: c0, 'stroke-width': 0.8 }));
+        g.appendChild(s('path', { d: cellPath(c, 0.9), fill: c0, 'fill-opacity': sg.parts ? 0.9 : 0.6 }));
         if (detailed) g.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#0a0f1e' }, '?'));
         return;
       }
-      g.appendChild(s('path', { d: cellPath(c), fill: '#141d38', stroke: c0, 'stroke-width': 1.1 }));
+      g.appendChild(s('path', { d: cellPath(c, 0.93), fill: '#141d38', stroke: c0, 'stroke-width': 0.9 }));
       const cat = (p) => rules.parts[p.t].slot;
       const bays = sg.parts.filter((p) => cat(p) === 'bay'), mounts = sg.parts.filter((p) => cat(p) === 'mount');
       const slot = (p, d, tx, ty) => {
@@ -173,15 +241,24 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
         if (p && S * px >= 19) g.appendChild(s('text', { x: f1(tx), y: f1(ty), 'font-size': f1(3.6), 'font-weight': 700, fill: dead ? '#6b7592' : '#0a0f1e' }, L.letter));
         if (dead && !L.recharges) g.appendChild(s('path', { d: `M${f1(tx - 1.6)},${f1(ty - 1.6)}L${f1(tx + 1.6)},${f1(ty + 1.6)}M${f1(tx + 1.6)},${f1(ty - 1.6)}L${f1(tx - 1.6)},${f1(ty + 1.6)}`, stroke: '#ff7a7a', 'stroke-width': 0.5 }));
       };
-      BAYS.forEach(([bx, by], k) => slot(bays[k], hexPath(cx + S * bx, cy + S * by, S * 0.42), cx + S * bx, cy + S * by));
+      BAYS.forEach(([bx, by], k) => slot(bays[k], hexPath(cx + S * bx, cy + S * by, S * 0.4), cx + S * bx, cy + S * by));
       for (let k = 0; k < 3; k++) { const dm = diamond(cx, cy, k); slot(mounts[k], dm.d, dm.x, dm.y); }
     });
-    // name tag under the ship
+    // the rim: a dark gap all round, then the owner's colour on it
+    g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#04070f', 'stroke-width': 2.6, 'stroke-linecap': 'round' }));
+    g.appendChild(s('path', { d: rim, fill: 'none', stroke: c0, 'stroke-width': 0.8, 'stroke-linecap': 'round', 'stroke-opacity': 0.95 }));
+    // name tag under the ship (above it when another tag is already there)
     const low = x.cells.reduce((a, c) => (Y(c) > Y(a) || (Y(c) === Y(a) && Math.abs(X(c) - X(x.pos)) < Math.abs(X(a) - X(x.pos))) ? c : a), x.cells[0]);
-    const label = (x.flagship ? '★ ' : '') + x.id + (x.mine || v.me === 'all' ? '' : x.tier >= 3 ? ' ▣' : ' ◆'), tw = (label.length * 7.2 + 8) / px, th = 15 / px;
-    const lx = X(x.pos), ly = Y(low) + S + th * 0.7;
-    g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: c0, 'stroke-width': f1(1 / px) }));
-    g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: c0 }, label));
+    const high = x.cells.reduce((a, c) => (Y(c) < Y(a) ? c : a), x.cells[0]);
+    const roomy = W * px >= 44 || x.id === sel, nm = nameOf && roomy ? nameOf(x) : null;
+    const label = (x.flagship ? '★ ' : '') + (nm || x.id) + (x.mine || v.me === 'all' ? '' : x.tier >= 3 ? ' ▣' : ' ◆'), tw = (label.length * 7.2 + 8) / px, th = 15 / px;
+    const mid = x.cells.reduce((n, c) => n + X(c), 0) / x.cells.length, quiet = idle && idle.has(x.id);
+    let lx = mid, ly = Y(low) + S + th * 0.7;
+    const hit = (ax, ay) => tags.some((r) => Math.abs(r[0] - ax) < (r[2] + tw) / 2 && Math.abs(r[1] - ay) < th * 1.05);
+    if (hit(lx, ly)) { const up = Y(high) - S - th * 0.7; if (!hit(lx, up)) ly = up; }
+    tags.push([lx, ly, tw]);
+    g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: quiet ? '#6b7592' : c0, 'stroke-width': f1(1 / px), 'stroke-dasharray': quiet ? f1(3 / px) + ' ' + f1(2 / px) : null }));
+    g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: quiet ? '#9aa5c0' : c0 }, label));
     svg.appendChild(g);
   }
 
@@ -303,23 +380,48 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     }
   }
 
-  // taps and dragging. A drag moves the view; a tap is passed on.
-  let down = null, dragged = false;
-  const zoomed = cam.w < W * (2 * R + 1);
-  svg.style.touchAction = zoomed ? 'none' : 'pan-y';
-  svg.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y }; dragged = false; });
+  // taps, dragging and pinching. One finger (or the mouse) drags the view, two fingers zoom it; a tap is passed on.
+  let down = null, dragged = false, pinch = null;
+  const touches = new Map();
+  const showCam = () => svg.setAttribute('viewBox', [cam.x - cam.w / 2, cam.y - (cam.w * aspect) / 2, cam.w, cam.w * aspect].map(f1).join(' '));
+  const clampCam = () => { cam.x = Math.max(-W * (R + 0.5), Math.min(W * (R + 0.5), cam.x)); cam.y = Math.max(-1.5 * S * R, Math.min(1.5 * S * R, cam.y)); };
+  svg.style.touchAction = 'none';
+  svg.addEventListener('pointerdown', (ev) => {
+    touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      pinch = { d: Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1])), w: cam.w, maxW: Math.max(cam.w, cam.max || cam.w), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, cx: cam.x, cy: cam.y };
+      dragged = true; down = null;
+    } else { down = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, k: cam.w / box.clientWidth }; dragged = false; }
+  });
   svg.addEventListener('pointermove', (ev) => {
-    if (!down || !zoomed) return;
+    if (touches.has(ev.pointerId)) touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (pinch && touches.size >= 2) {
+      const [a, b] = [...touches.values()], d = Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1]));
+      const k0 = pinch.w / box.clientWidth;
+      cam.w = Math.max(4 * W, Math.min(pinch.maxW, (pinch.w * pinch.d) / d));
+      const k1 = cam.w / box.clientWidth, r = box.getBoundingClientRect(), ox = pinch.mx - r.left - r.width / 2, oy = pinch.my - r.top - r.height / 2;
+      // keep the point between the fingers where it was, and follow the fingers as they slide
+      cam.x = pinch.cx + ox * (k0 - k1) - ((a[0] + b[0]) / 2 - pinch.mx) * k1;
+      cam.y = pinch.cy + oy * (k0 - k1) - ((a[1] + b[1]) / 2 - pinch.my) * k1;
+      clampCam(); showCam();
+      return;
+    }
+    if (!down) return;
     const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
     if (!dragged && Math.hypot(dx, dy) < 8) return;
     dragged = true;
     try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
-    cam.x = Math.max(-W * (R + 0.5), Math.min(W * (R + 0.5), down.cx - dx / px));
-    cam.y = Math.max(-1.5 * S * R, Math.min(1.5 * S * R, down.cy - dy / px));
-    svg.setAttribute('viewBox', [cam.x - vw / 2, cam.y - vh / 2, vw, vh].map(f1).join(' '));
+    cam.x = down.cx - dx * down.k; cam.y = down.cy - dy * down.k;
+    clampCam(); showCam();
   });
-  svg.addEventListener('pointerup', () => { down = null; });
-  svg.addEventListener('pointercancel', () => { down = null; });
+  const lift = (ev) => {
+    touches.delete(ev.pointerId);
+    if (pinch && touches.size < 2) { pinch = null; down = null; if (onCam) setTimeout(onCam, 0); }   // redraw at the new zoom (detail level, text sizes)
+    if (!touches.size) down = null;
+  };
+  svg.addEventListener('pointerup', lift);
+  svg.addEventListener('pointercancel', lift);
   svg.addEventListener('click', (ev) => {
     if (dragged) { dragged = false; return; }
     const m = svg.getScreenCTM(); if (!m) return;

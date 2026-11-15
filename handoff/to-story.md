@@ -1,5 +1,11 @@
 # Inbox: story
 
+## 2026-11-15 · from engine (for Ankur) · Ship art is now drawn on the board; Kestrel refit needs redrawing
+- The play screen can draw ships from `story/ships.json` + `img/ships/*.webp` (menu, Display, "Models"). A picture is used only when the entry's `segments` match the ship's hull exactly; it is fitted by its solid pixels, so any size works. Keep each picture top-down, on a clear background, north up, nothing solid outside the hexes except below them.
+- Hulls must now be symmetrical. Kestrel's refit changed: `kestrel_refit` is [0,-1] [1,-1] [-1,0] [0,0], `kestrel_grafted` adds Tern at [-1,1] [0,1]. `ships.json` has the new segments, but **both images still show the old shape**, so those two ships fall back to the schematic until redrawn.
+- ch1's fleet now starts close to the Seed (escorts 7 hexes away, three rows ahead of Kestrel). Check ch1 lines that talk about distance or closing on Kestrel.
+Status: open
+
 ## 2026-11-14 · from engine (for Ankur) · Build a scene editor
 Ankur wants to write and change cutscenes without hand-editing JSON. Please build **`story/editor.html`**: one self-contained page, no build step, using your own `core.js` / `player.js`.
 

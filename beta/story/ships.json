@@ -24,43 +24,43 @@
   "side": "player",
   "segments": [
    [
+    0,
+    0
+   ],
+   [
     -1,
     0
    ],
    [
     0,
-    0
+    -1
    ],
    [
     1,
-    0
-   ],
-   [
-    0,
     -1
    ]
   ],
   "img": "img/ships/kestrel_refit.webp",
-  "note": "ch3-4 refit (campaign kestrel@ch3 / kestrel@ch4a): 4 segments, +[0,-1] SHIELD segment from the ch2 salvage. The ch2 launcher is bolted onto the existing 3-hex hull (see kestrel)"
+  "note": "ch3-4 refit (campaign kestrel@ch3 / kestrel@ch4a): 4 segments, +[0,-1] SHIELD segment from the ch2 salvage. The ch2 launcher is bolted onto the existing 3-hex hull (see kestrel) | engine 2026-11-15: the hull is now a rhombus [0,-1] [1,-1] [-1,0] [0,0] (hulls must be symmetrical); this image still shows the old T and needs redrawing"
  },
  "kestrel_grafted": {
   "name": "Kestrel (grafted)",
   "side": "player",
   "segments": [
    [
+    0,
+    0
+   ],
+   [
     -1,
     0
    ],
    [
     0,
-    0
+    -1
    ],
    [
     1,
-    0
-   ],
-   [
-    0,
     -1
    ],
    [
@@ -73,7 +73,7 @@
    ]
   ],
   "img": "img/ships/kestrel_grafted.webp",
-  "note": "Kestrel refit + Tern fused at [-1,1],[0,1]; glowing Weave seam (ch4a)"
+  "note": "Kestrel refit + Tern fused at [-1,1],[0,1]; glowing Weave seam (ch4a) | engine 2026-11-15: Kestrel is the rhombus above, so the six hexes are the centre + ring without [1,0]; image needs redrawing"
  },
  "sparrow": {
   "name": "Sparrow",
