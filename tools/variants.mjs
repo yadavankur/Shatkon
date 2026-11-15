@@ -222,7 +222,7 @@ export function suiteCells(name) {
 const pc = (x) => Math.round(100 * x) + '%';
 const per = (x, n) => (x / n).toFixed(1);
 function missileLine(r) {
-  const f = (s) => `launched ${per(s.launched, r.games)}, stopped by point defence ${per(s.stopped, r.games)}, shot down ${per(s.shot, r.games)}, ran out or flew off ${per(s.lost, r.games)}, landed ${per(s.landed, r.games)}, ships sunk ${per(s.mkills, r.games)}`;
+  const f = (s) => `launched ${per(s.launched, r.games)}, stopped by point defence ${per(s.stopped, r.games)}, shot down ${per(s.shot, r.games)}, ran out or flew off ${per(s.lost, r.games)}, landed ${per(s.landed, r.games)}, caught in another blast or still flying at the end ${per(s.launched - s.stopped - s.shot - s.lost - s.landed, r.games)}, ships sunk ${per(s.mkills, r.games)}`;
   return `missiles per battle: A ${f(r.A)} | B ${f(r.B)}`;
 }
 function shipTable(r) {

@@ -61,13 +61,18 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
     x.p.hitRound = state.round;
     lost.push(x.p.t + (x.p.hp > 0 ? ' damaged' : x.c.recharges ? ' down' : ' destroyed'));
   }
+  // damage.magazine_explodes (off unless set): a magazine destroyed while the ship still carries
+  // munitions goes up, wrecking its segment and hitting every neighbouring segment of the ship
+  const mx = state.rules.magazineExplodes, boom = mx > 0 && !guard && !opts.chain && lost.includes('magazine destroyed') && Object.values(ship.load || {}).some((k) => k > 0);
+  if (boom && !sg.wrecked) { sg.wrecked = true; for (const p of sg.parts) p.hp = 0; lost.push('magazine exploded: segment wrecked'); }
   const hull = hullPct(state, ship), at = segHex(ship, si);
   clampLoad(state, ship);
   emit(state, { t: 'damage', ship: ship.id, seg: si, hits: n, lost, cause, hull, at }, [ship.owner]);
   // the shooter sees what the hit knocked off
   for (const q of others(state, ship.owner))
     if (visibleTo(state, q).has(ship.id)) emit(state, { t: 'hit', ship: ship.id, seg: si, hits: n, wrecked: sg.wrecked, cause, lost, hull, at }, [q]);
-  if (!guard && isDead(state, ship)) {
+  if (boom) ship.segs.forEach((g, i) => { if (i !== si && !g.wrecked && dist(segHex(ship, i), at) <= 1) applyHits(state, ship, i, mx, 'magazine', { chain: true }); });
+  if (!guard && !ship.dead && isDead(state, ship)) {
     ship.dead = true;
     for (const pl of state.players) delete pl.seen[ship.id];
     emit(state, { t: 'destroyed', ship: ship.id, name: ship.name, owner: ship.owner, flagship: ship.flagship }, state.players.map((_, i) => i));

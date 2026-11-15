@@ -60,6 +60,22 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     return out;
   };
   const contactCells = (v.contacts || []).flatMap(circleCells);
+  // scans: eager = a scanner pilot spends a point on a scan before it shoots, when a ship that has
+  // moved has an enemy it has never read inside its clear ring (it wants to know what to shoot first)
+  const unread = (f) => !f.segs.every((g) => g.wrecked || g.parts);
+  if (pers && P.cp >= 2) for (const s of mine) {
+    if (prof(s).scans !== 'eager' || (s.used || {}).scan || !s.scanR) continue;
+    if (foes.some((f) => unread(f) && minDist(s.cells, f.cells) <= s.scanR[0])) { const act = { type: 'scan', ship: s.id }; if (E.attempt(state, act).ok) return act; }
+  }
+  // target_priority: threat = with a scan readout, go for the ship with the most working weapons
+  // and the least protection, and for the segment that carries a weapon and no working shield
+  const liveParts = (g) => (g && !g.wrecked && g.parts ? g.parts.filter((p) => p.hp > 0) : []);
+  const isWeapon = (p) => (R.parts[p.t].range && R.parts[p.t].hits) || R.parts[p.t].launches;
+  const threat = (tgt, at) => {
+    const all = tgt.segs.flatMap(liveParts), g = tgt.segs[tgt.cells.findIndex((c) => c[0] === at[0] && c[1] === at[1])];
+    return 3 * all.filter(isWeapon).length - all.filter((p) => R.parts[p.t].recharges || R.parts[p.t].hp > 1).length +
+      (liveParts(g).some(isWeapon) ? 4 : 0) - (liveParts(g).some((p) => R.parts[p.t].recharges) ? 3 : 0);
+  };
   // 1. Fire: best laser shot available (prefer flagship, then most hits, then incoming missiles)
   let best = null;
   for (const s of mine) {
@@ -72,7 +88,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       let score = t.hits * 10;
       if (tgt && Array.isArray(pr.target) && pr.target.includes(nameOf(tgt.id))) score += 15;
       if (tgt && pr.target === 'smallest') score += 8 - tgt.segs.length;
-      if (tgt)
+      if (tgt && pers && pr.target_priority === 'threat' && !unread(tgt)) score += threat(tgt, t.at);
+      else if (tgt)
         score += tgt.segs.length >= 5 ? 6 : 3; // enemy flagship is unknown; guess the big one
       else {
         const o = v.objs.find((o) => o.id === t.target);
@@ -268,8 +285,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   };
   // unarmed_ships: bait = a ship with no weapons (a decoy, a picket) runs ahead of the fleet instead
   // of sitting beside the flagship: the enemy that shoots it lights itself up
-  const bait = (s) => !!pers && prof(s).unarmed_ships === 'bait' && !s.flagship && !lasersOf(s).length &&
-    !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)));
+  // bait_ship: smallest = the smallest escort is sent ahead as bait even if it is armed (a sacrifice)
+  const baitId = (mine.filter((m) => !m.flagship).sort((a, b) => a.segs.length - b.segs.length || a.id - b.id)[0] || {}).id;
+  const bait = (s) => !!pers && !s.flagship && ((prof(s).bait_ship === 'smallest' && mine.length > 1 && s.id === baitId) || (prof(s).unarmed_ships === 'bait' && !lasersOf(s).length &&
+    !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)))));
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));

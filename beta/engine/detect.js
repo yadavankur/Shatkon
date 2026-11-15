@@ -167,7 +167,7 @@ export function refreshSight(state) {
 
 export function addFlare(state, ship, kind) {
   const amt = num(state.rules.det.flare[kind]) - sumAttr(state, ship, 'flare_reduction');
-  if (amt > 0) ship.flares.push({ amt, until: state.round + 1 });
+  if (amt > 0) ship.flares.push({ amt, until: state.round + ((state.rules.det.flareRounds || {})[kind] || 1) });
 }
 
 // Where a fuzzy contact circle sits. Its centre is the true hex moved by an offset picked

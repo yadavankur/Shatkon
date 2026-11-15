@@ -44,12 +44,15 @@ export function buildRules(world, mapFile, fleetsFile) {
     cp: { perTurn: num(cp.per_turn, 3), bankCap: num(cp.bank_cap, 6) },
     ticks: Math.max(1, num((t.flight_phase || {}).ticks, 6)),
     turnLimit: num(t.turn_limit, 30),
+    // optional rules for simulations (tools/variants.mjs); all off unless the world file sets them
+    firstPlayer: t.first_player === 'fixed' ? 'fixed' : 'alternate', magazineExplodes: num(dmg.magazine_explodes, 0),
     cost: {},
     seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false, symmetric: seg.symmetric_hulls !== false },
-    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
+    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2), minMove: mv.min_move || 0 },
     det: {
       smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
       flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2), scan: num(fl.scan, 2) },
+      flareRounds: { scan: Math.max(1, num((det.flare_rounds || {}).scan, 1)) },
       // scans: [clear, faint] rings near home / mid-field / centre line and beyond
       scanClear: num(det.scan_clear_bonus, 2),
       scanTiers: Array.isArray(det.scan_tiers) && det.scan_tiers.length === 3 ? det.scan_tiers.map((x) => [num(x[0], 0), num(x[1], 0)]) : [[2, 4], [4, 7], [6, 10]],

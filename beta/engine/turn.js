@@ -8,6 +8,7 @@ import { doMove, doFire, doLaunch, doScan, doDetonate, thrustIncome, fleetSegs }
 import { runFlight } from './flight.js';
 import { scoreObjective, markObjective, limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
+import { reach } from './query.js';
 import { afterAction, onTurnStart, checkLocked, doJoin } from './script.js';
 
 export function startTurn(state) {
@@ -47,7 +48,7 @@ function endTurn(state) {
     runFlight(state);
     if (state.phase === 'play') {
       state.round++;
-      state.order = [state.order[1], state.order[0]];
+      if (R.firstPlayer !== 'fixed') state.order = [state.order[1], state.order[0]];
       state.turn = 0;
       for (const s of state.ships) s.flares = s.flares.filter((f) => f.until >= state.round);
       for (const id of Object.keys(state.lit)) if (state.lit[id] < state.round) delete state.lit[id];
@@ -64,6 +65,19 @@ function endTurn(state) {
   closeTurn(state, rec);
 }
 
+// movement.min_move (off unless the world file sets it): each turn a fleet must move at least this
+// many hexes in all (a number), or spend this share of the thrust its engines made this turn ("50%").
+// Returns what is still owed; nothing is owed once no ship can move any further.
+export function moveOwed(state) {
+  const need = state.rules.move.minMove;
+  if (!need) return 0;
+  const p = current(state), pl = state.players[p], ships = state.ships.filter((x) => x.owner === p);
+  const pct = typeof need === 'string' && need.endsWith('%');
+  const done = ships.reduce((n, x) => n + (pl.moved[x.id] || 0) * (pct ? x.segs.length : 1), 0);
+  const owed = (pct ? Math.ceil((thrustIncome(state, p) * parseFloat(need)) / 100) : Number(need)) - done;
+  return owed > 0 && ships.some((x) => !x.dead && reach(state, x.id).length) ? owed : 0;
+}
+
 const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonate: doDetonate, graft: doJoin, dock: doJoin };
 
 export function apply(state, action) {
@@ -76,6 +90,8 @@ export function apply(state, action) {
   s.flight = null;   // the flight replay, filled in by the flight phase
   const rec = { round: s.round, player: current(s), pre: s.pre };
   if (s.script) checkLocked(s, action);
+  if (rules.move.minMove && action.type !== 'move' && moveOwed(s) > 0 && (action.type === 'end' || s.players[current(s)].cp - (rules.cost[action.type] || 0) < rules.cost.move))
+    no('your fleet must move first: the rules make every fleet move each turn');
   if (action.type !== 'end') DO[action.type](s, action);
   s.pending.push(actionText(action));
   refreshSight(s);

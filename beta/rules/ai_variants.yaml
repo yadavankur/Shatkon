@@ -75,6 +75,10 @@ pilots:
   blind:      { note: "fires missiles without a lock at rough contacts, last-seen spots and the enemy's home rows", base: defensive, missile_range: 12, blind_fire: true, blind_fire_at_home: true, blind_fire_keeps: 0 }
   spread:     { note: "balanced, every ship on its own", base: balanced, keep_together: 0 }
   long:       { note: "fights at maximum laser range and launches from 12 hexes", base: balanced, range: [8, 8], missile_range: 12 }
+  # ---- stage 1B: human-style pilots (need the AI switches scans: eager, target_priority, bait_ship) ----
+  scanner:    { note: "balanced, but scans before it shoots and then goes for the ship with most weapons and least protection", base: balanced, scans: eager, target_priority: threat }
+  hunter:     { note: "balanced, picks targets by weapons and protection from whatever a scan has shown, without extra scans", base: balanced, target_priority: threat }
+  baiter:     { note: "balanced, with its smallest escort sent 4 hexes ahead as a sacrifice to draw fire and scans", base: balanced, bait_ship: smallest, bait_lead: 4 }
 
 
 # ------------------------------------------------------------
@@ -134,6 +138,18 @@ variants:
   # ---- one launch rule at a time ----
   m_salvo_only:      { note: "old rules plus salvo, still launching from 5 hexes", rule: "actions.launch.salvo", set: { munitions.missile.wrecks_segment: false }, pilots: { missile_range: 5 } }
   m_range_only:      { note: "old rules, no salvo, but launching from 8 hexes", rule: "none (pilot habit)", set: { munitions.missile.wrecks_segment: false, actions.launch.salvo: false } }
+
+  # ---- stage 1B: rules behind new switches (all off in the game) ----
+  first_fixed:       { note: "the same player moves first every round (no back-to-back turns)", rule: "turns.first_player (new switch)", set: { turns.first_player: fixed } }
+  move_1:            { note: "every fleet must move at least 1 hex a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 1 } }
+  move_2:            { note: "every fleet must move at least 2 hexes a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 2 } }
+  move_3:            { note: "every fleet must move at least 3 hexes a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 3 } }
+  move_50pct:        { note: "every fleet must spend half the thrust its engines make each turn", rule: "movement.min_move (new switch)", set: { movement.min_move: "50%" } }
+  move_100pct:       { note: "every fleet must spend all the thrust its engines make each turn, as far as it can", rule: "movement.min_move (new switch)", set: { movement.min_move: "100%" } }
+  scan_exposed_2:    { note: "a scan lights up the scanner for 2 rounds, not 1", rule: "detection.flare_rounds.scan (new switch)", set: { detection.flare_rounds.scan: 2 } }
+  scan_exposed_3:    { note: "a scan lights up the scanner for 3 rounds", rule: "detection.flare_rounds.scan (new switch)", set: { detection.flare_rounds.scan: 3 } }
+  magazine_1:        { note: "a loaded magazine that is destroyed wrecks its segment and does 1 hit to each neighbouring segment", rule: "damage.magazine_explodes (new switch)", set: { damage.magazine_explodes: 1 } }
+  magazine_3:        { note: "the same, 3 hits to each neighbouring segment", rule: "damage.magazine_explodes (new switch)", set: { damage.magazine_explodes: 3 } }
 
 
 # ------------------------------------------------------------
@@ -259,3 +275,57 @@ suites:
       - "missiles3:balanced v guns3:balanced"
       - "missile5:balanced v mixed4:balanced"
       - "wolfpack4:balanced v shields3:balanced"
+
+  # ---------------- stage 1B ----------------
+  tempo:
+    note: "who moves first: alternating (baseline) against fixed. Mirror cells are here on purpose, to measure the seat"
+    games: 20
+    variants: [baseline, first_fixed]
+    matchups:
+      - "stock:balanced v stock:balanced"
+      - "solo:balanced v solo:balanced"
+      - "team3:balanced v team3:balanced"
+      - "guns4:balanced v guns4:balanced"
+      - "mixed5:balanced v mixed5:balanced"
+
+  forced:
+    note: "forced movement at five levels, against sitters, campers, both-sit, and two ordinary fights"
+    variants: [baseline, move_1, move_2, move_3, move_50pct, move_100pct]
+    matchups:
+      - "stock:balanced v stock:sitter"
+      - "mixed4:balanced v mixed4:sitter"
+      - "stock:balanced v stock:camper"
+      - "guns3:balanced v guns3:camper"
+      - "stock:sitter v stock:sitter"
+      - "mixed4:sitter v mixed4:sitter"
+      - "mixed5:aggressive v mixed5:defensive"
+      - "guns3:balanced v snipers3:balanced"
+
+  scan_b:
+    note: "longer scan exposure and exploding magazines"
+    missiles: true
+    variants: [baseline, scan_exposed_2, scan_exposed_3, magazine_1, magazine_3]
+    matchups:
+      - "stock:balanced v stock:sitter"
+      - "guns3:balanced v snipers3:balanced"
+      - "stealth4:balanced v guns4:balanced"
+      - "shields3:balanced v missiles3:balanced"
+      - "guns3:balanced v missiles3:balanced"
+      - "mixed4:balanced v missile5:balanced"
+
+  humans:
+    note: "human-style pilots against the baseline computer (balanced)"
+    variants: [baseline, scan_wide, scan_free]
+    matchups:
+      - "mixed4:scanner v mixed4:balanced"
+      - "team3:scanner v team3:balanced"
+      - "mixed5:scanner v mixed5:balanced"
+      - "guns3:scanner v snipers3:balanced"
+      - "mixed4:hunter v mixed4:balanced"
+      - "team3:hunter v team3:balanced"
+      - "mixed4:baiter v mixed4:balanced"
+      - "team3:baiter v team3:balanced"
+      - "cheap5:baiter v guns3:balanced"
+      - "swarm5:baiter v guns4:balanced"
+      - "stealth4:baiter v guns4:balanced"
+      - "decoys5:decoy v mixed3:balanced"
