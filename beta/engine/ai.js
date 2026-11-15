@@ -14,7 +14,14 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const easy = level === 'easy';
   const rnd = opts.rand || Math.random, P0 = opts.profiles || {};
   const pers = personalityOf(state, level, opts);
-  const prof = (s) => P0[s.id] || pers || {};
+  // a ship can carry its own personality (fleets file: `ai: aggressive` on the ship), so one fleet
+  // can mix a cautious flagship with a reckless escort
+  const own = {};
+  if (pers) for (const x of state.ships) if (x.owner === seat && !x.dead) {
+    const def = (((state.rules.fleets[seat] || {}).ships || []).find((d) => d.name === x.name) || {}).ai;
+    if (def && ((state.rules.ai || {}).personalities || {})[def]) own[x.id] = state.rules.ai.personalities[def];
+  }
+  const prof = (s) => P0[s.id] || own[s.id] || pers || {};
   const nameOf = opts.nameOf || (() => null);
   const capHit = (() => { const caps = Object.values(P0).map((p) => p.max_hits_per_round).filter((x) => typeof x === 'number'); return caps.length && (opts.hitsSoFar || 0) >= Math.min(...caps); })();
   const H = E.hex,
@@ -115,6 +122,32 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     const act = { type: 'launch', ship: s.id, kind: 'missile', start, target: t.id, route: [] };
     if (easy && rnd() < 0.5) continue; // easy: hesitates
     return act;
+  }
+  // 2a. Blind fire: no lock needed. A personality with `blind_fire` sends a missile down the line
+  // to where it believes the enemy is (a rough contact, a last-seen position, or, with
+  // `blind_fire_at_home`, the middle of the enemy's home rows) and lets the missile's own seeker
+  // do the rest. It keeps `blind_fire_keeps` missiles back for a proper lock.
+  if (pers && !capHit && !foes.length) {
+    for (const s of mine) {
+      const pr = prof(s);
+      if (!pr.blind_fire) continue;
+      const have = (s.load || {}).missile || 0;
+      if (have <= (pr.blind_fire_keeps ?? 1)) continue;
+      const m = R.munitions.missile;
+      if (!m) continue;
+      const reachHex = m.speed * (m.fuel || 1);
+      const spots = (v.contacts || []).filter((c) => c.kind === 'ship').map((c) => c.at).concat(v.ghosts.filter((g) => g.kind === 'ship').map((g) => g.pos));
+      if (!spots.length && pr.blind_fire_at_home && v.round >= (pr.blind_fire_from_round ?? 2)) {
+        const z = v.zones.find((zz) => zz.name.indexOf(v.players[seat]) !== 0 && zz.edge);
+        if (z) spots.push(z.edge === 'north' ? [0, -(v.board.radius - 1)] : [0, v.board.radius - 1]);
+      }
+      const aim = spots.filter((c) => minDist(s.cells, [c]) <= reachHex).sort((a, b) => minDist(s.cells, [a]) - minDist(s.cells, [b]))[0];
+      if (!aim) continue;
+      // one blind shot per target area per round: don't empty the magazine at the same guess
+      if (v.objs.some((o) => o.mine && o.kind === 'missile' && !o.target && minDist([o.pos], s.cells) <= 2)) continue;
+      const act = E.aimLaunch(state, s.id, 'missile', aim);
+      if (act && E.attempt(state, act).ok) return act;
+    }
   }
   // 2b. Scan when blind: no enemy located and a scan is ready. Scans only work on a
   // turn the ship has moved, and get stronger the further forward it is, so the
@@ -310,7 +343,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   // point to spare for the step. Works only from what this seat can see.
   function attackRun(b) {
     const s = b.ship, pr = prof(s);
-    if (!pers || pr.attack_run === false || !R.det.attackRun || !b.tgt || s.moved > 0 || pr.stance === 'hold') return null;
+    if (!pers || pr.attack_run === false || !R.det.attackRun || !b.tgt || s.moved > 0 || (pr.stance === 'hold' && !pr.steps_while_holding)) return null;
     const shots = mine.reduce((n, m) => n + new Set(E.beamTargets(state, m.id).map((t) => t.seg + '.' + t.part)).size, 0);
     if (P.cp < shots + 1) return null;
     const weapon = R.parts[s.segs[b.action.seg].parts[b.action.part].t], off = s.segs[b.action.seg].off;

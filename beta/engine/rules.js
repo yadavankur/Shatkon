@@ -101,7 +101,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     const fleet = { name, ships: [], deployment: [], cost: 0 };
     for (const sh of listOf(src.ships)) {
       const label = `${name} / ${sh.name || '(unnamed ship)'}`;
-      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}) };
+      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}), ...(typeof sh.ai === 'string' ? { ai: sh.ai } : {}) };   // ai: this ship's own personality when the computer flies it
       let couplings = 0, cores = 0, holds = 0, launchers = 0;
       for (const hx of listOf(sh.hull)) {
         if (!Array.isArray(hx.at)) { problems.push(`${label}: a hull entry has no "at".`); continue; }

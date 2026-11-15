@@ -1,0 +1,92 @@
+# ============================================================
+#  TEST FLEETS  -  ship designs and fleets for tools/scenarios.mjs
+#
+#  Not part of the game (it is not listed in index.yaml): this is the
+#  library the simulations draw on to pit different kinds of fleet
+#  against each other. Add a design or a fleet here and it joins the
+#  next run. Parts and prices come from world_v0.4.yaml.
+# ============================================================
+
+designs:
+
+  # ---- the two ships of the stock game ----
+  scout:                       # small, quiet, one laser (the stock "Blob A")
+    hull:
+      - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [armour] }
+      - { at: [0, 0],  bays: [core, engine, coupling] }
+      - { at: [1, 0],  bays: [sensor, engine, stealth], mounts: [laser] }
+  flagship:                    # the stock "Blob B": 7 segments, one laser, 2 missiles, point defence
+    load: { missile: 2 }
+    hull:
+      - { at: [0, 0],  bays: [core, magazine, comms] }
+      - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, shield] }
+      - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
+      - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+      - { at: [-1, 0], bays: [engine, coupling, stealth] }
+      - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+      - { at: [0, 1],  bays: [engine, coupling, stealth] }
+
+  # ---- cheap ships ----
+  decoy:                       # a core and an engine: nothing to shoot with, nearly free
+    hull:
+      - { at: [0, 0], bays: [core, engine] }
+  picket:                      # eyes only: sensor 4, signature 1
+    hull:
+      - { at: [0, 0], bays: [core, sensor, engine] }
+
+  # ---- escorts ----
+  gunboat:                     # two lasers, a shield and armour
+    hull:
+      - { at: [0, 0], bays: [core, engine, sensor],     mounts: [laser, shield] }
+      - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  missile_boat:                # two launchers, 3 missiles, no gun
+    load: { missile: 3 }
+    hull:
+      - { at: [0, 0], bays: [core, engine, magazine],   mounts: [launcher] }
+      - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
+  sniper:                      # sees 6 hexes, signature 1, two lasers
+    hull:
+      - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+      - { at: [0, 0],  bays: [core, sensor, sensor] }
+      - { at: [1, 0],  bays: [engine, stealth, coupling], mounts: [laser] }
+
+  # ---- other flagships ----
+  brawler:                     # 7 segments, three lasers, three shields, no missiles
+    hull:
+      - { at: [0, 0],  bays: [core, sensor, comms] }
+      - { at: [1, 0],  bays: [engine, engine, coupling], mounts: [laser, shield] }
+      - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [laser, shield] }
+      - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+      - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+      - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+      - { at: [0, 1],  bays: [engine, coupling, stealth] }
+  missile_flagship:            # 7 segments, three launchers, one laser; `missiles` in the fleet sets its load (up to 15)
+    load: { missile: 9 }
+    hull:
+      - { at: [0, 0],  bays: [core, magazine, magazine] }
+      - { at: [1, 0],  bays: [engine, magazine, coupling], mounts: [launcher, shield] }
+      - { at: [1, -1], bays: [engine, sensor, coupling],   mounts: [launcher, point_defence] }
+      - { at: [0, -1], bays: [engine, magazine, coupling], mounts: [armour, laser] }
+      - { at: [-1, 0], bays: [engine, magazine, coupling], mounts: [launcher] }
+      - { at: [-1, 1], bays: [engine, engine, coupling],   mounts: [armour] }
+      - { at: [0, 1],  bays: [engine, engine, coupling] }
+  small_flagship:              # 4 segments: two lasers, a launcher with 3 missiles, point defence
+    load: { missile: 3 }
+    hull:
+      - { at: [0, 0],  bays: [core, magazine, sensor] }
+      - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+      - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+      - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+
+
+# A fleet is a list of ships. The first one marked `flag` is the flagship (lose it and you lose).
+# `ai:` gives one ship its own personality; `missiles:` overrides how many it carries.
+fleets:
+  stock:        [ { ship: flagship, flag: true }, { ship: scout } ]
+  guns3:        [ { ship: brawler, flag: true }, { ship: gunboat }, { ship: gunboat } ]
+  missiles3:    [ { ship: missile_flagship, flag: true }, { ship: missile_boat }, { ship: missile_boat } ]
+  snipers3:     [ { ship: flagship, flag: true }, { ship: sniper }, { ship: sniper } ]
+  decoys5:      [ { ship: flagship, flag: true }, { ship: scout }, { ship: decoy }, { ship: decoy }, { ship: decoy } ]
+  mixed3:       [ { ship: flagship, flag: true, ai: defensive }, { ship: gunboat, ai: aggressive }, { ship: missile_boat, ai: balanced } ]
+  swarm5:       [ { ship: small_flagship, flag: true }, { ship: gunboat }, { ship: gunboat }, { ship: missile_boat }, { ship: picket } ]
+  missile5:     [ { ship: small_flagship, flag: true }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat }, { ship: missile_boat } ]

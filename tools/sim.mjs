@@ -12,6 +12,7 @@
 //
 // Policies: easy, normal (the stock levels), old (normal as it was before personalities),
 // sit (old, but never moves a ship), sit:balanced (that personality, but never moves a ship),
+// camp (stays home, but shuffles one hex before each shot for the attack-run hit),
 // and any personality named in the world file's `ai.personalities` (aggressive, defensive, balanced).
 // Each pairing is played from both seats with the same seeds, so seat and first-move luck cancel.
 // Columns: "no kill" = games that ran to the round limit; "hexes" = hexes moved per game;
@@ -100,6 +101,12 @@ export function policy(name) {
     const pers = name.slice(4), base = ((g.rules.ai || {}).personalities || {})[pers] || {};
     const profiles = Object.fromEntries(g.ships.filter((s) => s.owner === seat).map((s) => [s.id, { ...base, stance: 'hold' }]));
     return computerMove(g, seat, 'normal', { profiles, personality: pers });
+  };
+  // camp = stays home like the sitter, but shuffles one hex before each shot to claim the attack-run hit
+  if (name === 'camp') return (g, seat) => {
+    const base = { range: [8, 8], keep_together: 3, missile_range: 6, stance: 'hold', steps_while_holding: true };
+    const profiles = Object.fromEntries(g.ships.filter((s) => s.owner === seat).map((s) => [s.id, base]));
+    return computerMove(g, seat, 'normal', { profiles, personality: 'balanced' });
   };
   if (name === 'old') return (g, seat) => computerMove(g, seat, 'normal', { personality: false });   // the stock AI before personalities
   if (name === 'easy' || name === 'normal') return (g, seat) => computerMove(g, seat, name);
