@@ -286,7 +286,35 @@ terrain:
 
 
 # ------------------------------------------------------------
-# 12. PARKED FOR LATER  (not in the engine yet)
+# 12. THE COMPUTER OPPONENT  (how it likes to fight)
+# ------------------------------------------------------------
+#  These change how the computer plays, not what is allowed. Story chapters
+#  ignore them: their ships follow the chapter file's ai_profiles.
+ai:
+  vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)
+  personalities:
+    aggressive:
+      note: "closes to point-blank range and keeps firing; launches as soon as it is close"
+      range: [2, 3]           # hexes it tries to fight from: [escorts, flagship]
+      keep_together: 4        # escorts stay within this many hexes of the flagship (0 = roam freely)
+      missile_range: 4        # launches at a target this close or closer
+      attack_run: true        # steps one hex before firing when it has a command point to spare (+1 hit)
+    balanced:
+      note: "fights at full laser strength, fleet in close order"
+      range: [3, 4]
+      keep_together: 3
+      missile_range: 5
+      attack_run: true
+    defensive:
+      note: "stands off at long range behind its flagship's guns and lets you come to it"
+      range: [5, 6]
+      keep_together: 2
+      missile_range: 6
+      attack_run: true
+
+
+# ------------------------------------------------------------
+# 13. PARKED FOR LATER  (not in the engine yet)
 # ------------------------------------------------------------
 # - Ships that rotate
 # - A destroyed coupling breaking the ship in two; twin ships that split on purpose

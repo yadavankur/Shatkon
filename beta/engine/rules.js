@@ -75,6 +75,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     terrain: listOf(m.terrain).filter((x) => isObj(x) && Array.isArray(x.at)).map((x) => ({ type: x.type, at: x.at, cells: terrainCells(x) })),
     objective: readObjective(m.objective),
     budget: num(f.budget, Infinity),
+    ai: isObj(w.ai) ? w.ai : {},   // computer-opponent personalities (plain numbers the AI reads)
     fleets: [],
   };
   for (const a of ['move', 'fire', 'launch', 'scan', 'detonate']) rules.cost[a] = num((act[a] || {}).cost, 1);

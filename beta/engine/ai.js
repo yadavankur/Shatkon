@@ -8,9 +8,13 @@ import * as E from './index.js';
 
 // opts (story campaigns, see campaignMove): profiles { shipId: profile }, rand (seeded),
 // nameOf(id), via { shipName: true } (already went through its path_via zone), hitsSoFar.
+// opts.personality: a name from the world file's `ai.personalities` (aggressive, defensive, balanced).
+// A "normal" skirmish game with no personality given plays the world file's `ai.vs_computer`.
 export function computerMove(state, seat, level = 'normal', opts = {}) {
   const easy = level === 'easy';
-  const rnd = opts.rand || Math.random, P0 = opts.profiles || {}, prof = (s) => P0[s.id] || {};
+  const rnd = opts.rand || Math.random, P0 = opts.profiles || {};
+  const pers = personalityOf(state, level, opts);
+  const prof = (s) => P0[s.id] || pers || {};
   const nameOf = opts.nameOf || (() => null);
   const capHit = (() => { const caps = Object.values(P0).map((p) => p.max_hits_per_round).filter((x) => typeof x === 'number'); return caps.length && (opts.hitsSoFar || 0) >= Math.min(...caps); })();
   const H = E.hex,
@@ -72,8 +76,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
             ? 25
             : 2;
       }
+      // personalities finish what they started: a ship already holed is worth more than a fresh one
+      if (pers && tgt && pr.focus_fire !== false) score += tgt.segs.filter((g) => g.wrecked).length * 2 - H.dist(s.pos, t.at) * 0.05;
       if (!best || score > best.score)
-        best = { score, action: { type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at } };
+        best = { score, hits: t.hits, ship: s, tgt, action: { type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at } };
     }
   }
   // easy: fires at whatever it happens to pick, not the best target
@@ -83,7 +89,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     );
     if (all.length && rnd() < 0.5) return all[Math.floor(rnd() * all.length)];
   }
-  if (best && best.score >= 10) return best.action;
+  if (best && best.score >= 10) {
+    const run = attackRun(best);   // a personality steps a hex first when that earns the attack-run hit
+    return run || best.action;
+  }
   // 2. Launch a locked missile at a visible ship within sensible range
   for (const s of capHit ? [] : mine) {
     const lo = E.launchOptions(state, s.id);
@@ -93,7 +102,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       .filter(Boolean)
       .filter((t) => !Array.isArray(prof(s).only_targets) || prof(s).only_targets.includes(nameOf(t.id)))
       .map((t) => ({ t, d: minDist(s.cells, t.cells) }))
-      .filter((x) => x.d <= (prof(s).launch_range ?? (easy ? 3 : 5))) // close range: little time to react, point defence gets fewer shots
+      .filter((x) => x.d <= (prof(s).launch_range ?? prof(s).missile_range ?? (easy ? 3 : 5))) // close range: little time to react, point defence gets fewer shots
       .sort((a, b) => (prof(s).target === 'smallest' ? a.t.segs.length - b.t.segs.length : b.t.segs.length - a.t.segs.length) || a.d - b.d);
     if (Array.isArray(prof(s).target)) targets.sort((a, b) => (prof(s).target.includes(nameOf(b.t.id)) ? 1 : 0) - (prof(s).target.includes(nameOf(a.t.id)) ? 1 : 0));
     if (!targets.length) continue;
@@ -138,7 +147,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const objPull = !obj ? 0 : theirScore > myScore ? 2 : theirScore === myScore ? 1.2 : 0.6;
   const onObj = (cells) => obj && cells.some((c) => H.dist(c, obj.at) <= obj.radius);
   const knownMines = mine.length && mine.every((s) => prof(s).avoid_mines === false) ? new Set() : new Set(
-    v.objs.filter((o) => !o.mine && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
+    // (a personality also plans round its own mines: with friendly fire on, it may not cross them either)
+    v.objs.filter((o) => (!o.mine || (pers && R.friendlyFire)) && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
   );
   const goalCells = foes.length
     ? null
@@ -157,8 +167,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     if (tt.blocks_sight || tt.blocks_movement || tt.blocks_move) t.cells.forEach((c) => blockMove.add(H.key(c)));
   }
   const bfsCache = {};
-  const stepsToRange = (s, target, want) => {
-    const ck = s.id + ':' + want;
+  const stepsToRange = (s, target, want, tag = '') => {
+    const ck = s.id + ':' + want + tag;
     if (!bfsCache[ck]) {
       const fits = (c) =>
         s.segs.every((g) => {
@@ -197,6 +207,23 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       return x === undefined ? 99 : x;
     };
   };
+  // A ship's working beam weapons, and the most hits any of them would do on foe f with the ship
+  // centred on `center` (0 = no shot: out of range, an asteroid in the way, or only wrecks in reach).
+  const lasersOf = (s) => s.segs.flatMap((g) => (g.wrecked ? [] : (g.parts || []).filter((p) => p.hp > 0 && R.parts[p.t].range && R.parts[p.t].hits).map((p) => ({ off: g.off, c: R.parts[p.t] }))));
+  const hitsFrom = (s, center, f) => {
+    let m = 0;
+    for (const l of lasersOf(s)) {
+      const src = H.add(center, l.off);
+      f.cells.forEach((tc, i) => {
+        if (f.segs[i].wrecked) return;
+        const dd = H.dist(src, tc);
+        if (dd < 1 || dd > l.c.range) return;
+        const hh = l.c.hits - (l.c.loses_1_hit_every ? Math.floor((dd - 1) / l.c.loses_1_hit_every) : 0);
+        if (hh > m && clearLine(src, tc)) m = hh;
+      });
+    }
+    return m;
+  };
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));
@@ -222,12 +249,21 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
         .sort((a, b) => (pr.target === 'smallest' ? a.segs.length - b.segs.length : pr.target === 'nearest' ? 0 : b.segs.length - a.segs.length) || minDist(s.cells, a.cells) - minDist(s.cells, b.cells))[0];
       const d = minDist(cells, target.cells);
       let want = (easy ? [2, 3] : v.round > 8 ? [3, 4] : [5, 6])[s.flagship ? 1 : 0]; // normal keeps a cautious stand-off distance
+      if (Array.isArray(pr.range)) want = pr.range[s.flagship ? 1 : 0];   // a personality fights from its own range
       if (typeof pr.stand_off === 'number') want = pr.stand_off;
       if (pr.stance === 'charge') want = 1;
       score -= d > want ? stepsToRange(s, target, want)(center) * 3 : (want - d) * 3;
       if (hasLaser) {
         // a clear 2-hit shot (4 hexes) is worth much more than a 1-hit plink that shields soak
         let shot = 0;
+        if (pers) {
+          // personalities measure the real shot: from the hexes their working lasers sit on, to a
+          // segment that is still standing, at the strength the rules give at that distance
+          const full = lasersOf(s).reduce((m, l) => Math.max(m, l.c.hits), 0);
+          const hh = hitsFrom(s, center, target);
+          shot = hh <= 0 ? 0 : hh >= full ? 5 : 2;
+          if (!shot) for (const f of foes) if (f !== target) { const h2 = hitsFrom(s, center, f); if (h2 > 0) shot = Math.max(shot, h2 >= full ? 3 : 1.5); }
+        } else {
         for (const c of cells)
           for (const tc of target.cells) {
             const dd = H.dist(c, tc);
@@ -239,6 +275,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
             if (f === target) continue;
             for (const c of cells) for (const tc of f.cells) { const dd = H.dist(c, tc); if (dd >= 1 && dd <= 8 && clearLine(c, tc)) shot = Math.max(shot, dd <= 4 ? 3 : 1.5); }
           }
+        }
         // nothing to shoot from here at all: don't wait, look for a line (cornered defence gains little)
         if (!shot && d <= want + 2) score -= 2.5;
         score += shot;
@@ -246,10 +283,17 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       if (d <= 1 && pr.stance !== 'charge') score -= 4; // don't ram
     } else {
       // scout ahead, flagship trails the scout a little
-      const d = minDist(cells, goalCells);
+      let d = minDist(cells, goalCells);
+      // a personality counts the hexes of the way round, so an asteroid in between does not strand it
+      if (pers && d > 1) { const way = stepsToRange(s, { cells: goalCells }, 1, 'goal')(center); if (way < 99) d = way + 1; }
       score -= d * (s.flagship ? 0.7 : 1);
       const others = mine.filter((m) => m.id !== s.id);
       if (s.flagship && others.length) score -= Math.max(0, minDist(cells, others[0].cells) - 5) * 0.8;
+    }
+    // a personality keeps its fleet together: an escort that runs ahead alone is picked off
+    if (pers && pr.keep_together && !s.flagship) {
+      const flag = mine.find((m) => m.flagship && m.id !== s.id);
+      if (flag) score -= Math.max(0, minDist(cells, flag.cells) - pr.keep_together) * 2;
     }
     if (obj) {
       // the scout goes for the beacon; the flagship joins in when behind on points
@@ -258,6 +302,39 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     return score;
   };
+  // The attack run (world: detection.attack_run_bonus): a ship that has moved this turn hits harder.
+  // Before a personality fires, it steps to a hex that keeps the same shot, if it has a command
+  // point to spare for the step. Works only from what this seat can see.
+  function attackRun(b) {
+    const s = b.ship, pr = prof(s);
+    if (!pers || pr.attack_run === false || !R.det.attackRun || !b.tgt || s.moved > 0 || pr.stance === 'hold') return null;
+    const shots = mine.reduce((n, m) => n + new Set(E.beamTargets(state, m.id).map((t) => t.seg + '.' + t.part)).size, 0);
+    if (P.cp < shots + 1) return null;
+    const weapon = R.parts[s.segs[b.action.seg].parts[b.action.part].t], off = s.segs[b.action.seg].off;
+    const base = (d) => (d >= 1 && d <= weapon.range ? Math.max(0, weapon.hits - (weapon.loses_1_hit_every ? Math.floor((d - 1) / weapon.loses_1_hit_every) : 0)) : 0);
+    const mineCells = new Set(mine.filter((m) => m.id !== s.id).flatMap((m) => m.cells.map(H.key)));
+    const seenMines = new Set(v.objs.filter((o) => !o.mine && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos)));
+    // of the steps that keep the shot, take the one nearest the range this ship likes to fight from
+    const want = Array.isArray(pr.range) ? pr.range[s.flagship ? 1 : 0] : 4;
+    let pick = null;
+    for (const r of E.reach(state, s.id)) {
+      if (r.path.length > 1) continue;
+      const src = H.add(r.at, off);
+      let ok = false;
+      for (let i = 0; i < b.tgt.cells.length && !ok; i++) {
+        if (b.tgt.segs[i].wrecked) continue;
+        const tc = b.tgt.cells[i];
+        if (base(H.dist(src, tc)) < b.hits || !clearLine(src, tc)) continue;
+        ok = !H.line(src, tc).slice(1, -1).some((c) => mineCells.has(H.key(c)));
+      }
+      if (!ok) continue;
+      const cells = s.segs.map((g) => H.add(r.at, g.off));
+      if (cells.some((c) => seenMines.has(H.key(c)))) continue;
+      const sc = -Math.abs(minDist(cells, b.tgt.cells) - want);
+      if (!pick || sc > pick.sc) pick = { sc, action: { type: 'move', ship: s.id, path: r.path } };
+    }
+    return pick && pick.action;
+  }
   let bestMove = null;
   for (const s of mine) {
     if (prof(s).stance === 'hold') continue;
@@ -271,6 +348,18 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   if (bestMove) return bestMove.action;
   if (best) return best.action; // a weak shot is better than nothing
   return { type: 'end' };
+}
+
+// Which personality a seat plays. Story chapters and ships with their own profiles have none.
+// "random" in the world file picks one per game (from the game's own secret salt, so a reloaded
+// game keeps the same opponent).
+export function personalityOf(state, level, opts = {}) {
+  const AI = state.rules.ai || {}, all = AI.personalities || {}, names = Object.keys(all);
+  if (opts.personality) return all[opts.personality] || null;
+  if (level !== 'normal' || opts.profiles || state.rules.campaign || !names.length) return null;
+  const want = AI.vs_computer;
+  if (want === 'random') return all[names[Math.abs(state.fzSalt | 0) % names.length]];
+  return all[want] || null;
 }
 
 // The computer in a story chapter: each ship follows its profile from the chapter file.
