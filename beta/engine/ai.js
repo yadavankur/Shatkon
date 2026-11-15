@@ -338,16 +338,12 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     return pick && pick.action;
   }
-  // variety: a personality does not play the same opening every game. Each move's score is nudged
-  // by up to +/- variety/2, from a number fixed for this game and this moment (so a replay of the
-  // same game still makes the same choices).
-  const vary = pers && pers.variety > 0 ? E.seededRandom(E.fnv((state.fzSalt | 0) + '|' + state.seq + '|' + seat)) : null;
   let bestMove = null;
   for (const s of mine) {
     if (prof(s).stance === 'hold') continue;
     const here = scorePos(s, s.pos);
     for (const r of E.reach(state, s.id)) {
-      const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + (vary ? (vary() - 0.5) * pers.variety : 0);
+      const gain = scorePos(s, r.at) - here - r.path.length * 0.05;
       if (gain > (easy ? 1.5 : 0.5) && (!bestMove || gain > bestMove.gain))
         bestMove = { gain, action: { type: 'move', ship: s.id, path: r.path } };
     }

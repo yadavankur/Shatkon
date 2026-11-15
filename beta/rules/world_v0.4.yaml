@@ -293,12 +293,21 @@ terrain:
 ai:
   vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)
   personalities:
+    # range:           hexes it tries to fight from: [escorts, flagship]. The laser is at full
+    #                  strength out to 4 hexes and reaches 8.
+    # keep_together:   escorts stay within this many hexes of the flagship (0 = roam freely).
+    #                  In simulations this mattered most: a fleet that arrives together wins.
+    # missile_range:   launches at a target this close or closer
+    # attack_run:      steps one hex before firing when it has a command point to spare,
+    #                  for the +1 hit (detection.attack_run_bonus). false = fires from where it stands.
+    # missiles_avoid_point_defence: once a scan has shown which targets have working point
+    #                  defence, missiles go to the others first. false = always the biggest ship.
     aggressive:
-      note: "closes to point-blank range and keeps firing; launches as soon as it is close"
-      range: [2, 3]           # hexes it tries to fight from: [escorts, flagship]
-      keep_together: 4        # escorts stay within this many hexes of the flagship (0 = roam freely)
-      missile_range: 4        # launches at a target this close or closer
-      attack_run: true        # steps one hex before firing when it has a command point to spare (+1 hit)
+      note: "closes to point-blank range and launches early"
+      range: [2, 3]
+      keep_together: 3
+      missile_range: 6
+      attack_run: true
     balanced:
       note: "fights at full laser strength, fleet in close order"
       range: [3, 4]
@@ -306,7 +315,7 @@ ai:
       missile_range: 5
       attack_run: true
     defensive:
-      note: "stands off at long range behind its flagship's guns and lets you come to it"
+      note: "stands off at long range with its escort tucked in, and backs away if you close"
       range: [5, 6]
       keep_together: 2
       missile_range: 6
