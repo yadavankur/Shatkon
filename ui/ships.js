@@ -168,23 +168,20 @@ function mirrorDirs(P, S) {
   return { out, cx, cy };
 }
 
-// Pick the bow: of the shape's mirror lines (both ends of each), the one closest to forward.
-// A shape with no mirror line within 60 degrees of forward (the grafted Weave hull, the Twin) points
-// its longest axis instead: of the 30-degree directions, the longest span, the end nearest forward.
+// Pick the bow. A mirror line that points (almost) straight at the enemy wins: the ship is
+// symmetric about its keel. Otherwise (the Lance, the Tri-star, the grafted Weave hull, the Twin)
+// the ship simply points straight at the enemy, snapped to the nearest 30 degrees, rather than
+// flying crabwise along a diagonal mirror line.
 export function bowFor(P, S, forward) {
   const { out } = mirrorDirs(P, S);
   const fw = unit(forward || [0, -1]);
   let best = null, bd = -2;
   for (const a of out.flatMap((x) => [x, x + Math.PI])) { const v = [Math.cos(a), Math.sin(a)], d = dot(v, fw); if (d > bd + 1e-6) { bd = d; best = v; } }
-  if (!best || bd < 0.5 - 1e-6) {
-    const span = (v) => { const pr = P.map((p) => dot(p, v)); return Math.max(...pr) - Math.min(...pr); };
-    let top = -1, cand = [];
-    for (let k = 0; k < 6; k++) { const a = (k * Math.PI) / 6, v = [Math.cos(a), Math.sin(a)], sp = span(v); if (sp > top + S * 0.05) { top = sp; cand = [a]; } else if (sp > top - S * 0.05) cand.push(a); }
-    let b2 = null, d2 = -2;
-    for (const a of cand.flatMap((x) => [x, x + Math.PI])) { const v = [Math.cos(a), Math.sin(a)], d = dot(v, fw); if (d > d2 + 1e-6) { d2 = d; b2 = v; } }
-    if (!best || d2 > bd + 1e-6) { best = b2; bd = d2; }
+  if (!best || bd < 0.97) {
+    const a = Math.round(Math.atan2(fw[1], fw[0]) / (Math.PI / 6)) * (Math.PI / 6);
+    return { bow: [Math.cos(a), Math.sin(a)], symmetric: false };
   }
-  return { bow: best, symmetric: out.length > 0 };
+  return { bow: best, symmetric: true };
 }
 
 // ---------- the ship ----------
