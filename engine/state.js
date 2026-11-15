@@ -130,7 +130,7 @@ export function makeObj(state, kind, owner, pos, dir, extra) {
 
 export function newGame(rules, seed = 1) {
   const state = {
-    v: 1, rules, rid: fnv(stable(rules)).toString(36), rng: seed | 0,
+    v: 1, rules, rid: fnv(stable(rules)).toString(36), rng: seed | 0, seed: seed | 0,   // seed: where rng started, for replays (battle log)
     fzSalt: fnv('fz:' + (seed | 0)) | 0,   // secret per-game salt for where fuzzy contact circles sit
     round: 1, order: [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1, seq: 0,
     players: [], ships: [], objs: [], lit: {},

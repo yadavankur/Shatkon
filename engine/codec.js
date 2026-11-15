@@ -13,7 +13,8 @@ export function fnv(str) {
 }
 
 // Things that are bookkeeping, not part of the position on the board.
-const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events', 'flight']);
+// 'seed' (the starting seed, kept for replays) is left out so fingerprints match games saved before it.
+const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events', 'flight', 'seed']);
 // A small seeded random number generator (mulberry32). Same seed, same sequence, on every device.
 export function seededRandom(seed) {
   let t = seed | 0;

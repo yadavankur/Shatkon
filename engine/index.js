@@ -38,3 +38,6 @@ export function start(rules, seed = 1) {
 export { buildChapter, applyResult, nextNodes, newCampaign, shipToHull } from './chapter.js';
 export { campaignMove } from './ai.js';
 export { guideView } from './guide.js';
+
+// Battle logs: replay a saved game turn by turn, and a plain-English recap of it.
+export { battleLog, replayLog, analyse, recapText, LOG_FORMAT } from './log.js';
