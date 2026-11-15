@@ -1,0 +1,145 @@
+# ============================================================
+#  BOARD: The Dogleg
+#
+#  A canyon with two right-angle bends through solid rock. No laser sees round a corner, so whoever
+#  comes round a bend first is shot first. You have a carrier with four seeker drones; they wander
+#  round corners and report what they see.
+#
+#  Try: Do not lead with a ship. Launch a drone down the canyon: it flies 3 hexes a round, sees 3,
+#  and you see what it sees. Fight at a bend where they must step into your line one ship at a
+#  time. A drone that flies into a ship does 2 hits; one you blow up (Detonate) does 1 hit to
+#  everything next to it.
+#
+#  You are player_1 (south-west mouth). The computer is player_2. The computer holds the north-east
+#  mouth.
+#  Open it at  play.html?board=04_the_dogleg   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was The Strait, a straight rock wall with one gap, nearly the same
+#  map as The Minefield. Now a long bent canyon (radius 9, diagonal ends) and the first board with
+#  seeker drones (the computer does not launch drones yet, so its carrier is only a hull). The rock
+#  is written as discs; any rock hex can be removed to open a new line.
+# ============================================================
+
+board:
+  name: "The Dogleg"
+  idea: "A canyon with two right-angle bends through solid rock. No laser sees round a corner, so whoever comes round a bend first is shot first. You have a carrier with four seeker drones; they wander round corners and report what they see."
+  try: "Do not lead with a ship. Launch a drone down the canyon: it flies 3 hexes a round, sees 3, and you see what it sees. Fight at a bend where they must step into your line one ship at a time. A drone that flies into a ship does 2 hits; one you blow up (Detonate) does 1 hit to everything next to it."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "balanced"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "The Dogleg"
+  board: { shape: hexagon, radius: 9 }
+  zones:
+    player_1_home: { edge: south_west, depth: 3 }
+    player_2_home: { edge: north_east, depth: 3 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: asteroid, at: [-4, -3], radius: 2 }
+    - { type: asteroid, at: [-4, 2], radius: 2 }
+    - { type: asteroid, at: [4, -2], radius: 2 }
+    - { type: asteroid, at: [4, 3], radius: 2 }
+    - { type: asteroid, at: [-5, 0], size: 7 }
+    - { type: asteroid, at: [-3, -1], size: 7 }
+    - { type: asteroid, at: [3, 1], size: 7 }
+    - { type: asteroid, at: [5, 0], size: 7 }
+    - { type: asteroid, at: [-6, 8], size: 1 }
+    - { type: asteroid, at: [-6, 9], size: 1 }
+    - { type: asteroid, at: [-5, 8], size: 1 }
+    - { type: asteroid, at: [-5, 9], size: 1 }
+    - { type: asteroid, at: [-4, 8], size: 1 }
+    - { type: asteroid, at: [-4, 9], size: 1 }
+    - { type: asteroid, at: [-3, -6], size: 1 }
+    - { type: asteroid, at: [-3, 4], size: 1 }
+    - { type: asteroid, at: [-3, 8], size: 1 }
+    - { type: asteroid, at: [-3, 9], size: 1 }
+    - { type: asteroid, at: [-2, -7], size: 1 }
+    - { type: asteroid, at: [-2, -6], size: 1 }
+    - { type: asteroid, at: [-2, 3], size: 1 }
+    - { type: asteroid, at: [-2, 4], size: 1 }
+    - { type: asteroid, at: [-2, 8], size: 1 }
+    - { type: asteroid, at: [-2, 9], size: 1 }
+    - { type: asteroid, at: [-1, -8], size: 1 }
+    - { type: asteroid, at: [-1, 8], size: 1 }
+    - { type: asteroid, at: [-1, 9], size: 1 }
+    - { type: asteroid, at: [0, -9], size: 1 }
+    - { type: asteroid, at: [0, -8], size: 1 }
+    - { type: asteroid, at: [0, 8], size: 1 }
+    - { type: asteroid, at: [0, 9], size: 1 }
+    - { type: asteroid, at: [1, -9], size: 1 }
+    - { type: asteroid, at: [1, -8], size: 1 }
+    - { type: asteroid, at: [1, 8], size: 1 }
+    - { type: asteroid, at: [2, -9], size: 1 }
+    - { type: asteroid, at: [2, -8], size: 1 }
+    - { type: asteroid, at: [2, -4], size: 1 }
+    - { type: asteroid, at: [2, -3], size: 1 }
+    - { type: asteroid, at: [2, 6], size: 1 }
+    - { type: asteroid, at: [2, 7], size: 1 }
+    - { type: asteroid, at: [3, -9], size: 1 }
+    - { type: asteroid, at: [3, -8], size: 1 }
+    - { type: asteroid, at: [3, -4], size: 1 }
+    - { type: asteroid, at: [3, 6], size: 1 }
+    - { type: asteroid, at: [4, -9], size: 1 }
+    - { type: asteroid, at: [4, -8], size: 1 }
+    - { type: asteroid, at: [5, -9], size: 1 }
+    - { type: asteroid, at: [5, -8], size: 1 }
+    - { type: asteroid, at: [6, -9], size: 1 }
+    - { type: asteroid, at: [6, -8], size: 1 }
+
+player_1:
+  ships:
+    - name: "Ram"                # brawler
+      flagship: true
+      hull:
+        - { at: [0, 0], bays: [core, sensor, comms] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, coupling, stealth] }
+    - name: "Hive"                # NEW carrier: launches seeker drones that wander and report
+      load: { seeker_drone: 4 }
+      hull:
+        - { at: [0, 1], bays: [coupling, magazine, engine], mounts: [launcher, armour] }
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [shield] }
+        - { at: [0, -1], bays: [coupling, engine, engine], mounts: [launcher, armour] }
+    - name: "Hammer"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Ram", at: [-8, 4] }
+    - { ship: "Hive", at: [-8, 8] }
+    - { ship: "Hammer", at: [-7, 1] }
+
+player_2:
+  ships:
+    - name: "Bull"                # brawler
+      flagship: true
+      hull:
+        - { at: [0, 0], bays: [core, sensor, comms] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [-1, 1], bays: [engine, sensor, coupling], mounts: [laser, shield] }
+        - { at: [0, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, -1], bays: [engine, coupling, stealth] }
+    - name: "Nest"                # NEW carrier: launches seeker drones that wander and report
+      load: { seeker_drone: 4 }
+      hull:
+        - { at: [0, -1], bays: [coupling, magazine, engine], mounts: [launcher, armour] }
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [shield] }
+        - { at: [0, 1], bays: [coupling, engine, engine], mounts: [launcher, armour] }
+    - name: "Anvil"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [0, 1], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Bull", at: [8, -4] }
+    - { ship: "Nest", at: [8, -8] }
+    - { ship: "Anvil", at: [7, -1] }

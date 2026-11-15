@@ -1,101 +1,124 @@
 # ============================================================
 #  BOARD: The Minefield
 #
-#  A wall of rock with three gaps. The computer waits behind it and has mined the way through: two proximity mines and a contact mine. One gap is clean.
+#  An open field that is not open. Between you and their dug-in fleet lie three sleeper mines, four
+#  proximity mines and four contact mines, all invisible. You brought a minesweeper.
 #
-#  Try: Send a courier (5 hexes a turn) up to the wall and scan: a scan is the only thing that shows a mine. Then take the fleet through the clean gap. Lose a courier next to the enemy and its flash shows you where they are.
+#  Try: Lead with the Dowser: its 12 sensor sees a sleeper mine from 2 hexes and a proximity mine
+#  from 4, so stop and shoot the mine before you step next to it. In a nebula the Dowser is as
+#  blind as everyone else. There is one clean lane; the Dowser finds it, a scan finds it, or your
+#  hull does.
 #
-#  You are player_1 (south). The computer is player_2 (north).
+#  You are player_1 (south-east edge). The computer is player_2. The computer sits behind its mines
+#  on the north-west edge.
 #  Open it at  play.html?board=02_minefield   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was a straight rock wall with three gaps (too close to The Strait),
+#  and its clean gap had a contact mine just past it. Now no wall: scattered rocks and two nebulas,
+#  the mines are the wall. The one clean lane hugs the south-west edge of the board; a test checks
+#  it (no mine on it, no proximity or sleeper mine within 1 hex of it, and every other way through
+#  is mined).
+#
+#  Needs a new rule to play as designed: sleeper mines should not show on an ordinary scan from far
+#  away (scan_resist), so the minesweeper is the main way to find them. Today a scan still finds
+#  them.
 # ============================================================
 
 board:
   name: "The Minefield"
-  idea: "A wall of rock with three gaps. The computer waits behind it and has mined the way through: two proximity mines and a contact mine. One gap is clean."
-  try: "Send a courier (5 hexes a turn) up to the wall and scan: a scan is the only thing that shows a mine. Then take the fleet through the clean gap. Lose a courier next to the enemy and its flash shows you where they are."
+  idea: "An open field that is not open. Between you and their dug-in fleet lie three sleeper mines, four proximity mines and four contact mines, all invisible. You brought a minesweeper."
+  try: "Lead with the Dowser: its 12 sensor sees a sleeper mine from 2 hexes and a proximity mine from 4, so stop and shoot the mine before you step next to it. In a nebula the Dowser is as blind as everyone else. There is one clean lane; the Dowser finds it, a scan finds it, or your hull does."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
-    ai.vs_computer: "defensive"
+    ai.vs_computer: "balanced"
+    munitions.sleeper_mine: { note: "a deep mine: signature -10, so only a ship with sensor 11+ sees it, and only from 1 hex (sensor 12: 2 hexes). Goes off when an enemy comes next to it; wrecks the segment and hits every segment next to it 5 times", speed: 0, hits: 5, wrecks_segment: true, blast_radius: 1, blast_hits: 5, trigger_range: 1, signature: -10, strikes: layers, setup_only: true, max_per_player: 3, cost: 15 }
 
 budget: 99999                 # boards are not held to the fleet budget
 
 map:
   name: "The Minefield"
-  board: { shape: hexagon, radius: 8 }
+  board: { shape: hexagon, radius: 9 }
   zones:
-    player_1_home: { edge: south, depth: 4 }
-    player_2_home: { edge: north, depth: 4 }
+    player_1_home: { edge: south_east, depth: 3 }
+    player_2_home: { edge: north_west, depth: 3 }
     no_mans_land:  { everything_else: true }
   setup:
     mines: { own_home_zone: true, rows_into_no_mans_land: 6 }
   terrain:
-    - { type: asteroid, at: [-8, 0], size: 1 }
-    - { type: asteroid, at: [-7, 0], size: 1 }
-    - { type: asteroid, at: [-6, 0], size: 1 }
     - { type: asteroid, at: [-3, 0], size: 1 }
-    - { type: asteroid, at: [-2, 0], size: 1 }
-    - { type: asteroid, at: [-1, 0], size: 1 }
-    - { type: asteroid, at: [2, 0], size: 1 }
-    - { type: asteroid, at: [3, 0], size: 1 }
-    - { type: asteroid, at: [6, 0], size: 1 }
-    - { type: asteroid, at: [7, 0], size: 1 }
-    - { type: asteroid, at: [8, 0], size: 1 }
+    - { type: asteroid, at: [0, -3], size: 1 }
+    - { type: asteroid, at: [2, -5], size: 1 }
+    - { type: asteroid, at: [-5, 2], size: 1 }
+    - { type: asteroid, at: [-1, -1], size: 1 }
+    - { type: asteroid, at: [4, -6], size: 1 }
+    - { type: asteroid, at: [-6, 3], size: 1 }
+    - { type: nebula, at: [-4, -1], radius: 1 }
+    - { type: nebula, at: [1, -6], radius: 1 }
 
 player_1:
   ships:
-    - name: "Pathfinder"                # small_flagship
+    - name: "Pathfinder"                # command corvette
       flagship: true
+      ai: defensive
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, magazine, sensor] }
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
         - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
         - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
         - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Dowser"                # NEW dowser: minesweeper, sensor 12 (sees a sleeper mine from 2 hexes, a proximity mine from 4)
+      hull:
+        - { at: [-1, 0], bays: [coupling, sensor, sensor], mounts: [shield] }
+        - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser, armour] }
+        - { at: [1, 0], bays: [coupling, sensor, engine], mounts: [armour] }
     - name: "Mallet"                # gunboat
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
         - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
-    - name: "Lookout"                # seeker
+    - name: "Hammer"                # gunboat
       hull:
-        - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser] }
-        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence] }
-    - name: "Swift"                # dart
-      hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
-    - name: "Wren"                # dart
-      hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
   deployment:
-    - { ship: "Pathfinder", at: [-3, 6] }
-    - { ship: "Mallet", at: [-7, 7] }
-    - { ship: "Lookout", at: [-1, 7] }
-    - { ship: "Swift", at: [-8, 5] }
-    - { ship: "Wren", at: [2, 5] }
+    - { ship: "Pathfinder", at: [5, 4] }
+    - { ship: "Dowser", at: [2, 6] }
+    - { ship: "Mallet", at: [7, 1] }
+    - { ship: "Hammer", at: [0, 8] }
 
 player_2:
   ships:
-    - name: "Warden"                # flagship
+    - name: "Warden"                # command corvette
       flagship: true
-      load: { missile: 2 }
+      ai: defensive
+      load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, magazine, comms] }
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
         - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
-        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
-        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
-        - { at: [-1, 0], bays: [engine, coupling, stealth] }
-        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
-        - { at: [0, 1], bays: [engine, coupling, stealth] }
-    - name: "Bolt"                # gunboat
+        - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Arrow"                # sniper
+      ai: defensive
       hull:
-        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
-        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
-    - name: "Latch"                # gunboat
+        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+        - { at: [0, 0], bays: [core, sensor, sensor] }
+        - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+    - name: "Bolt"                # sniper
+      ai: defensive
       hull:
-        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
-        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+        - { at: [0, 0], bays: [core, sensor, sensor] }
+        - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
   deployment:
-    - { ship: "Warden", at: [3, -6] }
-    - { ship: "Bolt", at: [7, -7] }
-    - { ship: "Latch", at: [0, -7] }
-    - { naval_mine: [-4, 0] }
-    - { naval_mine: [1, 0] }
-    - { mine: [5, -2] }
+    - { ship: "Warden", at: [-4, -4] }
+    - { ship: "Arrow", at: [-1, -7] }
+    - { ship: "Bolt", at: [-7, -1] }
+    - { sleeper_mine: [-1, -3] }
+    - { sleeper_mine: [-3, -1] }
+    - { sleeper_mine: [2, -4] }
+    - { naval_mine: [0, -5] }
+    - { naval_mine: [-5, 1] }
+    - { mine: [1, -2] }
+    - { mine: [-2, 1] }
+    - { mine: [3, -6] }
+    - { mine: [-6, 2] }
+    - { naval_mine: [6, -8] }
+    - { naval_mine: [4, -5] }

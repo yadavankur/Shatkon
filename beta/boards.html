@@ -20,20 +20,20 @@
 <body>
 <main>
 <h1>Ten boards to try</h1>
-<p class="lead">You are the south fleet; the computer is north. Each board is one text file in <code>rules/boards/</code>: edit it and reload. To play a friend by pasted codes, open the board, choose a seat in the game's own menu and send the game code; your friend does not need the board link.</p>
+<p class="lead">You are player 1; the computer is player 2. The boards start on different edges; the top of each board file says which. Each board is one text file in <code>rules/boards/</code>: edit it and reload. To play a friend by pasted codes, open the board, choose a seat in the game's own menu and send the game code; your friend does not need the board link.</p>
 
-<a class="board" href="play.html?board=01_first_light"><b>1. First Light</b><span>Even duel. A 4-segment flagship and a gunboat each, three rocks.</span><i>Try: step a hex before you fire; keep the gunboat close.</i></a>
-<a class="board" href="play.html?board=02_minefield"><b>2. The Minefield</b><span>A wall of rock with three gaps, mined. One gap is clean. New: proximity mines, couriers.</span><i>Try: run a courier to the wall and scan. Only a scan shows a mine.</i></a>
-<a class="board" href="play.html?board=03_cat_and_mouse"><b>3. Cat and Mouse</b><span>Extreme stealth: fleets pass two hexes apart unseen. Two couriers each. Bigger board.</span><i>Try: scout with couriers; a courier shot down lights up everything near it and the ship that shot it.</i></a>
-<a class="board" href="play.html?board=04_the_strait"><b>4. The Strait</b><span>One gap three hexes wide. A shielded fleet holds the far side.</span><i>Try: mass first, keep one shield down two turns running, then go through together.</i></a>
-<a class="board" href="play.html?board=05_kings_guard"><b>5. King's Guard</b><span>Chess: each flagship is an unarmed king. Two gunboats, a sniper and a courier fight for it.</span><i>Try: decide what guards and what hunts. Find their king first.</i></a>
-<a class="board" href="play.html?board=06_pawn_storm"><b>6. Pawn Storm</b><span>Six one-laser skiffs and a small flagship against one dreadnought with six shields.</span><i>Try: two skiffs on the same segment in one turn; the second shot gets through.</i></a>
-<a class="board" href="play.html?board=07_beacon_hill"><b>7. Beacon Hill</b><span>Hold the beacon in the central nebula to score. Five points wins. Holding it shows where you are.</span><i>Try: take the first point with the courier and cover the approaches with guns.</i></a>
-<a class="board" href="play.html?board=08_missile_alley"><b>8. Missile Alley</b><span>Open space. You have 18 missiles and one laser; they have point defence and shields on every ship.</span><i>Try: three missiles on one ship in one round. The third lands.</i></a>
-<a class="board" href="play.html?board=09_fog_bank"><b>9. Fog Bank</b><span>Outgunned two to one, but you have laid four proximity mines in the lanes and they do not know where.</span><i>Try: sit behind your mines and draw them through.</i></a>
-<a class="board" href="play.html?board=10_gambit"><b>10. The Gambit</b><span>Hidden snipers that will not come to you. You have three worthless decoys.</span><i>Try: give up a decoy; the sniper that shoots it shows itself. Have your guns in place first.</i></a>
+<a class="board" href="play.html?board=01_first_light"><b>1. First Light</b><span>The smallest board (radius 6). An even, mirrored duel: a 4-segment flagship and a gunboat each, five rocks.</span><i>Try: step a hex before you fire; fire from a rock edge so only one of them has a line on you.</i></a>
+<a class="board" href="play.html?board=02_minefield"><b>2. The Minefield</b><span>An open field full of invisible mines, three of them new sleeper mines. You brought a minesweeper. Diagonal start.</span><i>Try: lead with the Dowser; it sees a sleeper mine from 2 hexes. Stop and shoot it. One lane is clean.</i></a>
+<a class="board" href="play.html?board=03_cat_and_mouse"><b>3. Cat and Mouse</b><span>You hunt a stealth fleet on the biggest board with three Comets: 8 hexes a turn, and a 5-hex flash when they die.</span><i>Try: a Comet is meant to be lost. Have your guns close to where it will die.</i></a>
+<a class="board" href="play.html?board=04_the_dogleg"><b>4. The Dogleg</b><span>A canyon with two right-angle bends. No laser sees round a corner. Seeker drones do.</span><i>Try: send a drone round the bend first, then fight where they must step into your line.</i></a>
+<a class="board" href="play.html?board=05_kings_guard"><b>5. King's Guard</b><span>Chess from the side: unarmed kings, fleets on neighbouring edges, close at the corner and far at the ends.</span><i>Try: hold the corner with one ship; send the rest round to their king.</i></a>
+<a class="board" href="play.html?board=06_pawn_storm"><b>6. Pawn Storm</b><span>Encircled: one dreadnought in the middle, six one-laser skiffs all round it.</span><i>Try: two skiffs on the same segment in one turn, from opposite sides.</i></a>
+<a class="board" href="play.html?board=07_beacon_hill"><b>7. Beacon Hill</b><span>The beacon sits in a rock crater with two side openings. Couriers and skiffs only. Five points wins.</span><i>Try: cover both openings and the enemy holder is a sitting duck.</i></a>
+<a class="board" href="play.html?board=08_missile_alley"><b>8. Missile Alley</b><span>A long five-hex-wide alley. You have 18 missiles; they have point defence on every ship, and nowhere to spread out.</span><i>Try: three missiles on one ship in one round; the blast hits the ship beside it too.</i></a>
+<a class="board" href="play.html?board=09_fog_bank"><b>9. Fog Bank</b><span>You defend, outgunned, from behind a fog bank you have mined with sleeper mines.</span><i>Try: show a ship just beyond a mine and let them come through it.</i></a>
+<a class="board" href="play.html?board=10_gambit"><b>10. The Gambit</b><span>Salvo against decoy: hidden snipers and a three-launcher Volley boat. You have three worthless Lures.</span><i>Try: feed the salvo a Lure, then strike while it reloads.</i></a>
 
-<p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code>.</p>
+<p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code> and <code>docs/maps-rework.md</code> (new ships: Comet, Dowser, sleeper mine, carrier, Volley).</p>
 </main>
 </body>
 </html>

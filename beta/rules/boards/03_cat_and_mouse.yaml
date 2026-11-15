@@ -1,105 +1,126 @@
 # ============================================================
 #  BOARD: Cat and Mouse
 #
-#  Late-campaign stealth: every stealth part hides twice as much and cores see 1 hex. Fleets can pass within two hexes and never know. Each side has two couriers.
+#  You are the cat. A stealth fleet (every stealth part hides twice as much, cores see 1 hex) hides
+#  somewhere on the biggest board. You have three Comets: 8 hexes a turn, nothing else, and they
+#  light up everything within 5 hexes when they die.
 #
-#  Try: Run the couriers ahead and scan with them; they relay what they see. A courier that is shot down lights up everything within 3 hexes of it, and the ship that shot it. Fire first: a laser hit lights up the shooter.
+#  Try: A Comet is meant to be lost. Throw one through a nebula bank: if it dies, the flash shows
+#  you everything within 5 hexes and the ship that shot it, so have the Hounds (two lasers each)
+#  within reach of where it will die. Tom, your flagship, has no guns but a 12-hex comms link.
+#  Never send all three Comets at once.
 #
-#  You are player_1 (south). The computer is player_2 (north).
+#  You are player_1 (south edge). The computer is player_2. The computer is the mouse, on the north
+#  edge.
 #  Open it at  play.html?board=03_cat_and_mouse   Edit anything here and reload.
+#
+#  Design notes (maps-rework): both sides had the same stealth fleet; now it is a hunt. The Comet
+#  (afterburner part, defined in this file) is the super-fast scout from Ankur's idea, built from
+#  existing rules: own_move 8, evades_beyond 2, death_flash 5.
+#
+#  Needs a new rule to play as designed: Comet reveal-on-pass (reveals_on_pass: 2) and a burn-out
+#  (burn_turns: 3), so it reveals as it flies, not only when it dies, and cannot scout forever.
 # ============================================================
 
 board:
   name: "Cat and Mouse"
-  idea: "Late-campaign stealth: every stealth part hides twice as much and cores see 1 hex. Fleets can pass within two hexes and never know. Each side has two couriers."
-  try: "Run the couriers ahead and scan with them; they relay what they see. A courier that is shot down lights up everything within 3 hexes of it, and the ship that shot it. Fire first: a laser hit lights up the shooter."
+  idea: "You are the cat. A stealth fleet (every stealth part hides twice as much, cores see 1 hex) hides somewhere on the biggest board. You have three Comets: 8 hexes a turn, nothing else, and they light up everything within 5 hexes when they die."
+  try: "A Comet is meant to be lost. Throw one through a nebula bank: if it dies, the flash shows you everything within 5 hexes and the ship that shot it, so have the Hounds (two lasers each) within reach of where it will die. Tom, your flagship, has no guns but a 12-hex comms link. Never send all three Comets at once."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     bay_parts.stealth.hides: 2
     detection.stealth_floor_segments_per_point: 7
     bay_parts.core.sensor_range: 1
     ai.vs_computer: "balanced"
-    ai.personalities.runner: { note: "a courier: runs ahead of the fleet on its own", range: [3, 4], keep_together: 0, missile_range: 8, attack_run: true, unarmed_ships: "bait" }
+    ai.personalities.runner: { note: "a scout: runs ahead of the fleet on its own", range: [3, 4], keep_together: 0, missile_range: 8, attack_run: true, unarmed_ships: "bait" }
+    bay_parts.afterburner: { note: "a comet's drive: 8 hexes a turn on its own, outside the fleet's thrust. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it", own_move: 8, evades_beyond: 2, death_flash: 5, layer: 5, cost: 10 }
 
 budget: 99999                 # boards are not held to the fleet budget
 
 map:
   name: "Cat and Mouse"
-  board: { shape: hexagon, radius: 10 }
+  board: { shape: hexagon, radius: 11 }
   zones:
-    player_1_home: { edge: south, depth: 4 }
+    player_1_home: { edge: south, depth: 3 }
     player_2_home: { edge: north, depth: 4 }
     no_mans_land:  { everything_else: true }
   setup:
     mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
   terrain:
-    - { type: nebula, at: [0, 0], radius: 2 }
-    - { type: nebula, at: [-6, 3], radius: 2 }
-    - { type: nebula, at: [6, -3], radius: 2 }
-    - { type: asteroid, at: [-3, -1], size: 3 }
-    - { type: asteroid, at: [3, 1], size: 3 }
+    - { type: nebula, at: [0, -2], radius: 2 }
+    - { type: nebula, at: [-6, 1], radius: 2 }
+    - { type: nebula, at: [6, -5], radius: 2 }
+    - { type: nebula, at: [-3, -6], radius: 1 }
+    - { type: asteroid, at: [-3, 2], size: 3 }
+    - { type: asteroid, at: [4, 0], size: 3 }
+    - { type: asteroid, at: [0, 4], size: 1 }
+    - { type: asteroid, at: [7, -9], size: 1 }
+    - { type: asteroid, at: [-8, -2], size: 1 }
 
 player_1:
   ships:
-    - name: "Nightjar"                # shadow
+    - name: "Tom"                # king (no weapons)
       flagship: true
+      ai: defensive
       hull:
-        - { at: [0, 0], bays: [core, sensor, stealth] }
-        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
-        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [laser, armour] }
-        - { at: [1, -1], bays: [engine, coupling, stealth], mounts: [laser, point_defence] }
-    - name: "Hush"                # sniper
+        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [armour, shield] }
+        - { at: [0, 0], bays: [core, comms, sensor], mounts: [point_defence, armour] }
+        - { at: [1, 0], bays: [engine, coupling, stealth], mounts: [armour, shield] }
+    - name: "Bloodhound"                # NEW hound: a gunboat that gives up an engine for a second sensor (sees 6)
       hull:
-        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
-        - { at: [0, 0], bays: [core, sensor, sensor] }
-        - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
-    - name: "Murmur"                # sniper
+        - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Foxhound"                # NEW hound: a gunboat that gives up an engine for a second sensor (sees 6)
       hull:
-        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
-        - { at: [0, 0], bays: [core, sensor, sensor] }
-        - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
-    - name: "Swift"                # dart
+        - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Deerhound"                # NEW hound: a gunboat that gives up an engine for a second sensor (sees 6)
       hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
-    - name: "Wren"                # dart
+        - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Comet 1"                # NEW comet: afterburner scout, 8 hexes a turn, flash 5 when it dies
+      ai: runner
       hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+        - { at: [0, 0], bays: [core, afterburner, sensor] }
+    - name: "Comet 2"                # NEW comet: afterburner scout, 8 hexes a turn, flash 5 when it dies
+      ai: runner
+      hull:
+        - { at: [0, 0], bays: [core, afterburner, sensor] }
+    - name: "Comet 3"                # NEW comet: afterburner scout, 8 hexes a turn, flash 5 when it dies
+      ai: runner
+      hull:
+        - { at: [0, 0], bays: [core, afterburner, sensor] }
   deployment:
-    - { ship: "Nightjar", at: [-4, 8] }
-    - { ship: "Hush", at: [-9, 9] }
-    - { ship: "Murmur", at: [-1, 9] }
-    - { ship: "Swift", at: [-10, 7] }
-    - { ship: "Wren", at: [2, 7] }
+    - { ship: "Tom", at: [-3, 10] }
+    - { ship: "Bloodhound", at: [-7, 10] }
+    - { ship: "Foxhound", at: [-1, 10] }
+    - { ship: "Deerhound", at: [-6, 9] }
+    - { ship: "Comet 1", at: [-9, 10] }
+    - { ship: "Comet 2", at: [-4, 9] }
+    - { ship: "Comet 3", at: [1, 10] }
 
 player_2:
   ships:
     - name: "Owl"                # shadow
       flagship: true
+      ai: defensive
       hull:
         - { at: [0, 0], bays: [core, sensor, stealth] }
-        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
-        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [laser, armour] }
-        - { at: [1, -1], bays: [engine, coupling, stealth], mounts: [laser, point_defence] }
+        - { at: [1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+        - { at: [0, 1], bays: [engine, coupling, stealth], mounts: [laser, armour] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [laser, point_defence] }
     - name: "Veil"                # sniper
+      ai: defensive
       hull:
         - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
         - { at: [0, 0], bays: [core, sensor, sensor] }
         - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
     - name: "Shade"                # sniper
+      ai: defensive
       hull:
         - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
         - { at: [0, 0], bays: [core, sensor, sensor] }
         - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
-    - name: "Gnat"                # dart
-      ai: runner
-      hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
-    - name: "Midge"                # dart
-      ai: runner
-      hull:
-        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
   deployment:
-    - { ship: "Owl", at: [4, -8] }
-    - { ship: "Veil", at: [9, -9] }
-    - { ship: "Shade", at: [1, -9] }
-    - { ship: "Gnat", at: [10, -7] }
-    - { ship: "Midge", at: [-2, -7] }
+    - { ship: "Owl", at: [3, -9] }
+    - { ship: "Veil", at: [8, -10] }
+    - { ship: "Shade", at: [-2, -8] }

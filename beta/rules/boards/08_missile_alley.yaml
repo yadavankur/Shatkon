@@ -1,18 +1,26 @@
 # ============================================================
 #  BOARD: Missile Alley
 #
-#  Open space, nowhere to hide. You have 18 missiles and one laser. They have point defence and a shield on every ship, and they are coming.
+#  A long, straight, five-hex-wide alley between walls of rock, thirteen rows deep. You have 18
+#  missiles and one laser. They have point defence and a shield on every ship, and they are coming
+#  down the alley at you.
 #
-#  Try: Each point defence stops one missile a round, and a shield takes one blow. A ship fires all its launchers on one order: put three missiles on one target in the same round and the third lands. You can launch without a lock at a rough contact.
+#  Try: Each point defence stops one missile a round (the escorts carry two each), and a shield
+#  takes one blow. A ship fires all its launchers on one order: put three or more missiles on one
+#  target in the same round and the rest land. In the alley they cannot spread out, so the blast (1
+#  hit to everything next to the target) hurts the ship beside it too.
 #
-#  You are player_1 (south). The computer is player_2 (north).
+#  You are player_1 (south end). The computer is player_2. The computer comes from the north end.
 #  Open it at  play.html?board=08_missile_alley   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was open space; now a corridor (the walls are written as discs).
+#  Nowhere to dodge, nowhere to flank: a test of missile timing against point defence.
 # ============================================================
 
 board:
   name: "Missile Alley"
-  idea: "Open space, nowhere to hide. You have 18 missiles and one laser. They have point defence and a shield on every ship, and they are coming."
-  try: "Each point defence stops one missile a round, and a shield takes one blow. A ship fires all its launchers on one order: put three missiles on one target in the same round and the third lands. You can launch without a lock at a rough contact."
+  idea: "A long, straight, five-hex-wide alley between walls of rock, thirteen rows deep. You have 18 missiles and one laser. They have point defence and a shield on every ship, and they are coming down the alley at you."
+  try: "Each point defence stops one missile a round (the escorts carry two each), and a shield takes one blow. A ship fires all its launchers on one order: put three or more missiles on one target in the same round and the rest land. In the alley they cannot spread out, so the blast (1 hit to everything next to the target) hurts the ship beside it too."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     ai.vs_computer: "aggressive"
 
@@ -22,18 +30,50 @@ map:
   name: "Missile Alley"
   board: { shape: hexagon, radius: 10 }
   zones:
-    player_1_home: { edge: south, depth: 4 }
-    player_2_home: { edge: north, depth: 4 }
+    player_1_home: { edge: south, depth: 3 }
+    player_2_home: { edge: north, depth: 3 }
     no_mans_land:  { everything_else: true }
   setup:
     mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
   terrain:
-    - { type: asteroid, at: [-5, 0], size: 1 }
-    - { type: asteroid, at: [5, 0], size: 1 }
+    - { type: asteroid, at: [-7, 0], radius: 3 }
+    - { type: asteroid, at: [5, 2], radius: 3 }
+    - { type: asteroid, at: [7, -2], radius: 3 }
+    - { type: asteroid, at: [-7, 4], radius: 2 }
+    - { type: asteroid, at: [-3, -4], radius: 2 }
+    - { type: asteroid, at: [9, 0], size: 7 }
+    - { type: asteroid, at: [-10, 4], size: 1 }
+    - { type: asteroid, at: [-10, 5], size: 1 }
+    - { type: asteroid, at: [-10, 6], size: 1 }
+    - { type: asteroid, at: [-6, -4], size: 1 }
+    - { type: asteroid, at: [-6, 6], size: 1 }
+    - { type: asteroid, at: [-5, -5], size: 1 }
+    - { type: asteroid, at: [-4, -6], size: 1 }
+    - { type: asteroid, at: [-4, 1], size: 1 }
+    - { type: asteroid, at: [-4, 2], size: 1 }
+    - { type: asteroid, at: [-3, -1], size: 1 }
+    - { type: asteroid, at: [-3, 0], size: 1 }
+    - { type: asteroid, at: [-2, -2], size: 1 }
+    - { type: asteroid, at: [0, -6], size: 1 }
+    - { type: asteroid, at: [0, 6], size: 1 }
+    - { type: asteroid, at: [1, 4], size: 1 }
+    - { type: asteroid, at: [1, 5], size: 1 }
+    - { type: asteroid, at: [1, 6], size: 1 }
+    - { type: asteroid, at: [2, 6], size: 1 }
+    - { type: asteroid, at: [3, 0], size: 1 }
+    - { type: asteroid, at: [3, 6], size: 1 }
+    - { type: asteroid, at: [4, 6], size: 1 }
+    - { type: asteroid, at: [5, -4], size: 1 }
+    - { type: asteroid, at: [6, -6], size: 1 }
+    - { type: asteroid, at: [6, -5], size: 1 }
+    - { type: asteroid, at: [7, -6], size: 1 }
+    - { type: asteroid, at: [8, -6], size: 1 }
+    - { type: asteroid, at: [9, -6], size: 1 }
+    - { type: asteroid, at: [10, -6], size: 1 }
 
 player_1:
   ships:
-    - name: "Arsenal"                # missile_flagship
+    - name: "Arsenal"                # missile flagship
       flagship: true
       load: { missile: 9 }
       hull:
@@ -44,26 +84,26 @@ player_1:
         - { at: [-1, 0], bays: [engine, magazine, coupling], mounts: [launcher] }
         - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [armour] }
         - { at: [0, 1], bays: [engine, engine, coupling] }
-    - name: "Quiver"                # missile_boat
+    - name: "Quiver"                # missile boat
       load: { missile: 3 }
       hull:
         - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
-    - name: "Sling"                # missile_boat
+    - name: "Sling"                # missile boat
       load: { missile: 3 }
       hull:
         - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
-    - name: "Sheaf"                # missile_boat
+    - name: "Sheaf"                # missile boat
       load: { missile: 3 }
       hull:
         - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
   deployment:
-    - { ship: "Arsenal", at: [-4, 8] }
+    - { ship: "Arsenal", at: [-4, 9] }
     - { ship: "Quiver", at: [-9, 9] }
-    - { ship: "Sling", at: [-1, 9] }
-    - { ship: "Sheaf", at: [-10, 8] }
+    - { ship: "Sling", at: [0, 9] }
+    - { ship: "Sheaf", at: [-7, 10] }
 
 player_2:
   ships:
@@ -74,11 +114,11 @@ player_2:
         - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
         - { at: [0, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
         - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
-    - name: "Buckler"                # pd_escort
+    - name: "Buckler"                # point-defence escort
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, point_defence, shield] }
         - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
-    - name: "Targe"                # pd_escort
+    - name: "Targe"                # point-defence escort
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, point_defence, shield] }
         - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, point_defence, shield] }
@@ -87,7 +127,7 @@ player_2:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
         - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
   deployment:
-    - { ship: "Aegis", at: [4, -8] }
-    - { ship: "Buckler", at: [8, -9] }
-    - { ship: "Targe", at: [2, -9] }
-    - { ship: "Pike", at: [9, -8] }
+    - { ship: "Aegis", at: [4, -9] }
+    - { ship: "Buckler", at: [7, -9] }
+    - { ship: "Targe", at: [0, -9] }
+    - { ship: "Pike", at: [7, -10] }

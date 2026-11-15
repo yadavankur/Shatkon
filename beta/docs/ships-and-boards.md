@@ -38,6 +38,8 @@ Both new things are new entries in `beta/rules/world_v0.4.yaml`. Nothing that ex
 
 ## The ten boards
 
+> **Reworked on branch `maps-rework` (16 Nov 2026).** The boards below are the first versions. Each board now has its own shape, start and fleet, and there are new ships (Comet, Dowser, Hound, carrier, Volley) and a new sleeper mine. See `maps-rework.md`. The Strait is now The Dogleg (`04_the_dogleg`). The table below is kept as the record of the first round.
+
 You are south (player 1); the computer is north. Each board is one file in `beta/rules/boards/` holding its map, both fleets and any rule numbers it changes.
 
 "Computer-flown" is 10 games with the computer on both sides (`node tools/boards.mjs`, seeds 1 to 10). **It is a smoke test, not a balance result**: the computer does not use the trick each board is about, and with fixed starting positions it replays nearly the same game.

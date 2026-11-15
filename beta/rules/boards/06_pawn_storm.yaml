@@ -1,18 +1,27 @@
 # ============================================================
 #  BOARD: Pawn Storm
 #
-#  Six one-laser skiffs and a small flagship against one dreadnought with six shields. You get more orders than you can use; it gets one hull that shrugs off single shots.
+#  Encircled. One dreadnought with six shields sits in the middle of a broken ring of rock. Six
+#  one-laser skiffs surround it on every side, with a small flagship. It moves 2 hexes a turn and
+#  can only chase one of you.
 #
-#  Try: A shield soaks the first hit on its segment each round. Put two skiffs on the SAME segment in one turn: the second shot gets through. Keep your flagship out of its reach (it moves 2 hexes a turn).
+#  Try: A shield soaks the first hit on its segment each round. Two skiffs on the SAME segment in
+#  one turn: the second shot gets through. Hit it from opposite sides so it cannot back away from
+#  both; the skiff it chases should run, not fight.
 #
-#  You are player_1 (south). The computer is player_2 (north).
+#  You are player_1 (all round the edge). The computer is player_2. The computer's dreadnought
+#  starts in the centre.
 #  Open it at  play.html?board=06_pawn_storm   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was a skiff line against a dreadnought from the far edge. Now an
+#  encirclement: player 1 may deploy anywhere, player 2 only on the north half; the ring rocks give
+#  the dreadnought cover from some angles and none from others.
 # ============================================================
 
 board:
   name: "Pawn Storm"
-  idea: "Six one-laser skiffs and a small flagship against one dreadnought with six shields. You get more orders than you can use; it gets one hull that shrugs off single shots."
-  try: "A shield soaks the first hit on its segment each round. Put two skiffs on the SAME segment in one turn: the second shot gets through. Keep your flagship out of its reach (it moves 2 hexes a turn)."
+  idea: "Encircled. One dreadnought with six shields sits in the middle of a broken ring of rock. Six one-laser skiffs surround it on every side, with a small flagship. It moves 2 hexes a turn and can only chase one of you."
+  try: "A shield soaks the first hit on its segment each round. Two skiffs on the SAME segment in one turn: the second shot gets through. Hit it from opposite sides so it cannot back away from both; the skiff it chases should run, not fight."
   rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
     ai.vs_computer: "aggressive"
 
@@ -22,25 +31,26 @@ map:
   name: "Pawn Storm"
   board: { shape: hexagon, radius: 8 }
   zones:
-    player_1_home: { edge: south, depth: 5 }
-    player_2_home: { edge: north, depth: 5 }
+    player_1_home: { edge: south, depth: 17 }
+    player_2_home: { edge: north, depth: 10 }
     no_mans_land:  { everything_else: true }
   setup:
     mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
   terrain:
-    - { type: asteroid, at: [-2, 2], size: 1 }
     - { type: asteroid, at: [2, 1], size: 1 }
-    - { type: asteroid, at: [-5, 3], size: 1 }
-    - { type: asteroid, at: [4, 2], size: 1 }
-    - { type: asteroid, at: [0, -2], size: 1 }
+    - { type: asteroid, at: [-1, 3], size: 1 }
+    - { type: asteroid, at: [-3, 2], size: 1 }
+    - { type: asteroid, at: [-2, -1], size: 1 }
+    - { type: asteroid, at: [1, -3], size: 1 }
+    - { type: asteroid, at: [3, -2], size: 1 }
 
 player_1:
   ships:
-    - name: "Queenside"                # small_flagship
+    - name: "Queenside"                # command corvette
       flagship: true
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, magazine, sensor] }
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
         - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
         - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
         - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
@@ -63,13 +73,13 @@ player_1:
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
   deployment:
-    - { ship: "Queenside", at: [-4, 7] }
-    - { ship: "Pawn a", at: [-7, 4] }
-    - { ship: "Pawn b", at: [-5, 4] }
-    - { ship: "Pawn c", at: [-3, 4] }
-    - { ship: "Pawn d", at: [-1, 4] }
-    - { ship: "Pawn e", at: [1, 4] }
-    - { ship: "Pawn f", at: [3, 4] }
+    - { ship: "Queenside", at: [-4, 8] }
+    - { ship: "Pawn a", at: [7, -1] }
+    - { ship: "Pawn b", at: [-1, 7] }
+    - { ship: "Pawn c", at: [-7, 1] }
+    - { ship: "Pawn d", at: [1, -7] }
+    - { ship: "Pawn e", at: [6, -7] }
+    - { ship: "Pawn f", at: [-6, 7] }
 
 player_2:
   ships:
@@ -85,4 +95,4 @@ player_2:
         - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
         - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
   deployment:
-    - { ship: "Leviathan", at: [3, -6] }
+    - { ship: "Leviathan", at: [0, 0] }
