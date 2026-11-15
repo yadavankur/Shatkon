@@ -36,7 +36,9 @@ let pendingFx = null;             // animations held back until the curtain lift
 let ledgerOpen = false, sfxOn = true, actx = null;
 let shipStyle = 'schematic', haveModels = false;   // how ships are drawn: 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
-const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
+// play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
+const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
+const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k) + (BOARD ? '.board.' + BOARD : '');   // the beta page keeps its own saves
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 
 async function loadRules() {
@@ -48,10 +50,19 @@ async function loadRules() {
     for (const n of names) texts[n] = await get(n);
   }
   const parsed = Object.fromEntries(Object.entries(texts).map(([n, t]) => [n, YAML.parse(t)])), docs = Object.values(parsed);
-  const world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
+  let world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
   // the fleets file names its map; with several maps listed, that one is played
   const named = fleets && parsed[fleets.map];
-  const map = named && named.map ? named : docs.find((d) => d && d.map);
+  let map = named && named.map ? named : docs.find((d) => d && d.map);
+  if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
+    const r = await fetch('rules/boards/' + BOARD + '.yaml?t=' + Date.now());
+    if (!r.ok) throw new Error('could not read rules/boards/' + BOARD + '.yaml');
+    const b = YAML.parse(await r.text());
+    world = structuredClone(world);
+    for (const [k, v] of Object.entries((b.board || {}).rules || {})) { const ks = k.split('.'); let o = world; for (const x of ks.slice(0, -1)) o = o[x] = o[x] ?? {}; o[ks.at(-1)] = v; }
+    map = fleets = b;
+    if (b.board && b.board.name) document.title = b.board.name + ' · Shatkon';
+  }
   const built = E.buildRules(world, map, fleets);
   rules = built.rules; problems = built.problems;
   setLabDocs({ world, map, fleets });   // the Lab builds its variants from the same files
@@ -606,6 +617,8 @@ function makeReport(evs, viewer) {
   let rows = evs.filter((r) => (r.t === 'damage' || r.t === 'hit') && (viewer === 'all' || r.seenBy.includes(viewer)));
   return rows.length ? rows : null;
 }
+// salvo rule: a ship that has launched this turn may still fire its other launchers with no points left
+const salvoLeft = (p) => !!game.rules.salvo && game.ships.some((x) => !x.dead && x.owner === p && x.used && x.used.salvo && E.launchOptions(game, x.id));
 function anyAction() {
   let t = turnOf();
   return game.ships.some(
@@ -703,7 +716,7 @@ function act(action, quiet, byAI) {
     say(msg || 'The computer is taking its turn\u2026');
   } else {
     say(msg || 'Done.');
-    if (game.phase === 'play' && turnOf() === p && (game.players[p].cp <= 0 || !anyAction())) {      // nothing left to do
+    if (game.phase === 'play' && turnOf() === p && ((game.players[p].cp <= 0 && !salvoLeft(p)) || !anyAction())) {      // nothing left to do
       const kept = hint;
       act({ type: 'end' }, true);
       say(kept + (game.players[p].cp > 0 ? ' No actions left, so the turn ended.' : ' That was your last action, so the turn ended.'));
@@ -747,6 +760,10 @@ function describe(e) {
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
+    case 'pass_reveal': return e.ship + ' flew past ' + e.found.join(', ') + ' under afterburner: lit up for everyone until the end of next round, and so is ' + e.ship + '.';
+    case 'burnt_out': return e.ship + '\'s afterburner is burnt out. From now on it moves ' + plural(e.move, 'hex') + ' a turn.';
+    case 'lured': return 'Your ' + nice(e.kind) + ' turned on a decoy emitter (' + e.to + ')' + (e.from ? ' and dropped its lock on ' + e.from : '') + '.';
+    case 'mine_stir': return 'Something small moved near ' + e.near + '. A faint contact marks roughly where.';
     case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': return null;
     case 'spawned': return e.ships.length ? 'New ships have arrived: ' + e.ships.join(', ') + '.' : null;
     case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
@@ -1104,6 +1121,7 @@ function shipCard(x, v) {
     const terms = !sb ? [] : ['base ' + sb.base + ' (' + plural(sb.base, 'segment') + ')']
       .concat(sb.stealth ? [sgn(-sb.used) + ' from ' + plural(sb.stealth, 'stealth part') + (sb.used < sb.stealth ? ' (floor ' + sb.floor + ': ' + plural(sb.stealth - sb.used, 'part') + ' spare)' : '')] : [])
       .concat(sb.haze ? [sgn(sb.haze) + ' nebula'] : [])
+      .concat(sb.emitter ? ['+' + sb.emitter + ' decoy emitter'] : [])
       .concat(sb.flare ? ['+' + sb.flare + ' flare from firing/launching/scanning'] : [])
       .concat(sb.motion < 0 ? ['\u2212' + -sb.motion + ' sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
     lines.push('Signature ' + x.signature + (terms.length ? ' = ' + terms.join(', ') : '') + '. An enemy with sensor ' + v.shownSensor + ' spots it from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex') + '.'

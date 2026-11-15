@@ -1,0 +1,77 @@
+# ============================================================
+#  BOARD: First Light
+#
+#  The smallest board: a quick, even duel to learn the controls. A 4-segment flagship and a gunboat
+#  each, five rocks to hide behind, contact in two turns.
+#
+#  Try: Step a hex before you fire (the attack run is worth a hit). Fire from behind a rock edge so
+#  only one of their ships has a line on you. Keep the gunboat within 3 hexes of the flagship.
+#
+#  You are player_1 (south edge). The computer is player_2. The board is a mirror image, ships
+#  included.
+#  Open it at  play.html?board=01_first_light   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was radius 8 like nine of the ten; now radius 6 so the tutorial is
+#  short, and player 2 is a true mirror (hulls flipped too).
+# ============================================================
+
+board:
+  name: "First Light"
+  idea: "The smallest board: a quick, even duel to learn the controls. A 4-segment flagship and a gunboat each, five rocks to hide behind, contact in two turns."
+  try: "Step a hex before you fire (the attack run is worth a hit). Fire from behind a rock edge so only one of their ships has a line on you. Keep the gunboat within 3 hexes of the flagship."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    {}
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "First Light"
+  board: { shape: hexagon, radius: 6 }
+  zones:
+    player_1_home: { edge: south, depth: 3 }
+    player_2_home: { edge: north, depth: 3 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [-3, 1], size: 1 }
+    - { type: asteroid, at: [3, -1], size: 1 }
+    - { type: asteroid, at: [-2, 3], size: 1 }
+    - { type: asteroid, at: [2, -3], size: 1 }
+
+player_1:
+  ships:
+    - name: "Lantern"                # command corvette
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Flint"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Lantern", at: [0, 5] }
+    - { ship: "Flint", at: [-4, 6] }
+
+player_2:
+  ships:
+    - name: "Ember"                # command corvette
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Cinder"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [-1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Ember", at: [0, -5] }
+    - { ship: "Cinder", at: [4, -6] }

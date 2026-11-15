@@ -44,12 +44,15 @@ export function buildRules(world, mapFile, fleetsFile) {
     cp: { perTurn: num(cp.per_turn, 3), bankCap: num(cp.bank_cap, 6) },
     ticks: Math.max(1, num((t.flight_phase || {}).ticks, 6)),
     turnLimit: num(t.turn_limit, 30),
+    // optional rules for simulations (tools/variants.mjs); all off unless the world file sets them
+    firstPlayer: t.first_player === 'fixed' ? 'fixed' : 'alternate', magazineExplodes: num(dmg.magazine_explodes, 0),
     cost: {},
     seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false, symmetric: seg.symmetric_hulls !== false },
-    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2) },
+    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2), minMove: mv.min_move || 0 },
     det: {
       smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
       flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2), scan: num(fl.scan, 2) },
+      flareRounds: { scan: Math.max(1, num((det.flare_rounds || {}).scan, 1)) },
       // scans: [clear, faint] rings near home / mid-field / centre line and beyond
       scanClear: num(det.scan_clear_bonus, 2),
       scanTiers: Array.isArray(det.scan_tiers) && det.scan_tiers.length === 3 ? det.scan_tiers.map((x) => [num(x[0], 0), num(x[1], 0)]) : [[2, 4], [4, 7], [6, 10]],
@@ -75,11 +78,13 @@ export function buildRules(world, mapFile, fleetsFile) {
     terrain: listOf(m.terrain).filter((x) => isObj(x) && Array.isArray(x.at)).map((x) => ({ type: x.type, at: x.at, cells: terrainCells(x) })),
     objective: readObjective(m.objective),
     budget: num(f.budget, Infinity),
+    ai: isObj(w.ai) ? w.ai : {},   // computer-opponent personalities (plain numbers the AI reads)
     fleets: [],
   };
   for (const a of ['move', 'fire', 'launch', 'scan', 'detonate']) rules.cost[a] = num((act[a] || {}).cost, 1);
   // the sacrificial hurl: story scripts and the computer only (no player button)
   const rm = act.ram || {};
+  rules.salvo = (act.launch || {}).salvo === true;   // one command point fires every ready launcher on the ship
   rules.ram = { hitsPerSeg: num(rm.hits_per_segment, 4), reachBonus: num(rm.reach_bonus, 2), pierces: rm.pierces_shields !== false };
 
   const R = rules.board.radius;
@@ -100,7 +105,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     const fleet = { name, ships: [], deployment: [], cost: 0 };
     for (const sh of listOf(src.ships)) {
       const label = `${name} / ${sh.name || '(unnamed ship)'}`;
-      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}) };
+      const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}), ...(typeof sh.ai === 'string' ? { ai: sh.ai } : {}) };   // ai: this ship's own personality when the computer flies it
       let couplings = 0, cores = 0, holds = 0, launchers = 0;
       for (const hx of listOf(sh.hull)) {
         if (!Array.isArray(hx.at)) { problems.push(`${label}: a hull entry has no "at".`); continue; }
@@ -142,6 +147,12 @@ export function buildRules(world, mapFile, fleetsFile) {
       fleet.ships.push(ship); fleet.cost += ship.cost;
     }
     if (fleet.ships.filter((s) => s.flagship).length !== 1) problems.push(`${name}: needs exactly one flagship.`);
+    // max_per_fleet on a part: at most that many ships in a fleet may carry it
+    for (const [pn, p] of Object.entries(parts)) {
+      if (typeof p.max_per_fleet !== 'number') continue;
+      const have = fleet.ships.filter((s) => s.segs.some((sg) => sg.parts.includes(pn))).length;
+      if (have > p.max_per_fleet) problems.push(`${name}: ${have} ships carry "${pn}"; the limit is ${p.max_per_fleet} a fleet.`);
+    }
 
     // ---- starting positions ----
     const zone = rules.zones.find((z) => z.name.indexOf(name) === 0);
@@ -184,14 +195,14 @@ export function buildRules(world, mapFile, fleetsFile) {
 
 // Used by tests and by screens that want to show a ship's headline numbers before a game starts.
 export function shipStats(rules, ship) {
-  let thrust = 0, sensor = 0, hides = 0, link = 0;
+  let thrust = 0, sensor = 0, hides = 0, link = 0, loud = 0;
   for (const sg of ship.segs) for (const pn of sg.parts) {
     const p = rules.parts[pn] || {};
-    thrust += num(p.thrust, 0); sensor += num(p.sensor_range, 0) + num(p.adds_range, 0); hides += num(p.hides, 0);
+    thrust += num(p.thrust, 0); sensor += num(p.sensor_range, 0) + num(p.adds_range, 0); hides += num(p.hides, 0); loud += num(p.adds_signature, 0);
     link = Math.max(link, num(p.link_range, 0));
   }
   const floor = Math.ceil(ship.segs.length / num((rules.det || {}).stealthFloorDiv, 3));
-  return { segments: ship.segs.length, thrust, sensor, signature: Math.max(floor, ship.segs.length - hides), link, cost: ship.cost };
+  return { segments: ship.segs.length, thrust, sensor, signature: Math.max(floor, ship.segs.length - hides) + loud, link, cost: ship.cost };
 }
 
 export { dist };

@@ -1,0 +1,119 @@
+# ============================================================
+#  BOARD: Fog Bank
+#
+#  You defend. You are outgunned two to one, but you have laid three sleeper mines, a proximity
+#  mine and three contact mines in and around the fog bank in front of you, and they do not know
+#  where. A sleeper mine wrecks the segment that comes next to it and hits every segment beside it
+#  5 times.
+#
+#  Try: You can see your own mines. Fight from behind them: show a ship just beyond a mine and let
+#  them come to you through it. Only a scan finds your mines, and a scan lights up the ship that
+#  sends it; in the fog a ship also sees 3 less.
+#
+#  You are player_1 (south-west, dug in up to the middle). The computer is player_2. The computer
+#  attacks from the north-east edge.
+#  Open it at  play.html?board=09_fog_bank   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was north against south with mines in lanes between rocks (0-10 for
+#  you). Now a defended position: you deploy up to the centre, the fog bank is your moat, and the
+#  new sleeper mine (defined in this file) is the moat's teeth.
+#
+#  Needs a new rule to play as designed: smarter sleeper mines: drift 1 hex toward a contact within
+#  3 (drift: 1, drift_sense: 3), go for the biggest ship (prefers: largest), and wreck two segments
+#  outright (wrecks_segments: 2) instead of spreading blast hits.
+# ============================================================
+
+board:
+  name: "Fog Bank"
+  idea: "You defend. You are outgunned two to one, but you have laid three sleeper mines, a proximity mine and three contact mines in and around the fog bank in front of you, and they do not know where. A sleeper mine wrecks the segment that comes next to it and hits every segment beside it 5 times."
+  try: "You can see your own mines. Fight from behind them: show a ship just beyond a mine and let them come to you through it. Only a scan finds your mines, and a scan lights up the ship that sends it; in the fog a ship also sees 3 less."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "aggressive"
+    ai.tricks.mines_as_bait_rounds: 8      # engine: the side with the mines waits behind them for 8 rounds
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Fog Bank"
+  board: { shape: hexagon, radius: 8 }
+  zones:
+    player_1_home: { edge: south_west, depth: 6 }
+    player_2_home: { edge: north_east, depth: 3 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: nebula, at: [1, -1], radius: 2 }
+    - { type: asteroid, at: [3, 1], size: 3 }
+    - { type: asteroid, at: [-1, -3], size: 3 }
+    - { type: asteroid, at: [4, -5], size: 1 }
+    - { type: asteroid, at: [-4, 5], size: 1 }
+    - { type: nebula, at: [-5, 2], radius: 1 }
+
+player_1:
+  ships:
+    - name: "Lighthouse"                # starter flagship
+      flagship: true
+      load: { missile: 2 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, comms] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [launcher, point_defence] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, coupling, stealth] }
+    - name: "Hush"                # sniper
+      hull:
+        - { at: [-1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+        - { at: [0, 0], bays: [core, sensor, sensor] }
+        - { at: [1, 0], bays: [engine, stealth, coupling], mounts: [laser] }
+    - name: "Flint"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Swift"                # courier (sprint drive, 5 hexes a turn)
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+  deployment:
+    - { ship: "Lighthouse", at: [-6, 3] }
+    - { ship: "Hush", at: [-4, 0] }
+    - { ship: "Flint", at: [-6, 6] }
+    - { ship: "Swift", at: [-7, 1] }
+    - { sleeper_mine: [-1, 1] }
+    - { sleeper_mine: [0, -2] }
+    - { sleeper_mine: [-1, 3] }
+    - { naval_mine: [0, 2] }
+    - { mine: [0, -4] }
+    - { mine: [-2, 5] }
+    - { mine: [0, 0] }
+
+player_2:
+  ships:
+    - name: "Maul"                # brawler
+      flagship: true
+      hull:
+        - { at: [0, 0], bays: [core, sensor, comms] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [1, -1], bays: [engine, sensor, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [laser, shield] }
+        - { at: [-1, 1], bays: [engine, coupling, stealth], mounts: [armour] }
+        - { at: [0, 1], bays: [engine, coupling, stealth] }
+    - name: "Fang"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Claw"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+    - name: "Tusk"                # gunboat
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }
+        - { at: [1, 0], bays: [coupling, engine, engine], mounts: [laser, armour] }
+  deployment:
+    - { ship: "Maul", at: [7, -3] }
+    - { ship: "Fang", at: [6, -6] }
+    - { ship: "Claw", at: [6, 1] }
+    - { ship: "Tusk", at: [6, -8] }

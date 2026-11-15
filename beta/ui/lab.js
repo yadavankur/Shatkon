@@ -1100,6 +1100,7 @@ function labSigText(sig) {
           : '');
   if (!sig.stealth) t += ' (floor ' + sig.floor + ')';
   if (sig.haze) t += ', ' + sig.haze + ' nebula';
+  if (sig.emitter) t += ', +' + sig.emitter + ' decoy emitter';
   if (sig.flare) t += ', +' + sig.flare + ' flare';
   if (sig.motion)
     t += sig.motion < 0 ? ', \u2212' + -sig.motion + ' sitting still' : ', +' + sig.motion + ' engine wake';

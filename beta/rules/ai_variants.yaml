@@ -1,0 +1,341 @@
+# ============================================================
+#  VARIANTS  -  rule and pilot variations for tools/variants.mjs
+#
+#  Not part of the game (it is not listed in index.yaml). Nothing here
+#  changes what a player sees: a variant only exists inside a simulation.
+#
+#  baseline:  the rules as frozen on 16 Nov 2026. The tool lays these
+#             values over world_v0.4.yaml before every game, so a later
+#             edit to the world file does not silently move the baseline.
+#             Anything not listed comes from the world file as it stands.
+#  variants:  a name, a one-line note, and only the values that differ.
+#             `rule:` says which game rule it changes ("none" = it only
+#             changes how the computer flies). `set:` are world-file
+#             paths. `pilots:` are fields laid over every pilot.
+#  pilots:    ways to fly a fleet. A block is laid over `base`.
+#  suites:    lists of cells to run. A cell is
+#             "variant | fleet:pilot v fleet:pilot".
+# ============================================================
+
+baseline:
+  note: "the beta rules as of 16 Nov 2026 (branch balance-and-ai, commit 6d101a7)"
+  round_cap: 30               # a game with no flagship dead after this many rounds is decided on points or drawn ("no kill")
+  set:
+    turns.command_points.per_turn: 3
+    turns.command_points.bank_cap: 6
+    turns.turn_limit: 30
+    actions.move.cost: 1
+    actions.fire.cost: 1
+    actions.launch.cost: 1
+    actions.launch.salvo: true
+    actions.scan.cost: 1
+    movement.needs_average_of: 0
+    movement.max_above_average: 1
+    movement.bank_turns: 2
+    detection.flare.fire_beam: 0
+    detection.flare.beam_hit: 3
+    detection.flare.launch: 2
+    detection.flare.point_defence_shot: 2
+    detection.flare.scan: 2
+    detection.scan_clear_bonus: 2
+    detection.scan_tiers: [[2, 4], [4, 7], [6, 10]]
+    detection.attack_run_bonus: 1
+    detection.still_signature_bonus: 0
+    detection.move_signature_penalty: 1
+    detection.move_signature_from_hexes: 2
+    detection.passive_fuzzy_extra: 3
+    detection.stealth_floor_segments_per_point: 3
+    bay_parts.core.sensor_range: 2
+    bay_parts.sensor.adds_range: 2
+    bay_parts.stealth.hides: 1
+    mount_parts.shield.hp: 1
+    mount_parts.armour.hp: 2
+    mount_parts.laser.hits: 3
+    mount_parts.laser.range: 8
+    mount_parts.laser.loses_1_hit_every: 4
+    mount_parts.point_defence.stops_per_round: 1
+    munitions.missile.speed: 6
+    munitions.missile.fuel: 3
+    munitions.missile.hits: 3
+    munitions.missile.wrecks_segment: true
+    munitions.missile.blast_radius: 1
+    munitions.missile.seeker_range: 2
+    # how the computer varies its game (added 16 Nov 2026, engine for the maps rework). Pinned at the
+    # world file's values on that day, so later tuning there does not move the study
+    ai.variety.tie_break: 0.02
+    ai.variety.opening_lanes: true
+    ai.variety.lane_rounds: 4
+    ai.tricks.launches_drones: true
+    ai.tricks.drones_in_flight: 2
+    ai.tricks.shoots_mines: 4
+    ai.tricks.mines_as_bait_rounds: 0
+    ai.tricks.decoys_as_bait: true
+
+
+# ------------------------------------------------------------
+# PILOTS
+# ------------------------------------------------------------
+pilots:
+  aggressive: { note: "closes to point-blank", range: [2, 3], keep_together: 3, missile_range: 8, attack_run: true }
+  balanced:   { note: "full laser strength, close order", range: [3, 4], keep_together: 3, missile_range: 8, attack_run: true }
+  defensive:  { note: "stands off at long range", range: [5, 6], keep_together: 2, missile_range: 8, attack_run: true }
+  sitter:     { note: "balanced, but never moves a ship", base: balanced, stance: hold }
+  camper:     { note: "stays home and shuffles one hex before each shot for the attack-run hit", base: balanced, range: [8, 8], missile_range: 6, stance: hold, steps_while_holding: true }
+  decoy:      { note: "balanced, with unarmed ships run 3 hexes ahead as bait", base: balanced, unarmed_ships: bait, bait_lead: 3 }
+  blind:      { note: "fires missiles without a lock at rough contacts, last-seen spots and the enemy's home rows", base: defensive, missile_range: 12, blind_fire: true, blind_fire_at_home: true, blind_fire_keeps: 0 }
+  spread:     { note: "balanced, every ship on its own", base: balanced, keep_together: 0 }
+  long:       { note: "fights at maximum laser range and launches from 12 hexes", base: balanced, range: [8, 8], missile_range: 12 }
+  # ---- stage 1B: human-style pilots (need the AI switches scans: eager, target_priority, bait_ship) ----
+  scanner:    { note: "balanced, but scans before it shoots and then goes for the ship with most weapons and least protection", base: balanced, scans: eager, target_priority: threat }
+  hunter:     { note: "balanced, picks targets by weapons and protection from whatever a scan has shown, without extra scans", base: balanced, target_priority: threat }
+  baiter:     { note: "balanced, with its smallest escort sent 4 hexes ahead as a sacrifice to draw fire and scans", base: balanced, bait_ship: smallest, bait_lead: 4 }
+
+
+# ------------------------------------------------------------
+# VARIANTS  (stage 1A: mechanics the engine already has)
+# ------------------------------------------------------------
+variants:
+  # ---- control ----
+  attack_run_off:    { note: "no bonus hit for a ship that moved before firing", rule: "detection.attack_run_bonus", set: { detection.attack_run_bonus: 0 } }
+  attack_run_2:      { note: "moving before firing is worth 2 extra hits", rule: "detection.attack_run_bonus", set: { detection.attack_run_bonus: 2 } }
+
+  # ---- banking (baseline: 6 command points, 2 turns of thrust) ----
+  cp_bank_none:      { note: "unspent command points are lost", rule: "turns.command_points.bank_cap", set: { turns.command_points.bank_cap: 0 } }
+  cp_bank_low:       { note: "at most 2 command points carried over", rule: "turns.command_points.bank_cap", set: { turns.command_points.bank_cap: 2 } }
+  cp_bank_uncapped:  { note: "no limit on banked command points", rule: "turns.command_points.bank_cap", set: { turns.command_points.bank_cap: 999 } }
+  thrust_bank_none:  { note: "unspent thrust is lost", rule: "movement.bank_turns", set: { movement.bank_turns: 0 } }
+  thrust_bank_low:   { note: "at most 1 turn of thrust carried over", rule: "movement.bank_turns", set: { movement.bank_turns: 1 } }
+  thrust_bank_uncapped: { note: "no limit on banked thrust", rule: "movement.bank_turns", set: { movement.bank_turns: 999 } }
+
+  # ---- sitting still is easier to see ----
+  still_lit_1:       { note: "a ship that did nothing on its turn has +1 signature", rule: "detection.still_signature_bonus", set: { detection.still_signature_bonus: 1 } }
+  still_lit_3:       { note: "a ship that did nothing on its turn has +3 signature", rule: "detection.still_signature_bonus", set: { detection.still_signature_bonus: 3 } }
+
+  # ---- scanning ----
+  scan_wide:         { note: "every scan ring is wider and the clear ring is not held back by the sensor", rule: "detection.scan_tiers, detection.scan_clear_bonus", set: { detection.scan_tiers: [[4, 7], [6, 10], [8, 13]], detection.scan_clear_bonus: 6 } }
+  scan_free:         { note: "a scan costs no command point", rule: "actions.scan.cost", set: { actions.scan.cost: 0 } }
+  scan_cost_2:       { note: "a scan costs 2 command points", rule: "actions.scan.cost", set: { actions.scan.cost: 2 } }
+  scan_quiet:        { note: "scanning does not light up the scanner", rule: "detection.flare.scan", set: { detection.flare.scan: 0 } }
+  scan_loud:         { note: "scanning lights up the scanner twice as far", rule: "detection.flare.scan", set: { detection.flare.scan: 4 } }
+
+  # ---- detection and stealth ----
+  sensors_long:      { note: "every core sees 4 hexes, not 2", rule: "bay_parts.core.sensor_range", set: { bay_parts.core.sensor_range: 4 } }
+  sensors_short:     { note: "every core sees 1 hex", rule: "bay_parts.core.sensor_range", set: { bay_parts.core.sensor_range: 1 } }
+  fuzzy_far:         { note: "rough contacts show from 6 hexes beyond sight, not 3", rule: "detection.passive_fuzzy_extra", set: { detection.passive_fuzzy_extra: 6 } }
+  fuzzy_none:        { note: "no rough contacts", rule: "detection.passive_fuzzy_extra", set: { detection.passive_fuzzy_extra: 0 } }
+  stealth_strong:    { note: "a stealth part hides 2 and the floor is 1 for every hull", rule: "bay_parts.stealth.hides, detection.stealth_floor_segments_per_point", set: { bay_parts.stealth.hides: 2, detection.stealth_floor_segments_per_point: 7 } }
+  stealth_off:       { note: "stealth parts do nothing", rule: "bay_parts.stealth.hides", set: { bay_parts.stealth.hides: 0 } }
+  loud_guns:         { note: "firing a laser lights the shooter up even on a miss", rule: "detection.flare.fire_beam", set: { detection.flare.fire_beam: 3 } }
+
+  # ---- defence levels ----
+  pd_none:           { note: "point defence stops nothing", rule: "mount_parts.point_defence.stops_per_round", set: { mount_parts.point_defence.stops_per_round: 0 } }
+  pd_2:              { note: "each point defence stops 2 missiles a round", rule: "mount_parts.point_defence.stops_per_round", set: { mount_parts.point_defence.stops_per_round: 2 } }
+  shield_2:          { note: "a shield soaks 2 hits before it goes down", rule: "mount_parts.shield.hp", set: { mount_parts.shield.hp: 2 } }
+  shield_off:        { note: "shields soak nothing", rule: "mount_parts.shield.hp", set: { mount_parts.shield.hp: 0 } }
+
+  # ---- missile strength, old launch rules (no salvo, launch from 5 hexes) ----
+  m_old_1x:          { note: "old launch rules, warhead 3 hits", rule: "munitions.missile.hits/wrecks_segment, actions.launch.salvo", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 3, actions.launch.salvo: false }, pilots: { missile_range: 5 } }
+  m_old_1.5x:        { note: "old launch rules, warhead 5 hits (4.5 rounded up)", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 5, actions.launch.salvo: false }, pilots: { missile_range: 5 } }
+  m_old_2x:          { note: "old launch rules, warhead 6 hits", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 6, actions.launch.salvo: false }, pilots: { missile_range: 5 } }
+  m_old_3x:          { note: "old launch rules, warhead 9 hits", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 9, actions.launch.salvo: false }, pilots: { missile_range: 5 } }
+  m_old_wreck:       { note: "old launch rules, warhead wrecks the segment", rule: "same", set: { munitions.missile.wrecks_segment: true, actions.launch.salvo: false }, pilots: { missile_range: 5 } }
+  # ---- missile strength, with salvo and launch from 8 hexes ----
+  m_new_1x:          { note: "salvo + 8 hexes, warhead 3 hits", rule: "munitions.missile.hits/wrecks_segment", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 3 } }
+  m_new_1.5x:        { note: "salvo + 8 hexes, warhead 5 hits", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 5 } }
+  m_new_2x:          { note: "salvo + 8 hexes, warhead 6 hits", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 6 } }
+  m_new_3x:          { note: "salvo + 8 hexes, warhead 9 hits", rule: "same", set: { munitions.missile.wrecks_segment: false, munitions.missile.hits: 9 } }
+  # (salvo + 8 hexes + wrecks the segment is the baseline itself)
+  # ---- one launch rule at a time ----
+  m_salvo_only:      { note: "old rules plus salvo, still launching from 5 hexes", rule: "actions.launch.salvo", set: { munitions.missile.wrecks_segment: false }, pilots: { missile_range: 5 } }
+  m_range_only:      { note: "old rules, no salvo, but launching from 8 hexes", rule: "none (pilot habit)", set: { munitions.missile.wrecks_segment: false, actions.launch.salvo: false } }
+
+  # ---- stage 1B: rules behind new switches (all off in the game) ----
+  first_fixed:       { note: "the same player moves first every round (no back-to-back turns)", rule: "turns.first_player (new switch)", set: { turns.first_player: fixed } }
+  move_1:            { note: "every fleet must move at least 1 hex a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 1 } }
+  move_2:            { note: "every fleet must move at least 2 hexes a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 2 } }
+  move_3:            { note: "every fleet must move at least 3 hexes a turn", rule: "movement.min_move (new switch)", set: { movement.min_move: 3 } }
+  move_50pct:        { note: "every fleet must spend half the thrust its engines make each turn", rule: "movement.min_move (new switch)", set: { movement.min_move: "50%" } }
+  move_100pct:       { note: "every fleet must spend all the thrust its engines make each turn, as far as it can", rule: "movement.min_move (new switch)", set: { movement.min_move: "100%" } }
+  scan_exposed_2:    { note: "a scan lights up the scanner for 2 rounds, not 1", rule: "detection.flare_rounds.scan (new switch)", set: { detection.flare_rounds.scan: 2 } }
+  scan_exposed_3:    { note: "a scan lights up the scanner for 3 rounds", rule: "detection.flare_rounds.scan (new switch)", set: { detection.flare_rounds.scan: 3 } }
+  magazine_1:        { note: "a loaded magazine that is destroyed wrecks its segment and does 1 hit to each neighbouring segment", rule: "damage.magazine_explodes (new switch)", set: { damage.magazine_explodes: 1 } }
+  magazine_3:        { note: "the same, 3 hits to each neighbouring segment", rule: "damage.magazine_explodes (new switch)", set: { damage.magazine_explodes: 3 } }
+
+
+# ------------------------------------------------------------
+# SUITES
+#   cells:       written out
+#   variants x matchups: every variant on every match-up
+#   roundrobin:  every listed fleet against every other, one pilot
+# ------------------------------------------------------------
+suites:
+  mirror:
+    note: "seat bias check: the same fleet and pilot on both sides"
+    games: 40
+    cells: [ "baseline | stock:balanced v stock:balanced" ]
+
+  pilots:
+    note: "pilot against pilot on four fleets of different size"
+    variants: [baseline]
+    matchups:
+      - "stock:aggressive v stock:balanced"
+      - "stock:aggressive v stock:defensive"
+      - "stock:balanced v stock:defensive"
+      - "guns3:aggressive v guns3:balanced"
+      - "guns3:aggressive v guns3:defensive"
+      - "guns3:balanced v guns3:defensive"
+      - "mixed4:aggressive v mixed4:balanced"
+      - "mixed4:aggressive v mixed4:defensive"
+      - "mixed4:balanced v mixed4:defensive"
+      - "mixed5:aggressive v mixed5:balanced"
+      - "mixed5:aggressive v mixed5:defensive"
+      - "mixed5:balanced v mixed5:defensive"
+      - "guns3:spread v guns3:balanced"
+      - "mixed4:long v mixed4:balanced"
+      - "decoys5:decoy v decoys5:balanced"
+      - "decoys5:decoy v guns3:balanced"
+      - "missile5:blind v missile5:balanced"
+      - "missile5:blind v guns4:balanced"
+
+  sitting:
+    note: "sitting and camping against the three personalities, and the both-sit stall (round cap 30)"
+    variants: [baseline]
+    matchups:
+      - "stock:aggressive v stock:sitter"
+      - "stock:balanced v stock:sitter"
+      - "stock:defensive v stock:sitter"
+      - "stock:balanced v stock:camper"
+      - "guns3:balanced v guns3:sitter"
+      - "guns3:balanced v guns3:camper"
+      - "mixed4:balanced v mixed4:sitter"
+      - "mixed4:balanced v mixed4:camper"
+      - "mixed5:balanced v mixed5:sitter"
+      - "mixed5:balanced v mixed5:camper"
+      - "missiles3:balanced v missiles3:sitter"
+      - "solo:balanced v solo:sitter"
+      - "stock:sitter v stock:sitter"
+      - "mixed4:sitter v mixed4:sitter"
+      - "stock:camper v stock:sitter"
+      - "mixed4:camper v mixed4:sitter"
+
+  fleets:
+    note: "fleet against fleet, both flown by balanced, sizes 1 to 5"
+    roundrobin: [solo, stock, pair_guns, guns3, missiles3, snipers3, shields3, mixed3, guns4, mixed4, stealth4, decoys5, swarm5, cheap5, missile5, mixed5]
+    pilot: balanced
+
+  counters:
+    note: "each counter fleet against the fleets it was built to beat"
+    variants: [baseline]
+    matchups:
+      - "anti_missile3:balanced v missiles3:balanced"
+      - "anti_missile3:balanced v missile5:balanced"
+      - "anti_missile3:balanced v wolfpack4:balanced"
+      - "anti_stealth3:balanced v snipers3:balanced"
+      - "anti_stealth3:balanced v stealth4:balanced"
+      - "anti_stealth3:balanced v decoys5:balanced"
+      - "standoff3:long v guns3:balanced"
+      - "standoff3:long v guns4:balanced"
+      - "standoff3:long v shields3:balanced"
+      - "heavy2:balanced v swarm5:balanced"
+      - "heavy2:balanced v cheap5:balanced"
+      - "heavy2:balanced v guns5:balanced"
+      - "wolfpack4:balanced v solo:balanced"
+      - "wolfpack4:balanced v stock:balanced"
+      - "wolfpack4:balanced v heavy2:balanced"
+
+  teams_mixed:
+    note: "identical ships, one personality each, slots and flagship shuffled per game (per-personality table follows each cell)"
+    ships: true
+    variants: [baseline]
+    matchups:
+      - "team3:mix(aggressive,balanced,defensive) v team3:mix(aggressive,balanced,defensive)"
+      - "team4:mix(aggressive,balanced,defensive,balanced) v team4:mix(aggressive,balanced,defensive,balanced)"
+      - "team5:mix(aggressive,aggressive,balanced,defensive,defensive) v team5:mix(aggressive,aggressive,balanced,defensive,defensive)"
+
+  teams_same:
+    note: "identical ships, one personality per team"
+    variants: [baseline]
+    matchups:
+      - "team3:aggressive v team3:balanced"
+      - "team3:aggressive v team3:defensive"
+      - "team3:balanced v team3:defensive"
+      - "team4:aggressive v team4:balanced"
+      - "team4:aggressive v team4:defensive"
+      - "team4:balanced v team4:defensive"
+      - "team5:aggressive v team5:balanced"
+      - "team5:aggressive v team5:defensive"
+      - "team5:balanced v team5:defensive"
+
+  rules_a:
+    note: "rule variants the engine already supports, each on six reference match-ups (the baseline row is the comparison)"
+    variants: [baseline, attack_run_off, attack_run_2, cp_bank_none, cp_bank_low, cp_bank_uncapped, thrust_bank_none, thrust_bank_low, thrust_bank_uncapped, still_lit_1, still_lit_3, scan_wide, scan_free, scan_cost_2, scan_quiet, scan_loud, sensors_long, sensors_short, fuzzy_far, fuzzy_none, stealth_strong, stealth_off, loud_guns, shield_2, shield_off]
+    matchups:
+      - "stock:balanced v stock:sitter"
+      - "mixed4:balanced v mixed4:camper"
+      - "guns3:balanced v snipers3:balanced"
+      - "stealth4:balanced v guns4:balanced"
+      - "mixed5:aggressive v mixed5:defensive"
+      - "shields3:balanced v missiles3:balanced"
+
+  missiles:
+    note: "warhead strength, with the old launch rules and with salvo + 8 hexes; missile counts per battle follow each cell"
+    missiles: true
+    variants: [m_old_1x, m_old_1.5x, m_old_2x, m_old_3x, m_old_wreck, m_new_1x, m_new_1.5x, m_new_2x, m_new_3x, baseline, m_salvo_only, m_range_only, pd_none, pd_2]
+    matchups:
+      - "missiles3:balanced v guns3:balanced"
+      - "missile5:balanced v mixed4:balanced"
+      - "wolfpack4:balanced v shields3:balanced"
+
+  # ---------------- stage 1B ----------------
+  tempo:
+    note: "who moves first: alternating (baseline) against fixed. Mirror cells are here on purpose, to measure the seat"
+    games: 20
+    variants: [baseline, first_fixed]
+    matchups:
+      - "stock:balanced v stock:balanced"
+      - "solo:balanced v solo:balanced"
+      - "team3:balanced v team3:balanced"
+      - "guns4:balanced v guns4:balanced"
+      - "mixed5:balanced v mixed5:balanced"
+
+  forced:
+    note: "forced movement at five levels, against sitters, campers, both-sit, and two ordinary fights"
+    variants: [baseline, move_1, move_2, move_3, move_50pct, move_100pct]
+    matchups:
+      - "stock:balanced v stock:sitter"
+      - "mixed4:balanced v mixed4:sitter"
+      - "stock:balanced v stock:camper"
+      - "guns3:balanced v guns3:camper"
+      - "stock:sitter v stock:sitter"
+      - "mixed4:sitter v mixed4:sitter"
+      - "mixed5:aggressive v mixed5:defensive"
+      - "guns3:balanced v snipers3:balanced"
+
+  scan_b:
+    note: "longer scan exposure and exploding magazines"
+    missiles: true
+    variants: [baseline, scan_exposed_2, scan_exposed_3, magazine_1, magazine_3]
+    matchups:
+      - "stock:balanced v stock:sitter"
+      - "guns3:balanced v snipers3:balanced"
+      - "stealth4:balanced v guns4:balanced"
+      - "shields3:balanced v missiles3:balanced"
+      - "guns3:balanced v missiles3:balanced"
+      - "mixed4:balanced v missile5:balanced"
+
+  humans:
+    note: "human-style pilots against the baseline computer (balanced)"
+    variants: [baseline, scan_wide, scan_free]
+    matchups:
+      - "mixed4:scanner v mixed4:balanced"
+      - "team3:scanner v team3:balanced"
+      - "mixed5:scanner v mixed5:balanced"
+      - "guns3:scanner v snipers3:balanced"
+      - "mixed4:hunter v mixed4:balanced"
+      - "team3:hunter v team3:balanced"
+      - "mixed4:baiter v mixed4:balanced"
+      - "team3:baiter v team3:balanced"
+      - "cheap5:baiter v guns3:balanced"
+      - "swarm5:baiter v guns4:balanced"
+      - "stealth4:baiter v guns4:balanced"
+      - "decoys5:decoy v mixed3:balanced"

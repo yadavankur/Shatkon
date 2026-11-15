@@ -1,0 +1,4 @@
+01_first_light      player 1 wins of 10, board turned 12 ways:  turn0 2  flip+0 4  turn60 2  flip+60 3  turn120 2  flip+120 3  turn180 2  flip+180 0  turn240 2  flip+240 1  turn300 3  flip+300 4
+04_the_dogleg       player 1 wins of 10, board turned 12 ways:  turn0 5  flip+0 5  turn60 2  flip+60 4  turn120 4  flip+120 4  turn180 1  flip+180 2  turn240 5  flip+240 4  turn300 6  flip+300 6
+05_kings_guard      player 1 wins of 10, board turned 12 ways:  turn0 3  flip+0 1  turn60 4  flip+60 1  turn120 3  flip+120 6  turn180 4  flip+180 4  turn240 2  flip+240 6  turn300 5  flip+300 2
+07_beacon_hill      player 1 wins of 10, board turned 12 ways:  turn0 5  flip+0 8  turn60 7  flip+60 6  turn120 7  flip+120 7  turn180 5  flip+180 7  turn240 3  flip+240 8  turn300 8  flip+300 5

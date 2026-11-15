@@ -1,0 +1,5 @@
+with ai.variety.tie_break = 0, ai.variety.opening_lanes = false
+01_first_light       player 1's fleet: moving first 13-7-0 (5.0 rounds), moving second 20-0-0 (5.7 rounds), in all 33 of 40; 0 to the round limit   exact mirror (turn 180)
+04_the_dogleg        player 1's fleet: moving first 17-3-0 (11.2 rounds), moving second 11-9-0 (11.4 rounds), in all 28 of 40; 0 to the round limit   exact mirror (turn 180)
+05_kings_guard       player 1's fleet: moving first 20-0-0 (14.8 rounds), moving second 20-0-0 (11.0 rounds), in all 40 of 40; 0 to the round limit   exact mirror (flip+300)
+07_beacon_hill       player 1's fleet: moving first 19-1-0 (8.8 rounds), moving second 1-19-0 (12.1 rounds), in all 20 of 40; 0 to the round limit   exact mirror (turn 180)

@@ -1,0 +1,110 @@
+# Balance evidence, Stage 1 (screening)
+
+> **Read this first (added 16 Nov 2026 after review).**
+> - **What "frozen baseline" means.** `beta/rules/ai_variants.yaml` pins about 55 numbers of the world file (command points, costs, flares, scan rings, part and missile strengths, and from today the computer's variety and tricks switches). It does **not** pin the computer player (`beta/engine/ai.js`), the engine, the skirmish map or the test fleets. A change to any of those moves these results, and the engine and the computer have both changed since the first run.
+> - **Findings 1 and 2 are corrected below.** The other findings stand on the first run, whose win-loss figures for two different sides are a fair pair; their "first seat won" columns are not a seat effect.
+> - **`tools/boards.mjs` and `tools/sim.mjs` are smoke tests.** They play from the shipped starting spots. Until today the computer had no randomness, so those runs mostly replayed one game with different dice (aggressive against a sitter and balanced against a sitter gave the same 58/42 row). `boards.mjs` now varies with the seed (`ai.variety`), which makes it a better smoke test, not a balance result.
+
+16 Nov 2026. Stage 1 is a screen: about 10 games a cell across 597 cells (6,100 games). It can only show big effects. Every number here is from `beta/docs/variants-results.md`; the suite is named so the rows can be found. Nothing has been confirmed at 40 games yet.
+
+**Labels.** *Clear*: the 95% interval excludes 50%. *Leaning*: 65/35 or beyond, interval still includes 50%. *Unclear*: neither. **Measured** means the number is in a table. **Inferred** means it is my reading of why.
+
+## The five most useful findings
+
+### 1. Where a fleet starts matters; who moves first does not show a steady effect (corrected 16 Nov after review)
+
+- **Correction.** The first version of this finding said the seat decides more games than the pilot. That was wrong: the tool gave start spots by seat and replayed the same seed with the seats swapped, so "the same seat won both" also meant "the same spots won both", and mirror cells replayed one game twice. The tool now gives each side its own formation whichever seat it sits in (`tools/variants.mjs`, "Seat and layout"). `mirror`, `tempo`, `pilots` and `teams_same` were re-run; those are the numbers below. The re-run is also on a newer engine (fair lines of sight, a computer with seeded tie-breaks and opening lanes), so the change is not from the tool fix alone.
+- **Measured, re-run:** in the 40-game mirror the first seat won 23 of 40 (57%, interval 42% to 71%, unclear). The old "28 of 40" was 14 of 20 different games. In `pilots` the same *seat* won both games of a pair in 39 of 90 pairs and the same *side* won both in 50 of 90. In `teams_same` it was 10 and 35 of 45. With the seat and the spots tied together it had been 67 of 90 and 39 of 45 for the seat. Over all four re-run suites the first seat won 272 of 510 games (53%).
+- **By fleet (`tempo`, 20 games each, same fleet and pilot both sides):** first-seat wins were stock 8, solo 5, team3 7, guns4 15, mixed5 15. Three of those are clear (solo against the first seat, guns4 and mixed5 for it), in opposite directions, and the five add up to 50 of 100.
+- **Inferred:** what the first run measured was mostly the starting formation. A lucky layout wins from either seat. Whether small fleets really do better moving second and big fleets moving first needs 40 games a cell.
+- **Label:** unclear for a seat effect overall. Leaning that it depends on fleet size.
+- **Variant tried:** `first_fixed` (same player first every round). First-seat wins in the five mirrors went from 8, 5, 7, 15, 15 of 20 to 6, 13, 12, 10, 9 of 20: 50 of 100 both ways. It moves individual fleets toward even (guns4, mixed5) or past it (solo), and does nothing overall. The earlier "16 to 6 of 20" was 8 to 3 of 10 games counted twice.
+
+### 2. Personality matters more than first reported, on identical ships too (corrected 16 Nov after review)
+
+- **Correction.** "Eight of nine cells exactly 5-5" in `teams_same` was built in by the tool: same spots, same seed, seats swapped, so each side won one game of every pair. With each side keeping its own formation, none of the nine cells is 5-5 by construction.
+- **Measured, re-run** (`teams_same`, 10 games a cell): 3v3 aggressive beat balanced 8-2 and defensive 7-3, balanced lost to defensive 3-7. 4v4: aggressive lost to balanced 3-7 and to defensive 2-8, balanced beat defensive 7-3. 5v5: 6-4, 5-5 and 7-3. Seven of nine cells lean; none is clear, and the direction changes with fleet size.
+- **`pilots`, re-run:** aggressive against defensive was 4-6 (stock), 6-4 (guns3), 4-6 (mixed4) and 5-5 (mixed5). Aggressive against balanced was 4-6, 6-4, 1-9 (clear) and 6-3-1. The first run's "aggressive beats defensive 7-3, 8-2, 8-2" did not repeat.
+- **Mixed teams** (`teams_mixed`, first run, not re-run; 20 to 40 ships per personality, so thin): at 5v5 defensive ships were alive at the end 75% of the time and first to die 5% of the time, against 53% and 28% for aggressive ones. At 3v3 the three were within 10 points of each other.
+- **Label:** unclear which personality is stronger. The earlier "they are equal" was not evidence either way. Ten games a cell cannot settle it.
+
+### 3. Missiles are lost at the launch rail, not at the target
+
+- **What it means for play:** making warheads stronger changes nothing. Letting ships launch earlier is what makes a missile fleet work.
+- **Measured** (`missiles`, per battle, side A): with the old launch rules a 15-missile fleet launched 1.7 to 2.0 missiles against guns3, and 0.2 against mixed4. With salvo and launching from 8 hexes it launched 6.8 to 7.7 and 2.8 to 3.0. Launching from 8 hexes without salvo gave 7.0 and 2.9. Salvo without the longer range gave 2.7 and 0.2. Against a 3-hit warhead, warheads of 5, 6 and 9 hits gave the same win-loss in 12 of 18 comparisons and moved it by one or two games in the other 6, all on one match-up.
+- **Where the launched ones go** (baseline, missiles3 against guns3): of 7.7 launched, 1.9 landed, 1.5 were shot down by lasers, 0.9 ran out of fuel or left the board, none were stopped by point defence, and 3.4 were either caught in another missile's blast or still flying when the game ended. The tool cannot yet tell those last two apart.
+- **Point defence** set to 0 or 2 stops changed at most one game in any cell.
+- **Label:** clear for launches (a three- to fifteen-fold change in every cell). Unclear for win rate: missiles3 against guns3 stayed 0-10 or 1-9 in this suite whatever the rule.
+- **A caution from the same data:** this suite had missiles3 losing to guns3 1-9. The `fleets` suite, same fleets, same pilots, different seeds and the sides the other way round, had it 4-6. Ten games is that noisy.
+
+### 4. The attack-run bonus is the only rule that clearly rewards moving
+
+- **What it means for play:** it should stay. Without it the sitter and the stand-off pilot do better.
+- **Measured** (`rules_a`): with the bonus off, balanced against a sitter (stock) went from 8-2 to 5-5, and aggressive against defensive (mixed5) from 8-2 to 3-7. A bonus of 2 gave 8-2 and 4-6. Four other match-ups moved by one game or less.
+- **Label:** leaning (no single cell is clear; two of six moved by 3 to 5 games in the expected direction).
+
+### 5. Forced movement beats the camper, but only at the top levels, and it does not end a stall
+
+- **What it means for play:** making every fleet move 1 or 2 hexes a turn changes nothing; a camper already does that. Making it spend all its thrust does hurt the camper. Two sitters still never meet.
+- **Measured** (`forced`): balanced against the camper with the stock fleet was 3-7 at baseline, 2-8 with 1 hex, 2 hexes or 50% of thrust, and 6-4 with 3 hexes or 100%. With guns3 it was 7-3 at baseline and 10-0 at 3 hexes (clear), 9-1 at 100% (clear). Sitter against sitter reached the round cap in 10 of 10 games at every level, on both fleets.
+- **Side effect, measured:** in the two ordinary fights the forced levels moved results by up to 4 games in no steady direction (mixed5 aggressive against defensive 8-2 to 4-6 at 2 hexes; guns3 against snipers3 7-3 to 4-6).
+- **Inferred:** a forced move costs a command point, so at high levels a fleet has fewer orders left to shoot with. That taxes everyone, not just the camper.
+- **Label:** leaning for the stock fleet, clear for guns3 at the top levels. Unclear side effects.
+
+## Five variants that did nothing
+
+| Variant | What was measured | Label |
+|---|---|---|
+| Command-point bank cap 2 or unlimited (baseline 6) | Identical to baseline in all 12 cells | clear that it does nothing here: fights last 4 to 9 rounds and the computer rarely leaves points unspent |
+| Thrust bank 1 turn or unlimited (baseline 2) | Identical to baseline in all 12 cells | same |
+| Warhead strength 3, 5, 6 or 9 hits | Same win-loss as 3 hits in 12 of 18 comparisons, one or two games different in the rest | unclear to nil |
+| Scan lights the scanner for 2 or 3 rounds (baseline 1) | Identical in 10 of 12 cells, one game different in 2 | nil with the computer flying: it seldom scans once it has a target |
+| Lasers light up the shooter even on a miss | Identical to baseline in all 6 cells | nil |
+
+Point defence at 0 or 2 stops, shields that soak 2 hits or none, and a scan that lights the scanner not at all or twice as far, also moved no cell by more than one or two games.
+
+**Banking, checked first as asked.** The current caps are 6 banked command points (`turns.command_points.bank_cap`) and 2 turns of engine output for thrust (`movement.bank_turns`). No banking of command points gave 5-5 against the sitter (baseline 8-2) and stayed within one game of baseline in the other five cells. No banking of thrust gave 5-3-2 against the sitter and 5-4-1 on mixed5 (baseline 8-2 in both). Both are unclear.
+
+## Other findings
+
+| Finding | What it means for play | Measured | Label |
+|---|---|---|---|
+| Sitting loses to all three personalities with the stock fleet | The computer no longer loses to a player who waits | 9-1, 8-2, 7-3 (`sitting`) | one clear, two leaning |
+| Sitting is closer on bigger fleets | A sitter with more guns is harder to dig out | 6-4 on guns3, mixed4 and mixed5; 6-3-1 on missiles3; 10-0 on solo | unclear, except solo (clear) |
+| The camper still beats balanced with the stock fleet | Staying home and stepping one hex before each shot is the best lazy plan with the starter fleet | 3-7; but 7-3, 6-4, 7-3 against the camper on guns3, mixed4, mixed5 | leaning each way |
+| Both-sit never ends | With two passive players the game is a 30-round draw | 20 of 20 games hit the cap; camper against sitter also 20 of 20 | clear |
+| Sensors and stealth swing stealth fleets hard | Detection range is a strong lever | guns3 against snipers3: 7-3 at baseline, 10-0 with cores seeing 4 hexes, 10-0 with stealth switched off, 4-6 with cores seeing 1. stealth4 against guns4: 5-5, then 3-7, 2-8, 3-7 | two clear cells, the rest leaning |
+| A sitting ship that is easier to see | Little effect | +3 signature: 6-4 against the sitter (baseline 8-2), 9-1 for guns3 against snipers3 | unclear |
+| An exploding magazine punishes missile ships | Hit location starts to matter | guns3 against missiles3: 6-4 at baseline, 8-2 with 1 hit to neighbours, 9-1 with 3. Other cells within one game | one clear cell |
+| One big ship beats most fleets | The 255-point dreadnought is under-priced or small ships are over-priced | solo 112-38 overall, 9-1 or 10-0 against eight fleets; lost to guns3 4-6, guns4 3-7, stealth4 2-8 (`fleets`) | clear in eight cells |
+| The stock fleet is weak | The starter fleet (178 points) is the cheapest and nearly the worst | 43-107; only decoys5 (40-110) did worse | clear in four cells |
+| Unarmed decoys do not pay | Every order to a decoy is an order not given to a gun | decoys5 40-110; bait pilot 5-5, 5-5 and 3-7 | leaning |
+| Blind missile fire helps a missile swarm | A real "trick" for a chapter | blind against guns4 8-2; against its own fleet 6-4; in the counter search it took swarm5 against mixed5 from 3 to 6 wins and missile5 against solo from 0 to 4 | leaning |
+| Counter fleets: three of five worked | Point defence everywhere beats missile fleets; one tough hull beats swarms | anti_missile3 7-3, 7-3, 8-2. heavy2 7-3, 9-1, 7-3. anti_stealth3 3-7, 6-4, 7-3. standoff3 6-4, 5-5, 6-4. wolfpack4 0-10, 5-5, 2-8 (the many-missiles counter to one big ship failed outright) | one clear each way, the rest leaning or unclear |
+| Scanner pilot (scans first, shoots the most dangerous ship) | No gain against the baseline computer | 5-5, 5-5, 4-5-1, 5-5 | unclear |
+| Scanner pilot with wider scans | Worse, if anything | 2-8, 4-6, 3-7, 6-4 | leaning worse |
+| Hunter pilot (same target choice, no extra scans) | No gain | 5-5 and 5-5, the same under both scan variants | unclear |
+| Sacrifice pilot (smallest armed escort sent ahead) | Costs a ship and buys nothing against this computer | 6-4, 4-6, 2-8, 0-10, 2-8 | one clear loss, the rest leaning or unclear |
+
+**Why the human-style pilots did not win (inferred).** Fights are over in 3 to 7 rounds and the win is the flagship. A scan costs one of three command points, and choosing the "most dangerous" ship pulls fire off the flagship. The bait works on a human who reacts to it; the baseline computer just shoots whatever is in range and moves on. These are tests against the computer, so they say little about how the tricks play against a person.
+
+## Not tested, and why
+
+- **Forward-arc movement for small ships.** Ships have no facing in the engine: a ship is a position and a set of segment offsets, and "ships that rotate" is on the parked list in the world file. It would need a facing stored on each ship, a turn cost, moves limited to three directions, a facing arrow in the play screen, and the computer's path search made facing-aware.
+- **Scan cost and scan range against a human.** Tested only with computer pilots, who scan rarely.
+- **Anti-missile "strength levels" beyond stops per round**, missile speed, fuel and seeker range: not run in this stage (seeker range and point defence off were tried on 16 Nov with no effect).
+
+## Candidates for Stage 2 (40 games each): your choice
+
+Each line is one or two cells. I recommend the first five.
+
+1. **Seat effect by fleet size.** `baseline` and `first_fixed` on the solo, team3, guns4 and mixed5 mirrors, 40 different seeds each (a mirror cell now plays one game a seed). The question is no longer "does fixed order even the seats" (overall the seats are already even: 50 of 100) but "do small fleets do better moving second and big fleets moving first, and does fixed order remove that".
+2. **Attack run as the control.** `baseline` and `attack_run_off` on stock balanced against sitter, and mixed5 aggressive against defensive.
+3. **Forced movement against the camper.** `baseline`, `move_3` and `move_100pct` on stock and guns3 balanced against camper, plus guns3 against snipers3 to measure the side effect.
+4. **Launch range against salvo.** `m_old_1x`, `m_salvo_only`, `m_range_only` and `baseline` on missile5 against mixed4 and missiles3 against guns3.
+5. **Detection as a lever.** `baseline`, `sensors_long` and `stealth_off` on guns3 against snipers3 and stealth4 against guns4.
+6. **Exploding magazines.** `baseline` and `magazine_3` on guns3 against missiles3 and mixed4 against missile5.
+7. **Aggressive against defensive.** Baseline on stock, guns3, mixed4 and mixed5 (three leaned one way, one the other).
+8. **The dreadnought.** solo against guns3, guns4, stealth4 and mixed5, to see whether it is a pricing problem.
+9. **Thrust bank off.** `baseline` and `thrust_bank_none` on stock balanced against sitter (the only variant that produced draws).
+10. **Blind fire as a chapter trick.** missile5 blind against guns4, and swarm5 against mixed5 head-on and blind.

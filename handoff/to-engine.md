@@ -1,5 +1,18 @@
 # Inbox: engine
 
+## 2026-11-16 · from maps · rule changes needed for maps-rework (scout reveal, stealth mines)
+- Branch `maps-rework` (from variety-study): all 10 boards reworked, new ships, design doc `beta/docs/maps-rework.md`. No engine code changed. The new part and mine are defined inside board files (`bay_parts.afterburner`, `munitions.sleeper_mine`) and already play. These asks make them play as Ankur described.
+- **Comet scout (afterburner part), `reveals_on_pass: N`:** in `doMove`, after each step, light up enemy ships within N hexes of the ship (`state.lit`, until the end of the next round), and light up the scout itself. Boards use N=2.
+- **Comet, `burn_turns: N`:** the part's `own_move` works for N turns on which the ship moved, then the ship moves `burnt_move` hexes (default 1). Keep a per-ship counter; it needs to go into the game and turn codes.
+- **Any `own_move` ship, `holds_objective: false`:** it cannot score or hold the beacon (`objective.js holders`). Without this, couriers take every Beacon Hill point.
+- **Part cap, `max_per_fleet: N`:** buildRules reports a problem when more than N ships in a fleet carry the part. Afterburner N=2.
+- **Sleeper mine, `scan_resist: N`:** `doScan` reveals this munition only within N hexes of the scanning ship. Passive sight is unchanged: sensor + signature already makes -10 invisible to anything but a sensor-11+ sweeper.
+- **Sleeper mine, `wrecks_segments: 2` and `ignores_shields: true`:** in `explode`, wreck the struck segment and the nearest other segment of that ship outright, instead of `blast_hits` to the neighbours. A one-hex or two-hex ship dies; a 7-hex ship loses two segments.
+- **Sleeper mine, `drift: 1, drift_sense: 3, prefers: largest`:** in the flight phase, a mine with an enemy ship within `drift_sense` moves `drift` hexes toward it (toward the most segments if several), never into rock or another piece, and checks its trigger after moving.
+- **Decoy, an `emitter` bay part (`adds_signature: 3`, `lures_missiles: true`):** it adds to the ship's signature, and a missile seeker that has a choice picks the emitter ship. This is for The Gambit (salvo against decoy).
+- **AI (lower priority):** (1) `homePoint` and the blind-fire spot in `ai.js` assume the enemy home is north or else south. Use the middle of whatever edge the enemy zone is on (5 of 10 boards start on other edges). (2) The computer never launches seeker drones and never shoots a visible mine in its path. (3) Its moves are fully deterministic, so a mirror board comes out 20-0 for one side (The Dogleg 2 of 40, King's Guard 40 of 40, with seats swapped). A seeded tie-break jitter would make board sims mean something.
+- Check with `npm test` (123 pass on the branch) and `node tools/boards.mjs` / `--codes`. Tests for the Comet move, sleeper sight and blast, and the Minefield's single clean lane are in `tests/beta-boards.test.js`.
+Status: done (branch `maps-rework-engine`, PR #28 to main; reply in to-maps.md, write-up `beta/docs/maps-rework-engine.md`. All built; three changed, one rejected as a default)
 
 ## 2026-11-16 · from maps (for Ankur) · variety-study review: merge after these fixes
 - Reviewed `variety-study` at 79261c8: 119 tests pass, merges cleanly into main, root game and campaign untouched (engine_check identical to main). Ankur wants these fixed before merging.
@@ -10,7 +23,7 @@
 - **5. Docs:** say plainly that the frozen baseline pins only the ~45 world numbers in `ai_variants.yaml`, not `beta/engine/ai.js`, the engine, the map or the fleets. Note that `tools/boards.mjs` and `sim.mjs` with the shipped spots mostly replay one game (aggressive v sit and balanced v sit gave identical 58/42 rows), so call them smoke tests.
 - **6. Code:** `beta/engine/query.js:109` courier movement skips `pl.canMove`, so a chapter that locks movement may not stop a courier. Keep forced movement (`turn.js`) simulation-only, since the play screen can't satisfy it.
 - FYI for Ankur: merging changes beta for players (three random personalities on "normal", missiles wreck segments and fire salvoes in story chapters too, `?board=`, `boards.html`).
-Status: open
+Status: done (on `maps-rework-engine`: 1 seat kept apart from layout in `tools/variants.mjs`; 2 four suites re-run, findings 1 and 2 and Stage 2 candidate 1 rewritten; 3 tables repaired; 4 STATUS/to-gamedev corrected, but note PR #27 for balance-and-ai does exist and is open; 5 said in balance-evidence.md; 6 `shipStatus` now agrees with `reach`/`doMove`, forced movement left simulation-only)
 
 ## 2026-11-15 · from gamedev · main has moved: PR #2 and #18 merged, branch from main
 - PR #2 (campaign-engine) is **merged**; campaign-engine is stale. Branch new work from origin/main.
@@ -18,7 +31,6 @@ Status: open
 - Open, by gamedev: #19 engine-fixes (undo blocked after info is revealed, nebula launch hits hidden ships, missiles pass wrecked segs, AI reads laser numbers from rules, game-code verification, ch4A guide checks 15/15, shared hit calc); #20 facelift-ships-p4 (ship art only); battle-log (game log + download + tools/analyse-log.mjs), PR coming.
 - `feature/move-target-affordance` touches ui/board.js target markers: please rebase onto main (post-#18) and check against #19/#20 before opening the PR.
 Status: done (rebased on 639152f; checked against #19/#20, no overlap beyond 3 lines of ui/play.js; PR opened)
-
 
 ## 2026-11-15 · from maps · beta playtest fixes ported to campaign-engine
 - Ankur asked me to do both halves this once. Commits 8401130 and a42e899 (made in beta/ on feature-campaign-fixes) are now on campaign-engine (engine, ui, play.html, rules, story/ships.json, campaign/).
