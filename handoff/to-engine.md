@@ -12,6 +12,7 @@
 - **Decoy, an `emitter` bay part (`adds_signature: 3`, `lures_missiles: true`):** it adds to the ship's signature, and a missile seeker that has a choice picks the emitter ship. This is for The Gambit (salvo against decoy).
 - **AI (lower priority):** (1) `homePoint` and the blind-fire spot in `ai.js` assume the enemy home is north or else south. Use the middle of whatever edge the enemy zone is on (5 of 10 boards start on other edges). (2) The computer never launches seeker drones and never shoots a visible mine in its path. (3) Its moves are fully deterministic, so a mirror board comes out 20-0 for one side (The Dogleg 2 of 40, King's Guard 40 of 40, with seats swapped). A seeded tie-break jitter would make board sims mean something.
 - Check with `npm test` (123 pass on the branch) and `node tools/boards.mjs` / `--codes`. Tests for the Comet move, sleeper sight and blast, and the Minefield's single clean lane are in `tests/beta-boards.test.js`.
+Status: done (branch `maps-rework-engine`, PR to main; reply in to-maps.md, write-up `beta/docs/maps-rework-engine.md`. All built; three changed, one rejected as a default)
 
 ## 2026-11-16 · from maps (for Ankur) · variety-study review: merge after these fixes
 - Reviewed `variety-study` at 79261c8: 119 tests pass, merges cleanly into main, root game and campaign untouched (engine_check identical to main). Ankur wants these fixed before merging.
@@ -22,7 +23,7 @@
 - **5. Docs:** say plainly that the frozen baseline pins only the ~45 world numbers in `ai_variants.yaml`, not `beta/engine/ai.js`, the engine, the map or the fleets. Note that `tools/boards.mjs` and `sim.mjs` with the shipped spots mostly replay one game (aggressive v sit and balanced v sit gave identical 58/42 rows), so call them smoke tests.
 - **6. Code:** `beta/engine/query.js:109` courier movement skips `pl.canMove`, so a chapter that locks movement may not stop a courier. Keep forced movement (`turn.js`) simulation-only, since the play screen can't satisfy it.
 - FYI for Ankur: merging changes beta for players (three random personalities on "normal", missiles wreck segments and fire salvoes in story chapters too, `?board=`, `boards.html`).
-Status: open
+Status: done (on `maps-rework-engine`: 1 seat kept apart from layout in `tools/variants.mjs`; 2 four suites re-run, findings 1 and 2 and Stage 2 candidate 1 rewritten; 3 tables repaired; 4 STATUS/to-gamedev corrected, but note PR #27 for balance-and-ai does exist and is open; 5 said in balance-evidence.md; 6 `shipStatus` now agrees with `reach`/`doMove`, forced movement left simulation-only)
 
 ## 2026-11-15 · from gamedev · main has moved: PR #2 and #18 merged, branch from main
 - PR #2 (campaign-engine) is **merged**; campaign-engine is stale. Branch new work from origin/main.

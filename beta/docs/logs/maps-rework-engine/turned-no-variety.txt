@@ -1,0 +1,5 @@
+with ai.variety.tie_break = 0, ai.variety.opening_lanes = false
+01_first_light      player 1 wins of 10, board turned 12 ways:  turn0 7  flip+0 7  turn60 0  flip+60 3  turn120 0  flip+120 3  turn180 0  flip+180 0  turn240 0  flip+240 4  turn300 7  flip+300 0
+04_the_dogleg       player 1 wins of 10, board turned 12 ways:  turn0 8  flip+0 4  turn60 9  flip+60 7  turn120 3  flip+120 8  turn180 3  flip+180 2  turn240 8  flip+240 6  turn300 4  flip+300 9
+05_kings_guard      player 1 wins of 10, board turned 12 ways:  turn0 10  flip+0 0  turn60 10  flip+60 0  turn120 10  flip+120 10  turn180 0  flip+180 0  turn240 10  flip+240 10  turn300 9  flip+300 0
+07_beacon_hill      player 1 wins of 10, board turned 12 ways:  turn0 9  flip+0 8  turn60 9  flip+60 10  turn120 10  flip+120 10  turn180 10  flip+180 10  turn240 10  flip+240 0  turn300 8  flip+300 0

@@ -1,0 +1,41 @@
+## sleeper mine, as built
+02_minefield         player 1's fleet: moving first 7-11-2 (16.4 rounds), moving second 6-11-3 (15.6 rounds), in all 13 of 40; 5 to the round limit
+09_fog_bank          player 1's fleet: moving first 3-17-0 (9.8 rounds), moving second 7-12-1 (8.9 rounds), in all 10 of 40; 1 to the round limit
+## no drift
+with munitions.sleeper_mine.drift = 0
+02_minefield         player 1's fleet: moving first 15-5-0 (15.2 rounds), moving second 7-12-1 (15.5 rounds), in all 22 of 40; 1 to the round limit
+09_fog_bank          player 1's fleet: moving first 7-13-0 (9.6 rounds), moving second 5-14-1 (9.8 rounds), in all 12 of 40; 1 to the round limit
+## the mine as maps-rework had it (one segment, shield saves it, no drift, any laser sweeps it, scans see it)
+with munitions.sleeper_mine.drift = 0, munitions.sleeper_mine.wrecks_segments = 1, munitions.sleeper_mine.ignores_shields = false, munitions.sleeper_mine.beams_pass = false, munitions.sleeper_mine.scan_resist = 0
+02_minefield         player 1's fleet: moving first 13-6-1 (14.8 rounds), moving second 12-8-0 (15.4 rounds), in all 25 of 40; 1 to the round limit
+09_fog_bank          player 1's fleet: moving first 5-15-0 (8.8 rounds), moving second 1-19-0 (8.4 rounds), in all 6 of 40; 0 to the round limit
+## computer does not wait behind its mines
+with ai.tricks.mines_as_bait_rounds = 0
+02_minefield         player 1's fleet: moving first 8-10-2 (16.9 rounds), moving second 9-8-3 (15.7 rounds), in all 17 of 40; 5 to the round limit
+09_fog_bank          player 1's fleet: moving first 5-15-0 (9.5 rounds), moving second 8-11-1 (8.9 rounds), in all 13 of 40; 1 to the round limit
+## Comet does not reveal as it flies
+with bay_parts.afterburner.reveals_on_pass = 0
+03_cat_and_mouse     player 1's fleet: moving first 11-7-2 (24.0 rounds), moving second 11-5-4 (23.6 rounds), in all 22 of 40; 6 to the round limit
+05_kings_guard       player 1's fleet: moving first 7-13-0 (10.4 rounds), moving second 10-9-1 (10.8 rounds), in all 17 of 40; 1 to the round limit   exact mirror (flip+300)
+## Comet never burns out
+with bay_parts.afterburner.burn_turns = 0
+03_cat_and_mouse     player 1's fleet: moving first 8-9-3 (25.4 rounds), moving second 11-9-0 (22.6 rounds), in all 19 of 40; 3 to the round limit
+05_kings_guard       player 1's fleet: moving first 7-13-0 (10.0 rounds), moving second 12-6-2 (11.8 rounds), in all 19 of 40; 2 to the round limit   exact mirror (flip+300)
+## emitter does not draw missiles
+with bay_parts.emitter.lures_missiles = false
+10_gambit            player 1's fleet: moving first 14-5-1 (11.6 rounds), moving second 12-6-2 (14.2 rounds), in all 26 of 40; 3 to the round limit
+## emitter adds no signature and draws no missiles (a plain Lure)
+with bay_parts.emitter.lures_missiles = false, bay_parts.emitter.adds_signature = 0
+10_gambit            player 1's fleet: moving first 8-10-2 (12.9 rounds), moving second 5-15-0 (11.1 rounds), in all 13 of 40; 2 to the round limit
+## couriers may hold the beacon again
+with bay_parts.sprint_drive.holds_objective = true
+07_beacon_hill       player 1's fleet: moving first 1-19-0 (9.0 rounds), moving second 14-6-0 (10.9 rounds), in all 15 of 40; 0 to the round limit   exact mirror (turn 180)
+    launched missile 240, missile destroyed 14, missile went off 40, objective_scored 53, scan 298
+## computer does not launch drones
+with ai.tricks.launches_drones = false
+04_the_dogleg        player 1's fleet: moving first 6-14-0 (12.8 rounds), moving second 15-5-0 (13.2 rounds), in all 21 of 40; 0 to the round limit   exact mirror (turn 180)
+## unarmed escorts are not bait
+with ai.tricks.decoys_as_bait = false
+07_beacon_hill       player 1's fleet: moving first 11-9-0 (11.3 rounds), moving second 7-13-0 (11.0 rounds), in all 18 of 40; 0 to the round limit   exact mirror (turn 180)
+10_gambit            player 1's fleet: moving first 12-8-0 (10.4 rounds), moving second 8-11-1 (13.3 rounds), in all 20 of 40; 1 to the round limit
+03_cat_and_mouse     player 1's fleet: moving first 10-8-2 (24.1 rounds), moving second 9-8-3 (25.4 rounds), in all 19 of 40; 5 to the round limit

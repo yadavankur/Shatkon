@@ -75,6 +75,7 @@ function playTurn(g, count) {
     if (!r.ok) { add('REFUSED ' + a.type + ' (' + r.why + ')'); a = { type: 'end' }; r = E.attempt(g, a); }
     g = r.state;
     if (count) {
+      if (g.round <= 2 && count._sig !== undefined) count._sig += E.actionText(a) + ';';
       if (a.type === 'launch') add('launched ' + a.kind); else if (a.type === 'scan' || a.type === 'detonate') add(a.type);
       for (const e of g.events) {
         if (e.t === 'blast') add(e.kind + ' went off');
@@ -89,7 +90,9 @@ function playTurn(g, count) {
 }
 export function playOut(rules, seed, count) {
   let g = E.start(rules, seed), guard = 0;
+  if (count) count._sig = '';
   while (g.phase === 'play' && guard++ < 400) g = playTurn(g, count);
+  if (count) { (count._openings = count._openings || new Set()).add(count._sig); delete count._sig; }
   const over = g.events.find((e) => e.t === 'game_over') || {};
   return { winner: g.winner, rounds: g.round, by: over.by || 'flagship' };
 }
@@ -145,6 +148,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const b = series(loadBoard(n, { set, swap: true }).rules, count), mir = mirrorOf(rules);
       console.log(`${n.padEnd(20)} player 1's fleet: moving first ${a.w}-${a.l}-${a.d} (${a.rounds} rounds), moving second ${b.l}-${b.w}-${b.d} (${b.rounds} rounds), in all ${a.w + b.l} of ${2 * games}; ${a.nk + b.nk} to the round limit${mir ? '   exact mirror (' + mir + ')' : ''}`);
     } else console.log(`${n.padEnd(20)} cost ${rules.fleets.map((f) => f.cost).join(' v ').padEnd(10)} you (player 1) ${a.w}-${a.l}-${a.d} over ${games} computer-flown games, ${a.rounds} rounds, ${a.nk} to the round limit   "${doc.board.name}"`);
-    if (count) console.log('    ' + (Object.entries(count).sort().map(([k, v]) => k + ' ' + v).join(', ') || 'nothing of note'));
+    if (count) {
+      const openings = count._openings.size; delete count._openings;
+      console.log('    ' + openings + ' different openings (orders given in rounds 1 and 2) in ' + (args.includes('--both') ? 2 * games : games) + ' games; ' + (Object.entries(count).sort().map(([k, v]) => k + ' ' + v).join(', ') || 'nothing else of note'));
+    }
   }
 }

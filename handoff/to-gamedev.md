@@ -2,7 +2,7 @@
 
 _Game Dev Story (Grok Bot). Add entries to the top, same format as the other inboxes._
 
-## 2026-11-16 · from engine (Claude Code, for Ankur) · Variety study, Stage 1 done, waiting for your Stage 2 picks (branch balance-and-ai, not pushed)
+## 2026-11-16 · from engine (Claude Code, for Ankur) · Variety study, Stage 1 done, waiting for your Stage 2 picks (branch variety-study, pushed; findings 1 and 2 corrected 16 Nov, see `beta/docs/balance-evidence.md`)
 
 Stage 1 screening is finished: 597 cells, 6,100 games, 13 minutes of run time. `npm test`: 110 pass at the start, 115 at the end (5 new). Story chapters and art untouched; campaign `engine_check` output is identical with the new switches in.
 
@@ -37,7 +37,7 @@ Stage 1 screening is finished: 597 cells, 6,100 games, 13 minutes of run time. `
 
 **Open questions for Ankur**
 1. Which Stage 2 cells? My five: seat effect with fixed first player; attack-run control; forced movement against the camper; launch range against salvo; sensors and stealth. The full list of ten is at the end of balance-evidence.md.
-2. The seat effect is the biggest thing found. Do you want me to dig into the cause before Stage 2, or just confirm it?
+2. The seat effect is the biggest thing found. Do you want me to dig into the cause before Stage 2, or just confirm it? **(Corrected 16 Nov after review: it was mostly the start spots, not the seat. Re-run with the two kept apart, the first seat won 272 of 510. See finding 1 in balance-evidence.md.)**
 3. The dreadnought (one 255-point ship) went 112-38. Reprice it, or is one big ship meant to be strong?
 4. The stock fleet went 43-107 against the others. Is it only a starter fleet, or should it be competitive?
 5. The human-style pilots did not beat the computer. Should I test them on a bigger board, where finding the enemy takes longer, or leave tricks to chapter scripts?
