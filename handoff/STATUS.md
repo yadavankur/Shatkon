@@ -1,11 +1,9 @@
-# Status (updated 2026-11-15 by gamedev)
+# Status (updated 2026-11-15 23:45 Sydney by gamedev)
 
 ## Branches and PRs
-- **main** (d82473a): PR #2 campaign-engine merged (6e05002), PR #18 ship facelift merged. Live at https://yadavankur.github.io/Shatkon/ (play.html, docs/, beta/).
-- **engine-fixes**: PR #19 → main (open, gamedev).
-- **facelift-ships-p4**: PR #20 → main (open, gamedev; ship art only).
-- **battle-log**: PR #23 → main (open, gamedev): battle log download (☰ Game card + game-over box) and tools/analyse-log.mjs. Merges cleanly with #19 and #20.
-- **feature/move-target-affordance**: PR #22 → main (open, engine). ui/board.js move markers, play.html CSS, 2 hint strings in ui/play.js. No file overlap with #20 or #23; 3 lines of ui/play.js near #19.
+- **main is the only branch** (39577f7, 15 Nov 23:40 Sydney). Merged today: #19 engine-fixes, #23 battle-log, #20 ship facelift, #22 move markers, #25 feature-campaign-fixes. All other branches were deleted (every one was fully merged). 98 tests pass.
+- **Rule for every worker:** start new work from the latest main (`git checkout main && git pull`), use a short-lived branch, open a PR to main, delete the branch after merge.
+- **Heads-up:** feature-campaign-fixes was made directly in beta/ (Ankur's playtest), so beta/ now has changes the root game does not (ship panel, halos, outlines, animated moves, ch1 redeploy, Kestrel refit). Do not refresh beta/ from the root game without carrying these over first.
 
 ## Older notes (14 Nov, before PR #2 merged)
 - **main**: live game + /beta/. Beta = campaign-engine 960a0f7.
@@ -25,5 +23,5 @@
 - All 5 chapters load and finish in engine_check. 74 tests pass.
 
 ## In progress / waiting
-- **feature-campaign-fixes** (15 Nov, Ankur's playtest, made directly in beta/): full-screen board with a ship panel instead of the ship strip, halos on ships you can command, ship outlines, animated ship moves and rams, ship art option, symmetric-hull rule, ch1 redeployed, Kestrel refit reshaped. Not yet on campaign-engine: a beta refresh from that branch would undo it. See to-maps.md and to-story.md.
+- **feature-campaign-fixes** (now merged into main as #25; made directly in beta/): full-screen board with a ship panel instead of the ship strip, halos on ships you can command, ship outlines, animated ship moves and rams, ship art option, symmetric-hull rule, ch1 redeployed, Kestrel refit reshaped. Not yet on campaign-engine: a beta refresh from that branch would undo it. See to-maps.md and to-story.md.
 - story: scene editor `story/editor.html`; no text in art (see to-story.md).
