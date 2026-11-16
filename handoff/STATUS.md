@@ -16,6 +16,11 @@
 - **Phase banner:** the small pill is now a band right across the board with a second line: "Your turn" (round, command points), "Enemy turn", "Flight phase", who moves first, the result. It shows on every phase change, including a turn that ends by itself.
 - **Decided:** the flight banner shows at the end of every round, whether or not the player can see anything fly ("Nothing in the air that you can see"). Showing it only when something flew would tell the player about hidden missiles. A round with no visible flight is 1.1 seconds longer for it. Against the computer the banner says "Enemy turn" (was "Computer's turn"). The line shown on selecting a ship is shorter.
 
+## Latest (16 Nov, controls): phone-first controls, step 4 of 8 (branch `phone-scale`, stacked on `phone-banner`)
+- **Ships are drawn at 0.70 of their tiles** (`SHIP_SCALE` in `ui/board.js`, one number to tune), shrunk about the ship's own centre. A long ship is shrunk less so every segment stays inside its own hex. All three ship styles (ships, schematic, models) go through it; no ship art was changed.
+- **State is on the tiles:** every hex a ship occupies is tinted in its owner's colour; a pulsing white rim on the tiles marks a ship you can order (was a blurred halo round the hull); the selected ship's tiles are lit with a solid white rim. Name tags, move markers, targets and the move ghost were already tile-based.
+- **Checked:** headless Chrome at 800x360: silhouettes still read at 22px hexes. To be tuned by eye on a real phone.
+
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
 - `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.

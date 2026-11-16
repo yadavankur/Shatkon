@@ -7,6 +7,8 @@ import { drawFrigate, frigateDefs } from './frigate.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const S = 10, W = Math.sqrt(3) * S;
+// How big a ship is drawn next to the hexes it occupies (1 = it fills them). Tuned by eye on a phone screen.
+export const SHIP_SCALE = 0.7;
 // FL is -1 when the board is drawn upside down, so the player at the top
 // (Player 2) still sees their own side at the bottom.
 export let FL = 1;
@@ -236,9 +238,19 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     const c0 = col(x.owner), off = offsets ? offsets(x.id, x.pos) : null;
     const g = s('g', { 'data-ship': x.id, opacity: x.seen ? null : 0.4, transform: off ? `translate(${f1(off[0])},${f1(off[1])})` : null });
     const rim = outlinePath(x.cells);
-    // a halo marks the ships you can give orders to; the selected one glows
-    if (x.id === sel) g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1.16)).join(''), fill: c0, 'fill-opacity': 0.4, filter: 'url(#glow)' }));
-    else if (halo && halo.has(x.id) && !hidden) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-opacity': 0.75, filter: 'url(#glow)', class: 'halo' }));
+    // State goes on the tiles: every hex the ship occupies is tinted in its owner's colour, a white rim marks a ship
+    // you can give orders to, and the selected one is lit. The ship itself is drawn smaller than its tiles
+    // (SHIP_SCALE, about its own centre), so there is room around every piece. A long ship is shrunk less, so
+    // that each of its segments stays inside its own hex.
+    const sx = x.cells.reduce((n, c) => n + X(c), 0) / x.cells.length, sy = x.cells.reduce((n, c) => n + Y(c), 0) / x.cells.length;
+    const far = Math.max(...x.cells.map((c) => Math.hypot(X(c) - sx, Y(c) - sy)));
+    const k = Math.max(SHIP_SCALE, far > 0 ? 1 - (0.45 * W) / far : 0);
+    const isSel = x.id === sel, canOrder = !!(halo && halo.has(x.id) && !hidden);
+    if (isSel) g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1.12)).join(''), fill: c0, 'fill-opacity': 0.35, filter: 'url(#glow)' }));
+    g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 0.95)).join(''), fill: c0, 'fill-opacity': isSel ? 0.3 : 0.13, stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.55 }));
+    if (isSel) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 1.5, 'stroke-linecap': 'round' }));
+    else if (canOrder) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-opacity': 0.75, class: 'halo' }));
+    const art = s('g', { transform: `translate(${f1(sx)},${f1(sy)}) scale(${k.toFixed(3)}) translate(${f1(-sx)},${f1(-sy)})` });
     let model = style === 'model' ? modelFor(x.name, x.segs.map((sg) => sg.off)) : null;
     if (model && !model._fit) { if (!model._bad) measure(model, modelBase + model.img, onCam); model = null; }   // schematic until the picture is measured
     let drawn = false;
@@ -247,50 +259,51 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       // your side (seat 1) flies classic sci-fi ships built from their modules; the Weave side keeps the hex hulls
       const foe = v.ships.filter((z) => z.owner !== x.owner && z.seen).map((z) => [X(z.pos), Y(z.pos)]).sort((a, z) => Math.hypot(a[0] - X(x.pos), a[1] - Y(x.pos)) - Math.hypot(z[0] - X(x.pos), z[1] - Y(x.pos)))[0] || null;
       const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: fwd, detail: detailed ? 1 : 0, moved: x.moved, flagship: x.flagship, target: foe };
-      g.appendChild(x.owner === 0 ? drawFrigate(so) : drawShip(so));
+      art.appendChild(x.owner === 0 ? drawFrigate(so) : drawShip(so));
       drawn = true;
     } catch (e) { if (!drawFail.has(x.id)) { drawFail.add(x.id); console.warn('ship art failed for', x.id, '- drawn as a schematic', e); } }
     if (!drawn) {
     // the hull plate: one fused shape under the segments
-    g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
+    art.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
     if (model) {
       const us = x.segs.map((sg) => [W * (sg.off[0] + sg.off[1] / 2), 1.5 * S * sg.off[1]]);
       // the hull's own box (unflipped, relative to the ship's centre hex): left, right, top
       const hx0 = Math.min(...us.map((p) => p[0])) - W / 2, hx1 = Math.max(...us.map((p) => p[0])) + W / 2, hy0 = Math.min(...us.map((p) => p[1])) - S;
       const F = model._fit, k = (hx1 - hx0) / (F.x1 - F.x0), iw = F.w * k, ih = F.h * k, ix = hx0 - F.x0 * k, iy = hy0 - F.y0 * k;
       const ox = X(x.pos), oy = Y(x.pos);   // draw it unflipped around the ship's centre, then turn it with the board
-      g.appendChild(s('image', { href: modelBase + model.img, x: f1(ox + ix), y: f1(oy + iy), width: f1(iw), height: f1(ih), transform: FL < 0 ? `rotate(180 ${f1(ox)} ${f1(oy)})` : null, 'pointer-events': 'none' }));
+      art.appendChild(s('image', { href: modelBase + model.img, x: f1(ox + ix), y: f1(oy + iy), width: f1(iw), height: f1(ih), transform: FL < 0 ? `rotate(180 ${f1(ox)} ${f1(oy)})` : null, 'pointer-events': 'none' }));
     }
     x.segs.forEach((sg, i) => {
       const c = x.cells[i], cx = X(c), cy = Y(c);
       if (sg.wrecked) {
-        g.appendChild(s('path', { d: cellPath(c), fill: '#151a28', 'fill-opacity': model ? 0.85 : 1, stroke: '#566080', 'stroke-width': 0.7, 'stroke-dasharray': '1.5 1.5' }));
-        g.appendChild(s('path', { d: `M${f1(cx - 4)},${f1(cy - 3)}L${f1(cx + 1)},${f1(cy)}L${f1(cx - 2)},${f1(cy + 4)}M${f1(cx + 4)},${f1(cy - 4)}L${f1(cx + 1)},${f1(cy)}`, stroke: '#566080', 'stroke-width': 0.6, fill: 'none' }));
+        art.appendChild(s('path', { d: cellPath(c), fill: '#151a28', 'fill-opacity': model ? 0.85 : 1, stroke: '#566080', 'stroke-width': 0.7, 'stroke-dasharray': '1.5 1.5' }));
+        art.appendChild(s('path', { d: `M${f1(cx - 4)},${f1(cy - 3)}L${f1(cx + 1)},${f1(cy)}L${f1(cx - 2)},${f1(cy + 4)}M${f1(cx + 4)},${f1(cy - 4)}L${f1(cx + 1)},${f1(cy)}`, stroke: '#566080', 'stroke-width': 0.6, fill: 'none' }));
         return;
       }
       if (model) return;
       if (!detailed || !sg.parts) {
-        g.appendChild(s('path', { d: cellPath(c, 0.9), fill: c0, 'fill-opacity': sg.parts ? 0.9 : 0.6 }));
-        if (detailed) g.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#0a0f1e' }, '?'));
+        art.appendChild(s('path', { d: cellPath(c, 0.9), fill: c0, 'fill-opacity': sg.parts ? 0.9 : 0.6 }));
+        if (detailed) art.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#0a0f1e' }, '?'));
         return;
       }
-      g.appendChild(s('path', { d: cellPath(c, 0.93), fill: '#141d38', stroke: c0, 'stroke-width': 0.9 }));
+      art.appendChild(s('path', { d: cellPath(c, 0.93), fill: '#141d38', stroke: c0, 'stroke-width': 0.9 }));
       const cat = (p) => rules.parts[p.t].slot;
       const bays = sg.parts.filter((p) => cat(p) === 'bay'), mounts = sg.parts.filter((p) => cat(p) === 'mount');
       const slot = (p, d, tx, ty) => {
         const L = p ? looks[p.t] : null, dead = p && p.hp <= 0;
-        g.appendChild(s('path', { d, fill: !p ? 'none' : dead ? (L.recharges ? 'none' : '#262b3a') : L.color, 'fill-opacity': p && !dead && p.hp < p.max ? 0.6 : 1,
+        art.appendChild(s('path', { d, fill: !p ? 'none' : dead ? (L.recharges ? 'none' : '#262b3a') : L.color, 'fill-opacity': p && !dead && p.hp < p.max ? 0.6 : 1,
           stroke: !p ? '#33406b' : dead && L.recharges ? L.color : '#0a0f1e', 'stroke-width': 0.45, 'stroke-dasharray': dead && L.recharges ? '1 1' : null }));
-        if (p && S * px >= 19) g.appendChild(s('text', { x: f1(tx), y: f1(ty), 'font-size': f1(3.6), 'font-weight': 700, fill: dead ? '#6b7592' : '#0a0f1e' }, L.letter));
-        if (dead && !L.recharges) g.appendChild(s('path', { d: `M${f1(tx - 1.6)},${f1(ty - 1.6)}L${f1(tx + 1.6)},${f1(ty + 1.6)}M${f1(tx + 1.6)},${f1(ty - 1.6)}L${f1(tx - 1.6)},${f1(ty + 1.6)}`, stroke: '#ff7a7a', 'stroke-width': 0.5 }));
+        if (p && S * px >= 19) art.appendChild(s('text', { x: f1(tx), y: f1(ty), 'font-size': f1(3.6), 'font-weight': 700, fill: dead ? '#6b7592' : '#0a0f1e' }, L.letter));
+        if (dead && !L.recharges) art.appendChild(s('path', { d: `M${f1(tx - 1.6)},${f1(ty - 1.6)}L${f1(tx + 1.6)},${f1(ty + 1.6)}M${f1(tx + 1.6)},${f1(ty - 1.6)}L${f1(tx - 1.6)},${f1(ty + 1.6)}`, stroke: '#ff7a7a', 'stroke-width': 0.5 }));
       };
       BAYS.forEach(([bx, by], k) => slot(bays[k], hexPath(cx + S * bx, cy + S * by, S * 0.4), cx + S * bx, cy + S * by));
       for (let k = 0; k < 3; k++) { const dm = diamond(cx, cy, k); slot(mounts[k], dm.d, dm.x, dm.y); }
     });
     // the rim: a dark gap all round, then the owner's colour on it
-    g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#04070f', 'stroke-width': 2.6, 'stroke-linecap': 'round' }));
-    g.appendChild(s('path', { d: rim, fill: 'none', stroke: c0, 'stroke-width': 0.8, 'stroke-linecap': 'round', 'stroke-opacity': 0.95 }));
+    art.appendChild(s('path', { d: rim, fill: 'none', stroke: '#04070f', 'stroke-width': 2.6, 'stroke-linecap': 'round' }));
+    art.appendChild(s('path', { d: rim, fill: 'none', stroke: c0, 'stroke-width': 0.8, 'stroke-linecap': 'round', 'stroke-opacity': 0.95 }));
     }
+    g.appendChild(art);
     // name tag under the ship (above it when another tag is already there)
     const low = x.cells.reduce((a, c) => (Y(c) > Y(a) || (Y(c) === Y(a) && Math.abs(X(c) - X(x.pos)) < Math.abs(X(a) - X(x.pos))) ? c : a), x.cells[0]);
     const high = x.cells.reduce((a, c) => (Y(c) < Y(a) ? c : a), x.cells[0]);
