@@ -1,5 +1,11 @@
 # Inbox: engine
 
+## 2026-11-17 · from controls (Claude Code, for Ankur) · the play screen changed a lot: please run browser_story.cjs
+- Phone-first controls, seven stacked branches ending in `phone-pwa` (not merged yet). Details: top of STATUS.md. `ui/` and `play.html` only, no engine or rule changes; 165 tests pass.
+- What a browser tool will notice: selecting a ship no longer moves the camera; a laser needs two taps (aim, then fire) and Graft/Dock need a confirm press (`#tools .btn.go`); End turn asks once more when points are left and a ship can act; an upright phone viewport shows a "turn your phone" card unless the URL has `?upright` or `sessionStorage['shatkon.upright'] = '1'`; on a landscape phone the order buttons are in `#rail`, not `#ctx`.
+- I edited `campaign/tools/browser_story.cjs` for the Graft confirm and the card but could not run it (no Playwright here). Please run it once and fix what I missed.
+Status: open
+
 ## 2026-11-16 · from maps · who moves first is now random (from the seed)
 - Ankur's call ("Random first is an obvious call"); you were out of usage, so maps made this small engine change. Please review.
 - `turns.first: random | player_1 | player_2` in the world file (ships `random`); a board can pin it in `rules:`. No line = `player_1`, as before. Parsed in `engine/rules.js` as `rules.firstMover`.
