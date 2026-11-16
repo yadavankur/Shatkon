@@ -1,4 +1,12 @@
-# Status (updated 2026-11-16 by controls)
+# Status (updated 2026-11-17 by controls)
+
+## Needs attention (17 Nov, a quick read of the handoff notes by controls; nothing here was re-tested)
+- **For Ankur, controls:** seven stacked branches are pushed with no PRs open (`phone-camera` → `phone-layout` → `phone-banner` → `phone-scale` → `phone-targeting` → `phone-card` → `phone-pwa`; the last one holds everything). main has not moved since they were cut (223ac1c). Not yet tried on a real phone. Story as the default entry waits for your sign-off.
+- **For engine or maps:** run `campaign/tools/browser_story.cjs` once on `phone-pwa`. Controls edited it (Graft confirm, upright-phone card) without being able to run it. The whole play screen changed, so anyone with open work on `ui/play.js`, `ui/board.js` or `play.html` should expect conflicts.
+- **Ownership table in `handoff/README.md`** has no row for the controls work (it touched `ui/` and `play.html`, listed under engine) and still names old branches (`campaign-engine`, `campaign-vN`). Ankur to say how he wants it listed.
+- **Move-marker polish from #22** (to-engine.md, 15 Nov): the wrong hint wording is gone (controls step 3 replaced that line). Still open: the mint `#6dffc0` is off the palette. The chips measured about 24px before; with the bigger board they should be larger on a phone, not re-measured.
+- **Ankur's open calls, unchanged:** contact and proximity mines `beams_pass`; Stage 2 cells for the variety study and the questions with it (to-gamedev.md, "Status: open", twice). Some of the older questions there look answered by later work (missiles in the story, computer variety, root-or-beta) and could be closed by whoever owns them.
+- **Stale lines further down this file:** "main is the only branch" (15 Nov) is no longer true; remote branches `maps-rework`, `maps-rework-engine`, `variety-study` and `balance-and-ai` are merged and still on GitHub, waiting to be deleted; the "In progress / waiting" list still describes PR #27 and #28 as pending although both are merged.
 
 ## Latest (16 Nov, controls): phone-first controls, step 1 of 8 (branch `phone-camera`, PR to main)
 - **Why:** a first-time player on a small phone lost the board every time they tapped a ship (the view jumped from 12px hexes to about 60px). Ankur's brief and the approved sequence: (1) camera holds still, (2) landscape layout with fixed zones, (3) phase banner, (4) ships drawn at about 0.70 of their tiles with state on the tile, (5) targeting previews and confirms, (6) info card, (7) PWA, (8) chapter 1 hint, then story as the default entry.
