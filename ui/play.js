@@ -651,7 +651,8 @@ function anyAction() {
 function aiStep() {
   aiTimer = null;
   if (!aiTurn()) return;
-  if (storyBusy() || storyWait > 0) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing, or about to
+  const helpUp = $('#help') && !$('#help').hidden;   // the rules card is open (first visit): wait, so the player sees the computer's opening move
+  if (storyBusy() || storyWait > 0 || helpUp) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing, or about to
   let a;
   try {
     a = aiSteps++ > 30 ? { type: 'end' } : (game.rules.campaign ? E.campaignMove(game, 1) : computerMove(game, 1, aiLevel)) || { type: 'end' };
@@ -669,10 +670,14 @@ export function newGame() {
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
+  // who moves in round 1 is picked from the game's seed (turns.first); after that it swaps every round
+  const first = turnOf(), swaps = ' The first move swaps every round.';
   say(seat === 'cpu'
-    ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
-    : 'New game. Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.');
+    ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. ' +
+      (first === 0 ? 'You move first this game.' + swaps + ' Tap one of your ships to begin.' : 'The enemy moves first this game.' + swaps + ' Watch where it goes.')
+    : 'New game. Find the enemy flagship (\u2605) and destroy it. Player ' + (first + 1) + ' moves first this game.' + swaps);
   save(); render();
+  setTimeout(() => toast(seat === 'cpu' ? (first === 0 ? 'You move first' : 'The enemy moves first') : 'Player ' + (first + 1) + ' moves first', 'p' + first), 300);
 }
 
 // A story chapter (from ui/campaign.js): always against the computer.

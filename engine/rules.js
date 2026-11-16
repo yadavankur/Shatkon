@@ -45,7 +45,11 @@ export function buildRules(world, mapFile, fleetsFile) {
     ticks: Math.max(1, num((t.flight_phase || {}).ticks, 6)),
     turnLimit: num(t.turn_limit, 30),
     // optional rules for simulations (tools/variants.mjs); all off unless the world file sets them
-    firstPlayer: t.first_player === 'fixed' ? 'fixed' : 'alternate', magazineExplodes: num(dmg.magazine_explodes, 0),
+    firstPlayer: t.first_player === 'fixed' ? 'fixed' : 'alternate',
+    // who moves in round 1: 'random' (picked from the game's seed, so replays and codes agree),
+    // 'player_1' or 'player_2'. Off (player_1) unless the world file or a board sets turns.first.
+    firstMover: ['random', 'player_1', 'player_2'].includes(t.first) ? t.first : 'player_1',
+    magazineExplodes: num(dmg.magazine_explodes, 0),
     cost: {},
     seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false, symmetric: seg.symmetric_hulls !== false },
     move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2), minMove: mv.min_move || 0 },

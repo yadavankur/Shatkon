@@ -128,11 +128,25 @@ export function makeObj(state, kind, owner, pos, dir, extra) {
     target: null, lock: false, route: [], src: null, ...(extra || {}) };
 }
 
+// Which seat moves in round 1 (after that the first player swaps every round, unless fixed).
+// Story chapters keep their scripted order: the player moves first. 'random' reads a hash of the
+// seed without rolling the game's dice, so it changes nothing else about the game.
+export function firstSeat(rules, seed = 1) {
+  if (rules.campaign) return 0;
+  if (rules.firstMover === 'player_2') return 1;
+  if (rules.firstMover === 'random') {   // a mixed hash of the seed (nearby seeds give unrelated answers)
+    let h = Math.imul((seed | 0) ^ 0x5bd1e995, 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h ^= h >>> 16;
+    return (h >>> 7) & 1;
+  }
+  return 0;
+}
+
 export function newGame(rules, seed = 1) {
+  const first = firstSeat(rules, seed);
   const state = {
     v: 1, rules, rid: fnv(stable(rules)).toString(36), rng: seed | 0, seed: seed | 0,   // seed: where rng started, for replays (battle log)
     fzSalt: fnv('fz:' + (seed | 0)) | 0,   // secret per-game salt for where fuzzy contact circles sit
-    round: 1, order: [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1, seq: 0,
+    round: 1, order: first ? [1, 0] : [0, 1], turn: 0, phase: 'play', winner: null, nextId: 1, seq: 0,
     players: [], ships: [], objs: [], lit: {},
     events: [], history: [], pending: [], pre: '', lastTurn: null,
   };

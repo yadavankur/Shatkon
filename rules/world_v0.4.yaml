@@ -30,6 +30,8 @@ turns:
     - player_turn             # first player spends command points
     - player_turn             # second player spends command points
     - flight_phase            # missiles and drones all move together
+  first: random               # who moves in round 1: random (from the game's seed), player_1 or player_2.
+                              # Story chapters always start with the player. A board can pin it.
   first_player: alternate     # swaps every round
   flight_phase:
     ticks: 6                  # the flight phase is cut into 6 small steps.

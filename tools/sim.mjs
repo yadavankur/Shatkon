@@ -78,6 +78,7 @@ function setPath(obj, dotted, value) {
 
 export function loadRules({ map, fleet, sets = [] } = {}) {
   const world = readYaml('world_v0.4.yaml'), fleets = readYaml('fleets_v0.4.yaml');
+  world.turns.first = 'player_1';   // this tool swaps seats itself: seat 1 moves first (the shipped world picks at random)
   const mapName = map || fleets.map;
   const mapFile = readYaml(mapName);
   if (mapName === 'map_open_space.yaml') {

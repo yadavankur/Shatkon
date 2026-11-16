@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import * as E from '../engine/index.js';
 import { boardNames, loadBoard } from '../tools/boards.mjs';
 
+// these tests give player 1's ships orders on turn 1, so player 1 moves first (boards pick at random)
+const pinned = (n, o = {}) => loadBoard(n, { ...o, set: { 'turns.first': 'player_1', ...(o.set || {}) } });
+
 test('all ten boards load with no problems', () => {
   const names = boardNames();
   assert.equal(names.length, 10);
@@ -11,7 +14,7 @@ test('all ten boards load with no problems', () => {
 });
 
 test('a courier moves 5 hexes on its own drive and takes no fleet thrust', () => {
-  const g = E.start(loadBoard('09_fog_bank').rules, 3);
+  const g = E.start(pinned('09_fog_bank').rules, 3);
   const dart = g.ships.find((s) => s.name === 'Swift');
   const far = E.reach(g, dart.id).filter((r) => r.path.length === 5);
   assert.ok(far.length > 0, 'a 5-hex move is on offer');
@@ -22,7 +25,7 @@ test('a courier moves 5 hexes on its own drive and takes no fleet thrust', () =>
 });
 
 test('a laser cannot hit a courier from more than 3 hexes, and can from 3', () => {
-  let g = E.start(loadBoard('09_fog_bank').rules, 3);
+  let g = E.start(pinned('09_fog_bank').rules, 3);
   const dart = g.ships.find((s) => s.name === 'Swift'), gun = g.ships.find((s) => s.name === 'Fang');
   g = E.attempt(g, { type: 'end' }).state;                       // the computer's side to move
   // an open straight line on this board: [1, 2] to [1, 7]
@@ -33,14 +36,14 @@ test('a laser cannot hit a courier from more than 3 hexes, and can from 3', () =
 });
 
 test('a Comet (afterburner, defined in its board file) moves 8 hexes on its own drive', () => {
-  const g = E.start(loadBoard('03_cat_and_mouse').rules, 3);
+  const g = E.start(pinned('03_cat_and_mouse').rules, 3);
   const c = g.ships.find((s) => s.name === 'Comet 2');
   assert.ok(E.reach(g, c.id).some((r) => r.path.length === 8), 'an 8-hex move is on offer');
   assert.ok(!E.reach(g, c.id).some((r) => r.path.length > 8));
 });
 
 test('a sleeper mine: the Dowser (sensor 12) sees it from 2 hexes, a gunboat next to it does not', () => {
-  const g = E.start(loadBoard('02_minefield').rules, 3);
+  const g = E.start(pinned('02_minefield').rules, 3);
   const mine = g.objs.find((o) => o.kind === 'sleeper_mine' && o.pos[0] === 2 && o.pos[1] === -4);
   const dowser = g.ships.find((s) => s.name === 'Dowser'), mallet = g.ships.find((s) => s.name === 'Mallet');
   dowser.pos = [-1, -4];                                         // nearest segment [0, -4], 2 hexes from the mine
@@ -50,7 +53,7 @@ test('a sleeper mine: the Dowser (sensor 12) sees it from 2 hexes, a gunboat nex
 });
 
 test('a sleeper mine goes off when an enemy comes next to it and wrecks the segment', () => {
-  let g = E.start(loadBoard('02_minefield').rules, 3);
+  let g = E.start(pinned('02_minefield').rules, 3);
   const mallet = g.ships.find((s) => s.name === 'Mallet');
   mallet.pos = [-4, -2];
   const step = E.reach(g, mallet.id).find((r) => r.path.length === 1 && r.at[0] === -3 && r.at[1] === -2);
@@ -79,7 +82,7 @@ test('The Minefield has exactly one clean lane, and it is not through the middle
 });
 
 test('a proximity mine goes off when an enemy comes next to it, and takes the segment', () => {
-  let g = E.start(loadBoard('09_fog_bank').rules, 3);
+  let g = E.start(pinned('09_fog_bank').rules, 3);
   g = E.attempt(g, { type: 'end' }).state;
   const gun = g.ships.find((s) => s.name === 'Fang');
   gun.pos = [1, 3];                                              // two hexes from the mine at [0, 2]

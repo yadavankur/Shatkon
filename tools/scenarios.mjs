@@ -56,6 +56,7 @@ function side(lib, fleetName, missiles) {
 
 export function versus(lib, a, b, { sets = [], psets = [], radius = null, missiles = null } = {}) {
   const world = readYaml('world_v0.4.yaml'), map = readYaml('map_skirmish.yaml');
+  world.turns.first = 'player_1';   // this tool swaps seats itself: seat 1 moves first (the shipped world picks at random)
   for (const s of sets) { const i = s.indexOf('='); setPath(world, s.slice(0, i), YAML.parse(s.slice(i + 1))); }
   for (const s of psets) { const i = s.indexOf('='); for (const p of Object.values(world.ai.personalities)) p[s.slice(0, i)] = YAML.parse(s.slice(i + 1)); }
   if (radius) { map.map.board.radius = radius; map.map.terrain = map.map.terrain.map((t) => ({ ...t, at: t.at.map((x) => Math.round((x * radius) / 8)) })); }

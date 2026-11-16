@@ -26,6 +26,7 @@
 | Most unspent points carried over | 6 | Checked |
 | Round: player, player, then the flight phase | | Checked (`endTurn`) |
 | First player | swaps every round | Checked. Note: the engine ignored this line and always swapped; it now also accepts `fixed` (simulation switch) |
+| Who moves in round 1 (`turns.first`) | random from the game's seed (story chapters: the player) | Added 16 Nov, `tests/first-mover.test.js`; see `first-mover.md` |
 | Flight phase steps | 6 | Not re-checked |
 | Turn limit | 30 rounds | Checked |
 

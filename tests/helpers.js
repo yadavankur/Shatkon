@@ -23,6 +23,7 @@ export function shippedFiles() {
 // ships: [{ name, at, flagship, hull: [{at, bays, mounts}], load }]
 export function battle({ radius = 10, terrain = [], objective, p1, p2, extra1 = [], extra2 = [], world, seed = 7 }) {
   const w = structuredClone(world || shippedFiles().world);
+  if (!world) w.turns = { ...(w.turns || {}), first: 'player_1' };   // hand-built fights: player 1 moves first (the shipped world picks at random)
   const side = (ships, extra) => ({
     ships: ships.map((s) => ({ name: s.name, flagship: !!s.flagship, hull: s.hull, load: s.load })),
     deployment: ships.map((s) => ({ ship: s.name, at: s.at })).concat(extra),

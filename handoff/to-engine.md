@@ -1,5 +1,16 @@
 # Inbox: engine
 
+## 2026-11-16 · from maps · who moves first is now random (from the seed)
+- Ankur's call ("Random first is an obvious call"); you were out of usage, so maps made this small engine change. Please review.
+- `turns.first: random | player_1 | player_2` in the world file (ships `random`); a board can pin it in `rules:`. No line = `player_1`, as before. Parsed in `engine/rules.js` as `rules.firstMover`.
+- `engine/state.js firstSeat(rules, seed)`: campaign → 0; `random` → a mixed hash of the seed (not the rng, so no other dice change). `newGame` starts `order` as `[1, 0]` when player 2 is first. Exported from `engine/index.js`. Replays, logs and codes stay reproducible (`boards.mjs --codes` all ten ok).
+- Story chapters: `buildChapter` sets `firstMover: 'player_1'`; campaign checks unchanged (ch3 8.7 rounds).
+- Play screen: new-game message + toast say who moves first; the computer's opening turn waits while the first-visit rules card is open. Rules card and field manual have a line.
+- Pinned `player_1` where seats are handled by hand: `tools/sim.mjs`, `variants.mjs`, `scenarios.mjs`, Lab duels (`labWorld(knobs, true)`), `tests/helpers.js battle`, `tests/boards.test.js`, the Dogleg drone test (moving second, the carrier launches in round 1 because the enemy has moved up; maybe check that is intended).
+- `boards.mjs --both` now also reports player 1's fleet moving first / second and first-mover wins. King's Guard: moving second 31 of 60 v moving first 16 of 60; maps will look at it.
+- New `tests/first-mover.test.js` (5 tests). 165 tests pass. Write-up: `docs/design/first-mover.md`.
+Status: open
+
 ## 2026-11-16 · from maps · beta now draws ships with the hull renderer
 - Ankur asked why beta showed schematic ships: the facelift (#20, ui/ships.js, ui/frigate.js, 'hull' style) only went into the root game. Ported into beta, beta engine untouched.
 - `beta/ui/ships.js`, `beta/ui/frigate.js`: copies of root, plus `partKind` reads `own_move` (sprint drive, afterburner) as an engine and `adds_signature`/`lures_missiles` (decoy emitter) as comms.

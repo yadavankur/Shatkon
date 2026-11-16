@@ -104,6 +104,7 @@ export function rulesFor(cell, seed, swap) {
   const variant = cell.variant === 'baseline' ? {} : V.variants[cell.variant];
   if (!variant) throw new Error('no variant called ' + cell.variant);
   const world = readYaml('world_v0.4.yaml'), map = readYaml('map_skirmish.yaml');
+  world.turns.first = 'player_1';   // this tool swaps seats itself: seat 1 moves first (the shipped world picks at random)
   applySets(world, V.baseline.set);
   applySets(world, variant.set);
   world.ai = world.ai || {}; world.ai.personalities = world.ai.personalities || {};

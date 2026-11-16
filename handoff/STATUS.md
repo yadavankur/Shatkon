@@ -1,5 +1,9 @@
 # Status (updated 2026-11-16 by maps)
 
+## Latest (16 Nov, maps): who moves first is random
+- `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
+- `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.
+
 ## Latest (16 Nov, maps): board follow-ups to the engine bot's AI work
 - Reviewed the engine bot's seven commits: 160 tests, campaign checks and page loads all clean, nothing to fix.
 - **Cat and Mouse:** Tom's sensor became an engine, so the Hounds move 2 a turn. 17-19 rounds (was 22-25), 21 of 40.

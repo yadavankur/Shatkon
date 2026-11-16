@@ -13,6 +13,8 @@ untouched: `engine_check` output is the same before and after, line for line.
 player 1's fleet won. It is a smoke test, not a balance result: both sides are the same computer.
 A difference of about 6 of 40 is noise. On every board the person is player 1 and moves first in
 round 1, so the "as written" half is closest to what a person meets.
+(Since 16 Nov who moves first is picked from the seed: see `first-mover.md`. These tables were made
+with player 1 always first.)
 
 ## Win rates, before and after
 

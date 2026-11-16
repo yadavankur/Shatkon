@@ -96,8 +96,10 @@ function labSet(o, p, val) {
   o[last] = val;
 }
 
-function labWorld(knobs) {
+// pinFirst: player 1 moves first (Lab duels choose who goes first themselves; play picks at random)
+function labWorld(knobs, pinFirst) {
   let w = structuredClone(labDocs.world);
+  if (pinFirst) w.turns = { ...(w.turns || {}), first: 'player_1' };
   for (let [p, val] of Object.entries(knobs || {})) labSet(w, p, val);
   return w;
 }
@@ -174,7 +176,7 @@ function labPlace(rulesProbe, designs, player, map) {
 // build engine rules for two fleets (arrays of designs) on a map
 function labRules(p1, p2, opt) {
   opt = opt || {};
-  let world = labWorld(opt.knobs != null ? opt.knobs : LAB.knobs),
+  let world = labWorld(opt.knobs != null ? opt.knobs : LAB.knobs, true),
     map = opt.map || labArena(opt.R || 14, opt.terrain),
     probe = E.buildRules(world, map, labDocs.fleets).rules,
     fix = (arr) => {

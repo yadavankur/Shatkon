@@ -5,9 +5,10 @@
 //   node tools/boards.mjs --games 20
 //   node tools/boards.mjs --codes         two-device check: game code out and in, then every turn by turn code
 //   node tools/boards.mjs --board 02_minefield
-//   node tools/boards.mjs --both          each board twice: as written, and with the two fleets swapping seats (the
-//                                         other fleet moves first from the same spots). On a mirror board both
-//                                         halves should come out near even
+//   node tools/boards.mjs --both          each board twice: as written, and with the two fleets swapping seats and
+//                                         home zones. Who moves first is picked from each game's seed
+//                                         (turns.first: random), so results are also split by whether player 1's
+//                                         fleet moved first. Pin it with --set turns.first=player_1
 //   node tools/boards.mjs --turned        the same board turned and flipped all 12 ways. A computer that does not
 //                                         care which way the board faces gives much the same result each time
 //   node tools/boards.mjs --events        count what happened (launches, blasts, mines, reveals) over the games
@@ -90,11 +91,12 @@ function playTurn(g, count) {
 }
 export function playOut(rules, seed, count) {
   let g = E.start(rules, seed), guard = 0;
+  const first = g.order[0];
   if (count) count._sig = '';
   while (g.phase === 'play' && guard++ < 400) g = playTurn(g, count);
   if (count) { (count._openings = count._openings || new Set()).add(count._sig); delete count._sig; }
   const over = g.events.find((e) => e.t === 'game_over') || {};
-  return { winner: g.winner, rounds: g.round, by: over.by || 'flagship' };
+  return { winner: g.winner, rounds: g.round, by: over.by || 'flagship', first };
 }
 
 // Two devices, no server: A starts and sends the whole game as a game code; after that each side
@@ -133,7 +135,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const set = {};
   args.forEach((a, i) => { if (a === '--set') { const [k, ...v] = args[i + 1].split('='); let x = v.join('='); try { x = JSON.parse(x); } catch (e) { /* a plain word */ } set[k] = x; } });
   if (Object.keys(set).length) console.log('with ' + Object.entries(set).map(([k, v]) => k + ' = ' + JSON.stringify(v)).join(', '));
-  const series = (rules, count) => { let w = 0, l = 0, d = 0, rounds = 0, nk = 0; for (let s = 1; s <= games; s++) { const r = playOut(rules, s, count); rounds += r.rounds; if (r.by === 'turn_limit') nk++; if (r.winner === 'draw') d++; else if (r.winner === 0) w++; else l++; } return { w, l, d, rounds: (rounds / games).toFixed(1), nk }; };
+  // seat: which seat player 1's fleet sits in (1 when the seats are swapped). f1 / f1w: games in which that
+  // fleet moved first, and its wins in them; f2 / f2w the same moving second; fw: wins by whoever moved first.
+  const series = (rules, count, seat = 0) => {
+    let w = 0, l = 0, d = 0, rounds = 0, nk = 0, f1 = 0, f1w = 0, f2 = 0, f2w = 0, fw = 0;
+    for (let s = 1; s <= games; s++) {
+      const r = playOut(rules, s, count); rounds += r.rounds; if (r.by === 'turn_limit') nk++;
+      if (r.winner === 'draw') d++; else if (r.winner === 0) w++; else l++;
+      if (r.winner === r.first) fw++;
+      if (r.first === seat) { f1++; if (r.winner === seat) f1w++; } else { f2++; if (r.winner === seat) f2w++; }
+    }
+    return { w, l, d, rounds: (rounds / games).toFixed(1), nk, f1, f1w, f2, f2w, fw };
+  };
   for (const n of names) {
     const { doc, rules, problems } = loadBoard(n, { set });
     if (problems.length) { console.log(n + ': PROBLEMS\n  ' + problems.join('\n  ')); continue; }
@@ -145,9 +158,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const count = args.includes('--events') ? {} : null, a = series(rules, count);
     if (args.includes('--both')) {
       // seats swapped: player 1's fleet is now in seat 2, so its wins are that run's losses
-      const b = series(loadBoard(n, { set, swap: true }).rules, count), mir = mirrorOf(rules);
-      console.log(`${n.padEnd(20)} player 1's fleet: moving first ${a.w}-${a.l}-${a.d} (${a.rounds} rounds), moving second ${b.l}-${b.w}-${b.d} (${b.rounds} rounds), in all ${a.w + b.l} of ${2 * games}; ${a.nk + b.nk} to the round limit${mir ? '   exact mirror (' + mir + ')' : ''}`);
-    } else console.log(`${n.padEnd(20)} cost ${rules.fleets.map((f) => f.cost).join(' v ').padEnd(10)} you (player 1) ${a.w}-${a.l}-${a.d} over ${games} computer-flown games, ${a.rounds} rounds, ${a.nk} to the round limit   "${doc.board.name}"`);
+      const b = series(loadBoard(n, { set, swap: true }).rules, count, 1), mir = mirrorOf(rules);
+      console.log(`${n.padEnd(20)} player 1's fleet: in its own seat ${a.w}-${a.l}-${a.d} (${a.rounds} rounds), seats swapped ${b.l}-${b.w}-${b.d} (${b.rounds} rounds), in all ${a.w + b.l} of ${2 * games}; ` +
+        `moving first ${a.f1w + b.f1w} of ${a.f1 + b.f1}, moving second ${a.f2w + b.f2w} of ${a.f2 + b.f2}; first mover won ${a.fw + b.fw} of ${2 * games}; ${a.nk + b.nk} to the round limit${mir ? '   exact mirror (' + mir + ')' : ''}`);
+    } else console.log(`${n.padEnd(20)} cost ${rules.fleets.map((f) => f.cost).join(' v ').padEnd(10)} you (player 1) ${a.w}-${a.l}-${a.d} over ${games} computer-flown games (moved first in ${a.f1}, won ${a.f1w} of those), ${a.rounds} rounds, ${a.nk} to the round limit   "${doc.board.name}"`);
     if (count) {
       const openings = count._openings.size; delete count._openings;
       console.log('    ' + openings + ' different openings (orders given in rounds 1 and 2) in ' + (args.includes('--both') ? 2 * games : games) + ' games; ' + (Object.entries(count).sort().map(([k, v]) => k + ' ' + v).join(', ') || 'nothing else of note'));
