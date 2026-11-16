@@ -1,6 +1,7 @@
 # Status (updated 2026-11-16 by maps)
 
 ## Latest (16 Nov, maps)
+- **Beta draws real-looking ships now** (maps, 16 Nov): the facelift hull renderer ported into beta/ui (default "Ships"), Field manual (../docs/) linked from the beta pages. See to-engine.md.
 - **PR #28 merged to main** (0ca3d4b): ten reworked boards in beta (`beta/boards.html`), Comet scout, sleeper mine, decoy emitter, fair sight lines, a computer that varies its game, variety-study with review fixes. PR #27 is included (shows as merged). Maps retuned Cat and Mouse, Pawn Storm and Missile Alley afterwards; every board is 10 to 23 of 40. 148 tests pass. Not yet played by hand.
 - Remote branches maps-rework, maps-rework-engine, variety-study and balance-and-ai are fully merged and can be deleted.
 

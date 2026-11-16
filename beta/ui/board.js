@@ -2,6 +2,8 @@
 // slots, missiles with their expected paths, and whatever can be tapped.
 
 import { hex } from '../engine/index.js';
+import { drawShip, shipDefs, TEAM } from './ships.js';
+import { drawFrigate, frigateDefs } from './frigate.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const S = 10, W = Math.sqrt(3) * S;
@@ -99,55 +101,83 @@ function diamond(cx, cy, k) {
   return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + f1(cx + S * (mx + (x - mx) * 0.8)) + ',' + f1(cy + S * (my + (y - my) * 0.8))).join('') + 'Z', x: cx + S * mx, y: cy + S * my };
 }
 
+const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null,
-  halo = null, idle = null, style = 'schematic', modelBase = '', offsets = null, nameOf = null, onCam = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
   const svg = s('svg', { viewBox: [cam.x - vw / 2, cam.y - vh / 2, vw, vh].map(f1).join(' '), role: 'img', 'aria-label': 'Game board' });
   const px = box.clientWidth / vw;              // screen pixels per drawing unit
   const detailed = S * 2 * px >= 30;            // big enough to show the slots inside each segment
-  const col = (o) => (o === 0 ? '#f5b942' : '#5cc8ff');
+  const col = (o) => (o === 0 ? TEAM[0].main : TEAM[1].main);
   const fs = (pxSize) => f1(pxSize / px);       // a font size that stays readable at any zoom
 
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   svg.appendChild(s('defs', null,
-    s('radialGradient', { id: 'space', cx: '50%', cy: '45%', r: '75%' }, s('stop', { offset: '0', 'stop-color': '#131c3a' }), s('stop', { offset: '1', 'stop-color': '#04070f' })),
-    s('radialGradient', { id: 'fuzz' }, s('stop', { offset: '0', 'stop-color': '#ff7a7a', 'stop-opacity': '.35' }), s('stop', { offset: '.7', 'stop-color': '#ff7a7a', 'stop-opacity': '.12' }), s('stop', { offset: '1', 'stop-color': '#ff7a7a', 'stop-opacity': '0' })),
-    s('radialGradient', { id: 'haze' }, s('stop', { offset: '0', 'stop-color': '#b07cf0', 'stop-opacity': '.55' }), s('stop', { offset: '1', 'stop-color': '#6a3fd0', 'stop-opacity': '0' })),
-    s('linearGradient', { id: 'rock', x1: '0', y1: '0', x2: '1', y2: '1' }, s('stop', { offset: '0', 'stop-color': '#9aa1b5' }), s('stop', { offset: '1', 'stop-color': '#4a5065' })),
-    s('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, s('feGaussianBlur', { stdDeviation: '1.6' }))));
+    s('radialGradient', { id: 'space', cx: '50%', cy: '42%', r: '78%' }, s('stop', { offset: '0', 'stop-color': '#0c1c36' }), s('stop', { offset: '.55', 'stop-color': '#07101f' }), s('stop', { offset: '1', 'stop-color': '#03060d' })),
+    ...[['neb0', '#19c3b3', 0.16], ['neb1', '#4a8cff', 0.14], ['neb2', '#9b6bff', 0.09]].map(([id, c, a]) => s('radialGradient', { id }, s('stop', { offset: '0', 'stop-color': c, 'stop-opacity': a }), s('stop', { offset: '.6', 'stop-color': c, 'stop-opacity': a / 3 }), s('stop', { offset: '1', 'stop-color': c, 'stop-opacity': 0 }))),
+    s('radialGradient', { id: 'fuzz' }, s('stop', { offset: '0', 'stop-color': TEAM[1].neon, 'stop-opacity': '.32' }), s('stop', { offset: '.7', 'stop-color': TEAM[1].neon, 'stop-opacity': '.1' }), s('stop', { offset: '1', 'stop-color': TEAM[1].neon, 'stop-opacity': '0' })),
+    s('radialGradient', { id: 'haze' }, s('stop', { offset: '0', 'stop-color': '#6f86ff', 'stop-opacity': '.42' }), s('stop', { offset: '.55', 'stop-color': '#4a5bd8', 'stop-opacity': '.18' }), s('stop', { offset: '1', 'stop-color': '#3a3fb8', 'stop-opacity': '0' })),
+    s('radialGradient', { id: 'haze2' }, s('stop', { offset: '0', 'stop-color': '#2fb7c9', 'stop-opacity': '.3' }), s('stop', { offset: '1', 'stop-color': '#2fb7c9', 'stop-opacity': '0' })),
+    s('radialGradient', { id: 'rock', cx: '35%', cy: '30%', r: '80%' }, s('stop', { offset: '0', 'stop-color': '#a3abbf' }), s('stop', { offset: '.5', 'stop-color': '#5d6478' }), s('stop', { offset: '1', 'stop-color': '#262a38' })),
+    s('radialGradient', { id: 'star4' }, s('stop', { offset: '0', 'stop-color': '#ffffff', 'stop-opacity': '1' }), s('stop', { offset: '.25', 'stop-color': '#cfe8ff', 'stop-opacity': '.6' }), s('stop', { offset: '1', 'stop-color': '#cfe8ff', 'stop-opacity': '0' })),
+    s('pattern', { id: 'fogpat', width: 4, height: 4, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(30)' }, s('path', { d: 'M0,0V4', stroke: '#7f93ad', 'stroke-width': 0.25, 'stroke-opacity': 0.18 })),
+    s('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, s('feGaussianBlur', { stdDeviation: '1.6' })),
+    ...shipDefs().childNodes, ...frigateDefs().childNodes));
 
-  // space and stars
+  // space: deep navy, three faint nebula washes, then three layers of stars (a few twinkle)
   const bw = W * (2 * R + 6), bh = S * (3 * R + 10);
   svg.appendChild(s('rect', { x: -bw, y: -bh, width: 2 * bw, height: 2 * bh, fill: 'url(#space)' }));
-  const star = rnd(R * 977 + 13), stars = s('g', { fill: '#cfd8ff' });
-  for (let i = 0; i < 160; i++) stars.appendChild(s('circle', { cx: f1((star() - 0.5) * bw * 1.6), cy: f1((star() - 0.5) * bh * 1.6), r: f1(0.25 + star() * 0.6), opacity: f1(0.25 + star() * 0.6) }));
+  const neb = rnd(R * 131 + 7);
+  for (let i = 0; i < 5; i++) svg.appendChild(s('ellipse', { cx: f1((neb() - 0.5) * bw * 1.2), cy: f1((neb() - 0.5) * bh * 1.2), rx: f1(bw * (0.35 + neb() * 0.35)), ry: f1(bh * (0.2 + neb() * 0.25)), fill: `url(#neb${i % 3})`, transform: `rotate(${f1(neb() * 180)})` }));
+  const star = rnd(R * 977 + 13), stars = s('g', { fill: '#cfe8ff' });
+  for (let i = 0; i < 170; i++) stars.appendChild(s('circle', { cx: f1((star() - 0.5) * bw * 1.6), cy: f1((star() - 0.5) * bh * 1.6), r: f1(0.18 + star() * 0.35), opacity: f1(0.2 + star() * 0.45) }));
+  for (let i = 0; i < 45; i++) stars.appendChild(s('circle', { cx: f1((star() - 0.5) * bw * 1.6), cy: f1((star() - 0.5) * bh * 1.6), r: f1(0.5 + star() * 0.4), opacity: f1(0.45 + star() * 0.4), fill: star() < 0.3 ? '#9fe9ff' : star() < 0.15 ? '#ffd9f2' : null, class: !reduce && i % 5 === 0 ? 'twinkle' : null, style: !reduce && i % 5 === 0 ? `animation-delay:${f1(-star() * 6)}s` : null }));
+  for (let i = 0; i < 10; i++) { const x = (star() - 0.5) * bw * 1.5, y = (star() - 0.5) * bh * 1.5, r = 2.2 + star() * 2; stars.appendChild(s('circle', { cx: f1(x), cy: f1(y), r: f1(r), fill: 'url(#star4)' })); stars.appendChild(s('path', { d: `M${f1(x - r * 1.6)},${f1(y)}H${f1(x + r * 1.6)}M${f1(x)},${f1(y - r * 1.6)}V${f1(y + r * 1.6)}`, stroke: '#cfe8ff', 'stroke-width': 0.15, 'stroke-opacity': 0.5 })); }
   svg.appendChild(stars);
 
   // start zones, tinted and named
   const all = [];
   for (let q = -R; q <= R; q++) for (let r = -R; r <= R; r++) if (hex.inHexagon([q, r], R)) all.push([q, r]);
   const me = v.me === 'all' ? null : v.me;
+  const home = {};                // each side's start zone centre: its ships' bows point away from it
   for (const z of v.zones) {
     const owner = v.players.findIndex((n) => z.name.indexOf(n) === 0);
     if (owner < 0 || !hex.EDGE[z.edge]) continue;
     const cells = all.filter((c) => hex.EDGE[z.edge](c, R) < z.depth);
     svg.appendChild(s('path', { d: cells.map((c) => cellPath(c)).join(''), fill: col(owner), 'fill-opacity': 0.07 }));
     const mid = cells.reduce((a, c) => [a[0] + X(c) / cells.length, a[1] + Y(c) / cells.length], [0, 0]);
+    if (cells.length && !home[owner]) home[owner] = mid;
     if (cam.w >= W * (2 * R + 1) * 0.8) svg.appendChild(s('text', { x: f1(mid[0]), y: f1(mid[1] + (hex.EDGE[z.edge]([0, R], R) === 0 ? 1 : -1) * FL * S * 1.5 * (z.depth / 2 + 0.2)), 'font-size': fs(10), fill: col(owner), 'fill-opacity': 0.55, 'letter-spacing': f1(1.5 / px) },
       me === null ? 'PLAYER ' + (owner + 1) + ' START' : owner === me ? 'YOUR START' : 'ENEMY START'));
   }
 
-  // terrain: soft nebula clouds, lumpy asteroids
+  // terrain: nebula cells get an indigo wash, soft clouds and a dashed edge; asteroids are shaded rocks
   for (const t of v.terrain) {
     const solid = (rules.terrainTypes[t.type] || {}).blocks_movement;
+    if (!solid) {
+      svg.appendChild(s('path', { d: t.cells.map((c) => cellPath(c, 1.01)).join(''), fill: '#4a5bd8', 'fill-opacity': 0.09 }));
+      for (const c of t.cells) {
+        const r = rnd(c[0] * 7919 + c[1] * 104729 + 5);
+        svg.appendChild(s('circle', { cx: f1(X(c) + (r() - 0.5) * 5), cy: f1(Y(c) + (r() - 0.5) * 5), r: f1(S * (1.2 + r() * 0.6)), fill: 'url(#haze)' }));
+        if (r() < 0.45) svg.appendChild(s('circle', { cx: f1(X(c) + (r() - 0.5) * 8), cy: f1(Y(c) + (r() - 0.5) * 8), r: f1(S * (0.6 + r() * 0.5)), fill: 'url(#haze2)' }));
+      }
+      svg.appendChild(s('path', { d: outlinePath(t.cells), fill: 'none', stroke: '#8fa2ff', 'stroke-opacity': 0.4, 'stroke-width': 0.5, 'stroke-dasharray': '1.2 1.6', 'stroke-linecap': 'round' }));
+      continue;
+    }
+    svg.appendChild(s('path', { d: t.cells.map((c) => cellPath(c, 0.98)).join(''), fill: '#1a1d28', 'fill-opacity': 0.55, stroke: '#3a4054', 'stroke-width': 0.4 }));
     for (const c of t.cells) {
       const r = rnd(c[0] * 7919 + c[1] * 104729 + 5);
-      if (!solid) { svg.appendChild(s('circle', { cx: f1(X(c) + (r() - 0.5) * 4), cy: f1(Y(c) + (r() - 0.5) * 4), r: f1(S * (1.25 + r() * 0.5)), fill: 'url(#haze)' })); continue; }
-      let d = '';
-      for (let i = 0; i < 9; i++) { const a = (i / 9) * 2 * Math.PI, rad = S * (0.55 + r() * 0.33); d += (i ? 'L' : 'M') + f1(X(c) + rad * Math.cos(a)) + ',' + f1(Y(c) + rad * Math.sin(a)); }
-      svg.appendChild(s('path', { d: d + 'Z', fill: 'url(#rock)', stroke: '#2c3145', 'stroke-width': 0.7, 'stroke-linejoin': 'round' }));
-      svg.appendChild(s('circle', { cx: f1(X(c) - 2 + r() * 3), cy: f1(Y(c) - 1 + r() * 3), r: f1(1 + r()), fill: '#3a4056', opacity: 0.7 }));
+      const rock = (cx, cy, base, k) => {
+        let d = '';
+        for (let i = 0; i < 11; i++) { const a = (i / 11) * 2 * Math.PI, rad = base * (0.72 + r() * 0.32); d += (i ? 'L' : 'M') + f1(cx + rad * Math.cos(a)) + ',' + f1(cy + rad * Math.sin(a) * k); }
+        svg.appendChild(s('path', { d: d + 'Z', fill: 'url(#rock)', stroke: '#1b1e2a', 'stroke-width': 0.5, 'stroke-linejoin': 'round' }));
+        svg.appendChild(s('path', { d: `M${f1(cx - base * 0.55)},${f1(cy - base * 0.3)}Q${f1(cx - base * 0.2)},${f1(cy - base * 0.75)} ${f1(cx + base * 0.4)},${f1(cy - base * 0.55)}`, fill: 'none', stroke: '#d8deec', 'stroke-opacity': 0.35, 'stroke-width': 0.4, 'stroke-linecap': 'round' }));
+        for (let j = 0; j < 2; j++) svg.appendChild(s('circle', { cx: f1(cx + (r() - 0.5) * base), cy: f1(cy + (r() - 0.3) * base * 0.8), r: f1(base * (0.1 + r() * 0.12)), fill: '#2a2f3e', opacity: 0.75 }));
+      };
+      rock(X(c) + (r() - 0.5) * 2, Y(c) + (r() - 0.5) * 2, S * (0.55 + r() * 0.15), 0.85 + r() * 0.2);
+      if (r() < 0.7) rock(X(c) + (r() < 0.5 ? -1 : 1) * S * 0.55, Y(c) + (r() - 0.5) * S * 0.9, S * (0.18 + r() * 0.1), 1);
     }
   }
 
@@ -164,8 +194,9 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
 
   // fog: everything outside this player's sensor range is darker
   const dark = all.filter((c) => !v.eyes.some((e) => e.range !== null && e.cells.some((x) => hex.dist(x, c) <= e.range)));
-  if (dark.length) svg.appendChild(s('path', { d: dark.map((c) => cellPath(c, 1.01)).join(''), fill: '#02040a', 'fill-opacity': 0.5 }));
-  svg.appendChild(s('path', { d: all.map((c) => cellPath(c)).join(''), fill: 'none', stroke: '#33427a', 'stroke-width': 0.5, 'stroke-opacity': 0.75 }));
+  if (dark.length) { const dd = dark.map((c) => cellPath(c, 1.01)).join(''); svg.appendChild(s('path', { d: dd, fill: '#020611', 'fill-opacity': 0.55 })); svg.appendChild(s('path', { d: dd, fill: 'url(#fogpat)' })); }
+  svg.appendChild(s('path', { d: all.map((c) => cellPath(c, 0.97)).join(''), fill: 'none', stroke: '#2b5a85', 'stroke-width': 0.35, 'stroke-opacity': 0.55 }));
+  svg.appendChild(s('path', { d: outlinePath(all), fill: 'none', stroke: TEAM[0].neon, 'stroke-width': 0.6, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
 
   // what happened lately: arrows for ship moves, bursts for explosions
   const recent = v.feed.filter((e) => e.r >= v.round - 1);
@@ -185,16 +216,18 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
 
   // last-seen markers
   for (const g of v.ghosts) {
-    svg.appendChild(s('path', { d: g.cells.map((c) => cellPath(c, 0.9)).join(''), fill: '#8f9cba', 'fill-opacity': 0.08, stroke: '#8f9cba', 'stroke-width': 0.8, 'stroke-dasharray': '2 2' }));
-    svg.appendChild(s('text', { x: f1(X(g.pos)), y: f1(Y(g.pos)), 'font-size': fs(13), fill: '#c5cee6' }, '?'));
+    svg.appendChild(s('path', { d: g.cells.map((c) => cellPath(c, 0.9)).join(''), fill: '#b48bff', 'fill-opacity': 0.06 }));
+    svg.appendChild(s('path', { d: outlinePath(g.cells), fill: 'none', stroke: '#c9b6ff', 'stroke-opacity': 0.55, 'stroke-width': 0.7, 'stroke-dasharray': '1.6 1.8', 'stroke-linecap': 'round', class: 'ghost' }));
+    svg.appendChild(s('text', { x: f1(X(g.pos)), y: f1(Y(g.pos)), 'font-size': fs(12), fill: '#d9ccff', 'fill-opacity': 0.8 }, '?'));
   }
 
   // tier 1: fuzzy contacts, "something is roughly here"
   for (const x of v.contacts || []) {
     const cx = X(x.at), cy = Y(x.at), rr = W * ((x.r || 2) + 0.5);
     svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr), fill: 'url(#fuzz)', class: 'fuzz' }));
-    svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr), fill: 'none', stroke: '#ff7a7a', 'stroke-width': f1(1 / px + 0.3), 'stroke-dasharray': '2 3', 'stroke-opacity': 0.7 }));
-    svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffb3b3', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
+    svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr), fill: 'none', stroke: TEAM[1].neon, 'stroke-width': f1(1 / px + 0.3), 'stroke-dasharray': '2 3', 'stroke-opacity': 0.6 }));
+    svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(rr * 0.55), fill: 'none', stroke: TEAM[1].main, 'stroke-width': f1(0.6 / px + 0.2), 'stroke-dasharray': '0.8 2.4', 'stroke-opacity': 0.45 }));
+    svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffc2ea', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
   }
 
   // ships. Each one is a single outlined shape, so ships that touch still read as separate.
@@ -208,6 +241,16 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     else if (halo && halo.has(x.id) && !hidden) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-opacity': 0.75, filter: 'url(#glow)', class: 'halo' }));
     let model = style === 'model' ? modelFor(x.name, x.segs.map((sg) => sg.off)) : null;
     if (model && !model._fit) { if (!model._bad) measure(model, modelBase + model.img, onCam); model = null; }   // schematic until the picture is measured
+    let drawn = false;
+    if (!model && style === 'hull') try {
+      const hm = home[x.owner], fwd = hm && Math.hypot(hm[0], hm[1]) > S ? [-hm[0], -hm[1]] : [0, (x.owner === 0 ? -1 : 1) * FL];
+      // your side (seat 1) flies classic sci-fi ships built from their modules; the Weave side keeps the hex hulls
+      const foe = v.ships.filter((z) => z.owner !== x.owner && z.seen).map((z) => [X(z.pos), Y(z.pos)]).sort((a, z) => Math.hypot(a[0] - X(x.pos), a[1] - Y(x.pos)) - Math.hypot(z[0] - X(x.pos), z[1] - Y(x.pos)))[0] || null;
+      const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: fwd, detail: detailed ? 1 : 0, moved: x.moved, flagship: x.flagship, target: foe };
+      g.appendChild(x.owner === 0 ? drawFrigate(so) : drawShip(so));
+      drawn = true;
+    } catch (e) { if (!drawFail.has(x.id)) { drawFail.add(x.id); console.warn('ship art failed for', x.id, '- drawn as a schematic', e); } }
+    if (!drawn) {
     // the hull plate: one fused shape under the segments
     g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
     if (model) {
@@ -247,6 +290,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     // the rim: a dark gap all round, then the owner's colour on it
     g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#04070f', 'stroke-width': 2.6, 'stroke-linecap': 'round' }));
     g.appendChild(s('path', { d: rim, fill: 'none', stroke: c0, 'stroke-width': 0.8, 'stroke-linecap': 'round', 'stroke-opacity': 0.95 }));
+    }
     // name tag under the ship (above it when another tag is already there)
     const low = x.cells.reduce((a, c) => (Y(c) > Y(a) || (Y(c) === Y(a) && Math.abs(X(c) - X(x.pos)) < Math.abs(X(a) - X(x.pos))) ? c : a), x.cells[0]);
     const high = x.cells.reduce((a, c) => (Y(c) < Y(a) ? c : a), x.cells[0]);
@@ -264,21 +308,48 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
 
   // missiles, drones and mines
   for (const o of v.objs) {
-    const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind], c0 = col(o.owner), fade = o.seen ? null : 0.4;
+    const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind] || { speed: 1 }, c0 = col(o.owner), fade = o.seen ? null : 0.4;
     if (o.last && !hex.same(o.last, o.pos)) svg.appendChild(s('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(cx), y2: f1(cy), stroke: c0, 'stroke-width': 1, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
-    if (!m.speed) {
+    const ink = '#050a14', neon = o.owner === 1 ? TEAM[1].neon : TEAM[0].neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
+    if (!m.speed && m.drift) {
+      // sleeper mine: a dark, low disc with a faint dashed ring (it creeps toward ships)
+      const mg = s('g', { opacity: fade });
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 5.2, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.45, 'stroke-dasharray': '1 1.6', class: 'rotor' }));
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.4, fill: ink, stroke: c0, 'stroke-width': 0.7 }));
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * 2 * Math.PI - Math.PI / 2; mg.appendChild(s('path', { d: `M${f1(cx + 1.4 * Math.cos(a))},${f1(cy + 1.4 * Math.sin(a))}L${f1(cx + 3 * Math.cos(a))},${f1(cy + 3 * Math.sin(a))}`, stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.7 })); }
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 0.9, fill: neon, class: 'minepulse' }));
+      svg.appendChild(mg);
+    } else if (!m.speed && m.trigger_range) {
+      // proximity (naval) mine: a round sea-mine with six horns
+      const mg = s('g', { opacity: fade });
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * 2 * Math.PI; mg.appendChild(s('path', { d: `M${f1(cx + 3 * Math.cos(a))},${f1(cy + 3 * Math.sin(a))}L${f1(cx + 5.2 * Math.cos(a))},${f1(cy + 5.2 * Math.sin(a))}`, stroke: c0, 'stroke-width': 0.9, 'stroke-linecap': 'round' })); mg.appendChild(s('circle', { cx: f1(cx + 5.2 * Math.cos(a)), cy: f1(cy + 5.2 * Math.sin(a)), r: 0.7, fill: c0 })); }
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.4, fill: ink, stroke: c0, 'stroke-width': 0.8 }));
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.2, fill: neon, class: 'minepulse' }));
+      svg.appendChild(mg);
+    } else if (!m.speed) {
+      // contact mine: a spiked hexagon with a pulsing core
       let d = '';
-      for (let i = 0; i < 16; i++) { const a = (i / 16) * 2 * Math.PI, rad = i % 2 ? 2.6 : 5.2; d += (i ? 'L' : 'M') + f1(cx + rad * Math.cos(a)) + ',' + f1(cy + rad * Math.sin(a)); }
-      svg.appendChild(s('path', { d: d + 'Z', fill: '#0b1020', stroke: c0, 'stroke-width': 0.9, opacity: fade }));
-      svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.2, fill: c0, opacity: fade }));
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * 2 * Math.PI - Math.PI / 2, rad = i % 2 ? 3.1 : 5.4; d += (i ? 'L' : 'M') + f1(cx + rad * Math.cos(a)) + ',' + f1(cy + rad * Math.sin(a)); }
+      const mg = s('g', { opacity: fade });
+      mg.appendChild(s('path', { d: d + 'Z', fill: ink, stroke: c0, 'stroke-width': 0.8, 'stroke-linejoin': 'round' }));
+      mg.appendChild(s('path', { d: hexPath(cx, cy, 2.4), fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.6 }));
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.3, fill: neon, class: 'minepulse' }));
+      svg.appendChild(mg);
     } else if (m.patrol) {
-      svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 4.2, fill: '#0b1020', stroke: c0, 'stroke-width': 1.3, opacity: fade }));
-      svg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.5, fill: c0 }));
-      svg.appendChild(s('path', { d: 'M4.2,0L7.5,0', stroke: c0, 'stroke-width': 1.1, transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir + (FL < 0 ? 180 : 0)})` }));
+      // seeker drone: a small hex body, a rotor ring, a sensor eye looking where it flies
+      const dg = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${rot})`, opacity: fade });
+      dg.appendChild(s('circle', { r: 5, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.5, 'stroke-dasharray': '1.4 1.2', class: 'rotor' }));
+      dg.appendChild(s('path', { d: hexPath(0, 0, 3.4), fill: ink, stroke: c0, 'stroke-width': 1 }));
+      dg.appendChild(s('path', { d: 'M3.4,0L7.2,0', stroke: c0, 'stroke-width': 0.9, 'stroke-linecap': 'round' }));
+      dg.appendChild(s('circle', { cx: 1.2, cy: 0, r: 1.2, fill: neon }));
+      svg.appendChild(dg);
     } else {
-      const g = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${-60 * o.dir + (FL < 0 ? 180 : 0)})`, opacity: fade });
-      g.appendChild(s('path', { d: 'M-4,0L-9,2L-7,0L-9,-2Z', fill: '#ff9d4d', opacity: 0.85 }));
-      g.appendChild(s('path', { d: 'M7,0L1,3L-4,3L-4,-3L1,-3Z', fill: c0, stroke: '#060a14', 'stroke-width': 0.6 }));
+      // missile: a slim dart with fins and a hot exhaust
+      const g = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${rot})`, opacity: fade });
+      g.appendChild(s('ellipse', { cx: -7.5, cy: 0, rx: 3.6, ry: 1.3, fill: `url(#skg${o.owner === 1 ? 1 : 0})`, class: 'thrust' }));
+      g.appendChild(s('path', { d: 'M-4.5,0L-6.5,2.8L-3,1.2ZM-4.5,0L-6.5,-2.8L-3,-1.2Z', fill: c0, 'fill-opacity': 0.8 }));
+      g.appendChild(s('path', { d: 'M7,0Q4,1.7 0,1.7L-5,1.4L-5,-1.4L0,-1.7Q4,-1.7 7,0Z', fill: ink, stroke: c0, 'stroke-width': 0.7, 'stroke-linejoin': 'round' }));
+      g.appendChild(s('path', { d: 'M6.2,0Q4.6,0.8 3.4,0.8L3.4,-0.8Q4.6,-0.8 6.2,0Z', fill: neon }));
       svg.appendChild(g);
       if (!o.mine) { const a = hex.step(hex.step(o.pos, o.dir), o.dir); svg.appendChild(s('line', { x1: f1(cx), y1: f1(cy), x2: f1(X(a)), y2: f1(Y(a)), stroke: c0, 'stroke-width': 0.8, 'stroke-dasharray': '1.5 2', 'stroke-opacity': 0.7 })); }
     }
@@ -313,6 +384,16 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   };
   for (const pl of plans) drawPlan(pl.f, false);
   drawPlan(plan, true);
+
+  // choosing where to move: dim the rest of the board so the ways out stand out. The ship itself stays bright.
+  const moves = [...opts].filter(([, o]) => o.mark === 'move');
+  const mover = moves.length ? v.ships.find((x) => x.id === sel) : null;
+  if (mover) {
+    svg.querySelector('defs').appendChild(s('mask', { id: 'movescrim', maskUnits: 'userSpaceOnUse', x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh) },
+      s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#fff' }),
+      s('path', { d: mover.cells.map((c) => cellPath(c, 1.08)).join(''), fill: '#000' })));
+    svg.appendChild(s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#02040a', 'fill-opacity': 0.55, mask: 'url(#movescrim)', 'pointer-events': 'none', class: 'movescrim' }));
+  }
 
   if (ghost) {
     const gc = col(ghost.owner), ax = X(ghost.from), ay = Y(ghost.from), bx = X(ghost.to), by = Y(ghost.to), ang = Math.atan2(by - ay, bx - ax), hd = 5;
@@ -365,9 +446,30 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const [k, o] of opts) {
     const c = hex.unkey(k), cx = f1(X(c)), cy = f1(Y(c));
     if (o.mark === 'move') {
-      svg.appendChild(s('path', { d: cellPath(c, 0.9), fill: '#58d6a0', 'fill-opacity': 0.1, stroke: '#58d6a0', 'stroke-width': 0.6, 'stroke-opacity': 0.7 }));
-      svg.appendChild(s('circle', { cx, cy, r: f1(Math.min(S * 0.5, 8.5 / px)), fill: '#58d6a0', stroke: '#06140e', 'stroke-width': f1(1 / px) }));
-      svg.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(10), 'font-weight': 700, fill: '#06140e' }, o.label));
+      // The centre hex of a big ship's one-step move lies under the ship itself, so a marker there says nothing.
+      // Those get their chip and an arrow on the ship's outer edge, on the side it would move towards.
+      const path = o.action.path, own = mover && mover.cells.some((x) => hex.same(x, c));
+      const chosen = pending && pending.type === 'move' && pending.ship === sel && pending.path.length === path.length && pending.path.every((d, i) => d === path[i]);
+      const rc = Math.min(S * 0.62, (chosen ? 14 : 12) / px), green = chosen ? '#ffffff' : '#6dffc0';
+      let qx = X(c), qy = Y(c), ux = 0, uy = 0;
+      if (own && path.length === 1) {
+        const set = new Set(mover.cells.map(hex.key)), d = path[0];
+        const mx = mover.cells.reduce((n, x) => n + X(x), 0) / mover.cells.length, my = mover.cells.reduce((n, x) => n + Y(x), 0) / mover.cells.length;
+        const edge = mover.cells.filter((x) => !set.has(hex.key(hex.step(x, d))));
+        const from = (edge.length ? edge : mover.cells).reduce((a, b) => (Math.hypot(X(b) - mx, Y(b) - my) < Math.hypot(X(a) - mx, Y(a) - my) ? b : a));
+        const to = hex.step(from, d), vx = X(to) - X(from), vy = Y(to) - Y(from), len = Math.hypot(vx, vy) || 1;
+        ux = vx / len; uy = vy / len; qx = X(from) + vx * 0.82; qy = Y(from) + vy * 0.82;
+      }
+      const g = s('g', { 'data-tap': k, class: 'movechip' });
+      if (!own) g.appendChild(s('path', { d: cellPath(c, 0.94), fill: '#58f0b0', 'fill-opacity': 0.22, stroke: '#6dffc0', 'stroke-width': f1(1.5), class: 'movepulse' }));
+      g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc), fill: 'none', stroke: green, 'stroke-width': f1(1.6 / px), 'stroke-opacity': 0.7, class: 'moveping' }));
+      if (ux || uy) {   // a pointer on the outward side of the chip
+        const tx = qx + ux * rc * 1.9, ty = qy + uy * rc * 1.9, bx = qx + ux * rc * 0.8, by = qy + uy * rc * 0.8, nx = -uy * rc * 0.75, ny = ux * rc * 0.75;
+        g.appendChild(s('path', { d: `M${f1(tx)},${f1(ty)}L${f1(bx + nx)},${f1(by + ny)}L${f1(bx - nx)},${f1(by - ny)}Z`, fill: green, stroke: '#06140e', 'stroke-width': f1(1 / px), 'stroke-linejoin': 'round' }));
+      }
+      g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc), fill: green, stroke: '#06140e', 'stroke-width': f1(1.2 / px) }));
+      g.appendChild(s('text', { x: f1(qx), y: f1(qy), 'font-size': fs(chosen ? 13 : 12), 'font-weight': 800, fill: '#06140e' }, chosen ? '✓' : o.label));
+      svg.appendChild(g);
     } else if (o.mark === 'way') svg.appendChild(s('circle', { cx, cy, r: 3, fill: '#5cc8ff', 'fill-opacity': 0.85, stroke: '#060a14', 'stroke-width': 0.6 }));
     else {
       const colr = o.mark === 'target' ? '#ff6b6b' : '#f5b942';
@@ -424,6 +526,8 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   svg.addEventListener('pointercancel', lift);
   svg.addEventListener('click', (ev) => {
     if (dragged) { dragged = false; return; }
+    const chip = ev.target.closest && ev.target.closest('[data-tap]');      // a move chip stands for its destination hex
+    if (chip) { onTap(hex.unkey(chip.getAttribute('data-tap'))); return; }
     const m = svg.getScreenCTM(); if (!m) return;
     let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
     p.x *= FL; p.y *= FL;               // back to unflipped board coordinates

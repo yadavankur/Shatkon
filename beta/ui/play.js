@@ -34,7 +34,7 @@ let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
 let pendingFx = null;             // animations held back until the curtain lifts
 let ledgerOpen = false, sfxOn = true, actx = null;
-let shipStyle = 'schematic', haveModels = false;   // how ships are drawn: 'schematic' (parts and slots) or 'model' (art, where a ship has some)
+let shipStyle = 'hull', haveModels = false;   // how ships are drawn: 'hull' (ui/ships.js), 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
 // play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
 const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
@@ -241,7 +241,10 @@ function fxTick(now) {
   fxRaf = fxList.length ? requestAnimationFrame(fxTick) : 0;
   if (!fxRaf) x.clearRect(0, 0, cw, ch);
 }
-const colOf = (p) => (p === 0 ? '#f5b942' : '#5cc8ff');
+const colOf = (p) => (p === 0 ? '#7fd8f0' : '#ff8bd8');   // team colours (ui/ships.js TEAM)
+const col2Of = (p) => (p === 0 ? '#3a8dff' : '#c46bff');  // second team tone: blue / violet
+const WARN = '#e0a84a';                                     // muted amber: warnings only (your ship hurt)
+const rgbaOf = (hx, a) => 'rgba(' + [1, 3, 5].map((i) => parseInt(hx.slice(i, i + 2), 16)).join(',') + ',' + a + ')';
 const ownerOfId = (id) => Number(String(id)[0]) - 1;
 function beamFx(from, to, col, delay) {
   fx(
@@ -284,7 +287,8 @@ function ringFx(at, col, rHex, dur, delay, width) {
     delay
   );
 }
-function boomFx(at, delay, big) {
+function boomFx(at, delay, big, col) {
+  col = col || '#cfe8ff';
   let parts = Array.from({ length: big ? 28 : 16 }, () => [Math.random() * 6.283, 0.4 + Math.random() * 0.9]);
   fx(
     900,
@@ -293,14 +297,14 @@ function boomFx(at, delay, big) {
       if (!a) return;
       let u = hexUnit() * (big ? 1.6 : 1.1),
         g = x.createRadialGradient(a[0], a[1], 0, a[0], a[1], u * (0.4 + t));
-      g.addColorStop(0, 'rgba(255,240,200,' + (1 - t) + ')');
-      g.addColorStop(0.4, 'rgba(255,140,60,' + 0.8 * (1 - t) + ')');
-      g.addColorStop(1, 'rgba(255,80,40,0)');
+      g.addColorStop(0, 'rgba(255,255,255,' + (1 - t) + ')');
+      g.addColorStop(0.4, rgbaOf(col, 0.8 * (1 - t)));
+      g.addColorStop(1, rgbaOf(col, 0));
       x.fillStyle = g;
       x.beginPath();
       x.arc(a[0], a[1], u * (0.4 + t), 0, 7);
       x.fill();
-      x.fillStyle = 'rgba(255,200,120,' + (1 - t) + ')';
+      x.fillStyle = rgbaOf(col, 1 - t);
       for (let [ang, sp] of parts) {
         x.beginPath();
         x.arc(a[0] + Math.cos(ang) * u * sp * t * 1.4, a[1] + Math.sin(ang) * u * sp * t * 1.4, 1.6, 0, 7);
@@ -309,7 +313,7 @@ function boomFx(at, delay, big) {
     },
     delay
   );
-  ringFx(at, '#ff8a5c', big ? 2.2 : 1.5, 800, delay, 4);
+  ringFx(at, col, big ? 2.2 : 1.5, 800, delay, 4);
 }
 function textFx(at, lines, col, delay) {
   fx(
@@ -332,8 +336,9 @@ function textFx(at, lines, col, delay) {
     delay
   );
 }
+// a hit: on your own ship it is a warning (amber); on theirs it is in the attacker's colours
 function impactFx(r, delay, mine) {
-  let col = mine ? '#ff7a7a' : '#ffd27a';
+  let col = mine ? WARN : colOf(1 - ownerOfId(r.ship));
   ringFx(r.at, col, 1.3, 700, delay, 5);
   ringFx(r.at, '#ffffff', 0.8, 450, delay, 2);
   textFx(
@@ -357,6 +362,7 @@ function impactFx(r, delay, mine) {
     }, delay || 0);
 }
 function scanFx(r, delay) {
+  const own = ownerOfId(r.ship), c1 = colOf(own), c2 = col2Of(own);
   let c0 = r.cells[Math.floor(r.cells.length / 2)] || r.cells[0];
   fx(
     1500,
@@ -369,25 +375,25 @@ function scanFx(r, delay) {
         rad = R2 * Math.min(1, t * 1.3);
       x.globalAlpha = 1 - t * 0.8;
       let g = x.createRadialGradient(a[0], a[1], Math.max(0, rad - 30), a[0], a[1], rad);
-      g.addColorStop(0, 'rgba(88,214,160,0)');
-      g.addColorStop(1, rad < R1 ? 'rgba(88,214,160,.45)' : 'rgba(245,185,66,.35)');
+      g.addColorStop(0, rgbaOf(c1, 0));
+      g.addColorStop(1, rad < R1 ? rgbaOf(c1, 0.45) : rgbaOf(c2, 0.35));
       x.fillStyle = g;
       x.beginPath();
       x.arc(a[0], a[1], rad, 0, 7);
       x.fill();
-      x.strokeStyle = '#58d6a0';
+      x.strokeStyle = c1;
       x.lineWidth = 1.5;
       x.setLineDash([5, 5]);
       x.beginPath();
       x.arc(a[0], a[1], R1, 0, 7);
       x.stroke();
-      x.strokeStyle = '#f5b942';
+      x.strokeStyle = c2;
       x.beginPath();
       x.arc(a[0], a[1], R2, 0, 7);
       x.stroke();
       x.setLineDash([]);
       let ang = t * 6.283 * 1.5;
-      x.strokeStyle = 'rgba(140,255,200,.8)';
+      x.strokeStyle = rgbaOf(c1, 0.8);
       x.lineWidth = 2;
       x.beginPath();
       x.moveTo(a[0], a[1]);
@@ -459,7 +465,7 @@ function ramFx(r, delay) {
       x.strokeStyle = '#04070f'; x.lineWidth = 2; x.stroke();
     }
     // a streak behind it
-    x.globalAlpha = 0.5 * k; x.strokeStyle = '#ffd27a'; x.lineWidth = 3; x.lineCap = 'round';
+    x.globalAlpha = 0.5 * k; x.strokeStyle = col; x.lineWidth = 3; x.lineCap = 'round';
     x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(a[0] + dx, a[1] + dy); x.stroke();
   }, delay);
   return dur;
@@ -514,8 +520,8 @@ function flightFx(frames, evs, viewer, base = 0) {
       x.setLineDash([]);
       x.globalAlpha = 1;
       let g = x.createRadialGradient(px, py, 0, px, py, u * 0.6);
-      g.addColorStop(0, 'rgba(255,180,90,.9)');
-      g.addColorStop(1, 'rgba(255,120,40,0)');
+      g.addColorStop(0, rgbaOf(colOf(o.owner), 0.9));
+      g.addColorStop(1, rgbaOf(col2Of(o.owner), 0));
       x.fillStyle = g;
       x.beginPath();
       x.arc(px, py, u * 0.6, 0, 7);
@@ -561,11 +567,11 @@ function eventFx(r, viewer, delay) {
       if (r.at) impactFx(r, (delay || 0) + 120, false);
       break;
     case 'blast':
-      boomFx(r.at, delay);
+      boomFx(r.at, delay, false, r.owner != null ? colOf(r.owner) : null);
       break;
     case 'stopped':
-      ringFx(r.at, '#f5d142', 1.4, 700, delay, 4);
-      textFx(r.at, ['point defence!'], '#f5d142', delay);
+      ringFx(r.at, colOf(ownerOfId(r.ship)), 1.4, 700, delay, 4);
+      textFx(r.at, ['point defence!'], colOf(ownerOfId(r.ship)), delay);
       break;
     case 'obj_destroyed':
       boomFx(r.at, delay);
@@ -574,7 +580,7 @@ function eventFx(r, viewer, delay) {
       scanFx(r, delay);
       break;
     case 'sighted':
-      pingFx(r.at, r.kind === 'ship' ? 'SIGHTED' : '', '#ff7a7a', (delay || 0) + 250);
+      pingFx(r.at, r.kind === 'ship' ? 'SIGHTED' : '', r.kind === 'ship' ? colOf(ownerOfId(r.id)) : WARN, (delay || 0) + 250);
       break;
   }
 }
@@ -655,7 +661,7 @@ export function newGame() {
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   say(seat === 'cpu'
-    ? 'New game against the computer. You are Player 1 (gold, bottom). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
+    ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
     : 'New game. Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.');
   save(); render();
 }
@@ -907,7 +913,7 @@ function guideTap(c, v, gv) {
 function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
-  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Green markers show where its centre can move; the number is how many hexes that uses. Tap one to preview the move.' : 'It cannot move further this turn.'));
+  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a glowing green marker to move it: the arrows around the ship are one-hex moves, the pulsing hexes further out are two. The rest of the board is dimmed. Tap once to preview, again to go.' : 'It cannot move further this turn.'));
   frame(ship.cells.concat(E.reach(game, id).map((r) => r.at)), selZoom());   // zoom to the ship and where it can go
 }
 
@@ -1279,7 +1285,7 @@ export function render() {
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
-    const help = { move: 'Tap a green marker to see where the ship would end up, then tap it again to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
+    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
@@ -1364,7 +1370,7 @@ export function render() {
   const styleBtn = (val, label, on) => h('button', { 'aria-pressed': String(shipStyle === val), disabled: !on, onclick: () => { shipStyle = val; store.set('shatkon.ships', val); render(); } }, label);
   const artCount = v.ships.filter((x) => modelFor(x.name, x.segs.map((sg) => sg.off))).length;
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Display'),
-    h('div', { class: 'row', style: 'align-items:center' }, h('span', null, 'Ships drawn as'), h('div', { class: 'seg', role: 'group', 'aria-label': 'How ships are drawn' }, styleBtn('schematic', 'Schematic', true), styleBtn('model', 'Models', haveModels))),
+    h('div', { class: 'row', style: 'align-items:center' }, h('span', null, 'Ships drawn as'), h('div', { class: 'seg', role: 'group', 'aria-label': 'How ships are drawn' }, styleBtn('hull', 'Ships', true), styleBtn('schematic', 'Schematic', true), styleBtn('model', 'Models', haveModels))),
     h('p', { class: 'muted' }, 'Schematic shows every part in its slot. Models draws a ship\u2019s art where it has some and the schematic where it does not'
       + (haveModels ? ' (' + artCount + ' of ' + plural(v.ships.length, 'ship') + ' on this board have art).' : ' (no art pack was found).') + ' A ship\u2019s parts are always listed in its panel.')));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Key'),
@@ -1374,7 +1380,8 @@ export function render() {
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
-    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer')),
+    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer'),
+    h('a', { class: 'btn', href: '../docs/', target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual')),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
   panels.appendChild(pasteBox('Load a game code', 'Load game', async (text) => {
     try { game = await E.importGame(text); looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; moveAnims = []; drawerOpen = false; say('Game loaded.'); save(); }
@@ -1475,10 +1482,10 @@ function initExtras() {
   if (savedSeat === '0' || savedSeat === '1') seat = Number(savedSeat);
   else if (savedSeat === 'all' || savedSeat === 'pass' || savedSeat === 'cpu') seat = savedSeat;
   sfxOn = store.get('shatkon.sfx') !== '0';
-  shipStyle = store.get('shatkon.ships') === 'model' ? 'model' : 'schematic';
+  { const st = store.get('shatkon.ships'); shipStyle = st === 'model' || st === 'schematic' ? st : 'hull'; }
   // ship art: any pack in the story/ships.json format (see ui/board.js). Without one, ships stay schematic.
   try { const r = await fetch('story/ships.json'); if (r.ok) { setModels(await r.json()); haveModels = true; } } catch (e) {}
-  if (!haveModels) shipStyle = 'schematic';
+  if (!haveModels && shipStyle === 'model') shipStyle = 'hull';   // no art pack: the built-in ship hulls still work
   aiLevel = store.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
   if (/\/beta\//.test(location.pathname)) { const bb = $('#betabadge'); if (bb) bb.hidden = false; document.title = 'Shatkon BETA'; }
   initExtras();

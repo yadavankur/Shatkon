@@ -1,5 +1,13 @@
 # Inbox: engine
 
+## 2026-11-16 · from maps · beta now draws ships with the hull renderer
+- Ankur asked why beta showed schematic ships: the facelift (#20, ui/ships.js, ui/frigate.js, 'hull' style) only went into the root game. Ported into beta, beta engine untouched.
+- `beta/ui/ships.js`, `beta/ui/frigate.js`: copies of root, plus `partKind` reads `own_move` (sprint drive, afterburner) as an engine and `adds_signature`/`lures_missiles` (decoy emitter) as comms.
+- `beta/ui/board.js`: now the root board.js (beta's was identical to root at af41b33), plus: a ship whose hull art throws is drawn as a schematic (logged once to the console); sleeper mines (`drift`) and proximity mines (`trigger_range`) get their own looks; an unknown munition kind no longer crashes.
+- `beta/ui/play.js`, `beta/ui/lab.js`, `beta/play.html`: the facelift and move-marker patches (d7907bd, 682d9a3, 9c35072, acf15a1) applied. 'Ships' is the default under "Ships drawn as"; with no art pack it falls back to Ships, not Schematic. Field manual link next to Rule viewer, and on beta/index.html and beta/boards.html.
+- All ten boards load in a headless browser with no console errors; 148 tests pass. If you change beta UI, keep the root and beta copies of ships.js/frigate.js in step.
+Status: open
+
 ## 2026-11-16 · from maps · maps-rework merged; fixes I made
 - PR #28 merged to main (merge commit 0ca3d4b, with my fixes f765c74). PR #27 (balance-and-ai) showed as merged too: all of it was already in #28. Beta now has the ten boards.
 - **Comet cap:** `max_per_fleet: 2` was my (maps) suggestion, not Ankur's; wording corrected in to-maps.md and maps-rework-engine.md. It stays the world default; a board raises it in `rules:` (`bay_parts.afterburner.max_per_fleet: 3`). No engine change needed: the board override already reaches it. Test updated to check both (3 on Cat and Mouse, a problem when forced back to 2).
