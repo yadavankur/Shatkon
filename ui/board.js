@@ -409,9 +409,10 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   }
 
   if (ghost) {
-    const gc = col(ghost.owner), ax = X(ghost.from), ay = Y(ghost.from), bx = X(ghost.to), by = Y(ghost.to), ang = Math.atan2(by - ay, bx - ax), hd = 5;
+    const gr = ghost.route && ghost.route.length > 1 ? ghost.route : [ghost.from, ghost.to], ga = gr[gr.length - 2];   // the path, hex by hex; the arrowhead follows its last step
+    const gc = col(ghost.owner), ax = X(ga), ay = Y(ga), bx = X(ghost.to), by = Y(ghost.to), ang = Math.atan2(by - ay, bx - ax), hd = 5;
     svg.appendChild(s('path', { d: ghost.cells.map((c) => cellPath(c, 1.0)).join(''), fill: gc, 'fill-opacity': 0.18, stroke: '#ffffff', 'stroke-width': 1.3, 'stroke-dasharray': '3 2' }));
-    svg.appendChild(s('line', { x1: f1(ax), y1: f1(ay), x2: f1(bx), y2: f1(by), stroke: '#ffffff', 'stroke-width': 1.6, 'stroke-linecap': 'round' }));
+    svg.appendChild(s('polyline', { points: (ghost.route || [ghost.from, ghost.to]).map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' '), fill: 'none', stroke: '#ffffff', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
     svg.appendChild(s('path', { d: `M${f1(bx)},${f1(by)}L${f1(bx - hd * Math.cos(ang - 0.5))},${f1(by - hd * Math.sin(ang - 0.5))}L${f1(bx - hd * Math.cos(ang + 0.5))},${f1(by - hd * Math.sin(ang + 0.5))}Z`, fill: '#ffffff' }));
   }
 
@@ -492,6 +493,23 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
         svg.appendChild(s('circle', { cx: f1(X(c) + S * 0.75), cy: f1(Y(c) - S * 0.75), r: f1(r), fill: colr }));
         svg.appendChild(s('text', { x: f1(X(c) + S * 0.75), y: f1(Y(c) - S * 0.75), 'font-size': fs(10), 'font-weight': 700, fill: '#0a0f1e' }, o.label));
       }
+    }
+  }
+
+  // a shot being aimed: the beam's line from the gun to the target and a reticle on it, before anything is fired.
+  // It is drawn only between the player's own ship and a target they can already see, so it shows nothing new.
+  if (pending && (pending.type === 'fire' || pending.type === 'detonate') && !hidden) {
+    const me0 = v.ships.find((x) => x.id === pending.ship), src = pending.type === 'fire' && me0 ? me0.cells[pending.seg] : null;
+    const tc = pending.type === 'fire' ? pending.at : (v.objs.find((o) => o.id === pending.obj) || {}).pos, red = '#ff6b6b';
+    if (tc) {
+      const cx = X(tc), cy = Y(tc), r = S * 0.8, pg = s('g', { 'pointer-events': 'none', class: 'aim' });
+      if (src) {
+        pg.appendChild(s('line', { x1: f1(X(src)), y1: f1(Y(src)), x2: f1(cx), y2: f1(cy), stroke: red, 'stroke-width': 2.2, 'stroke-opacity': 0.55, 'stroke-linecap': 'round' }));
+        pg.appendChild(s('line', { x1: f1(X(src)), y1: f1(Y(src)), x2: f1(cx), y2: f1(cy), stroke: '#ffffff', 'stroke-width': 0.8, 'stroke-dasharray': '3 2.5', 'stroke-linecap': 'round', class: 'flow' }));
+      }
+      pg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(r), fill: red, 'fill-opacity': 0.18, stroke: '#ffffff', 'stroke-width': 1.4 }));
+      pg.appendChild(s('path', { d: `M${f1(cx - r * 1.45)},${f1(cy)}H${f1(cx - r * 0.45)}M${f1(cx + r * 0.45)},${f1(cy)}H${f1(cx + r * 1.45)}M${f1(cx)},${f1(cy - r * 1.45)}V${f1(cy - r * 0.45)}M${f1(cx)},${f1(cy + r * 0.45)}V${f1(cy + r * 1.45)}`, stroke: '#ffffff', 'stroke-width': 1.2, 'stroke-linecap': 'round' }));
+      svg.appendChild(pg);
     }
   }
 

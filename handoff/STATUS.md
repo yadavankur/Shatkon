@@ -21,6 +21,13 @@
 - **State is on the tiles:** every hex a ship occupies is tinted in its owner's colour; a pulsing white rim on the tiles marks a ship you can order (was a blurred halo round the hull); the selected ship's tiles are lit with a solid white rim. Name tags, move markers, targets and the move ghost were already tile-based.
 - **Checked:** headless Chrome at 800x360: silhouettes still read at 22px hexes. To be tuned by eye on a real phone.
 
+## Latest (16 Nov, controls): phone-first controls, step 5 of 8 (branch `phone-targeting`, stacked on `phone-scale`)
+- **Move preview** follows the hexes the ship will really cross (was one straight arrow).
+- **Lasers aim, then fire:** the first tap on a red target draws the beam's line from the gun and a reticle with the hits it will do; the second tap, or the Fire button, shoots; Cancel backs out. Detonate works the same way. Graft and Dock ask in the panel before they happen. The aim line runs only between the player's own ship and a target already in view, so it shows nothing hidden.
+- **End turn asks once more** (a second press on the same button) only when there are command points left and a ship that can still act. A turn that ends by itself is unchanged.
+- **For the engine and maps bots:** `campaign/tools/browser_story.cjs` now presses the confirm button after "Graft tern" and skips the upright-phone card. I could not run that tool here (no Playwright), so please run it once.
+- **Checked:** 165 tests; headless Chrome at 800x360: path preview, first tap does not fire, second tap fires, End turn asks then ends.
+
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
 - `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.

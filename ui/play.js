@@ -42,6 +42,7 @@ async function toggleFull() {      // full screen, and held sideways where the b
   } catch (e) {}
 }
 let undoStack = [];               // states before undoable actions this turn
+let endArmed = false;             // End turn was pressed once with points still to spend: the next press ends it
 let curtain = null;               // pass and play: the player waiting behind the curtain
 let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
@@ -712,6 +713,7 @@ export function startStoryGame(chRules, title) {
 
 function act(action, quiet, byAI) {
   const p = turnOf(), prev = game;
+  endArmed = false;
   const viewer = seat === 'cpu' ? 0 : p;      // the computer's view must never reach the hint
   const r = E.attempt(game, action);
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
@@ -841,7 +843,7 @@ function compass(a, b) {
 // ---------- what a tap would do in the current mode ----------
 function options(v) {
   const map = new Map();
-  if (!myTurn() || (pending && pending.type !== 'move') || (!sel && mode !== 'scan' && mode !== 'detonate')) return map;
+  if (!myTurn() || (pending && !['move', 'fire', 'detonate'].includes(pending.type)) || (!sel && mode !== 'scan' && mode !== 'detonate')) return map;
   if (mode === 'move') for (const r of E.reach(game, sel)) map.set(hex.key(r.at), { action: { type: 'move', ship: sel, path: r.path }, mark: 'move', label: r.path.length });
   if (mode === 'fire') for (const t of E.beamTargets(game, sel)) {
     const k = hex.key(t.at);
@@ -882,6 +884,7 @@ function zoomOnShip(ship) {
 
 function tap(c, v, opts, viaChip) {
   let o = opts.get(hex.key(c));
+  endArmed = false;
   const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
   if (!viaChip) {
     const id = under && canCommand(under, v) ? under.id : null, now = performance.now();
@@ -895,6 +898,13 @@ function tap(c, v, opts, viaChip) {
     pending = o.action;
     const ship = v.ships.find((x) => x.id === sel), to = pending.path.reduce((c, d) => hex.step(c, d), ship.pos);
     say('The dashed outline shows where ' + sel + ' will end up: ' + plural(pending.path.length, 'hex') + ' ' + compass(ship.pos, to) + '. Tap it again or press Move here.');
+    return render();
+  }
+  if (o && o.action && (o.action.type === 'fire' || o.action.type === 'detonate')) {      // things that cannot be taken back: first tap aims, second tap does it
+    if (pending && JSON.stringify(pending) === JSON.stringify(o.action)) return act(pending);
+    pending = o.action;
+    say(o.action.type === 'fire' ? 'Aimed: the laser will do ' + plural(o.hits, 'hit') + ' here. Tap the target again or press Fire. A shot cannot be taken back.'
+      : 'Tap the drone again or press Detonate to blow it up. It cannot be taken back.');
     return render();
   }
   if (o && o.action) return act(o.action);
@@ -967,7 +977,7 @@ function guideTap(c, v, gv) {
 }
 
 function selectShip(id, v) {
-  sel = id; look = null; mode = 'move'; pending = null;
+  sel = id; look = null; mode = 'move'; pending = null; endArmed = false;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
   say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a green marker to see the move, then tap it again to go.' : 'It cannot move further this turn.'));
 }
@@ -1384,7 +1394,8 @@ export function render() {
   let ghost = null;
   if (pending && pending.type === 'move') {
     const ship = v.ships.find((x) => x.id === pending.ship), to = pending.path.reduce((c, d) => hex.step(c, d), ship.pos);
-    ghost = { from: ship.pos, to, cells: ship.segs.map((sg) => [to[0] + sg.off[0], to[1] + sg.off[1]]), owner: ship.owner };
+    const route = pending.path.reduce((a, d) => a.concat([hex.step(a[a.length - 1], d)]), [ship.pos]);
+    ghost = { from: ship.pos, to, route, cells: ship.segs.map((sg) => [to[0] + sg.off[0], to[1] + sg.off[1]]), owner: ship.owner };
   }
   const plans = v.objs.filter((o) => o.mine && game.phase === 'play').map((o) => ({ id: o.id, f: E.forecast(game, o.id) })).filter((x) => x.f);
   const guide = guideNow();   // drawn on the board and marked on the minimap; the view never moves to it by itself
@@ -1404,13 +1415,13 @@ export function render() {
   const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
   const tools = h('div', { id: 'tools' });
   if (mine && pending) {
-    fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, pending.type === 'move' ? 'Move here' : pending.type === 'scan' ? 'Scan now' : 'Launch ' + nice(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
+    fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + nice(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
-    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: 'Tap a red ring to fire at it. The number is how many hits it will do.',
+    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: 'Tap a red ring to aim at it (the number is how many hits it will do), then tap it again to fire.',
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
-      seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones to blow it up.' };
+      seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones, then tap it again to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
     const lim = v.story ? (v.story.limits || {})[me.name] : null;
     const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
@@ -1435,7 +1446,11 @@ export function render() {
       ...(v.story ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
         const a = game.ships.find((z) => z.id === me.id);
         return game.ships.filter((z) => !z.dead && z.owner === a.owner && z.id !== a.id && E.gap(a, z) === 1).map((z) =>
-          h('button', { class: 'btn', disabled: v.cp < 1, onclick: () => act({ type: k, ship: a.id, with: z.id }) }, (k === 'graft' ? 'Graft' : 'Dock') + ' ' + z.name,
+          h('button', { class: 'btn', disabled: v.cp < 1, onclick: () => {      // asks first: press Graft / Dock in the panel to go ahead
+            pending = { type: k, ship: a.id, with: z.id };
+            say((k === 'graft' ? 'Graft ' + pretty(a.name) + ' and ' + pretty(z.name) + ' into one ship? It cannot be undone. Press Graft to go ahead, or Cancel.' : 'Dock ' + pretty(a.name) + ' and ' + pretty(z.name) + '? It costs a point a turn. Press Dock to go ahead, or Cancel.'));
+            render();
+          } }, (k === 'graft' ? 'Graft' : 'Dock') + ' ' + z.name,
             h('small', null, k === 'graft' ? 'fuse into one ship' : 'clamp together (costs a point a turn)')));
       }) : [])]);
   }
@@ -1476,8 +1491,12 @@ export function render() {
   // end of turn (bottom right): always in the same place
   if (mine && !hid) fill(tb, [
     undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
-    h('button', { class: 'btn go' + (v.cp === 1 ? ' last' : ''), onclick: () => act({ type: 'end' }) }, v.cp === 1 ? 'Last action' : 'End turn',
-      h('small', null, v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
+    // ending with points left while a ship can still act asks once more (a second press on the same button)
+    h('button', { class: 'btn go' + (v.cp === 1 || endArmed ? ' last' : ''), onclick: () => {
+        if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
+        else act({ type: 'end' });
+      } }, endArmed ? 'End turn?' : v.cp === 1 ? 'Last action' : 'End turn',
+      h('small', null, endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
       v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length) ? h('small', { class: 'warnnote' }, '\u26A0 laser can fire') : null)]);
 
   hintEl.className = hintErr ? 'err' : '';
