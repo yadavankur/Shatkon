@@ -428,19 +428,43 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       return x === undefined ? 99 : x;
     };
   };
+  // Steps (the whole ship fitting, round rocks and known mines) from a hex to the nearest hex within
+  // 7 of where the ship is now from which one of its lasers has a clear shot at foe f. 99 = none.
+  const shotMemo = {};
+  const stepsToShot = (s, f) => {
+    const ck = s.id + '>' + f.id;
+    if (!shotMemo[ck]) {
+      const fits = (c) => s.segs.every((g) => { const x = H.add(c, g.off); return H.dist([0, 0], x) <= v.board.radius && !blockMove.has(H.key(x)) && !knownMines.has(H.key(x)); });
+      const dist = new Map(), q = [];
+      for (const c of H.disc(s.pos, 7)) if (fits(c) && hitsFrom(s, c, f) > 0) { dist.set(H.key(c), 0); q.push(c); }
+      for (let i = 0; i < q.length; i++) for (let d = 0; d < 6; d++) {
+        const n = H.step(q[i], d), k = H.key(n);
+        if (!dist.has(k) && H.dist(n, s.pos) <= 8 && fits(n)) { dist.set(k, dist.get(H.key(q[i])) + 1); q.push(n); }
+      }
+      shotMemo[ck] = dist;
+    }
+    return (c) => { const x = shotMemo[ck].get(H.key(c)); return x === undefined ? 99 : x; };
+  };
   // A ship's working beam weapons, and the most hits any of them would do on foe f with the ship
   // centred on `center` (0 = no shot: out of range, an asteroid in the way, or only wrecks in reach).
   const lasersOf = (s) => s.segs.flatMap((g) => (g.wrecked ? [] : (g.parts || []).filter((p) => p.hp > 0 && R.parts[p.t].range && R.parts[p.t].hits).map((p) => ({ off: g.off, c: R.parts[p.t] }))));
+  const friendAt = new Map();
+  for (const m of mine) m.cells.forEach((c, i) => { if (!m.segs[i].wrecked) friendAt.set(H.key(c), m.id); });
   const hitsFrom = (s, center, f) => {
     let m = 0;
+    // (a nimble ship cannot be hit from beyond its evades_beyond: no shot, however clear the line)
+    const ev = f.segs.reduce((x, g) => Math.max(x, ...(g.wrecked ? [] : (g.parts || []).filter((p) => p.hp > 0).map((p) => R.parts[p.t].evades_beyond || 0))), 0);
     for (const l of lasersOf(s)) {
       const src = H.add(center, l.off);
       f.cells.forEach((tc, i) => {
         if (f.segs[i].wrecked) return;
         const dd = H.dist(src, tc);
-        if (dd < 1 || dd > l.c.range) return;
-        const hh = l.c.hits - (l.c.loses_1_hit_every ? Math.floor((dd - 1) / l.c.loses_1_hit_every) : 0);
-        if (hh > m && clearLine(src, tc)) m = hh;
+        if (dd < 1 || dd > l.c.range || (ev && dd > ev)) return;
+        const hh = beamHitsAt(l.c, dd);
+        if (hh <= m) return;
+        // the same line the rules draw, and (as the rules refuse it) no shot through one of its own ships
+        const way = H.sightLine(src, tc, (c) => blockSight.has(H.key(c)));
+        if (way && !way.slice(1, -1).some((c) => { const id = friendAt.get(H.key(c)); return id && id !== s.id; })) m = hh;
       });
     }
     return m;
@@ -533,6 +557,11 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
         }
         // nothing to shoot from here at all: don't wait, look for a line (cornered defence gains little)
         if (!shot && d <= want + 2) score -= 2.5;
+        // a personality also counts the steps to the nearest hex it could shoot from, so a ship that
+        // moves one hex a turn works its way round a rock. (Two crippled fleets used to stand each
+        // side of an asteroid at their favourite range, in sight and out of line, to the round limit.)
+        // (3.6 a step: more than the 3 a hex it dislikes being closer than its range, or it would not go)
+        if (pers && !shot && d <= want + 2) score -= Math.min(stepsToShot(s, target)(center), 6) * 3.6;
         score += shot;
       }
       if (d <= 1 && pr.stance !== 'charge') score -= 4; // don't ram
@@ -551,7 +580,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       // a personality counts the hexes of the way round, so an asteroid in between does not strand it
       if (pers && d > 1) { const way = stepsToRange(s, { cells: goalCells }, 1, 'goal')(center); if (way < 99) d = way + 1; }
       score -= d * (s.flagship ? 0.7 : bait(s) && T.decoys_as_bait === true ? 1.4 : 1);
-      const others = mine.filter((m) => m.id !== s.id);
+      // (not a scout: a Comet waiting its turn at home would hold the flagship, and so the whole fleet, there)
+      const others = mine.filter((m) => m.id !== s.id && !(SC && fastScout(m)));
       if (s.flagship && others.length) score -= Math.max(0, minDist(cells, others[0].cells) - 5) * 0.8;
     }
     if (SC && fastScout(s)) {

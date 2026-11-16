@@ -163,16 +163,17 @@ export function doFire(state, a) {
   let hitShip = null, hitSeg = -1, hitObj = null, hd = 0;
   for (let i = 1; i < cells.length && !hd; i++) {
     const o = occ.get(key(cells[i]));
-    if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked) { hitShip = o.ship; hitSeg = o.seg; hd = i; break; }
+    // (a nimble ship the beam cannot touch from this far, evades_beyond, does not stop it either: the
+    // shot carries on to whatever is behind. It used to end there for no damage, so a Comet parked on
+    // the line was a shield nothing could shoot through or at.)
+    if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked && !(i > (maxAttr(state, o.ship, 'evades_beyond') || Infinity))) { hitShip = o.ship; hitSeg = o.seg; hd = i; break; }
     const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0)   // own mines still stop it
       && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed))
       // beams_pass (a deep mine): a beam aimed at something else flies over it; only a shot aimed at the mine itself hits it
       && !(state.rules.munitions[x.kind].beams_pass === true && x !== target));
     if (ob) { hitObj = ob; hd = i; }
   }
-  let hits = beamHits(state, ship, c, hd);
-  // evades_beyond: a nimble ship cannot be hit by a beam from further away than this
-  if (hitShip && hits > 0) { const ev = maxAttr(state, hitShip, 'evades_beyond'); if (ev && hd > ev) hits = 0; }
+  let hits = hd ? beamHits(state, ship, c, hd) : 0;   // (hd 0: the beam met nothing it could touch)
   addFlare(state, ship, hd && hits > 0 ? 'beamHit' : 'fire');
   const end = cells[hd || cells.length - 1].slice();
   emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);

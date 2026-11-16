@@ -188,3 +188,20 @@ test('game codes: a story chapter that changes the rules mid-battle (ch5 jamming
   const back = await importGame(await exportGame(g));
   assert.equal(back.rules.parts.comms ? back.rules.parts.comms.link_range : 3, 3);
 });
+
+// ---------------------------------------------------------------- post-merge: evades_beyond and the one hits formula
+test('a beam is not stopped by a nimble ship it cannot hit: it carries on to the target behind', () => {
+  const comet = { name: 'K', at: [0, 1], flagship: false, hull: [{ at: [0, 0], bays: ['core', 'afterburner', 'sensor'], mounts: [] }] };
+  const target = { ...pod('X', [0, -2], ['core', 'engine', 'sensor'], ['armour', 'armour']), flagship: true };
+  let { game: g, problems } = battle({ radius: 10, p1: [scout('A', [0, 4])], p2: [target, comet] });
+  assert.deepEqual(problems, []);
+  for (const s of g.ships) g.lit[s.id] = g.round + 1;   // everyone in plain sight
+  const shots = beamTargets(g, '1a');
+  assert.ok(!shots.some((t) => t.target === '2b'), 'the Comet, 3 hexes off, is not offered as a target (lasers reach it from 2)');
+  const shot = shots.find((t) => t.target === '2a');
+  assert.ok(shot, 'the ship behind the Comet is');
+  g = apply(g, { type: 'fire', ship: '1a', seg: shot.seg, part: shot.part, at: shot.at });
+  const dmg = g.players[1].feed.filter((e) => e.t === 'damage');
+  assert.deepEqual(dmg.map((e) => [e.ship, e.hits]), [['2a', shot.hits]], 'the shot lands on the target for the hits that were offered');
+  assert.ok(!ship(g, '2b').dead);
+});
