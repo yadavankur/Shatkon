@@ -369,6 +369,9 @@ ai:
     launches_drones: true     # a carrier with nothing located sends a reporting drone ahead, and blows one up next to 2+ segments
     drones_in_flight: 2       # how many it keeps up at once
     shoots_mines: 4           # a mine it can see within this many hexes of one of its ships gets shot (false = ignores mines)
+    sweeps_mines: true        # once it knows you have mines (your fleet list shows them, or it has met one), its lead ship
+                              # scans every turn it is where mines may lie. It always steers a hex clear of a mine it has
+                              # seen (two for a proximity or deep mine), remembers it, and backs away from one that stirs
     mines_as_bait_rounds: 0   # N: for the first N rounds a side that laid mines waits behind them and stands where a
                               # mine lies between it and you; after that it comes out. 0 = never (it would rather
                               # hunt than sit). The Minefield and Fog Bank boards set 8

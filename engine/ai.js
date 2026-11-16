@@ -53,6 +53,52 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   };
   const clearLine = (a, b) => !!H.sightLine(a, b, (c) => blockSight.has(H.key(c)));
   const shipById = (id) => v.ships.find((s) => s.id === id);
+  const knownMines = mine.length && mine.every((s) => prof(s).avoid_mines === false) ? new Set() : new Set(
+    // (a personality also plans round its own mines: with friendly fire on, it may not cross them either)
+    v.objs.filter((o) => (!o.mine || (pers && R.friendlyFire)) && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
+  );
+  // A personality keeps clear of every hex that would set a mine off, not just the mine's own hex: a
+  // proximity or deep mine goes off a hex away (trigger_range). It also remembers a mine it saw
+  // earlier and has lost sight of (the "last seen here" mark), since mines mostly stay put.
+  const foeMines = !pers ? [] : v.objs.filter((o) => !o.mine && isMine(o.kind)).map((o) => ({ pos: o.pos, kind: o.kind, seen: true }))
+    .concat(v.ghosts.filter((g) => isMine(g.kind)).map((g) => ({ pos: g.pos, kind: g.kind, seen: false })));
+  if (knownMines.size || foeMines.length) for (const m of foeMines) for (const c of H.disc(m.pos, R.munitions[m.kind].trigger_range || 0)) knownMines.add(H.key(c));
+  // tricks.sweeps_mines: the computer takes mines seriously once it has reason to: the other fleet's
+  // list has mines on it (the rule files are open to both sides; where they lie is not), or it has
+  // seen one, or one has gone off or stirred. Then the ship furthest forward scans after it moves,
+  // every turn it is in ground where mines may be laid (step 2d).
+  const foeZone = v.zones.find((z) => z.edge && H.EDGE[z.edge] && z.name.indexOf(v.players[1 - seat]) === 0);
+  const mineGround = (c) => !foeZone || H.EDGE[foeZone.edge](c, v.board.radius) < foeZone.depth + (R.mineRows || 0);
+  const wary = !!pers && T.sweeps_mines === true && (foeMines.length > 0
+    || (((R.fleets[1 - seat] || {}).deployment) || []).some((d) => d.munition && isMine(d.munition))
+    || v.feed.some((e) => e.t === 'mine_stir' || (e.t === 'blast' && isMine(e.kind) && e.owner !== seat)));
+  // Something small that a scan or a creeping mine gave away, roughly here (v.contacts, kind small, from a ping)
+  const stirs = !pers ? [] : (v.contacts || []).filter((c) => c.kind === 'small' && c.src === 'scan');
+  // Every hex a ship can reach this turn. A personality drops the ways that would take any part of the
+  // ship through a hex it knows would set a mine off (the engine only refuses the mine's own hex).
+  const reachMemo = {};
+  const reachOf = (s) => {
+    if (reachMemo[s.id]) return reachMemo[s.id];
+    let all = E.reach(state, s.id);
+    if (pers && knownMines.size && all.length) {
+      const safe = (c) => s.segs.every((g) => !knownMines.has(H.key(H.add(c, g.off))));
+      const ok = new Set(all.filter((r) => safe(r.at)).map((r) => H.key(r.at)));
+      const max = all.reduce((m, r) => Math.max(m, r.path.length), 0), seen = new Map([[H.key(s.pos), []]]), out = [];
+      let edge = [s.pos];
+      for (let i = 0; i < max; i++) {
+        const next = [];
+        for (const pos of edge) for (let d = 0; d < 6; d++) {
+          const np = H.step(pos, d), k = H.key(np);
+          if (seen.has(k) || !ok.has(k)) continue;
+          const path = seen.get(H.key(pos)).concat(d);
+          seen.set(k, path); next.push(np); out.push({ at: np, path });
+        }
+        edge = next;
+      }
+      all = out;
+    }
+    return (reachMemo[s.id] = all);
+  };
   // an enemy whose every part a scan has shown, with nothing left to shoot or launch: a decoy, or disarmed
   const harmless = (t) => !!t && !t.mine && t.segs.every((g) => g.wrecked || g.parts) &&
     !t.segs.some((g) => !g.wrecked && g.parts.some((p) => p.hp > 0 && ((R.parts[p.t].range && R.parts[p.t].hits) || R.parts[p.t].launches)));
@@ -65,7 +111,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       for (let dr = -r; dr <= r; dr++) if (H.dist([0, 0], [dq, dr]) <= r) out.push([c.at[0] + dq, c.at[1] + dr]);
     return out;
   };
-  const contactCells = (v.contacts || []).flatMap(circleCells);
+  // (a rough contact on something small is a missile, a drone, or a mine that stirred: not a place to go)
+  const shipContacts = (v.contacts || []).filter((c) => c.kind === 'ship');
+  const contactCells = shipContacts.flatMap(circleCells);
   // scans: eager = a scanner pilot spends a point on a scan before it shoots, when a ship that has
   // moved has an enemy it has never read inside its clear ring (it wants to know what to shoot first)
   const unread = (f) => !f.segs.every((g) => g.wrecked || g.parts);
@@ -82,6 +130,21 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     return 3 * all.filter(isWeapon).length - all.filter((p) => R.parts[p.t].recharges || R.parts[p.t].hp > 1).length +
       (liveParts(g).some(isWeapon) ? 4 : 0) - (liveParts(g).some((p) => R.parts[p.t].recharges) ? 3 : 0);
   };
+  // What a beam would stop on before it got to its target: a mine or a missile on the line that this
+  // side knows about (its own, or an enemy one in sight). The rules stop a beam on the first thing it
+  // meets, so a fleet firing across its own minefield used to sweep it (see doFire for the exceptions).
+  const beamStops = new Map();
+  if (pers) for (const o of v.objs) {
+    const m = R.munitions[o.kind];
+    if (!m || (o.mine && R.beamsPassOwnMunitions && m.speed) || (R.beamsPassMines && !m.speed) || m.beams_pass === true) continue;
+    beamStops.set(H.key(o.pos), o);
+  }
+  const shotBlocked = (src, at) => {
+    if (!beamStops.size) return null;
+    const cells = H.sightLine(src, at, (c) => blockSight.has(H.key(c))) || [];
+    for (let i = 1; i < cells.length - 1; i++) { const o = beamStops.get(H.key(cells[i])); if (o) return o; }
+    return null;
+  };
   // 1. Fire: best laser shot available (prefer flagship, then most hits, then incoming missiles)
   let best = null;
   for (const s of mine) {
@@ -91,6 +154,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     for (const t of E.beamTargets(state, s.id)) {
       const tgt = shipById(t.target);
       if (Array.isArray(pr.only_targets) && !(tgt && pr.only_targets.includes(nameOf(tgt.id)))) continue;   // story: shoot these and nothing else
+      // a mine or missile on the line would take the shot: one of its own is never worth that
+      // (an enemy one in the way is scored below, as a shot at that thing, when it is the target)
+      if (pers && shotBlocked(H.add(s.pos, s.segs[t.seg].off), t.at)) continue;
       let score = t.hits * 10;
       if (tgt && Array.isArray(pr.target) && pr.target.includes(nameOf(tgt.id))) score += 15;
       if (tgt && pr.target === 'smallest') score += 8 - tgt.segs.length;
@@ -203,14 +269,22 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const bigSeen = foes.some((f) => f.segs.length >= 5);
   if (!easy && !bigSeen && P.cp >= 1) {
     const ready = mine.filter(
-      (s) => prof(s).scans !== false && !(s.used || {}).scan && s.scanR && (s.scan.tier >= 1 || (v.contacts || []).length)
+      (s) => prof(s).scans !== false && !(s.used || {}).scan && s.scanR && (s.scan.tier >= 1 || (pers ? shipContacts : v.contacts || []).length)
     );
-    const contacts = v.contacts || [];
+    const contacts = pers ? shipContacts : v.contacts || [];
     if (ready.length && (contacts.length || v.round >= 3 || foes.length)) {
       const goal = contacts.length ? contactCells : [[0, 0]];
       const s = ready.slice().sort((a, b) => minDist(a.cells, goal) - minDist(b.cells, goal))[0];
       if (!contacts.length || minDist(s.cells, goal) <= s.scanR[1]) return { type: 'scan', ship: s.id };
     }
+  }
+  // 2d. Mines about: the ship furthest forward that has moved this turn scans, once a turn, while it
+  // is in ground where mines may lie. A scan shows contact and proximity mines in its clear ring (a
+  // deep mine only within 2 hexes), and the fleet then steers round them or shoots them.
+  if (wary && P.cp >= 1 && !mine.some((s) => (s.used || {}).scan)) {
+    const home = enemyHomePoint(v, seat, R) || [0, 0];
+    const lead = mine.filter((s) => s.scanR && s.cells.some(mineGround) && prof(s).scans !== false).sort((a, b) => minDist(a.cells, [home]) - minDist(b.cells, [home]))[0];
+    if (lead) { const act = { type: "scan", ship: lead.id }; if (E.attempt(state, act).ok) return act; }
   }
   // easy: often wanders instead of picking the best move
   if (easy && rnd() < 0.35) {
@@ -242,14 +316,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     return null;
   })();
-  const knownMines = mine.length && mine.every((s) => prof(s).avoid_mines === false) ? new Set() : new Set(
-    // (a personality also plans round its own mines: with friendly fire on, it may not cross them either)
-    v.objs.filter((o) => (!o.mine || (pers && R.friendlyFire)) && R.munitions[o.kind] && !R.munitions[o.kind].speed).map((o) => H.key(o.pos))
-  );
   const goalCells = foes.length
     ? null
-    : (v.contacts || []).length
-      ? v.contacts.map((c) => c.at) /* head for the circle's centre: the best single guess */
+    : (pers ? shipContacts : v.contacts || []).length
+      ? (pers ? shipContacts : v.contacts).map((c) => c.at) /* head for the circle's centre: the best single guess */
       : v.ghosts.length
         ? v.ghosts.flatMap((g) => g.cells)
         : obj
@@ -341,11 +411,16 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const bait = (s) => !!pers && !s.flagship && ((prof(s).bait_ship === 'smallest' && mine.length > 1 && s.id === baitId) || ((prof(s).unarmed_ships === 'bait' || T.decoys_as_bait === true) && !lasersOf(s).length &&
     !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)))));
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
+  // a ship on its own drive (a courier, a Comet): fast, cheap, and not held to the fleet's pace
+  const fastScout = (s) => s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].own_move));
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));
     if (cells.some((c) => knownMines.has(H.key(c)))) return -1e6;
     let score = 0;
     const pr = prof(s);
+    // something small is creeping about near here: stand well back from it (a deep mine follows a ship
+    // it senses within drift_sense hexes, so three hexes clear of the mark is out of its reach)
+    for (const c of stirs) { const d0 = minDist(cells, [c.at]); if (d0 <= 3) score -= (4 - d0) * 3; }
     // story profiles: a route to follow first, a ship to keep away from, running away, marching on
     const via = pr.path_via && !(opts.via || {})[nameOf(s.id)] ? zoneOf(pr.path_via) : null;
     if (pr.stand_off && typeof pr.stand_off === 'object') {
@@ -446,7 +521,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     // of the steps that keep the shot, take the one nearest the range this ship likes to fight from
     const want = Array.isArray(pr.range) ? pr.range[s.flagship ? 1 : 0] : 4;
     let pick = null;
-    for (const r of E.reach(state, s.id)) {
+    for (const r of reachOf(s)) {
       if (r.path.length > 1) continue;
       const src = H.add(r.at, off);
       let ok = false;
@@ -468,7 +543,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   for (const s of mine) {
     if (prof(s).stance === 'hold') continue;
     const here = scorePos(s, s.pos);
-    for (const r of E.reach(state, s.id)) {
+    for (const r of reachOf(s)) {
       const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + noise('m' + s.id + H.key(r.at));
       if (gain > (easy ? 1.5 : 0.5) && (!bestMove || gain > bestMove.gain))
         bestMove = { gain, action: { type: 'move', ship: s.id, path: r.path } };

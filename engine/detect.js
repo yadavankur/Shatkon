@@ -155,12 +155,17 @@ export function refreshSight(state) {
       const x = thing(state, id), was = pl.seen[id];
       emit(state, { t: 'lost', id, faded: !!(was && was.glow && !isLit(state, x) && !flareOf(state, x)) }, [p]);
     }
-    // drop a ghost once the thing is gone, or once we can see its old spot and it is not there
+    // drop a ghost once the thing is gone, or once we can see its old spot and it is not there.
+    // A mine's ghost is different: a mine is far too quiet to see from sensor range, so "I am near
+    // and do not see it" proves nothing. Its mark stays until a ship is close enough that it would
+    // see that kind of mine (sensor + the mine's signature) and does not. (Before, the mark a scan
+    // had put on a mine vanished as soon as a ship came near it, which is exactly when it matters.)
     const myShips = state.ships.filter((s) => !s.dead && s.owner === p);
     for (const id of Object.keys(pl.seen)) {
       if (now.has(id)) continue;
-      const gh = pl.seen[id];
-      if (!thing(state, id) || myShips.some((s) => Math.min(...footprint(s).map((c) => dist(c, gh.pos))) <= sensorOf(state, s))) delete pl.seen[id];
+      const gh = pl.seen[id], mu = state.rules.munitions[gh.kind];
+      const quiet = mu && !num(mu.speed) ? (typeof mu.signature === 'number' ? mu.signature : state.rules.det.smallSig) : 0;
+      if (!thing(state, id) || myShips.some((s) => Math.min(...footprint(s).map((c) => dist(c, gh.pos))) <= sensorOf(state, s) + quiet)) delete pl.seen[id];
     }
     pl.vis = [...now].sort();
   }
