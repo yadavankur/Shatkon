@@ -61,14 +61,22 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
     x.p.hitRound = state.round;
     lost.push(x.p.t + (x.p.hp > 0 ? ' damaged' : x.c.recharges ? ' down' : ' destroyed'));
   }
+  // damage.magazine_explodes (off unless set): a magazine destroyed while the ship still carries
+  // munitions goes up, wrecking its segment and hitting every neighbouring segment of the ship
+  const mx = state.rules.magazineExplodes, boom = mx > 0 && !guard && !opts.chain && lost.includes('magazine destroyed') && Object.values(ship.load || {}).some((k) => k > 0);
+  if (boom && !sg.wrecked) { sg.wrecked = true; for (const p of sg.parts) p.hp = 0; lost.push('magazine exploded: segment wrecked'); }
   const hull = hullPct(state, ship), at = segHex(ship, si);
   clampLoad(state, ship);
   emit(state, { t: 'damage', ship: ship.id, seg: si, hits: n, lost, cause, hull, at }, [ship.owner]);
   // the shooter sees what the hit knocked off
   for (const q of others(state, ship.owner))
     if (visibleTo(state, q).has(ship.id)) emit(state, { t: 'hit', ship: ship.id, seg: si, hits: n, wrecked: sg.wrecked, cause, lost, hull, at }, [q]);
-  if (!guard && isDead(state, ship)) {
+  if (boom) ship.segs.forEach((g, i) => { if (i !== si && !g.wrecked && dist(segHex(ship, i), at) <= 1) applyHits(state, ship, i, mx, 'magazine', { chain: true }); });
+  if (!guard && !ship.dead && isDead(state, ship)) {
     ship.dead = true;
+    // death_flash: a ship built to be lost lights up every ship within this many hexes as it goes
+    const flash = Math.max(0, ...ship.segs.flatMap((g) => g.parts.map((x) => num(state.rules.parts[x.t].death_flash))));
+    if (flash) for (const x of state.ships) if (!x.dead && Math.min(...cellsOf(x).map((c) => dist(c, at))) <= flash) state.lit[x.id] = state.round + 1;
     for (const pl of state.players) delete pl.seen[ship.id];
     emit(state, { t: 'destroyed', ship: ship.id, name: ship.name, owner: ship.owner, flagship: ship.flagship }, state.players.map((_, i) => i));
   }
@@ -78,6 +86,7 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
 export function explode(state, obj, struck) {
   const m = state.rules.munitions[obj.kind], everyone = state.players.map((_, i) => i);
   const center = struck ? segHex(struck.ship, struck.seg) : obj.pos.slice();
+  let sparesShip = null;
   removeObj(state, obj);
   // point defence gets the first say against enemy missiles and drones
   if (struck && struck.ship.owner !== obj.owner && num(m.speed) > 0) {
@@ -94,13 +103,30 @@ export function explode(state, obj, struck) {
   for (const x of state.ships.filter((s) => !s.dead).concat(state.objs))
     if (Math.min(...cellsOf(x).map((c) => dist(c, center))) <= lit) state.lit[x.id] = state.round + 1;
   if (struck && m.strikes === 'engines') strikeEngines(state, struck, num(m.hits), obj.kind);
-  else if (struck) applyHits(state, struck.ship, struck.seg, num(m.hits), obj.kind);
+  else if (struck) {
+    // wrecks_segment: a warhead that gets through takes the whole segment. A working shield on
+    // that segment takes the blow instead: the shield goes down and the hull takes the usual hits.
+    // wrecks_segments: N (a deep mine): the struck segment and the nearest other segments of the same
+    // ship, N in all, are wrecked outright. The core's segment is taken last, so one charge does not
+    // sink a three-hex flagship unless it goes off against the core itself.
+    // ignores_shields: a shield does not take the blow.
+    const s = struck.ship, sg = s.segs[struck.seg], pierce = m.ignores_shields === true;
+    const many = Math.max(m.wrecks_segment === true ? 1 : 0, num(m.wrecks_segments));
+    const all = (g) => g.parts.reduce((n, p) => n + (p.off ? 0 : Math.max(0, p.hp)), 1);
+    const shielded = !pierce && sg.parts.some((p) => p.hp > 0 && !p.off && state.rules.parts[p.t].recharges);
+    const at = segHex(s, struck.seg);
+    const rest = many > 1 ? s.segs.map((g, i) => ({ g, i, d: dist(segHex(s, i), at), core: g.parts.some((p) => state.rules.parts[p.t].required) ? 1 : 0 }))
+      .filter((x) => x.i !== struck.seg && !x.g.wrecked).sort((a, b) => a.core - b.core || a.d - b.d || a.i - b.i).slice(0, many - 1) : [];
+    applyHits(state, s, struck.seg, many && !shielded ? all(sg) : num(m.hits), obj.kind, pierce ? { pierce: true } : {});
+    for (const x of rest) applyHits(state, s, x.i, all(x.g), obj.kind, pierce ? { pierce: true } : {});
+    if (many > 1) sparesShip = s;   // its other segments get no splash on top
+  }
   const r = num(m.blast_radius);
   for (const s of state.ships) {
     if (s.dead || (!state.rules.friendlyFire && s.owner === obj.owner)) continue;
     for (let i = 0; i < s.segs.length && !s.dead; i++) {
-      if (s.segs[i].wrecked || (struck && s === struck.ship && i === struck.seg)) continue;
-      if (dist(center, segHex(s, i)) <= r && (struck || r > 0)) applyHits(state, s, i, 1, obj.kind + ' blast');
+      if (s.segs[i].wrecked || (struck && s === struck.ship && (i === struck.seg || s === sparesShip))) continue;
+      if (dist(center, segHex(s, i)) <= r && (struck || r > 0)) applyHits(state, s, i, num(m.blast_hits) || 1, obj.kind + ' blast');   // blast_hits: a big charge does more than 1
     }
   }
   if (r > 0) for (const o of state.objs.slice()) {

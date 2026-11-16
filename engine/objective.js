@@ -13,7 +13,10 @@ import { emit, footprint } from './state.js';
 export function holders(state) {
   const o = state.rules.objective;
   if (!o) return [];
-  const on = (s) => footprint(s).some((c) => dist(c, o.at) <= o.radius);
+  // holds_objective: false (on a sprint drive or afterburner): too small and too fast to hold ground.
+  // Such a ship neither scores nor contests, so a courier cannot take every point or block one.
+  const can = (s) => !s.segs.some((sg) => sg.parts.some((x) => (state.rules.parts[x.t] || {}).holds_objective === false));
+  const on = (s) => can(s) && footprint(s).some((c) => dist(c, o.at) <= o.radius);
   return state.players.map((_, p) => state.ships.filter((s) => !s.dead && s.owner === p && on(s)));
 }
 

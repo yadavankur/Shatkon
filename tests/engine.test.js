@@ -121,7 +121,7 @@ test('detection: sensor + signature decides who sees whom, and stealth stops at 
   const a = ship(g, '1a'), q = ship(g, '2a');
   assert.equal(sensorOf(g, a), 4);
   assert.equal(signatureOf(g, q), 1, '1 segment: 2 stealth parts cannot take it below its floor of 1');
-  assert.deepEqual(sigBreak(g, q), { base: 1, stealth: 2, used: 0, floor: 1, hull: 1, haze: 0, flare: 0, motion: 0, total: 1 });
+  assert.deepEqual(sigBreak(g, q), { base: 1, stealth: 2, used: 0, floor: 1, hull: 1, haze: 0, flare: 0, motion: 0, emitter: 0, total: 1 });
   assert.equal(visibleTo(g, 0).has('2a'), false, 'range 6 needs sensor 4 + signature 1 = 5');
   q.pos = [0, 4];
   assert.equal(visibleTo(g, 0).has('2a'), true);
@@ -204,7 +204,9 @@ test('lasers: range, falloff, asteroids, and firing lights the shooter up when i
 const carrier = (name, at, more = {}) => ({ name, at, flagship: true, hull: [{ at: [0, 0], bays: ['core', 'magazine', 'sensor'], mounts: ['launcher'] }], load: { missile: 2, seeker_drone: 1 }, ...more });
 
 test('a locked missile flies to its target in the flight phase and does 3 hits', () => {
-  let { game: g } = battle({ p1: [carrier('C', [0, 3])], p2: [pod('X', [0, -2], ['core', 'engine', 'sensor'], ['armour', 'laser'])] });
+  // the old missile rule (wrecks_segment: false): 3 hits; the world file's wreck rule is tested in ai.test.js
+  const world = shippedFiles().world; world.munitions.missile.wrecks_segment = false;
+  let { game: g } = battle({ world, p1: [carrier('C', [0, 3])], p2: [pod('X', [0, -2], ['core', 'engine', 'sensor'], ['armour', 'laser'])] });
   const opt = launchOptions(g, '1a');
   assert.deepEqual(opt.locks, ['2a']);
   g = apply(g, { type: 'launch', ship: '1a', kind: 'missile', start: [0, 2], target: '2a', route: [] });

@@ -90,6 +90,8 @@ The viewer knows no game rules. It only looks at the shape of the data:
 - An entry with an `edge` and a `depth` is shaded as a zone.
 - `copy_of: <name>` shows the named entry's pieces again, mirrored when a `mirror...` setting is true.
 
-## Beta page
+## Boards, and the old beta page
 
-`beta/` is a full copy of a work-in-progress branch (currently the story campaign, `campaign-engine`), served next to the live game: `play.html` is the stable game, `beta/play.html` the beta. The beta keeps its own saves (`shatkon.beta.*`), so it can't break a game in progress on the live page. Refresh it with `sh tools/sync-beta.sh` (or `sh tools/sync-beta.sh <branch>`); `beta/VERSION.txt` says which commit it holds.
+`boards.html` lists ten hand-made boards (`rules/boards/*.yaml`); `play.html?board=NAME` plays one. Check them and let the computer play them with `node tools/boards.mjs --both --games 20`. Design notes and simulation results are in `docs/design/`.
+
+The old `/beta/` page became the main game on 16 Nov 2026. `beta/index.html`, `beta/play.html` and `beta/boards.html` now just forward to the main pages, and the first time the main game opens it copies any `shatkon.beta.*` saves across to the main save names (where the main game has none of its own).

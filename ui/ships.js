@@ -38,13 +38,14 @@ export const teamOf = (o) => TEAM[o === 1 ? 1 : 0];
 export function partKind(name, c) {
   c = c || {};
   if (c.required) return 'core';
-  if (c.thrust) return 'engine';
+  if (c.thrust || c.own_move) return 'engine';      // beta: a courier's sprint drive and a Comet's afterburner read as engines
   if (c.adds_range) return 'sensor';
   if (c.hides) return 'stealth';
   if (c.flare_reduction) return 'flare_mask';
   if (c.holds) return 'magazine';
   if (c.couples) return 'coupling';
   if (c.link_range) return 'comms';
+  if (c.adds_signature || c.lures_missiles) return 'comms';   // beta: a decoy emitter glows like a comms arc
   if (c.recharges) return 'shield';
   if (c.hits) return 'laser';
   if (c.launches) return 'launcher';

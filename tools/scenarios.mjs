@@ -1,4 +1,4 @@
-// Fleet against fleet: every test fleet in beta/rules/sim_fleets.yaml plays every other one.
+// Fleet against fleet: every test fleet in rules/sim_fleets.yaml plays every other one.
 // A handful of games per pairing is enough here; the information is in the spread across
 // different fleets, tactics and rule numbers, not in repeating one match-up.
 //
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { playGame, policy, shuffled } from './sim.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BETA = path.join(root, 'beta');
+const BETA = root;
 const E = await import('file://' + path.join(BETA, 'engine/index.js').replace(/\\/g, '/'));
 const YAML = vm.runInThisContext(fs.readFileSync(path.join(BETA, 'lib/yaml.min.js'), 'utf8') + '\n;YAML');
 const readYaml = (rel) => YAML.parse(fs.readFileSync(path.join(BETA, 'rules', rel), 'utf8'));

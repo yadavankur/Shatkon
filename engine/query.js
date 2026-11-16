@@ -1,17 +1,17 @@
 // Questions a screen or an AI asks before acting: where can this ship go,
 // what can it shoot, what can it lock on to. These use only what the player knows.
 
-import { key, add, step, dist, line, turnToward, dirToward } from './hex.js';
-import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell } from './state.js';
+import { key, add, step, dist, line, sightLine, turnToward, dirToward } from './hex.js';
+import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap, beamHits, knownTo } from './actions.js';
+import { moveCap, beamHits, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
   if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
-  const n = ship.segs.length;
-  const max = Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
+  const drive = hasOwnDrive(state, ship), n = ship.segs.length;
+  const max = drive ? ownMove(state, ship) - (pl.moved[ship.id] || 0) : Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
   if (max <= 0) return [];
   const g = geom(state.rules), occ = occupancy(state), vis = new Set(pl.vis);
   // things the player knows would blow up under the ship: their own mines, and enemy objects in view
@@ -54,11 +54,12 @@ export function beamTargets(state, shipId) {
       if (t.segs && t.segs[i].wrecked) return;
       const d = dist(src, c);
       if (d < 1 || d > w.c.range) return;
-      const cells = line(src, c);
-      for (let j = 1; j < cells.length - 1; j++) if (g.blockSight.has(key(cells[j]))) return;
+      const cells = sightLine(src, c, (h) => g.blockSight.has(key(h)));
+      if (!cells) return;
       // never offer a shot whose beam would hit one of your own ships first
       for (let j = 1; j < cells.length - 1; j++) { const o = occ.get(key(cells[j])); if (o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked) return; }
-      const hits = beamHits(state, ship, w.c, d);
+      let hits = beamHits(state, ship, w.c, d);
+      if (t.segs && d > (maxAttr(state, t, 'evades_beyond') || Infinity)) hits = 0;   // too nimble to hit from this far
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
   }
@@ -68,7 +69,7 @@ export function beamTargets(state, shipId) {
 // What a ship could launch, where from, and which enemy ships it could lock on to.
 export function launchOptions(state, shipId) {
   const p = current(state), ship = shipById(state, shipId);
-  if (!ship || ship.owner !== p || state.players[p].cp < state.rules.cost.launch) return null;
+  if (!ship || ship.owner !== p || (state.players[p].cp < state.rules.cost.launch && !(state.rules.salvo && ship.used.salvo))) return null;
   if (!workingParts(state, ship).some((x) => x.c.launches && !ship.used[x.si + '.' + x.pi])) return null;
   const kinds = Object.keys(ship.load).filter((k) => ship.load[k] > 0);
   if (!kinds.length) return null;
@@ -105,8 +106,10 @@ export function shipStatus(state, shipId) {
   const beams = parts.filter((x) => num(x.c.range) && num(x.c.hits)), launchers = parts.filter((x) => x.c.launches);
   const ready = (list) => list.filter((x) => !ship.used[x.si + '.' + x.pi]).length;
   return {
-    moveLeft: pl.canMove ? Math.max(0, Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n))) : 0,
-    costPerHex: n,
+    // (a ship on its own drive still needs the fleet to be allowed to move, as doMove and reach do)
+    moveLeft: !pl.canMove || deadInWater(state, ship) ? 0 : hasOwnDrive(state, ship) ? Math.max(0, ownMove(state, ship) - (pl.moved[ship.id] || 0)) : Math.max(0, Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n))),
+    costPerHex: hasOwnDrive(state, ship) ? 0 : n,
+    burnLeft: burnLeft(state, ship),   // afterburner turns left (null: no afterburner)
     beams: beams.length, beamsReady: ready(beams),
     launchers: launchers.length, launchersReady: ready(launchers),
     scanReady: !ship.used.scan && pl.cp >= state.rules.cost.scan && netMoved(state, ship) >= 1,

@@ -143,7 +143,7 @@ function initCombat() {
     el('text', { x: 602, y: y + 4, 'font-size': 11, fill: '#7f93ad', text: 'Hits go to the lowest layer first:' }, panel);
     el('text', { x: 602, y: y + 20, 'font-size': 11, fill: '#7f93ad', text: 'shield 1 → armour 2 → guns 3 → bays 4' }, panel);
     el('text', { x: 602, y: y + 36, 'font-size': 11, fill: '#7f93ad', text: '→ engine 5 → core 6' }, panel);
-    el('text', { x: 602, y: 486, 'font-size': 11, fill: '#5d6f88', text: 'rules: main v0.4 · hulls: beta/campaign/ships.yaml' }, panel);
+    el('text', { x: 602, y: 486, 'font-size': 11, fill: '#5d6f88', text: 'rules: main v0.4 · hulls: campaign/ships.yaml' }, panel);
   }
   // ---- controls ----
   let cur = 0, prog = 0, playing = false, last = 0, raf = 0;

@@ -1,12 +1,12 @@
 // Variants: rule and pilot variations played against each other on many fleets.
-// Everything it runs is described in beta/rules/ai_variants.yaml (baseline, variants, pilots, suites)
-// and beta/rules/sim_fleets.yaml (ship designs and fleets).
+// Everything it runs is described in rules/ai_variants.yaml (baseline, variants, pilots, suites)
+// and rules/sim_fleets.yaml (ship designs and fleets).
 //
 //   node tools/variants.mjs --list                      suites, variants, pilots, fleets (with cost)
 //   node tools/variants.mjs --suite pilots              run a suite (several: --suite pilots,sitting)
 //   node tools/variants.mjs --suite fleets --games 10 --seed 11
 //   node tools/variants.mjs --cell "baseline | stock:balanced v stock:sitter" --games 40
-//   node tools/variants.mjs --suite missiles --md       markdown tables (for beta/docs/variants-results.md)
+//   node tools/variants.mjs --suite missiles --md       markdown tables (for docs/design/variants-results.md)
 //   node tools/variants.mjs --suite pilots --log games.csv     one line per game: cell, seed, seats, winner, rounds
 //   add --missiles or --ships to any run for the missile counts or the per-personality table
 //
@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { shuffled } from './sim.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BETA = path.join(root, 'beta');
+const BETA = root;
 const E = await import('file://' + path.join(BETA, 'engine/index.js').replace(/\\/g, '/'));
 const { computerMove } = await import('file://' + path.join(BETA, 'engine/ai.js').replace(/\\/g, '/'));
 const YAML = vm.runInThisContext(fs.readFileSync(path.join(BETA, 'lib/yaml.min.js'), 'utf8') + '\n;YAML');

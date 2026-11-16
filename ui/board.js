@@ -101,6 +101,7 @@ function diamond(cx, cy, k) {
   return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + f1(cx + S * (mx + (x - mx) * 0.8)) + ',' + f1(cy + S * (my + (y - my) * 0.8))).join('') + 'Z', x: cx + S * mx, y: cy + S * my };
 }
 
+const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null,
   halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
@@ -240,13 +241,16 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     else if (halo && halo.has(x.id) && !hidden) g.appendChild(s('path', { d: rim, fill: 'none', stroke: '#ffffff', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-opacity': 0.75, filter: 'url(#glow)', class: 'halo' }));
     let model = style === 'model' ? modelFor(x.name, x.segs.map((sg) => sg.off)) : null;
     if (model && !model._fit) { if (!model._bad) measure(model, modelBase + model.img, onCam); model = null; }   // schematic until the picture is measured
-    if (!model && style === 'hull') {
+    let drawn = false;
+    if (!model && style === 'hull') try {
       const hm = home[x.owner], fwd = hm && Math.hypot(hm[0], hm[1]) > S ? [-hm[0], -hm[1]] : [0, (x.owner === 0 ? -1 : 1) * FL];
       // your side (seat 1) flies classic sci-fi ships built from their modules; the Weave side keeps the hex hulls
       const foe = v.ships.filter((z) => z.owner !== x.owner && z.seen).map((z) => [X(z.pos), Y(z.pos)]).sort((a, z) => Math.hypot(a[0] - X(x.pos), a[1] - Y(x.pos)) - Math.hypot(z[0] - X(x.pos), z[1] - Y(x.pos)))[0] || null;
       const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: fwd, detail: detailed ? 1 : 0, moved: x.moved, flagship: x.flagship, target: foe };
       g.appendChild(x.owner === 0 ? drawFrigate(so) : drawShip(so));
-    } else {
+      drawn = true;
+    } catch (e) { if (!drawFail.has(x.id)) { drawFail.add(x.id); console.warn('ship art failed for', x.id, '- drawn as a schematic', e); } }
+    if (!drawn) {
     // the hull plate: one fused shape under the segments
     g.appendChild(s('path', { d: x.cells.map((c) => cellPath(c, 1)).join(''), fill: model ? '#0b1226' : c0, 'fill-opacity': model ? 0.9 : detailed ? 0.3 : 0.5 }));
     if (model) {
@@ -304,11 +308,26 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
 
   // missiles, drones and mines
   for (const o of v.objs) {
-    const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind], c0 = col(o.owner), fade = o.seen ? null : 0.4;
+    const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind] || { speed: 1 }, c0 = col(o.owner), fade = o.seen ? null : 0.4;
     if (o.last && !hex.same(o.last, o.pos)) svg.appendChild(s('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(cx), y2: f1(cy), stroke: c0, 'stroke-width': 1, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
     const ink = '#050a14', neon = o.owner === 1 ? TEAM[1].neon : TEAM[0].neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
-    if (!m.speed) {
-      // mine: a spiked hexagon with a pulsing core
+    if (!m.speed && m.drift) {
+      // sleeper mine: a dark, low disc with a faint dashed ring (it creeps toward ships)
+      const mg = s('g', { opacity: fade });
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 5.2, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.45, 'stroke-dasharray': '1 1.6', class: 'rotor' }));
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.4, fill: ink, stroke: c0, 'stroke-width': 0.7 }));
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * 2 * Math.PI - Math.PI / 2; mg.appendChild(s('path', { d: `M${f1(cx + 1.4 * Math.cos(a))},${f1(cy + 1.4 * Math.sin(a))}L${f1(cx + 3 * Math.cos(a))},${f1(cy + 3 * Math.sin(a))}`, stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.7 })); }
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 0.9, fill: neon, class: 'minepulse' }));
+      svg.appendChild(mg);
+    } else if (!m.speed && m.trigger_range) {
+      // proximity (naval) mine: a round sea-mine with six horns
+      const mg = s('g', { opacity: fade });
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * 2 * Math.PI; mg.appendChild(s('path', { d: `M${f1(cx + 3 * Math.cos(a))},${f1(cy + 3 * Math.sin(a))}L${f1(cx + 5.2 * Math.cos(a))},${f1(cy + 5.2 * Math.sin(a))}`, stroke: c0, 'stroke-width': 0.9, 'stroke-linecap': 'round' })); mg.appendChild(s('circle', { cx: f1(cx + 5.2 * Math.cos(a)), cy: f1(cy + 5.2 * Math.sin(a)), r: 0.7, fill: c0 })); }
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.4, fill: ink, stroke: c0, 'stroke-width': 0.8 }));
+      mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.2, fill: neon, class: 'minepulse' }));
+      svg.appendChild(mg);
+    } else if (!m.speed) {
+      // contact mine: a spiked hexagon with a pulsing core
       let d = '';
       for (let i = 0; i < 12; i++) { const a = (i / 12) * 2 * Math.PI - Math.PI / 2, rad = i % 2 ? 3.1 : 5.4; d += (i ? 'L' : 'M') + f1(cx + rad * Math.cos(a)) + ',' + f1(cy + rad * Math.sin(a)); }
       const mg = s('g', { opacity: fade });

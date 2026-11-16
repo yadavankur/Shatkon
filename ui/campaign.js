@@ -8,7 +8,7 @@
 import * as E from '../engine/index.js';
 
 const C_DIR = 'campaign/', STORY_DIR = 'story/', KEY = 'shatkon.story';
-const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
+const KEYS = (k) => k;
 const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 let hooks = null;              // from the play screen: { h, startStoryGame, render, say }
 let data = null;               // { campaign, ships, chapters: { id: doc }, docs }

@@ -28,16 +28,30 @@ export function cubeRound(q, r) {
 
 // Every hex a straight line passes through, from a to b inclusive.
 // The tiny nudge makes lines that run exactly along an edge fall the same way every time.
-export function line(a, b) {
+export function line(a, b, side = 1) {
   const n = dist(a, b);
   if (!n) return [[a[0], a[1]]];
-  const aq = a[0] + 1e-6, ar = a[1] + 2e-6, bq = b[0] + 1e-6, br = b[1] + 2e-6;
+  const aq = a[0] + 1e-6 * side, ar = a[1] + 2e-6 * side, bq = b[0] + 1e-6 * side, br = b[1] + 2e-6 * side;
   const out = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     out.push(cubeRound(aq + (bq - aq) * t, ar + (br - ar) * t));
   }
   return out;
+}
+
+// A line of sight (or fire). A straight line that runs exactly along the edge between two hexes
+// could fall on either of them, and the nudge above always picks the same one, so on a mirrored
+// board one side could shoot along a rock face and the other could not. A line of sight is
+// therefore clear when either way of drawing it is clear. Returns the hexes of the clear line
+// (the usual one if it is clear), or null when both are blocked. blocks(hex) says what stops it;
+// the two end hexes are not tested.
+export function sightLine(a, b, blocks) {
+  const stopped = (l) => { for (let i = 1; i < l.length - 1; i++) if (blocks(l[i])) return true; return false; };
+  const l1 = line(a, b, 1);
+  if (!stopped(l1)) return l1;
+  const l2 = line(a, b, -1);
+  return stopped(l2) ? null : l2;
 }
 
 // Signed number of 60-degree turns from one direction to another (-2..3).

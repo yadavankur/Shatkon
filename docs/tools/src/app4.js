@@ -96,5 +96,5 @@ function initWorld() {
     ['🏁', 'Results', 'Without win or lose lists, you win when every enemy flagship is destroyed and lose when yours falls. <code>end: { result: to_be_continued }</code> leaves a chapter on a cliffhanger.'],
   ];
   items.forEach(([e, t, d]) => { const x = document.createElement('div'); x.className = 'card'; x.innerHTML = `<h3><span class="em" aria-hidden="true">${e}</span>${t}</h3><p style="font-size:14px;margin:0">${d}</p>`; cm.appendChild(x); });
-  const s = document.createElement('p'); s.className = 'src'; s.style.gridColumn = '1/-1'; s.textContent = 'docs/campaign-engine.md (campaign-engine a73412a) · beta/campaign/GUIDE_PROPOSAL.md'; cm.appendChild(s);
+  const s = document.createElement('p'); s.className = 'src'; s.style.gridColumn = '1/-1'; s.textContent = 'docs/campaign-engine.md (campaign-engine a73412a) · campaign/GUIDE_PROPOSAL.md'; cm.appendChild(s);
 }

@@ -1,4 +1,4 @@
-// The hand-made boards in beta/rules/boards/: check them, let the computer play them, and check
+// The hand-made boards in rules/boards/: check them, let the computer play them, and check
 // that a game on each one survives being played across two devices by pasted codes.
 //
 //   node tools/boards.mjs                 every board: problems, cost, 10 computer-v-computer games
@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BETA = path.join(root, 'beta');
+const BETA = root;
 const E = await import('file://' + path.join(BETA, 'engine/index.js').replace(/\\/g, '/'));
 const { computerMove } = await import('file://' + path.join(BETA, 'engine/ai.js').replace(/\\/g, '/'));
 const YAML = vm.runInThisContext(fs.readFileSync(path.join(BETA, 'lib/yaml.min.js'), 'utf8') + '\n;YAML');

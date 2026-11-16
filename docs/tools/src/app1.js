@@ -113,7 +113,7 @@ function initQuick() {
     ['📲', 'Two devices', 'Each player on their own device. You send your moves by swapping short turn codes.', 'var(--magenta)', 'seat 0 / 1 · turn codes'],
     ['🧪', 'The Lab', 'Ship designer, sandbox duels and Monte-Carlo series that run many games to balance ships and rules. Its rule knobs also apply to story chapters.', 'var(--violet)', 'ui/lab.js'],
     ['🎯', 'Beacon map', 'An objective variant: hold the beacon at the centre to score points. Reach 5 to win.', 'var(--orange)', 'rules/map_beacon_story.yaml'],
-    ['📖', 'Story campaign', 'Shatkon: The Weave, five chapters with cutscenes, scripted escorts and move guides. Always against the computer.', 'var(--cyan)', 'beta/ · campaign-engine 960a0f7'],
+    ['📖', 'Story campaign', 'Shatkon: The Weave, five chapters with cutscenes, scripted escorts and move guides. Always against the computer.', 'var(--cyan)', 'campaign-engine 960a0f7'],
     ['🧰', 'Test a chapter', 'Campaign map → pick any chapter, change the enemy\'s AI profile and launch. Never touches your save. "Copy changes" exports the edits.', 'var(--teal)', 'docs/campaign-engine.md'],
   ];
   const mc = $('#modeCards');

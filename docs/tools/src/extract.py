@@ -1,7 +1,7 @@
 import yaml, json, math, glob, os
 R='/workspace/repo-main'
 W=yaml.safe_load(open(R+'/rules/world_v0.4.yaml'))
-WB=yaml.safe_load(open(R+'/beta/rules/world_v0.4.yaml'))
+WB=yaml.safe_load(open(R+'/rules/world_v0.4.yaml'))
 F=yaml.safe_load(open(R+'/rules/fleets_v0.4.yaml'))
 parts={}
 for slot,grp in (('bay',W['bay_parts']),('mount',W['mount_parts'])):
@@ -51,7 +51,7 @@ for d in F['player_1']['deployment']:
     else: dep.append({'side':0,'label':'mine','cells':[d['mine']],'mine':True}); dep.append({'side':1,'label':'mine','cells':[[-d['mine'][0],-d['mine'][1]]],'mine':True})
 maps=[mapdata(R+'/rules/map_skirmish.yaml',dep),mapdata(R+'/rules/map_open_space.yaml',[]),mapdata(R+'/rules/map_beacon_story.yaml',dep)]
 # campaign
-C=R+'/beta/campaign'
+C=R+'/campaign'
 ships=yaml.safe_load(open(C+'/ships.yaml'))
 camp=yaml.safe_load(open(C+'/campaign.yaml'))['campaign']
 cships=[]

@@ -124,7 +124,7 @@ function shipCatalog() {
   const L = [];
   D.fleet.forEach((s) => L.push({ id: 'fleet:' + s.name, label: `${s.name}${s.flagship ? ' ★' : ''} (skirmish fleet)`, hull: s.hull, load: s.load, side: 'h', src: 'rules/fleets_v0.4.yaml' }));
   const weave = /^(seed|twin|husk|bloom)/;
-  D.cships.forEach((s) => L.push({ id: 'camp:' + s.key, label: `${s.key}${s.flagship ? ' ★' : ''} (campaign)`, hull: s.hull, load: s.load, side: weave.test(s.key) ? 'w' : 'h', src: 'beta/campaign/ships.yaml', joined: s.joined || (s.stats.parts.core > 1) }));
+  D.cships.forEach((s) => L.push({ id: 'camp:' + s.key, label: `${s.key}${s.flagship ? ' ★' : ''} (campaign)`, hull: s.hull, load: s.load, side: weave.test(s.key) ? 'w' : 'h', src: 'campaign/ships.yaml', joined: s.joined || (s.stats.parts.core > 1) }));
   return L;
 }
 function initExplorer() {

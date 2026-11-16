@@ -36,8 +36,19 @@ let pendingFx = null;             // animations held back until the curtain lift
 let ledgerOpen = false, sfxOn = true, actx = null;
 let shipStyle = 'hull', haveModels = false;   // how ships are drawn: 'hull' (ui/ships.js), 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
-const KEYS = (k) => (/\/beta\//.test(location.pathname) ? k.replace(/^shatkon\./, 'shatkon.beta.') : k);   // the beta page keeps its own saves
+// play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
+const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
+const KEYS = (k) => k + (BOARD ? '.board.' + BOARD : '');   // each board keeps its own saves
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
+// The old /beta/ page kept its saves under shatkon.beta.*. Beta is now the main game: once, copy those saves
+// across to the main names where the main game has nothing of its own yet (the beta copies are left alone).
+try {
+  if (!localStorage.getItem('shatkon.betaMoved')) {
+    const old = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('shatkon.beta.')) old.push(k); }
+    for (const k of old) { const to = 'shatkon.' + k.slice(13); if (localStorage.getItem(to) === null) localStorage.setItem(to, localStorage.getItem(k)); }
+    localStorage.setItem('shatkon.betaMoved', '1');
+  }
+} catch (e) {}
 
 async function loadRules() {
   let texts = window.SHATKON_RULES || null;
@@ -48,10 +59,19 @@ async function loadRules() {
     for (const n of names) texts[n] = await get(n);
   }
   const parsed = Object.fromEntries(Object.entries(texts).map(([n, t]) => [n, YAML.parse(t)])), docs = Object.values(parsed);
-  const world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
+  let world = docs.find((d) => d && d.bay_parts), fleets = docs.find((d) => d && d.budget !== undefined && !d.bay_parts);
   // the fleets file names its map; with several maps listed, that one is played
   const named = fleets && parsed[fleets.map];
-  const map = named && named.map ? named : docs.find((d) => d && d.map);
+  let map = named && named.map ? named : docs.find((d) => d && d.map);
+  if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
+    const r = await fetch('rules/boards/' + BOARD + '.yaml?t=' + Date.now());
+    if (!r.ok) throw new Error('could not read rules/boards/' + BOARD + '.yaml');
+    const b = YAML.parse(await r.text());
+    world = structuredClone(world);
+    for (const [k, v] of Object.entries((b.board || {}).rules || {})) { const ks = k.split('.'); let o = world; for (const x of ks.slice(0, -1)) o = o[x] = o[x] ?? {}; o[ks.at(-1)] = v; }
+    map = fleets = b;
+    if (b.board && b.board.name) document.title = b.board.name + ' · Shatkon';
+  }
   const built = E.buildRules(world, map, fleets);
   rules = built.rules; problems = built.problems;
   setLabDocs({ world, map, fleets });   // the Lab builds its variants from the same files
@@ -612,6 +632,8 @@ function makeReport(evs, viewer) {
   let rows = evs.filter((r) => (r.t === 'damage' || r.t === 'hit') && (viewer === 'all' || r.seenBy.includes(viewer)));
   return rows.length ? rows : null;
 }
+// salvo rule: a ship that has launched this turn may still fire its other launchers with no points left
+const salvoLeft = (p) => !!game.rules.salvo && game.ships.some((x) => !x.dead && x.owner === p && x.used && x.used.salvo && E.launchOptions(game, x.id));
 function anyAction() {
   let t = turnOf();
   return game.ships.some(
@@ -648,7 +670,7 @@ export function newGame() {
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   say(seat === 'cpu'
-    ? 'New game against the computer. You are Player 1 (gold, bottom). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
+    ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.'
     : 'New game. Find the enemy flagship (\u2605) and destroy it. Tap one of your ships to begin.');
   save(); render();
 }
@@ -709,7 +731,7 @@ function act(action, quiet, byAI) {
     say(msg || 'The computer is taking its turn\u2026');
   } else {
     say(msg || 'Done.');
-    if (game.phase === 'play' && turnOf() === p && (game.players[p].cp <= 0 || !anyAction())) {      // nothing left to do
+    if (game.phase === 'play' && turnOf() === p && ((game.players[p].cp <= 0 && !salvoLeft(p)) || !anyAction())) {      // nothing left to do
       const kept = hint;
       act({ type: 'end' }, true);
       say(kept + (game.players[p].cp > 0 ? ' No actions left, so the turn ended.' : ' That was your last action, so the turn ended.'));
@@ -753,6 +775,10 @@ function describe(e) {
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
+    case 'pass_reveal': return e.ship + ' flew past ' + e.found.join(', ') + ' under afterburner: lit up for everyone until the end of next round, and so is ' + e.ship + '.';
+    case 'burnt_out': return e.ship + '\'s afterburner is burnt out. From now on it moves ' + plural(e.move, 'hex') + ' a turn.';
+    case 'lured': return 'Your ' + nice(e.kind) + ' turned on a decoy emitter (' + e.to + ')' + (e.from ? ' and dropped its lock on ' + e.from : '') + '.';
+    case 'mine_stir': return 'Something small moved near ' + e.near + '. A faint contact marks roughly where.';
     case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': return null;
     case 'spawned': return e.ships.length ? 'New ships have arrived: ' + e.ships.join(', ') + '.' : null;
     case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
@@ -1110,6 +1136,7 @@ function shipCard(x, v) {
     const terms = !sb ? [] : ['base ' + sb.base + ' (' + plural(sb.base, 'segment') + ')']
       .concat(sb.stealth ? [sgn(-sb.used) + ' from ' + plural(sb.stealth, 'stealth part') + (sb.used < sb.stealth ? ' (floor ' + sb.floor + ': ' + plural(sb.stealth - sb.used, 'part') + ' spare)' : '')] : [])
       .concat(sb.haze ? [sgn(sb.haze) + ' nebula'] : [])
+      .concat(sb.emitter ? ['+' + sb.emitter + ' decoy emitter'] : [])
       .concat(sb.flare ? ['+' + sb.flare + ' flare from firing/launching/scanning'] : [])
       .concat(sb.motion < 0 ? ['\u2212' + -sb.motion + ' sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
     lines.push('Signature ' + x.signature + (terms.length ? ' = ' + terms.join(', ') : '') + '. An enemy with sensor ' + v.shownSensor + ' spots it from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex') + '.'
@@ -1396,7 +1423,9 @@ export function render() {
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
-    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer')),
+    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer'),
+    h('a', { class: 'btn', href: 'docs/', target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),
+    h('a', { class: 'btn', href: 'boards.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Boards')),
     h('div', { class: 'row' }, logButtons()),
     h('p', { class: 'muted' }, 'The battle log is every turn of this game, what each ship did and what it hit, with a short recap at the top. Before the game ends it only holds what you could see.'),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
@@ -1502,9 +1531,8 @@ function initExtras() {
   { const st = store.get('shatkon.ships'); shipStyle = st === 'model' || st === 'schematic' ? st : 'hull'; }
   // ship art: any pack in the story/ships.json format (see ui/board.js). Without one, ships stay schematic.
   try { const r = await fetch('story/ships.json'); if (r.ok) { setModels(await r.json()); haveModels = true; } } catch (e) {}
-  if (!haveModels) shipStyle = 'schematic';
+  if (!haveModels && shipStyle === 'model') shipStyle = 'hull';   // no art pack: the built-in ship hulls still work
   aiLevel = store.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
-  if (/\/beta\//.test(location.pathname)) { const bb = $('#betabadge'); if (bb) bb.hidden = false; document.title = 'Shatkon BETA'; }
   initExtras();
   initStory({ h, startStoryGame, render, say, toast });
   const saved = store.get('shatkon.game');

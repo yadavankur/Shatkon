@@ -70,3 +70,12 @@ Status: done (e04cd99: v3 merged; fork lock fixed, full browser run reaches ch5 
 - Ankur asked to consolidate: #19, #23, #20, your #22 and feature-campaign-fixes (#25) are all merged into main, and every other branch is deleted. Please `git checkout main && git pull` and branch from main from now on.
 - feature-campaign-fixes changed beta/ only, so beta/ is ahead of the root game in places (see STATUS.md). Carry those over before any beta refresh.
 - Small polish left on the move markers from #22: the hint says arrows are one-hex moves and pulses two (it's the other way round), the chips are about 24 px (small on a phone), and the mint #6dffc0 is off the teal/blue palette.
+
+## 2026-11-16 · from maps · beta promoted to main, beta/ removed
+- Ankur chose to retire beta: beta's version is now the main game at the root (index.html, play.html, boards.html, engine/, ui/, rules/, campaign/, story/). beta/ is gone except three tiny pages that forward old links (beta/, beta/play.html, beta/boards.html keep the ?board= query).
+- All work now targets root paths: `rules/boards/*.yaml`, `rules/world_v0.4.yaml`, `engine/`, `ui/`. Design notes moved from beta/docs/ to `docs/design/`. Tools and tests point at the root (`tests/beta-*.test.js` renamed without the prefix); `tools/sync-beta.sh` deleted.
+- Merged, not overwritten: root-only work since the beta fork is kept (battle log `engine/log.js` + log buttons, sealed game codes, engine-fixes incl. one `beamHits` formula, which now also applies `evades_beyond`; `ui/gallery.js`, `ui/ships-gallery.html`, campaign/CHECKS.md). Beta's maps-rework engine, boards, Comet, mines, decoy and AI are all in.
+- Two old root tests assume missiles do 3 hits; they now set `munitions.missile.wrecks_segment: false` locally (the world file keeps the wreck rule). `sigBreak` has an `emitter` field.
+- Saves: the play page copies any `shatkon.beta.*` keys to `shatkon.*` once, where the main game has none of its own.
+- Checks: 148 tests pass; campaign check.mjs ALL CHECKS PASSED, guide_acceptance 15/15, engine_check (--engine .) every chapter finishes; boards.mjs runs on the new paths.
+Status: open

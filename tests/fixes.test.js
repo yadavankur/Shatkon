@@ -68,7 +68,8 @@ test('missiles fly through a wrecked segment, as beams do, and hit the next live
   const target = { name: 'T', at: [0, 0], flagship: true, hull: [
     { at: [0, 0], bays: ['engine', 'coupling'], mounts: ['armour'] },
     { at: [0, -1], bays: ['core', 'engine', 'sensor'], mounts: ['armour', 'armour'] }] };
-  let { game: g, problems } = battle({ radius: 8, p1: [carrier], p2: [target] });
+  const world = shippedFiles().world; world.munitions.missile.wrecks_segment = false;   // the plain-hits rule, so the hit count shows
+  let { game: g, problems } = battle({ world, radius: 8, p1: [carrier], p2: [target] });
   assert.deepEqual(problems, []);
   const t = ship(g, '2a');
   t.segs[0].wrecked = true; for (const p of t.segs[0].parts) p.hp = 0;   // the nearer segment is already wrecked

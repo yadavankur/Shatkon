@@ -1,4 +1,4 @@
-// Computer-vs-computer simulations on the beta rules (beta/rules, beta/engine).
+// Computer-vs-computer simulations on the game rules (rules/, engine/).
 //
 //   node tools/sim.mjs                         the standard table (every policy pairing)
 //   node tools/sim.mjs --games 200             more games per pairing (default 100)
@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BETA = path.join(root, 'beta');
+const BETA = root;
 const E = await import('file://' + path.join(BETA, 'engine/index.js').replace(/\\/g, '/'));
 const { computerMove } = await import('file://' + path.join(BETA, 'engine/ai.js').replace(/\\/g, '/'));
 const YAML = vm.runInThisContext(fs.readFileSync(path.join(BETA, 'lib/yaml.min.js'), 'utf8') + '\n;YAML');

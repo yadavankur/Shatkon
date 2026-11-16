@@ -1,5 +1,5 @@
 // The trick that turns a losing fight. For each match-up, the row fleet is flown every way listed
-// under `tactics:` in beta/rules/sim_fleets.yaml against an opponent that simply fights head-on.
+// under `tactics:` in rules/sim_fleets.yaml against an opponent that simply fights head-on.
 // A match-up that is lost head-on but won with one tactic is the raw material for a campaign
 // chapter: the computer cannot think of the trick, the player has to.
 //
@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { cell } from './scenarios.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const YAML = vm.runInThisContext(fs.readFileSync(path.join(root, 'beta/lib/yaml.min.js'), 'utf8') + '\n;YAML');
-const lib = YAML.parse(fs.readFileSync(path.join(root, 'beta/rules/sim_fleets.yaml'), 'utf8'));
+const YAML = vm.runInThisContext(fs.readFileSync(path.join(root, 'lib/yaml.min.js'), 'utf8') + '\n;YAML');
+const lib = YAML.parse(fs.readFileSync(path.join(root, 'rules/sim_fleets.yaml'), 'utf8'));
 const args = process.argv.slice(2);
 const opt = (name, d) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : d; };
 const optAll = (name) => args.flatMap((x, i) => (x === '--' + name ? [args[i + 1]] : []));

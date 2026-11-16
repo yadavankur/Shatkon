@@ -215,7 +215,7 @@
   <p class="lead">Every stat below is calculated from the hull lists in the YAML: segments, sensor (2 + 2 per sensor), signature (segments − stealth, floor ⌈n/3⌉), thrust (engines) and cost (3 per segment + parts + munitions). Tap a card to open it in the builder.</p>
   <h3>Skirmish fleet <span class="tag">rules/fleets_v0.4.yaml</span></h3>
   <div class="grid g2" id="fleetCards" style="margin-bottom:28px"></div>
-  <h3>Campaign hulls <span class="tag beta">beta/campaign/ships.yaml</span></h3>
+  <h3>Campaign hulls <span class="tag beta">campaign/ships.yaml</span></h3>
   <div class="row" style="margin-bottom:12px" id="hullFilter"></div>
   <div class="grid g4" id="hullCards"></div>
 </section>
@@ -272,8 +272,8 @@
       <p class="src">world › damage · engine/damage.js</p></div>
   </div>
 
-  <h3 style="margin-top:28px">⚡ Combat v2: beta and campaign <span class="tag beta">beta/rules · campaign-engine 960a0f7</span></h3>
-  <p>The beta build runs faster fights. These changes are live in <code>/beta/</code> and the story campaign, not yet in main's <code>rules/</code>.</p>
+  <h3 style="margin-top:28px">⚡ Combat v2: beta and campaign <span class="tag beta">rules · campaign-engine 960a0f7</span></h3>
+  <p>Faster fights. These changes are in the main game's <code>rules/</code> and the story campaign (the old <code>/beta/</code> build became the main game on 16 Nov 2026).</p>
   <div class="grid g3" id="v2Cards"></div>
 </section>
 
@@ -293,7 +293,7 @@
   <h2>The <span class="grad">Channels</span></h2>
   <p class="lead">The Channels are frontier lanes threaded between asteroid belts and nebula banks. Two maps describe them: the repo's <b>story campaign</b> (in beta, so this is the version that plays), and a <b>design draft</b> of a skirmish-tutorial overlay that isn't loaded by the engine yet.</p>
   <div class="grid g2" style="align-items:start">
-    <div class="card glow" style="--c:var(--gold)"><h3>Story campaign: <i>Shatkon: The Weave</i> <span class="tag ok">in beta</span></h3><svg id="campSvg" class="hexsvg" viewBox="0 0 520 560" role="img" aria-label="Campaign chapter graph"></svg><p class="src">beta/campaign/campaign.yaml › nodes</p><div id="campRewards"></div></div>
+    <div class="card glow" style="--c:var(--gold)"><h3>Story campaign: <i>Shatkon: The Weave</i> <span class="tag ok">in beta</span></h3><svg id="campSvg" class="hexsvg" viewBox="0 0 520 560" role="img" aria-label="Campaign chapter graph"></svg><p class="src">campaign/campaign.yaml › nodes</p><div id="campRewards"></div></div>
     <div class="card glow" style="--c:var(--violet)"><h3>The Shatkon Channels <span class="tag prop">design draft</span></h3><svg id="wmSvg" class="hexsvg" viewBox="0 0 520 620" role="img" aria-label="Draft sector and channel graph"></svg><p style="font-size:14px">8 sectors, a five-step tutorial spine, then a branch. The five tutorial channels are <b>proposed</b>: their map and fleet files haven't been written. The three ready nodes reuse existing maps.</p><p class="src">campaign_world_map.yaml (local draft, not in rules/index.yaml)</p></div>
   </div>
   <h3 style="margin-top:28px">How a chapter runs</h3>
