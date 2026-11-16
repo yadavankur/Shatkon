@@ -503,8 +503,9 @@ function flightFx(frames, evs, viewer, base = 0) {
       state.objs.some((o) => (game.rules.munitions[o.kind] || {}).speed && sees(o, k))
     );
   if (!flying) {
-    for (let i = frames[0].ev; i < frames[frames.length - 1].ev; i++) if (evs[i]) eventFx(evs[i], viewer, base);
-    return 0;
+    for (let i = frames[0].ev; i < frames[frames.length - 1].ev; i++) if (evs[i]) eventFx(evs[i], viewer, base + 500);
+    setTimeout(() => toast('Flight phase', 'flight', 'Nothing in the air that you can see'), base);
+    return 1100;
   }
   fxBusyUntil = Math.max(fxBusyUntil, performance.now() + base + total + 600);
   fx(total + 250, (x, t, now) => {
@@ -566,7 +567,7 @@ function flightFx(frames, evs, viewer, base = 0) {
       x.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
     }
   }, base);
-  setTimeout(() => toast('Flight phase', 'flight'), base);
+  setTimeout(() => toast('Flight phase', 'flight', 'Missiles and drones fly'), base);
   for (let k = 0; k < frames.length - 1; k++)
     for (let i = frames[k].ev; i < frames[k + 1].ev; i++) {
       let r = evs[i];
@@ -607,7 +608,7 @@ function eventFx(r, viewer, delay) {
       break;
   }
 }
-function playFx(evs, viewer, flight) {
+function playFx(evs, viewer, flight, roundEnded) {
   const sees = (r) => viewer === 'all' || r.seenBy.includes(viewer);
   const fl = flight && flight.length > 1 ? flight : null, f0 = fl ? fl[0].ev : -1, f1x = fl ? fl[fl.length - 1].ev : -1;
   const scanned = evs.some((z) => z.t === 'scan');
@@ -620,6 +621,7 @@ function playFx(evs, viewer, flight) {
     eventFx(r, viewer, t + (r.t === 'sighted' && scanned ? 900 : 0));
   });
   if (fl && !flown) t += flightFx(fl, evs, viewer, t);
+  if (!fl && roundEnded) { const at0 = t; setTimeout(() => toast('Flight phase', 'flight', 'Nothing in the air that you can see'), at0); t += 1100; }
   if (t > 0) fxBusyUntil = Math.max(fxBusyUntil, performance.now() + t + 250);
   return t;
 }
@@ -632,10 +634,12 @@ function storyLater(g, dur) {
   storyAt = at; storyWait++;
   setTimeout(() => { storyWait--; storyEvents(g); }, Math.max(0, at - now));
 }
-function toast(text, cls) {
+// The phase banner: a band right across the board whenever the phase changes (your turn, enemy turn, flight).
+function toast(text, cls, sub) {
   let t = $('#toast');
   if (t) {
     t.textContent = text;
+    if (sub) t.appendChild(h('small', null, sub));
     t.className = '';
     void t.offsetWidth;
     t.className = 'show ' + (cls || '');
@@ -721,10 +725,10 @@ function act(action, quiet, byAI) {
   // animations and the impact report. In pass and play they wait until the next player lifts the curtain.
   const fxViewer = seat === 'all' ? 'all' : viewer;
   if (seat === 'pass' && action.type === 'end' && game.phase === 'play') {
-    pendingFx = [game.events, turnOf(), game.flight];
+    pendingFx = [game.events, turnOf(), game.flight, game.round > prev.round];
     report = makeReport(game.events, turnOf());
   } else {
-    const ran = playFx(game.events, fxViewer, game.flight);
+    const ran = playFx(game.events, fxViewer, game.flight, game.round > prev.round);
     report = makeReport(game.events, fxViewer) || (byAI ? report : null);
     if (game.rules.campaign) storyLater(game, ran);   // cutscenes, barks, objectives, chapter end
   }
@@ -736,15 +740,16 @@ function act(action, quiet, byAI) {
     undoStack = [];
     if (seat === 'pass' && game.phase === 'play') curtain = turnOf();
     if (game.phase === 'over') curtain = null;
-    if (byAI) say(game.phase === 'over' ? msg : 'The computer ended its turn. Your move.' + (report ? ' Open \u2630 for the impact report.' : ''));
+    if (byAI) say(game.phase === 'over' ? msg : 'The enemy ended its turn. Your move.' + (report ? ' Open \u2630 for the impact report.' : ''));
     else if (!quiet) say(game.phase === 'over' ? msg : seat === 'pass' ? 'Turn ended. Pass the device to Player ' + (turnOf() + 1) + '.' : isCodes() ? 'Turn ended. Your turn code is in the panel on the right: send it to your opponent.' : 'Turn ended.');
     if (isCodes() && game.phase === 'play') drawerOpen = true;
     if (byAI && game.phase === 'play') yourTurnPing();
     if (game.phase === 'play') {
       const next = turnOf();
-      const text = seat === 'cpu' ? (next === 0 ? 'Your turn' : 'Computer\'s turn') : seat === 'pass' ? 'Pass to Player ' + (next + 1)
+      const text = seat === 'cpu' ? (next === 0 ? 'Your turn' : 'Enemy turn') : seat === 'pass' ? 'Pass to Player ' + (next + 1)
         : isCodes() ? (next === seat ? 'Your turn' : 'Send your turn code') : 'Player ' + (next + 1) + '\'s turn';
-      setTimeout(() => toast(text, 'p' + next), Math.max(50, fxBusyUntil - performance.now()));   // after the animations
+      const sub = 'Round ' + Math.min(game.round, game.rules.turnLimit) + (seat === 'cpu' && next === 1 ? ' \u00B7 the computer is moving' : seat === 'cpu' || (isCodes() && next === seat) ? ' \u00B7 ' + plural(game.players[next].cp, 'command point') : '');
+      setTimeout(() => toast(text, 'p' + next, sub), Math.max(50, fxBusyUntil - performance.now()));   // after the animations
     }
     if (game.phase === 'over') setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (game.winner === 0 ? 'Victory!' : 'Defeat') : 'Player ' + (game.winner + 1) + ' wins', 'over'), 600);
   } else if (byAI) {
@@ -964,7 +969,7 @@ function guideTap(c, v, gv) {
 function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
-  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a glowing green marker to move it: the arrows around the ship are one-hex moves, the pulsing hexes further out are two. The rest of the board is dimmed. Tap once to preview, again to go.' : 'It cannot move further this turn.'));
+  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a green marker to see the move, then tap it again to go.' : 'It cannot move further this turn.'));
 }
 
 // ---------- camera ----------
@@ -1342,7 +1347,7 @@ export function render() {
         h('button', { class: 'btn go', onclick: () => {
           curtain = null; yourTurnPing();
           const pf = pendingFx; pendingFx = null;
-          if (pf) playFx(pf[0], pf[1], pf[2]);
+          if (pf) playFx(pf[0], pf[1], pf[2], pf[3]);
           render();
           toast('Player ' + (p + 1) + '\'s turn', 'p' + p);
         } }, 'I\'m Player ' + (p + 1) + ': show my fleet'))]);

@@ -12,6 +12,10 @@
 - **Also:** safe-area insets (`viewport-fit=cover`); a full-screen button that also locks landscape where the browser can; a "turn your phone sideways" card on an upright phone, with "Play upright anyway" (kept for the session). **For browser tools that drive an upright phone viewport** (`campaign/tools/browser_story.cjs`): add `?upright` to the URL or set `sessionStorage['shatkon.upright'] = '1'`, or the card covers the page.
 - **Checked:** 165 tests; headless Chrome at 800x360 and 667x375 with touch, and 360x800 for the card. Not checked: a real phone, notches, iPhone Safari (it has no full screen for pages: only the installed app, step 7, hides the browser bars there).
 
+## Latest (16 Nov, controls): phone-first controls, step 3 of 8 (branch `phone-banner`, stacked on `phone-layout`)
+- **Phase banner:** the small pill is now a band right across the board with a second line: "Your turn" (round, command points), "Enemy turn", "Flight phase", who moves first, the result. It shows on every phase change, including a turn that ends by itself.
+- **Decided:** the flight banner shows at the end of every round, whether or not the player can see anything fly ("Nothing in the air that you can see"). Showing it only when something flew would tell the player about hidden missiles. A round with no visible flight is 1.1 seconds longer for it. Against the computer the banner says "Enemy turn" (was "Computer's turn"). The line shown on selecting a ship is shorter.
+
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
 - `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.
