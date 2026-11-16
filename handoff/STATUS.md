@@ -1,4 +1,13 @@
-# Status (updated 2026-11-16 by engine)
+# Status (updated 2026-11-16 by maps)
+
+## Latest (16 Nov, maps): board follow-ups to the engine bot's AI work
+- Reviewed the engine bot's seven commits: 160 tests, campaign checks and page loads all clean, nothing to fix.
+- **Cat and Mouse:** Tom's sensor became an engine, so the Hounds move 2 a turn. 17-19 rounds (was 22-25), 21 of 40.
+- **Pawn Storm:** radius 12, skiffs start out of reach, a fifth laser on the Leviathan's core. Even by seat (21 v 20 of 40 over 80 games).
+- **Beacon Hill:** radius 9, ships 2 rows back. The first mover won 98 of 120 (its missiles landed first); now 64 of 120. The seed-picks-first-player rule is not needed for this board.
+- **King's Guard** left (47 of 120 over 60 seeds). All ten boards 14 to 25 of 40 (`boards.mjs --both --games 20`).
+- Still Ankur's call: contact and proximity mines `beams_pass`.
+
 
 ## Latest (16 Nov, engine): computer plays the new pieces; post-merge review
 - **Done, on main** (commits 891c1a9 to the top of main): the computer handles mines, missiles, decoys, Comets and drones; the beta-to-main merge was reviewed and three things fixed. Write-up: `docs/design/ai-pieces.md`. Notes and asks for maps: top of `to-maps.md`.

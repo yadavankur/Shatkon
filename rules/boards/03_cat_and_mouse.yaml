@@ -21,6 +21,8 @@
 #  The afterburner part now lives in world_v0.4.yaml (reveals as it flies, burns out after 3 turns).
 #  The world limit is 2 Comets a fleet (a maps-bot suggestion, not a fixed rule); this board raises
 #  it to 3 with bay_parts.afterburner.max_per_fleet in rules: below.
+#  Retune (maps, 2026-11-16): Tom swaps his sensor for an engine (9 engines for 9 segments), so the
+#  Hounds move 2 hexes a turn instead of 1. Games 22-25 rounds -> 17-19, fewer reach the round limit.
 # ============================================================
 
 board:
@@ -64,7 +66,7 @@ player_1:
       ai: defensive
       hull:
         - { at: [-1, 0], bays: [engine, coupling, stealth], mounts: [armour, shield] }
-        - { at: [0, 0], bays: [core, comms, sensor], mounts: [point_defence, armour] }
+        - { at: [0, 0], bays: [core, comms, engine], mounts: [point_defence, armour] }
         - { at: [1, 0], bays: [engine, coupling, stealth], mounts: [armour, shield] }
     - name: "Bloodhound"                # NEW hound: a gunboat that gives up an engine for a second sensor (sees 6)
       hull:

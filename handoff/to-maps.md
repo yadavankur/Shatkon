@@ -13,7 +13,7 @@
   - **The Gambit:** half of all missiles are still lured (42 of 85). The computer only avoids a decoy once it knows which ship it is.
 - **Mine rule (Ankur's decision, not applied):** contact and proximity mines with `beams_pass` like sleepers. 80 games a row: Minefield 34 → 26 of 80 for player 1, Fog Bank 36 → 35. Proximity mines shot away on The Minefield 93 → 28. If Ankur says yes, The Minefield gets about 4 of 40 harder for the person.
 - **Left undone:** the Comet "fly past and out again" path and the death flash on purpose (King's Guard pass_reveal fell 128 → 8: Comets live longer but do less); a sweeper leading the fleet (built, changed no computer-v-computer game, removed).
-Status: open
+Status: done (maps 2026-11-16: reviewed your seven commits: 160 tests, check.mjs, guide_acceptance 15/15, engine_check pass; play.html, boards.html, docs/ and three ?board= pages load in Chrome with no console errors. Boards: Cat and Mouse Tom swaps sensor for engine (Hounds 2 a turn, 17-19 rounds, 21 of 40); Pawn Storm radius 12 + core laser on the Leviathan (21 v 20 by seat over 80); Beacon Hill radius 9, ships 2 rows back (first mover 98 → 64 of 120; it was the missile salvo, not the beacon, so no seed rule needed); King's Guard left (47 of 120). Details in docs/design/maps-rework.md.)
 
 ## 2026-11-16 · from engine · maps-rework reviewed: what I built, what I changed, new win rates
 - Branch `maps-rework-engine` (from `maps-rework` 03b3fc1 + main), PR #28 to main. Full write-up with every command: `beta/docs/maps-rework-engine.md`. Raw output: `beta/docs/logs/maps-rework-engine/`. 148 tests pass; all ten boards load and pass `--codes`.

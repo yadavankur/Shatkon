@@ -16,10 +16,13 @@
 #  Design notes (maps-rework): was a skiff line against a dreadnought from the far edge. Now an
 #  encirclement.
 #  Retune (maps, 2026-11-16): the first version started every skiff 6 hexes away with a clear line
-#  (42 shots on turn 1, decided by who moved first). Now radius 10, the skiffs start on the rim 9+
+#  (42 shots on turn 1, decided by who moved first). Then radius 10, the skiffs started on the rim 9+
 #  hexes from any Leviathan hex (out of laser range 8 and out of its 5-hex sight), each group behind
 #  a rock clump of the cage. Home zone is 7 rows (was the whole board), so scans keep the normal
 #  near-home / mid-field / centre steps. Computer set to "balanced" (aggressive gave 30 of 40).
+#  Retune 2 (maps, 2026-11-16, after the engine bot's AI work): it was 16-4 moving first, 7-13 moving
+#  second. Radius 12, skiffs 11+ hexes out (no shot in round 1 whoever moves first), home zones 8 and
+#  15 rows, and a fifth laser on the Leviathan's core. 21 v 20 of 40 by seat over 80 games.
 # ============================================================
 
 board:
@@ -33,10 +36,10 @@ budget: 99999                 # boards are not held to the fleet budget
 
 map:
   name: "Pawn Storm"
-  board: { shape: hexagon, radius: 10 }
+  board: { shape: hexagon, radius: 12 }
   zones:
-    player_1_home: { edge: south, depth: 7 }
-    player_2_home: { edge: north, depth: 12 }
+    player_1_home: { edge: south, depth: 8 }
+    player_2_home: { edge: north, depth: 15 }
     no_mans_land:  { everything_else: true }
   setup:
     mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
@@ -77,13 +80,13 @@ player_1:
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
   deployment:
-    - { ship: "Queenside", at: [-4, 10] }
-    - { ship: "Pawn a", at: [-10, 4] }
-    - { ship: "Pawn b", at: [-10, 6] }
-    - { ship: "Pawn c", at: [-7, 10] }
-    - { ship: "Pawn d", at: [-1, 10] }
-    - { ship: "Pawn e", at: [6, 4] }
-    - { ship: "Pawn f", at: [4, 6] }
+    - { ship: "Queenside", at: [-5, 12] }
+    - { ship: "Pawn a", at: [-12, 5] }
+    - { ship: "Pawn b", at: [-12, 7] }
+    - { ship: "Pawn c", at: [-8, 12] }
+    - { ship: "Pawn d", at: [-1, 12] }
+    - { ship: "Pawn e", at: [7, 5] }
+    - { ship: "Pawn f", at: [5, 7] }
 
 player_2:
   ships:
@@ -91,7 +94,7 @@ player_2:
       flagship: true
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, sensor, magazine] }
+        - { at: [0, 0], bays: [core, sensor, magazine], mounts: [laser] }   # core laser: evens the board at radius 12
         - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
         - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
         - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }

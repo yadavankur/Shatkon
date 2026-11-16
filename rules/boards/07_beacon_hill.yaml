@@ -16,6 +16,8 @@
 #  Design notes (maps-rework): was the beacon in an open nebula (0-10 for the computer moving
 #  second). Now a crater with side openings, a small board (radius 7), and a light fleet of
 #  couriers and skiffs on both sides.
+#  Retune (maps, 2026-11-16): radius 7 -> 9 and every ship 2 rows further back. On radius 7 whoever
+#  moved first got the first missile salvo and won 98 of 120; now 64 of 120. No rule change needed.
 #
 #  Needs a new rule to play as designed: a courier or Comet should not score the beacon
 #  (holds_objective: false on own_move ships); otherwise a 5-hex ship takes every point.
@@ -32,7 +34,7 @@ budget: 99999                 # boards are not held to the fleet budget
 
 map:
   name: "Beacon Hill"
-  board: { shape: hexagon, radius: 7 }
+  board: { shape: hexagon, radius: 9 }
   zones:
     player_1_home: { edge: south, depth: 3 }
     player_2_home: { edge: north, depth: 3 }
@@ -80,12 +82,12 @@ player_1:
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
   deployment:
-    - { ship: "Herald", at: [-2, 6] }
-    - { ship: "Spur", at: [-6, 6] }
-    - { ship: "Lark", at: [2, 5] }
-    - { ship: "Pip", at: [-4, 6] }
-    - { ship: "Tad", at: [0, 6] }
-    - { ship: "Bit", at: [-1, 7] }
+    - { ship: "Herald", at: [-2, 8] }
+    - { ship: "Spur", at: [-6, 8] }
+    - { ship: "Lark", at: [2, 7] }
+    - { ship: "Pip", at: [-4, 8] }
+    - { ship: "Tad", at: [0, 8] }
+    - { ship: "Bit", at: [-1, 9] }
 
 player_2:
   ships:
@@ -113,9 +115,9 @@ player_2:
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
   deployment:
-    - { ship: "Crier", at: [2, -6] }
-    - { ship: "Rowel", at: [6, -6] }
-    - { ship: "Finch", at: [-2, -5] }
-    - { ship: "Nib", at: [4, -6] }
-    - { ship: "Dot", at: [0, -6] }
-    - { ship: "Jot", at: [1, -7] }
+    - { ship: "Crier", at: [2, -8] }
+    - { ship: "Rowel", at: [6, -8] }
+    - { ship: "Finch", at: [-2, -7] }
+    - { ship: "Nib", at: [4, -8] }
+    - { ship: "Dot", at: [0, -8] }
+    - { ship: "Jot", at: [1, -9] }
