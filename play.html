@@ -44,7 +44,12 @@ main[hidden]{display:none}
 b.n{font-family:var(--mono);color:var(--accent)}
 /* the play screen: a full-screen board with the controls floating over it */
 #stage{position:absolute;inset:0;overflow:hidden;background:#04070f}
-#wrap{position:absolute;inset:0;overflow:hidden}
+#wrap{position:absolute;inset:0;overflow:hidden;touch-action:none}
+/* the page itself never zooms on a double tap: only the board does, on your own ships */
+body{touch-action:manipulation}
+#mini{align-self:flex-start;border:1px solid var(--line);border-radius:8px;background:rgba(6,10,20,.9);padding:3px;line-height:0;cursor:pointer}
+#mini[hidden]{display:none}
+#mini svg{display:block}
 #wrap svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
 #hudtop{position:absolute;left:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:min(600px,calc(100% - 68px));pointer-events:none}
 #hudtop>*{pointer-events:auto}
@@ -305,6 +310,7 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
     <div id="hudtop"><div id="labbanner" hidden></div><div id="problems"></div><div id="turnbar"></div></div>
     <div id="camera"></div>
     <div id="lower">
+      <div id="mini" hidden></div>
       <section id="ctx" hidden aria-label="Selected ship"></section>
       <div id="dock"><div id="hint" role="status" aria-live="polite"></div><div id="turnbtns"></div></div>
     </div>
@@ -325,7 +331,7 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
       <li><b>Goal:</b> destroy the enemy <b>flagship</b> (marked &#9733;). Each player has a small scout and a big flagship, built from hex segments full of parts.</li>
       <li><b>Your turn:</b> you get <b>3 command points</b>. Moving one ship, firing one laser, launching one missile or scanning costs 1 point each. Unspent points are banked (up to 6).</li>
       <li><b>Who moves first</b> in round 1 is picked at random each game and shown when the game starts (story chapters: you always start). After that the first move swaps every round.</li>
-      <li><b>Your ships:</b> a ship with a <b>white halo</b> is yours to command. Tap it and its panel opens with its orders (move, fire, launch, scan) and its key numbers. A ship without a halo can't take orders right now, so tapping it opens nothing. Drag to pan, pinch or use the mouse wheel to zoom.</li>
+      <li><b>Your ships:</b> a ship with a <b>white halo</b> is yours to command. Tap it and its panel opens with its orders (move, fire, launch, scan) and its key numbers. A ship without a halo can't take orders right now, so tapping it opens nothing. The view only moves when you move it: drag to pan, pinch or use the mouse wheel to zoom, <b>double-tap one of your ships</b> to zoom in on it and double-tap it again to zoom back out. &#9974; shows the whole board.</li>
       <li><b>Moving:</b> tap your ship, tap a green marker to preview, then tap it again. Your fleet shares one pool of <b>thrust</b>; a bigger ship costs more thrust per hex.</li>
       <li><b>Fog of war:</b> you only see what your ships can detect. Big ships are easier to spot, stealth parts and the purple nebula hide you, and firing or launching makes you flare up. A "?" marks where an enemy was last seen.</li>
       <li><b>Lasers</b> hit instantly in a straight line (2 hits up to 4 hexes, 1 hit up to 8) and asteroids block them. <b>Missiles</b> fly during the <b>Flight</b> step after both players have moved, so lock on and plan ahead. Point defence can stop one missile a round.</li>

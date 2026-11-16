@@ -1,4 +1,10 @@
-# Status (updated 2026-11-16 by maps)
+# Status (updated 2026-11-16 by controls)
+
+## Latest (16 Nov, controls): phone-first controls, step 1 of 8 (branch `phone-camera`, PR to main)
+- **Why:** a first-time player on a small phone lost the board every time they tapped a ship (the view jumped from 12px hexes to about 60px). Ankur's brief and the approved sequence: (1) camera holds still, (2) landscape layout with fixed zones, (3) phase banner, (4) ships drawn at about 0.70 of their tiles with state on the tile, (5) targeting previews and confirms, (6) info card, (7) PWA, (8) chapter 1 hint, then story as the default entry.
+- **Step 1 done:** the view never moves by itself. Selecting a ship, the order buttons, Scan, ending a turn and a new story guide step no longer zoom or pan (pass and play still starts each player on the whole map, because the board turns round). Double-tap one of your own ships that can take orders to zoom in on it, double-tap it again (or the whole-map button) to zoom out; enemy ships never answer a double tap. A minimap (bottom left, only while zoomed in, drawn from the player's own view) shows where you are and where the story guide points; tap it to look there. The page's own double-tap zoom is off (`touch-action`).
+- **Decided:** tapping the hull of the selected ship selects it (a one-hex move that ends on its own hull is taken from its green chip only), so a double tap can never start a move. `ui/` only: no rules or engine changes.
+- **Checked:** 165 tests pass; headless Chrome at 800x360 with touch: select and order buttons leave the view alone, double tap zooms in and out, enemy double tap ignored, end of turn keeps the view. Not checked on a real phone. The whole board is still too small on a phone (12px hexes) until step 2.
 
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.

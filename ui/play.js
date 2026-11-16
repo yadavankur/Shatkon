@@ -3,7 +3,7 @@
 
 import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
-import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, setModels, modelFor } from './board.js';
+import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { initStory, openCampaign, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
@@ -132,6 +132,7 @@ function camTween(from) {
     if (svg && box && box.clientWidth) {
       let hh = (w * box.clientHeight) / box.clientWidth;
       svg.setAttribute('viewBox', [x - w / 2, y - hh / 2, w, hh].map(f1).join(' '));
+      miniView({ x, y, w });
     }
     if (k < 1) requestAnimationFrame(step);
   };
@@ -717,7 +718,8 @@ function act(action, quiet, byAI) {
   let msg = mine.join(' ');
   if (game.phase === 'over' && game.winner === 'draw' && !/draw/.test(msg)) msg += (msg ? ' ' : '') + 'The round limit was reached' + (game.rules.objective && game.rules.objective.scoreAtLimit ? ' with the beacon score tied' : '') + ', so the game is a draw.';
   if (action.type === 'end' || game.phase === 'over') {
-    code = E.turnCode(game); sel = null; mode = 'move'; cam.w = 0;      // back to the whole map for the next player
+    code = E.turnCode(game); sel = null; mode = 'move';
+    if (seat === 'pass') cam.w = 0;      // the board turns round for the next player: start them on the whole map
     undoStack = [];
     if (seat === 'pass' && game.phase === 'play') curtain = turnOf();
     if (game.phase === 'over') curtain = null;
@@ -845,8 +847,31 @@ function options(v) {
   return map;
 }
 
-function tap(c, v, opts) {
-  const o = opts.get(hex.key(c));
+// The camera only moves when the player asks. Double-tapping one of your own ships that can take
+// orders zooms in on it; double-tapping it again zooms back out. Enemy ships never answer this
+// (it would give away where a hidden one is).
+let lastTap = { id: null, t: 0 }, zoomShip = null;
+function zoomOnShip(ship) {
+  if (zoomShip === ship.id && cam.w < fitWidth() * 0.98) {
+    const from = { x: cam.x, y: cam.y, w: cam.w };
+    wholeMap(); say('The whole board. Double-tap one of your ships to zoom in on it.'); render(); camTween(from);
+  } else {
+    frame(ship.cells.concat(E.reach(game, ship.id).map((r) => r.at)), selZoom());
+    zoomShip = ship.id;
+    say('Zoomed in on ' + shipName(ship) + '. Double-tap it again, or press \u26F6, to see the whole board.'); render();
+  }
+}
+
+function tap(c, v, opts, viaChip) {
+  let o = opts.get(hex.key(c));
+  const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
+  if (!viaChip) {
+    const id = under && canCommand(under, v) ? under.id : null, now = performance.now();
+    if (id && lastTap.id === id && now - lastTap.t < 400) { lastTap = { id: null, t: 0 }; return zoomOnShip(under); }
+    lastTap = { id, t: now };
+    // a one-hex move of a big ship ends on its own hull: only its chip stands for that move, the hull is the ship
+    if (o && o.action && o.action.type === 'move' && under && under.id === sel) o = null;
+  } else lastTap = { id: null, t: 0 };
   if (o && o.action && o.action.type === 'move') {      // first tap shows where the ship would end up; second tap goes
     if (pending && pending.type === 'move' && pending.path.join('') === o.action.path.join('')) return act(pending);
     pending = o.action;
@@ -891,7 +916,6 @@ function tap(c, v, opts) {
 }
 
 // the move guide for whoever is looking at the board (story chapters only)
-let guideSeen = '', guideTimer = 0;
 // overlay off switch (tests, or a player who wants only the banner): ?guides=off, or localStorage shatkon.guides = off
 function guidesOff() {
   try { return new URLSearchParams(location.search).get('guides') === 'off' || localStorage.getItem(KEYS('shatkon.guides')) === 'off'; } catch { return false; }
@@ -928,7 +952,6 @@ function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
   say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a glowing green marker to move it: the arrows around the ship are one-hex moves, the pulsing hexes further out are two. The rest of the board is dimmed. Tap once to preview, again to go.' : 'It cannot move further this turn.'));
-  frame(ship.cells.concat(E.reach(game, id).map((r) => r.at)), selZoom());   // zoom to the ship and where it can go
 }
 
 // ---------- camera ----------
@@ -944,8 +967,8 @@ function fitWidth() {
   const free = Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear
   return Math.max(W * (2 * R + 1) + 16, ((S * (3 * R + 2) + 16) * bw) / free);
 }
-export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); }
-function frame(cells, minHexes) {       // bring a set of hexes into view, with a short glide
+export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); zoomShip = null; }
+function frame(cells, minHexes) {       // bring a set of hexes into view, with a short glide (only ever on a player's gesture)
   const box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = Math.max(1, box.clientHeight);
   if (!cells.length) return wholeMap();
   const xs = cells.map((c) => FL * W * (c[0] + c[1] / 2)), ys = cells.map((c) => FL * 1.5 * S * c[1]);
@@ -959,6 +982,40 @@ function frame(cells, minHexes) {       // bring a set of hexes into view, with 
   camTween(from);
 }
 function zoomBy(k) { cam.w = Math.max(4 * W, Math.min(fitWidth(), cam.w * k)); }
+
+// ---------- minimap ----------
+// A small outline of the board with a white box for the part on screen. It shows only while the
+// view is zoomed in, and it is drawn from the player's own view, so it holds nothing the board does not.
+function miniView(c) {
+  const r = document.getElementById('minirect'), box = $('#wrap');
+  if (!r || !box || !box.clientWidth) return;
+  const hh = (c.w * box.clientHeight) / box.clientWidth;
+  r.setAttribute('x', f1(c.x - c.w / 2)); r.setAttribute('y', f1(c.y - hh / 2)); r.setAttribute('width', f1(c.w)); r.setAttribute('height', f1(hh));
+}
+function drawMini(v, guide, hid) {
+  const el = $('#mini');
+  if (!el) return;
+  el.textContent = '';
+  el.hidden = hid || !(cam.w < cam.max * 0.98);
+  if (el.hidden) return;
+  const R = game.rules.board.radius, bw = (W * (2 * R + 1)) / 2 + S, bh = S * (1.5 * R + 1) + S, px = 96;
+  const svg = svgEl('svg', { viewBox: [-bw, -bh, 2 * bw, 2 * bh].map(f1).join(' '), width: px, height: Math.round((px * bh) / bw), role: 'img', 'aria-label': 'Where you are on the board. Tap to move the view there.' });
+  const corners = [[R, 0], [0, R], [-R, R], [-R, 0], [0, -R], [R, -R]];
+  svg.appendChild(svgEl('polygon', { points: corners.map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' '), fill: '#0a1730', stroke: '#2b5a85', 'stroke-width': f1(S * 1.6), 'stroke-linejoin': 'round' }));
+  for (const x of v.ships) svg.appendChild(svgEl('circle', { cx: f1(X(x.pos)), cy: f1(Y(x.pos)), r: f1(S * (x.id === sel ? 1.9 : 1.4)), fill: colOf(x.owner), opacity: x.seen ? null : 0.4, stroke: x.id === sel ? '#ffffff' : null, 'stroke-width': x.id === sel ? f1(S * 0.5) : null }));
+  const gt = guide && (guide.best || (guide.reticle && guide.reticle.at));
+  if (gt) svg.appendChild(svgEl('circle', { cx: f1(X(gt)), cy: f1(Y(gt)), r: f1(S * 1.8), fill: 'none', stroke: '#6fe7ff', 'stroke-width': f1(S * 0.6), class: 'guidepulse' }));
+  svg.appendChild(svgEl('rect', { id: 'minirect', fill: '#ffffff', 'fill-opacity': 0.1, stroke: '#ffffff', 'stroke-width': f1(S * 0.5), rx: f1(S * 0.4) }));
+  svg.addEventListener('click', (ev) => {       // tap the minimap: look there (same zoom)
+    const m = svg.getScreenCTM(); if (!m) return;
+    let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
+    const from = { x: cam.x, y: cam.y, w: cam.w };
+    cam.x = Math.max(-W * (R + 0.5), Math.min(W * (R + 0.5), p.x)); cam.y = Math.max(-1.5 * S * R, Math.min(1.5 * S * R, p.y));
+    render(); camTween(from);
+  });
+  el.appendChild(svg);
+  miniView(cam);
+}
 
 // what moving further forward would do for a scan
 function scanNextText(si) {
@@ -1304,21 +1361,13 @@ export function render() {
     ghost = { from: ship.pos, to, cells: ship.segs.map((sg) => [to[0] + sg.off[0], to[1] + sg.off[1]]), owner: ship.owner };
   }
   const plans = v.objs.filter((o) => o.mine && game.phase === 'play').map((o) => ({ id: o.id, f: E.forecast(game, o.id) })).filter((x) => x.f);
-  const guide = guideNow(), gkey = guide ? guide.id + ':' + guide.step : '';
-  if (guide && gkey !== guideSeen) {          // first show: bring the ship and where it should go into view...
-    const wait = fxBusyUntil - performance.now();
-    if (wait > 50) { clearTimeout(guideTimer); guideTimer = setTimeout(render, wait + 40); }   // ...once the animation that led to it has played
-    else {
-      const gs = v.ships.find((x) => x.id === guide.ship);
-      if (gs) frame(gs.cells.concat(guide.best ? [guide.best] : guide.reticle ? [guide.reticle.at] : []), selZoom());
-      guideSeen = gkey;
-    }
-  } else guideSeen = gkey;
+  const guide = guideNow();   // drawn on the board and marked on the minimap; the view never moves to it by itself
   const halo = new Set(v.ships.filter((x) => canCommand(x, v)).map((x) => x.id));
   const idle = new Set(v.ships.filter((x) => x.mine && mine && !halo.has(x.id)).map((x) => x.id));
   wrap.textContent = '';
-  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c) => tap(c, v, opts), pending, hidden: hid,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render() }));
+  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip) => tap(c, v, opts, viaChip), pending, hidden: hid,
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView }));
+  drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
     h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6')]);
@@ -1337,25 +1386,24 @@ export function render() {
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
     const lim = v.story ? (v.story.limits || {})[me.name] : null;
     const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
-    const btn = (m, label, sub, on, cells) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on && !barred(m)), disabled: !on || barred(m), title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); if (cells && cells.length) frame(cells, selZoom()); render(); } }, label, h('small', null, barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub));
+    const btn = (m, label, sub, on) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on && !barred(m)), disabled: !on || barred(m), title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); render(); } }, label, h('small', null, barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub));
     const launchWhy = (kind) => !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
-    const foes = v.ships.filter((x) => !x.mine && x.seen);
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     fill(tools, [
-      btn('move', 'Move', st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', st.moveLeft > 0, me.cells),
-      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : 'nothing in range', shots.length > 0, me.cells.concat(shots.map((x) => x.at))) : null,
-      has('missile') ? btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), me.cells.concat(foes.filter((z) => lo && lo.locks.includes(z.id)).flatMap((z) => z.cells))) : null,
-      has('seeker_drone') ? btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), me.cells) : null,
+      btn('move', 'Move', st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', st.moveLeft > 0),
+      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : 'nothing in range', shots.length > 0) : null,
+      has('missile') ? btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile')) : null,
+      has('seeker_drone') ? btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone')) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
       h('button', { class: 'btn', disabled: !st.scanReady, onclick: () => {
-        mode = 'scan'; pending = { type: 'scan', ship: sel }; cam.w = 0;
+        mode = 'scan'; pending = { type: 'scan', ship: sel };
         const [r1, r2] = me.scanR;
         say('Scan preview (' + me.scan.name + ', ' + plural(me.scan.forward, 'row') + ' from your edge): everything inside the green ring (' + r1 + ' hexes) gets a full readout, hidden mines included. The amber ring ('
           + r2 + ' hexes) only picks up faint contacts. ' + scanNextText(me.scan) + ' Scanning lights your ship up for a round. Press Scan now.');
         render();
       } }, 'Scan', h('small', null, st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now'),
         !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan) && v.cp ? h('small', null, 'then ' + me.scan.r[0] + ' / ' + me.scan.r[1]) : null),
-      v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'Detonate', 'a drone', v.cp >= R.cost.detonate, null) : null,
+      v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'Detonate', 'a drone', v.cp >= R.cost.detonate) : null,
       ...(v.story ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
         const a = game.ships.find((z) => z.id === me.id);
         return game.ships.filter((z) => !z.dead && z.owner === a.owner && z.id !== a.id && E.gap(a, z) === 1).map((z) =>
@@ -1506,6 +1554,8 @@ function initExtras() {
       undo();
     }
   });
+  const stage = $('#stage');   // the page's own double-tap and pinch zoom must not fight the board's
+  if (stage) for (const n of ['dblclick', 'gesturestart', 'gesturechange']) stage.addEventListener(n, (ev) => ev.preventDefault());
   let wheelAcc = 0,
     wheelRaf = 0;
   $('#wrap').addEventListener(

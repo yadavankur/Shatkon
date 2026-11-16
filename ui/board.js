@@ -103,7 +103,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -485,7 +485,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   // taps, dragging and pinching. One finger (or the mouse) drags the view, two fingers zoom it; a tap is passed on.
   let down = null, dragged = false, pinch = null;
   const touches = new Map();
-  const showCam = () => svg.setAttribute('viewBox', [cam.x - cam.w / 2, cam.y - (cam.w * aspect) / 2, cam.w, cam.w * aspect].map(f1).join(' '));
+  const showCam = () => { svg.setAttribute('viewBox', [cam.x - cam.w / 2, cam.y - (cam.w * aspect) / 2, cam.w, cam.w * aspect].map(f1).join(' ')); if (onView) onView(cam); };
   const clampCam = () => { cam.x = Math.max(-W * (R + 0.5), Math.min(W * (R + 0.5), cam.x)); cam.y = Math.max(-1.5 * S * R, Math.min(1.5 * S * R, cam.y)); };
   svg.style.touchAction = 'none';
   svg.addEventListener('pointerdown', (ev) => {
@@ -527,7 +527,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   svg.addEventListener('click', (ev) => {
     if (dragged) { dragged = false; return; }
     const chip = ev.target.closest && ev.target.closest('[data-tap]');      // a move chip stands for its destination hex
-    if (chip) { onTap(hex.unkey(chip.getAttribute('data-tap'))); return; }
+    if (chip) { onTap(hex.unkey(chip.getAttribute('data-tap')), true); return; }
     const m = svg.getScreenCTM(); if (!m) return;
     let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
     p.x *= FL; p.y *= FL;               // back to unflipped board coordinates
