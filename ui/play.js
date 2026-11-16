@@ -28,6 +28,19 @@ let seat = 'cpu';
 let sel = null, look = null, mode = 'move', pending = null;
 let hint = '', hintErr = false, code = '';
 const cam = { x: 0, y: 0, w: 0 }; // what part of the board is on screen
+// A phone held sideways gets the compact layout: the board fills the whole screen and the controls sit
+// in the empty corners beside it (status top left, ship card bottom left, orders and End turn bottom right).
+const compactMQ = window.matchMedia ? matchMedia('(orientation: landscape) and (max-height: 540px)') : null;
+const isCompact = () => !!(compactMQ && compactMQ.matches) && !!$('main') && !$('main').hidden;
+let wasCompact = null;
+const put = (node, parent) => { if (node && parent && node.parentNode !== parent) parent.appendChild(node); };
+const HDR = { seat: $('#seat'), sfx: $('#sfx'), help: $('#helpbtn'), menu: $('#menubtn'), tabs: $('#tabs') };
+async function toggleFull() {      // full screen, and held sideways where the browser can do that (not on iPhones)
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); try { await screen.orientation.lock('landscape'); } catch (e) {} }
+  } catch (e) {}
+}
 let undoStack = [];               // states before undoable actions this turn
 let curtain = null;               // pass and play: the player waiting behind the curtain
 let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
@@ -958,13 +971,14 @@ function selectShip(id, v) {
 // How much of each edge of the board the floating controls cover, in screen pixels.
 function insets() {
   const st = $('#stage'), w = st ? st.clientWidth : 0, h = st ? st.clientHeight : 0, wide = w >= 760, open = !!(sel || look);
+  if (isCompact()) return { t: 8, b: 8, l: (($('#lower') || {}).offsetWidth || 0) + 16, r: (($('#rail') || {}).offsetWidth || 0) + 16 };
   const sheet = !wide && open ? Math.min(h * 0.46, ($('#ctx') && !$('#ctx').hidden && $('#ctx').offsetHeight) || 190) + 8 : 0;
   return { t: 58, b: 62 + sheet, l: 0, r: wide && open ? 336 : wide ? 0 : 0 };
 }
 function fitWidth() {
   const R = game.rules.board.radius, box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = box.clientHeight;
   if (!(bh > 0)) return W * (2 * R + 1) + 16;      // the board is hidden (Lab tab)
-  const free = Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear
+  const free = isCompact() ? bh - 10 : Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear (compact: they sit beside the board)
   return Math.max(W * (2 * R + 1) + 16, ((S * (3 * R + 2) + 16) * bw) / free);
 }
 export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); zoomShip = null; }
@@ -1285,6 +1299,13 @@ function pasteBox(label, button, onText) {
 // ---------- render ----------
 export function render() {
   // one compact game-mode picker
+  const compact = isCompact();
+  document.body.classList.toggle('compact', compact);
+  if (compact !== wasCompact) { wasCompact = compact; cam.w = 0; }      // the board has a new size: start from the whole map
+  // compact: the header is hidden, so the mode picker, sound, help and the Play/Lab tabs live at the top of the menu
+  const dh = $('#drawerhdr'), hr = $('.hdr-r'), hl = $('.hdr-l');
+  if (compact) for (const n of [HDR.tabs, HDR.seat, HDR.sfx, HDR.help]) put(n, dh);
+  else { put(HDR.tabs, hl); for (const n of [HDR.seat, HDR.sfx, HDR.help, HDR.menu]) put(n, hr); }
   const seatEl = $('#seat'); seatEl.textContent = '';
   const modeSel = h('select', { 'aria-label': 'Game mode', onchange: (ev) => {
     let val = ev.target.value;
@@ -1369,8 +1390,10 @@ export function render() {
     halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
-  fill(camEl, [h('button', { 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
-    h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6')]);
+  fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
+    h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
+    document.fullscreenEnabled ? h('button', { 'aria-label': 'Full screen', title: 'Full screen', 'aria-pressed': String(!!document.fullscreenElement), onclick: toggleFull }, '\u2922') : null]);
+  if (compact) camEl.appendChild(HDR.menu);
 
   // the ship panel: orders and key numbers for the ship you tapped (what is known, for an enemy)
   const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
@@ -1411,6 +1434,7 @@ export function render() {
             h('small', null, k === 'graft' ? 'fuse into one ship' : 'clamp together (costs a point a turn)')));
       }) : [])]);
   }
+  let railTools = null;
   const closeBtn = (fn) => h('button', { class: 'ctx-x', 'aria-label': 'Close', onclick: () => { fn(); render(); } }, '\u00D7');
   if (game.phase === 'over' && !hid) {
     ctx.hidden = false;
@@ -1437,9 +1461,13 @@ export function render() {
     fill(ctx, [h('div', { class: 'ctx-head' },
         h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
         closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } say(''); })),
-      statChips(shown, v), own ? tools : null, more]);
+      statChips(shown, v), own && !compact ? tools : null, more]);
+    if (own && compact) railTools = tools;
   } else { ctx.hidden = true; ctx.className = ''; }
 
+  // compact: the orders and End turn stack in the bottom right corner, beside the board
+  const rail = $('#rail');
+  if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
   if (mine && !hid) fill(tb, [
     undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
@@ -1554,6 +1582,15 @@ function initExtras() {
       undo();
     }
   });
+  // held upright on a phone: a card asks for the phone to be turned (or to go full screen, which turns it where the browser can)
+  const rot = $('#rotate'), upright = () => { document.body.classList.add('upright'); try { sessionStorage.setItem('shatkon.upright', '1'); } catch (e) {} };
+  try { if (sessionStorage.getItem('shatkon.upright') === '1' || new URLSearchParams(location.search).has('upright')) document.body.classList.add('upright'); } catch (e) {}
+  if (rot) {
+    $('#rotstay').addEventListener('click', upright);
+    if (document.fullscreenEnabled) $('#rotfull').addEventListener('click', toggleFull); else $('#rotfull').hidden = true;
+  }
+  if (compactMQ && compactMQ.addEventListener) compactMQ.addEventListener('change', () => render());
+  document.addEventListener('fullscreenchange', () => render());
   const stage = $('#stage');   // the page's own double-tap and pinch zoom must not fight the board's
   if (stage) for (const n of ['dblclick', 'gesturestart', 'gesturechange']) stage.addEventListener(n, (ev) => ev.preventDefault());
   let wheelAcc = 0,

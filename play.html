@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shatkon - Play</title>
 <link rel="icon" href="data:,">
 <style>
@@ -295,6 +295,48 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 #barks{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:45;pointer-events:none}
 .objective{border-left:3px solid #e8c15a;padding-left:8px}
 .lockedchip{opacity:.6}
+
+/* notches and rounded corners: keep everything inside the safe area */
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#rail{display:none}
+#drawerhdr{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+#drawerhdr:empty{display:none}
+/* A phone held sideways (body.compact, set in ui/play.js): the board fills the screen edge to edge. It is about as
+   tall as it is wide, so the corners beside it are empty: status top left, ship card and hint bottom left,
+   view buttons top right, orders and End turn bottom right. Nothing sits on the board itself. */
+body.compact{padding:0;--sl:max(8px,env(safe-area-inset-left));--sr:max(8px,env(safe-area-inset-right));--st:max(6px,env(safe-area-inset-top));--sb:max(6px,env(safe-area-inset-bottom));--col:min(230px,29vw)}
+body.compact header{display:none}
+body.compact #hudtop{left:var(--sl);top:var(--st);width:var(--col);max-width:none;gap:4px}
+body.compact #turnbar{width:100%;padding:3px 8px;border-radius:8px}
+body.compact #turnbar .big{font-size:14px}
+body.compact #turnbar .line{font-size:12px;gap:0 8px;margin-top:0}
+body.compact .stepchip,body.compact .ledger,body.compact #turnbar .wide{display:none}
+body.compact #camera{right:var(--sr);top:var(--st);flex-direction:row}
+body.compact #camera button{width:44px;min-width:44px;height:44px;min-height:44px}
+body.compact #camera .zoom{display:none}
+body.compact #lower{inset:auto;left:var(--sl);bottom:var(--sb);top:0;width:var(--col);padding:66px 0 0;gap:6px}
+body.compact #dock{display:block}
+body.compact #hint{font-size:12.5px;line-height:1.3;padding:5px 8px;max-height:5.4em}
+body.compact #hint:empty{display:none}
+body.compact #ctx{position:static;width:auto;max-height:none;min-height:0;flex:0 1 auto;padding:6px 8px}
+body.compact .ctx-head h2{font-size:14px}
+body.compact .stats{margin:2px 0 4px}
+body.compact #rail{display:flex;flex-direction:column;justify-content:flex-end;gap:6px;position:absolute;z-index:6;right:var(--sr);bottom:var(--sb);width:var(--col);max-height:calc(100% - 60px);pointer-events:none}
+body.compact #rail>*{pointer-events:auto}
+body.compact #tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible;padding:0}
+body.compact #tools .btn{min-width:0;min-height:46px;padding:5px 8px;background:rgba(16,24,48,.95)}
+body.compact #tools .btn small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.compact #turnbtns{display:flex;gap:6px}
+body.compact #turnbtns .btn{min-height:50px;flex:1}
+body.compact #turnbtns .btn.go{flex:2;text-align:center;font-weight:700}
+/* a phone held upright: ask for it to be turned (the upright layout still works: "Play upright anyway") */
+#rotate{display:none;position:fixed;inset:0;z-index:80;background:rgba(4,7,15,.97);align-items:center;justify-content:center;padding:20px;text-align:center}
+#rotate .card{max-width:340px}
+#rotate .phone{width:46px;height:78px;border:3px solid var(--accent);border-radius:9px;margin:4px auto 14px;animation:turnphone 2.4s ease-in-out infinite}
+@keyframes turnphone{0%,25%{transform:none}60%,100%{transform:rotate(-90deg)}}
+@media (prefers-reduced-motion:reduce){#rotate .phone{animation:none;transform:rotate(-90deg)}}
+#rotate .btn{text-align:center;width:100%;margin-top:8px}
+@media (orientation:portrait) and (max-width:600px){body:not(.upright):not(:has(main[hidden])) #rotate{display:flex}}
 </style>
 </head>
 <body>
@@ -314,15 +356,18 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
       <section id="ctx" hidden aria-label="Selected ship"></section>
       <div id="dock"><div id="hint" role="status" aria-live="polite"></div><div id="turnbtns"></div></div>
     </div>
+    <div id="rail"></div>
   </div>
   <aside id="drawer" hidden aria-label="Report, log and settings">
     <div class="drawer-top"><h2>Report, log &amp; settings</h2><button class="iconbtn" id="drawerclose" aria-label="Close">&times;</button></div>
+    <div id="drawerhdr"></div>
     <div id="panels"></div>
   </aside>
 </main>
 <section id="lab" hidden aria-label="Ship Lab"></section>
 <div id="labtoast" role="status" aria-live="polite"></div>
 <div id="curtain" hidden></div>
+<div id="rotate" role="dialog" aria-label="Turn your phone sideways"><div class="card"><div class="phone" aria-hidden="true"></div><h2>Turn your phone sideways</h2><p>Shatkon plays best with the phone held sideways: the whole board fits and the buttons sit under your thumbs.</p><button class="btn go" id="rotfull">Go full screen, sideways</button><button class="btn" id="rotstay">Play upright anyway</button></div></div>
 <section id="story" hidden aria-label="Story campaign"></section>
 <div id="barks" aria-live="polite"></div>
   <div id="help" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="helpt"><div class="card modal-box">
