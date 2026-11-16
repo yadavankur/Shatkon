@@ -1,0 +1,122 @@
+PR #2 engine: /home/claude/shatkon  (games per chapter 20, seeds 1..20)
+
+## ch1: buildChapter problems: none
+  progress in: roster ["kestrel","finch","wren","kite"], capabilities 6, completed []
+  fleets: kestrel* finch wren kite  vs  seed*
+  results: {"win":20}; rounds played avg 6.2 (min 5, max 7)
+  beats fired (games / 20, round avg / min / max):
+    rails             20  1.0 / 1 / 1
+    contact           20  1.0 / 1 / 1
+    missile_away      20  1.0 / 1 / 1  (flavor)
+    seed_shield       20  2.0 / 2 / 2  (flavor)
+    finch_hit          0  -  (flavor)
+    finch_down        20  2.0 / 2 / 2
+    wren_disarmed     20  2.0 / 2 / 2
+    kite_disarmed     20  3.0 / 3 / 3
+    retarget_kite     20  2.0 / 2 / 2  (flavor)
+    retarget_wren      0  -  (flavor)
+    disarm_fallback    0  -
+    weapons_gone      20  3.0 / 3 / 3
+    hurl              20  4.0 / 4 / 4
+    ram_wren          20  5.6 / 5 / 6
+    ram_kite          20  6.2 / 5 / 7
+    wren_stranded      0  -  (flavor)
+    kite_stranded      0  -  (flavor)
+    ram_fallback       0  -
+    seed_closing      12  5.0 / 5 / 5  (flavor)
+    crippled          20  6.2 / 5 / 7
+    finish_fallback    0  -
+  destroyed / removed (games): {"finch":20,"wren":20,"kite":20,"seed":20}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {"finch:missile":20,"wren:rammed":20,"kite:rammed":20,"seed:laser":20}
+  rams (rammer->target:segment hit, games; seg0 = bow, seg1 = stern on the Seeds): {"wren->seed:seg0":20,"kite->seed:seg1":20}
+  rounds under fire before death (first hit to destroyed, avg / min / max): finch 1.0 / 1 / 1 (20 games); wren 4.6 / 4 / 5 (20 games); kite 5.2 / 4 / 6 (20 games); seed 5.2 / 4 / 6 (20 games)
+  rounds played (round: games): {"5":8,"7":12}
+  enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+  script_unknown / script_failed events: none
+  progress out (from a won game): roster ["kestrel","sparrow"]
+
+## ch2: buildChapter problems: none
+  progress in: roster ["kestrel","sparrow"], capabilities 10, completed ["ch1"]
+  fleets: kestrel* sparrow  vs  seed_a* seed_b
+  results: {"win":20}; rounds played avg 8.0 (min 8, max 8)
+  beats fired (games / 20, round avg / min / max):
+    rails             20  1.0 / 1 / 1
+    contact           20  1.0 / 1 / 1
+    in_the_lanes      20  1.0 / 1 / 1  (flavor)
+    a_dead            20  5.0 / 5 / 5
+    b_dead            20  6.0 / 6 / 6
+    a_fallback         0  -
+    b_fallback         0  -
+    first_mine        20  5.0 / 5 / 5
+    second_seed       20  5.0 / 5 / 5  (flavor)
+    both_dead_in_water  20  6.0 / 6 / 6
+    finish_fallback    0  -
+  destroyed / removed (games): {"seed_a":20,"seed_b":20}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {"seed_b:laser":20,"seed_a:laser":20}
+  rounds under fire before death (first hit to destroyed, avg / min / max): seed_b 4.0 / 4 / 4 (20 games); seed_a 4.0 / 4 / 4 (20 games)
+  rounds played (round: games): {"8":20}
+  enemy mine hits 400; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+  script_unknown / script_failed events: none
+  progress out (from a won game): roster ["kestrel","sparrow"]
+
+## ch3: buildChapter problems: none
+  progress in: roster ["kestrel","sparrow"], capabilities 11, completed ["ch1","ch2"]
+  fleets: kestrel* sparrow halcyon(reserve) tern(reserve)  vs  twin*
+  results: {"win":20}; rounds played avg 8.7 (min 8, max 9)
+  beats fired (games / 20, round avg / min / max):
+    rails             20  1.0 / 1 / 1
+    split             20  4.0 / 4 / 4
+    pd_stopped        14  7.0 / 7 / 7  (flavor)
+    hull_low           0  -  (flavor)
+    despair           20  6.0 / 6 / 6
+    li_arrives        20  6.0 / 6 / 6
+    kestrel_exposed   20  8.0 / 8 / 8
+    flank_open        20  7.0 / 7 / 7
+    twin_a_adrift      0  -  (flavor)
+    pinned             0  -
+    twin_b_leaves     20  8.7 / 8 / 9  (outcome)
+  destroyed / removed (games): {"twin_a":20,"twin_b(withdraw)":20}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {"twin_a:laser":20}
+  rounds under fire before death (first hit to destroyed, avg / min / max): twin_a 3.6 / 3 / 4 (20 games)
+  rounds played (round: games): {"8":7,"9":13}
+  enemy mine hits 0; player missiles stopped by PD 14; kestrel+tern grafted in 0 games
+  script_unknown / script_failed events: none
+  progress out (from a won game): roster ["kestrel","sparrow","halcyon","tern"]
+
+## ch4a: buildChapter problems: none
+  progress in: roster ["kestrel","sparrow","halcyon","tern"], capabilities 15, completed ["ch1","ch2","ch3"]
+  fleets: kestrel* sparrow halcyon tern  vs  husk_1* husk_2 husk_3
+  results: {"win":20}; rounds played avg 6.5 (min 6, max 9)
+  beats fired (games / 20, round avg / min / max):
+    rails             20  1.0 / 1 / 1
+    too_easy          20  2.5 / 2 / 4  (flavor)
+    husks_dark         4  6.0 / 6 / 6
+    gift              20  4.3 / 3 / 6
+    tow               20  6.3 / 5 / 8
+    grafted           20  6.5 / 6 / 9
+  destroyed / removed (games): {"husk_1":20,"husk_2":20,"husk_3":14,"husk_3(dark)":4}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {"husk_2:laser":19,"husk_1:laser":20,"husk_3:laser":14,"husk_2:missile":1}
+  rounds under fire before death (first hit to destroyed, avg / min / max): husk_2 1.4 / 1 / 3 (20 games); husk_1 1.0 / 1 / 1 (20 games); husk_3 1.0 / 1 / 1 (14 games)
+  rounds played (round: games): {"6":16,"8":3,"9":1}
+  enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 20 games
+  script_unknown / script_failed events: none
+  progress out (from a won game): roster ["kestrel(carried 6-segment hull)","sparrow","halcyon"]
+
+## ch5: buildChapter problems: none
+  progress in: roster ["kestrel(carried hull)","sparrow","halcyon"], capabilities 16, completed ["ch1","ch2","ch3","ch4a"]
+  fleets: kestrel* halcyon sparrow  vs  bloom*(reserve)
+  results: {"to_be_continued":20}; rounds played avg 6.0 (min 6, max 6)
+  beats fired (games / 20, round avg / min / max):
+    rails             20  1.0 / 1 / 1
+    arrival           20  2.0 / 2 / 2
+    seam_wakes        20  5.0 / 5 / 5
+    li_coming         20  5.0 / 5 / 5  (flavor)
+    li_moves          20  6.0 / 6 / 6
+    cliff             20  6.0 / 6 / 6
+  destroyed / removed (games): {}; of those by a doom fallback: {}
+  killing blow (ship:cause, games): {}
+  rounds under fire before death (first hit to destroyed, avg / min / max): -
+  rounds played (round: games): {"6":20}
+  enemy mine hits 0; player missiles stopped by PD 0; kestrel+tern grafted in 0 games
+  script_unknown / script_failed events: none
+  progress out (from a won game): roster ["kestrel(carried 6-segment hull)","sparrow","halcyon"]

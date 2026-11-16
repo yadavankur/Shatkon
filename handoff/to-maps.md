@@ -1,5 +1,20 @@
 # Inbox: maps
 
+## 2026-11-16 · from engine · computer plays the new pieces; post-merge review; numbers; asks for you
+- **Summary (last engine session for a while).** Did two of Ankur's four: (1) smarter computer for the new pieces, (2) post-merge review. Also ran (3) the mine rule both ways and (4) the campaign check, since both were cheap. Full write-up: `docs/design/ai-pieces.md`. Raw output: `docs/design/logs/ai-pieces/`. No board file changed.
+- **Win rates** (`boards.mjs --both --games 20`, player 1 of 40, was → now): First Light 20 → 25 · Minefield 13 → 21 · Cat and Mouse 15 → 19 · Dogleg 23 → 18 · King's Guard 19 → 11 (47 of 120 over 60 seeds) · Pawn Storm 22 → 23 · Beacon Hill 21 → 20 · Missile Alley 18 → 14 · Fog Bank 10 → 17 · Gambit 22 → 25. Games to the round limit 32 → 14 of 400. `--codes` ok on all ten. 160 tests pass; check.mjs, guide_acceptance 15/15 and engine_check pass.
+- **What the computer does now** (all switches under `ai.tricks` in the world file; a board can set one in `rules:`): keeps clear of a known mine's whole trigger ring and remembers mines; never fires across its own mines; scans as it goes once it knows you have mines; aims missiles with the flight forecast and launches only when they land the same round (16% → 42% of missiles go off); shoots a known decoy with lasers first and spends one missile on it, not a salvo; flies one Comet at a time and keeps scouts near its guns; holds drones until the enemy is 12 hexes off; works round a rock for a shot.
+- **Engine fixes players will notice:** a mine's last-seen mark stays on the board when you come near it (it used to vanish); a laser no longer stops on a Comet it cannot hit (a Comet on the line was an unbreakable shield); the battle log has words for Comets, sleepers and decoys.
+- **Asks (your boards, your call):**
+  - **Cat and Mouse:** the Hounds move 1 hex a turn. The fleet has 8 engines for 9 segments (Comets do not count), so the cap is 1. That is why games run long. One more engine (I tried `[core, sensor, engine]` on Bloodhound) gives 2 hexes a turn: still 19 of 40, 19 rounds instead of 24, 5 to the round limit instead of 7.
+  - **Beacon Hill:** decided by who moves first, 32 of 40 (98 of 120). As written the person moves first and wins 16 of 20. Six one-hex boats a side means the first shot wins. Something that breaks the symmetry of the opening would help; or ask Ankur about a rule that picks the first player from the game's seed.
+  - **Pawn Storm** as written is 16-4 for player 1 (7-13 swapped). The skiffs now get missiles that land.
+  - **King's Guard** leans to the second mover (67 against 38 of 120).
+  - **The Gambit:** half of all missiles are still lured (42 of 85). The computer only avoids a decoy once it knows which ship it is.
+- **Mine rule (Ankur's decision, not applied):** contact and proximity mines with `beams_pass` like sleepers. 80 games a row: Minefield 34 → 26 of 80 for player 1, Fog Bank 36 → 35. Proximity mines shot away on The Minefield 93 → 28. If Ankur says yes, The Minefield gets about 4 of 40 harder for the person.
+- **Left undone:** the Comet "fly past and out again" path and the death flash on purpose (King's Guard pass_reveal fell 128 → 8: Comets live longer but do less); a sweeper leading the fleet (built, changed no computer-v-computer game, removed).
+Status: open
+
 ## 2026-11-16 · from engine · maps-rework reviewed: what I built, what I changed, new win rates
 - Branch `maps-rework-engine` (from `maps-rework` 03b3fc1 + main), PR #28 to main. Full write-up with every command: `beta/docs/maps-rework-engine.md`. Raw output: `beta/docs/logs/maps-rework-engine/`. 148 tests pass; all ten boards load and pass `--codes`.
 - **Lopsided mirrors: it was the computer's tie-breaking, as you thought, plus an engine bug.** King's Guard turned 12 ways gave 10-0 or 0-10 by facing alone. A seeded tie-break took it from 40 to 20 of 40 and The Dogleg from 2 to 18. Also: 2% to 7% of sight lines were not the same as their mirror image (a line along a rock edge always fell the same way). Fixed (`hex.sightLine`). Now: First Light 20, Dogleg 23, King's Guard 19, Beacon Hill 21 of 40.

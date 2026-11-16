@@ -1,6 +1,14 @@
-# Status (updated 2026-11-16 by maps)
+# Status (updated 2026-11-16 by engine)
 
-## Latest (16 Nov, maps)
+## Latest (16 Nov, engine): computer plays the new pieces; post-merge review
+- **Done, on main** (commits 891c1a9 to the top of main): the computer handles mines, missiles, decoys, Comets and drones; the beta-to-main merge was reviewed and three things fixed. Write-up: `docs/design/ai-pieces.md`. Notes and asks for maps: top of `to-maps.md`.
+- **Numbers:** all ten boards 11 to 25 of 40 for player 1 (`boards.mjs --both --games 20`); King's Guard is the 11 (47 of 120 over 60 seeds). Games to the round limit 32 → 14 of 400. Missiles that go off 16% → 42%. 160 tests pass. Campaign: check.mjs ALL CHECKS PASSED, guide_acceptance 15/15, engine_check all chapters won, **ch3 8.7 rounds (8 or 9)**, unchanged by the AI work.
+- **Merge review:** the hand merge was clean. Found and fixed: a laser stopped on a Comet it could not hit (0 hits, a shield nobody could shoot through); the battle log had no words for Comet, sleeper and decoy events and printed "undefined contacts" for scans; `attackRunFor` was dead code. The three adjusted tests are right.
+- **Engine changes players will see:** a mine's last-seen mark stays when a ship comes near; beams pass a nimble ship they cannot hit.
+- **For Ankur to decide:** (1) contact and proximity mines `beams_pass` like sleepers: Minefield 34 → 26 of 80 for player 1, Fog Bank 36 → 35, numbers in the write-up; not applied. (2) Beacon Hill is won by whoever moves first (98 of 120); a rule that picks the first player from the game's seed would even out mirror boards.
+- **Left:** Comet fly-past paths and the death flash on purpose; decoys still draw half the missiles on The Gambit; Cat and Mouse hounds move 1 hex a turn (board, see to-maps). Not played by hand.
+
+## Earlier (16 Nov, maps)
 - **Beta is now the main game; beta/ removed** (maps, 16 Nov, Ankur's call): the root site is beta's version merged with root-only work (battle log, sealed codes, engine fixes, gallery). Boards at `boards.html`, design notes in `docs/design/`, old /beta/ links forward to the root. Everyone works on root paths now. See to-engine.md.
 - **Beta draws real-looking ships now** (maps, 16 Nov): the facelift hull renderer ported into beta/ui (default "Ships"), Field manual (../docs/) linked from the beta pages. See to-engine.md.
 - **PR #28 merged to main** (0ca3d4b): ten reworked boards in beta (`beta/boards.html`), Comet scout, sleeper mine, decoy emitter, fair sight lines, a computer that varies its game, variety-study with review fixes. PR #27 is included (shows as merged). Maps retuned Cat and Mouse, Pawn Storm and Missile Alley afterwards; every board is 10 to 23 of 40. 148 tests pass. Not yet played by hand.

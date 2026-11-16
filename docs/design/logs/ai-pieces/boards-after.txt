@@ -1,0 +1,20 @@
+01_first_light       player 1's fleet: moving first 11-9-0 (7.0 rounds), moving second 14-6-0 (5.8 rounds), in all 25 of 40; 0 to the round limit   exact mirror (turn 180)
+    40 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 31, missile destroyed 8, missile stopped by point defence 3, missile went off 17, scan 46
+02_minefield         player 1's fleet: moving first 10-10-0 (14.8 rounds), moving second 11-8-1 (15.1 rounds), in all 21 of 40; 1 to the round limit
+    39 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 54, mine destroyed 82, mine_stir 43, missile destroyed 23, missile stopped by point defence 4, missile went off 19, naval_mine destroyed 48, scan 360, sleeper_mine destroyed 10, sleeper_mine went off 13
+03_cat_and_mouse     player 1's fleet: moving first 12-7-1 (22.1 rounds), moving second 7-7-6 (25.6 rounds), in all 19 of 40; 7 to the round limit
+    40 different openings (orders given in rounds 1 and 2) in 40 games; burnt_out 61, pass_reveal 63, scan 967
+04_the_dogleg        player 1's fleet: moving first 9-11-0 (12.7 rounds), moving second 9-11-0 (12.7 rounds), in all 18 of 40; 0 to the round limit   exact mirror (turn 180)
+    23 different openings (orders given in rounds 1 and 2) in 40 games; detonate 7, launched seeker_drone 126, scan 134, seeker_drone destroyed 14, seeker_drone went off 28
+05_kings_guard       player 1's fleet: moving first 4-14-2 (10.0 rounds), moving second 7-10-3 (11.8 rounds), in all 11 of 40; 5 to the round limit   exact mirror (flip+300)
+    37 different openings (orders given in rounds 1 and 2) in 40 games; burnt_out 4, pass_reveal 8, scan 137
+06_pawn_storm        player 1's fleet: moving first 16-4-0 (7.3 rounds), moving second 7-13-0 (7.0 rounds), in all 23 of 40; 0 to the round limit
+    22 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 106, missile destroyed 23, missile stopped by point defence 33, missile went off 46, scan 141
+07_beacon_hill       player 1's fleet: moving first 16-4-0 (10.8 rounds), moving second 4-16-0 (10.8 rounds), in all 20 of 40; 0 to the round limit   exact mirror (turn 180)
+    4 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 126, missile destroyed 1, missile went off 113, objective_scored 9, scan 353
+08_missile_alley     player 1's fleet: moving first 7-13-0 (10.1 rounds), moving second 7-13-0 (10.4 rounds), in all 14 of 40; 0 to the round limit
+    40 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 496, missile destroyed 142, missile stopped by point defence 217, missile went off 131, scan 93
+09_fog_bank          player 1's fleet: moving first 8-12-0 (8.6 rounds), moving second 9-11-0 (8.4 rounds), in all 17 of 40; 0 to the round limit
+    40 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 52, mine destroyed 48, mine_stir 48, missile destroyed 6, missile went off 46, naval_mine destroyed 14, scan 52, sleeper_mine destroyed 15, sleeper_mine went off 30
+10_gambit            player 1's fleet: moving first 14-6-0 (9.8 rounds), moving second 11-8-1 (11.6 rounds), in all 25 of 40; 1 to the round limit
+    40 different openings (orders given in rounds 1 and 2) in 40 games; launched missile 85, lured 42, missile destroyed 44, missile stopped by point defence 3, missile went off 24, scan 157

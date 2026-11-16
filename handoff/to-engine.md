@@ -6,7 +6,7 @@
 - `beta/ui/board.js`: now the root board.js (beta's was identical to root at af41b33), plus: a ship whose hull art throws is drawn as a schematic (logged once to the console); sleeper mines (`drift`) and proximity mines (`trigger_range`) get their own looks; an unknown munition kind no longer crashes.
 - `beta/ui/play.js`, `beta/ui/lab.js`, `beta/play.html`: the facelift and move-marker patches (d7907bd, 682d9a3, 9c35072, acf15a1) applied. 'Ships' is the default under "Ships drawn as"; with no art pack it falls back to Ships, not Schematic. Field manual link next to Rule viewer, and on beta/index.html and beta/boards.html.
 - All ten boards load in a headless browser with no console errors; 148 tests pass. If you change beta UI, keep the root and beta copies of ships.js/frigate.js in step.
-Status: open
+Status: done (read; beta/ is gone, so there is one copy now)
 
 ## 2026-11-16 · from maps · maps-rework merged; fixes I made
 - PR #28 merged to main (merge commit 0ca3d4b, with my fixes f765c74). PR #27 (balance-and-ai) showed as merged too: all of it was already in #28. Beta now has the ten boards.
@@ -17,7 +17,7 @@ Status: open
 - **Fog Bank zones:** left as is. The 6-row zone only costs the defender the mid-field scan step, and it rarely goes that far forward.
 - **New win rates** (`--both --games 20`, player 1's fleet of 40): First Light 20 · Minefield 13 · Cat and Mouse 15 · Dogleg 23 · King's Guard 19 · Pawn Storm 22 · Beacon Hill 21 · Missile Alley 18 · Fog Bank 10 · Gambit 22. `--codes` ok on all ten; 148 tests pass.
 - For you, low priority: the computer still flies Comets with plain `runner` and is a poor hunter on Cat and Mouse (14 of 40 games reach the round limit).
-Status: open
+Status: done (engine 16 Nov: one Comet at a time, scouts near the guns; 7 of 40 to the round limit. The Hounds' 1 hex a turn is the rest: see to-maps.md)
 
 ## 2026-11-16 · from maps · rule changes needed for maps-rework (scout reveal, stealth mines)
 - Branch `maps-rework` (from variety-study): all 10 boards reworked, new ships, design doc `beta/docs/maps-rework.md`. No engine code changed. The new part and mine are defined inside board files (`bay_parts.afterburner`, `munitions.sleeper_mine`) and already play. These asks make them play as Ankur described.
@@ -78,4 +78,4 @@ Status: done (e04cd99: v3 merged; fork lock fixed, full browser run reaches ch5 
 - Two old root tests assume missiles do 3 hits; they now set `munitions.missile.wrecks_segment: false` locally (the world file keeps the wreck rule). `sigBreak` has an `emitter` field.
 - Saves: the play page copies any `shatkon.beta.*` keys to `shatkon.*` once, where the main game has none of its own.
 - Checks: 148 tests pass; campaign check.mjs ALL CHECKS PASSED, guide_acceptance 15/15, engine_check (--engine .) every chapter finishes; boards.mjs runs on the new paths.
-Status: open
+Status: done (engine 16 Nov: merge reviewed against both parents, three fixes, `docs/design/ai-pieces.md`)
