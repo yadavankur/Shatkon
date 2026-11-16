@@ -33,6 +33,12 @@
 - **Decided: no facing on the card.** A ship's bow is art only (it points away from home or at the nearest enemy in view) and lasers fire in every direction, so showing a facing would teach a rule the game does not have.
 - **Words:** the white halo is now a white rim on the ship's hexes (step 4), so the hint lines, the key and the rules card say "white rim". A story chapter opens with one line on double-tap zoom. In the compact layout the status says "Points".
 
+## Latest (16 Nov, controls): phone-first controls, step 7 of 8 (branch `phone-pwa`, stacked on `phone-card`)
+- **Installable:** `manifest.webmanifest` (full screen, landscape, starts at `play.html`), icons in `icons/` (the brand star from `docs/brand/favicon.svg`, drawn inside the maskable safe zone), and `sw.js`. The menu's Game card has an "Install Shatkon" button where the browser offers one, and otherwise says how to add the game to the home screen.
+- **`sw.js` is network first:** with a connection every file comes fresh from the server, so a deploy by any worker is never held back by an old copy; the kept copy (one per file, `?t=` ignored) is used only with no signal. It covers the whole site folder, so the rule viewer, boards page and field manual also open offline once visited. **If a page ever seems stale, it is not the worker**: it only answers from its copy when the network fails.
+- **Checked:** headless Chrome on localhost: the manifest and icons load, the worker activates and controls the page, and the game opens with the network switched off. Not checked: the install prompt itself, iPhone "Add to Home Screen", the landscape lock of the installed app, notch insets.
+- **Left for Ankur (step 8):** story chapter 1 as the default entry for new players. Not changed, as agreed, until the controls are signed off on a phone.
+
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
 - `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.

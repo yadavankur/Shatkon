@@ -35,6 +35,11 @@ const isCompact = () => !!(compactMQ && compactMQ.matches) && !!$('main') && !$(
 let wasCompact = null;
 const put = (node, parent) => { if (node && parent && node.parentNode !== parent) parent.appendChild(node); };
 const HDR = { seat: $('#seat'), sfx: $('#sfx'), help: $('#helpbtn'), menu: $('#menubtn'), tabs: $('#tabs') };
+// Installing the game (a home-screen icon that opens full screen, sideways, with no browser bars).
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); installEvt = ev; if (game) render(); });
+window.addEventListener('appinstalled', () => { installEvt = null; if (game) render(); });
+const installed = () => !!((window.matchMedia && (matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches)) || navigator.standalone);
 async function toggleFull() {      // full screen, and held sideways where the browser can do that (not on iPhones)
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -1537,6 +1542,9 @@ export function render() {
     h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer'),
     h('a', { class: 'btn', href: 'docs/', target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),
     h('a', { class: 'btn', href: 'boards.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Boards')),
+    installed() ? null : h('div', { class: 'row', style: 'align-items:center' },
+      installEvt ? h('button', { class: 'btn go', onclick: async () => { const e = installEvt; installEvt = null; try { await e.prompt(); } catch (err) {} render(); } }, 'Install Shatkon', h('small', null, 'full screen, from your home screen')) : null,
+      h('span', { class: 'muted' }, installEvt ? '' : 'To play full screen from your home screen: open the browser\u2019s menu and choose "Add to Home Screen" (iPhone: the Share button first) or "Install app".')),
     h('div', { class: 'row' }, logButtons()),
     h('p', { class: 'muted' }, 'The battle log is every turn of this game, what each ship did and what it hit, with a short recap at the top. Before the game ends it only holds what you could see.'),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
@@ -1669,5 +1677,7 @@ function initExtras() {
   window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
   labRoute();
   if (!game) newGame(); else render();
+  // the service worker (sw.js): installable, and the game still opens with no signal. Never fatal.
+  try { if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
   window.addEventListener('resize', () => { if (!game) return; if (cam.max && cam.w >= cam.max * 0.98) cam.w = 0; render(); });   // a whole-map view stays a whole-map view
 })();
