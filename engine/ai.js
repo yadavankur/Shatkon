@@ -241,7 +241,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
           // chase for two or three rounds mostly loses its lock or is shot down on the way.
           // And a one-hex boat is only worth a missile that lands before it gets another turn.
           if (fc.rounds > (T.missile_flight_rounds ?? 3)) continue;
-          if (t.segs.length === 1 && !(fc.rounds <= 1 && state.turn === state.order.length - 1)) continue;
+          if (t.segs.length === 1 && !(fc.rounds <= 1 && state.turn === state.order.length - 1) && !(T.minds_decoys === true && isDecoy(t))) continue;
           if (T.minds_decoys === true && !isDecoy(t) && decoysNear(fc.path, t)) continue;
           if (!pick || fc.path.length < pick.n) pick = { n: fc.path.length, act };
         }
@@ -274,6 +274,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       if (!kind) continue;
       const spots = (v.contacts || []).filter((c) => c.kind === 'ship').map((c) => c.at).concat(v.ghosts.filter((g) => g.kind === 'ship').map((g) => g.pos));
       const aim = spots.sort((a, b) => minDist(s.cells, [a]) - minDist(s.cells, [b]))[0] || enemyHomePoint(v, seat, R);
+      // drone_range: a drone wanders for only a few rounds, so it is kept until the place it is sent to
+      // look at is this close. (Launched from the home corner on turn 1, all of them ran out of fuel
+      // over empty space before either fleet was in sight: 160 launched on The Dogleg, none saw a ship.)
+      if (aim && typeof T.drone_range === 'number' && minDist(s.cells, [aim]) > T.drone_range) continue;
       const act = aim && E.aimLaunch(state, s.id, kind, aim);
       if (act && E.attempt(state, act).ok) return act;
     }

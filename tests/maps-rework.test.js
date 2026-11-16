@@ -274,10 +274,16 @@ test('a mirror board no longer comes out one-sided, whichever way it is turned',
   }
 });
 
-test('the computer\'s carrier launches a drone when it has nothing located', () => {
-  let g = E.start(loadBoard('04_the_dogleg').rules, 2), launched = false;
-  for (let i = 0; i < 12 && g.round === 1 && g.turn === 0; i++) { const a = computerMove(g, 0, 'normal') || { type: 'end' }; if (a.type === 'launch' && a.kind === 'seeker_drone') launched = true; g = E.apply(g, a); }
-  assert.ok(launched);
+test('the computer\'s carrier launches a drone when it has nothing located, once it is near enough for the drone to get there', () => {
+  // (was: on its first turn, from the home corner. tricks.drone_range holds them until the place to look at is 12 hexes off)
+  let g = E.start(loadBoard('04_the_dogleg').rules, 2);
+  const rounds = [];
+  for (let i = 0; i < 200 && g.phase === 'play' && g.round <= 6; i++) { const a = computerMove(g, g.order[g.turn], 'normal') || { type: 'end' }; if (a.type === 'launch' && a.kind === 'seeker_drone') rounds.push(g.round); g = E.apply(g, E.attempt(g, a).ok ? a : { type: 'end' }); }
+  assert.ok(rounds.length > 0, 'a drone went up in the first six rounds');
+  assert.ok(!rounds.includes(1), 'but not from the home corner on turn 1: ' + rounds);
+  // with the range switched off it launches at once, as before
+  const g0 = E.start(loadBoard('04_the_dogleg', { set: { 'ai.tricks.drone_range': false } }).rules, 2);
+  assert.equal((computerMove(g0, 0, 'normal') || {}).kind, 'seeker_drone');
 });
 
 test('the computer shoots a mine it can see near its ships', () => {
