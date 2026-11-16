@@ -590,7 +590,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     }
     if (SC && fastScout(s)) {
       // not too far ahead of the guns
-      if (guns.length && typeof SC.lead === 'number') score -= Math.max(0, minDist(cells, guns.flatMap((m) => m.cells)) - SC.lead) * 3;
+      // (lead_varies: each scout's lead is a hex or two longer or shorter from game to game, from the
+      // game's seed, so the same board does not open with the scouts on the same two hexes every time)
+      const vary = SC.lead_varies | 0, lead = SC.lead + (vary ? (E.fnv('lead|' + (state.fzSalt | 0) + '|' + s.id) % (2 * vary + 1)) - vary : 0);
+      if (guns.length && typeof SC.lead === 'number') score -= Math.max(0, minDist(cells, guns.flatMap((m) => m.cells)) - lead) * 3;
       // and, while it still has its legs, never inside the reach of an enemy that could be armed
       const ev = evadeOf(s);
       if (ev && burnLeft(s) !== 0) for (const f of foes) if (!harmless(f) && minDist(cells, f.cells) <= ev) score -= 8;

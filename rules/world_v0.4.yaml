@@ -387,6 +387,7 @@ ai:
     scouts:                   # ships on their own drive (couriers, Comets). false = flown like any other escort (the old way:
                               # all of them straight at you on turn 1, burnt out by turn 4 with the guns 15 hexes behind)
       lead: 8                 # a scout stays within this many hexes of a friendly ship that can shoot
+      lead_varies: 2          # ...give or take this many, different for each scout and each game (0 = always the same hexes)
       one_at_a_time: true     # of several Comets only one flies; the others wait (any move uses up a burn turn)
       burn_worth: 2.5         # a Comet with burn left moves only when the move is worth this much: no one-hex shuffles
                               # A scout lasers cannot reach from far (evades_beyond) shadows you from one hex outside that
