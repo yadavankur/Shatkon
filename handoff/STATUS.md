@@ -28,6 +28,11 @@
 - **For the engine and maps bots:** `campaign/tools/browser_story.cjs` now presses the confirm button after "Graft tern" and skips the upright-phone card. I could not run that tool here (no Playwright), so please run it once.
 - **Checked:** 165 tests; headless Chrome at 800x360: path preview, first tap does not fire, second tap fires, End turn asks then ends.
 
+## Latest (16 Nov, controls): phone-first controls, step 6 of 8 (branch `phone-card`, stacked on `phone-targeting`)
+- **Ship card:** next to hull, moves, lasers and ammo it now shows the launcher (ready / used), the scan (ready / move first / used), and what is making the ship easier or harder to see right now (lit up, engine wake, nebula).
+- **Decided: no facing on the card.** A ship's bow is art only (it points away from home or at the nearest enemy in view) and lasers fire in every direction, so showing a facing would teach a rule the game does not have.
+- **Words:** the white halo is now a white rim on the ship's hexes (step 4), so the hint lines, the key and the rules card say "white rim". A story chapter opens with one line on double-tap zoom. In the compact layout the status says "Points".
+
 ## Latest (16 Nov, maps): who moves first is random
 - `turns.first: random` (world file): round 1's first mover comes from the game's seed, so replays and codes agree; boards can pin it; story chapters always start with the player. The play screen says who moves first, and the computer opens by itself when it is first.
 - `boards.mjs --both --games 20`: player 1's fleet 12 to 22 of 40 on every board, with a split by moving first / second. King's Guard favours moving second (31 v 16 of 60). Details `docs/design/first-mover.md`; engine review asked in to-engine.md.

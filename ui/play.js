@@ -706,7 +706,7 @@ export function startStoryGame(chRules, title) {
   seat = 'cpu';
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
-  say(title + '. Tap a ship with a white halo to give it orders.');
+  say(title + '. Tap a ship with a white rim to give it orders. Double-tap it to zoom in, and again to zoom back out.');
   save(); render();
   storyEvents(game);
 }
@@ -930,7 +930,7 @@ function tap(c, v, opts, viaChip) {
   else if (ship && ship.mine) {            // one of yours that takes no orders: no panel, just the reason
     look = null;
     const auto = v.story && (v.story.auto || []).includes(ship.name), held = v.story && v.story.locked.includes(ship.name);
-    say(auto ? shipName(ship) + ' is flying itself: its crew follow their own orders, so there is nothing for you to command. Ships with a white halo are yours.'
+    say(auto ? shipName(ship) + ' is flying itself: its crew follow their own orders, so there is nothing for you to command. Ships with a white rim are yours to command.'
       : held ? shipName(ship) + ' is not answering the helm.' : !myTurn() ? 'Your ship ' + shipName(ship) + '. It is not your turn.' : 'Your ship ' + shipName(ship) + '.');
   }
   else if (ship) { look = ship.id; say('Enemy ship ' + shipName(ship) + '. ' + (ship.seen ? whyText(ship.why) : 'The player to move cannot see it.')); }
@@ -1254,7 +1254,13 @@ function statChips(x, v) {
       chip('Move', st.moveLeft, !st.moveLeft);
       if (st.beams) chip('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady);
       for (const [k, n] of Object.entries(st.ammo)) chip(pretty(nice(k)) + 's', n, !n);
+      if (st.launchers) chip('Launcher', st.launchersReady ? 'ready' : 'used', !st.launchersReady);
+      chip('Scan', st.scanReady ? 'ready' : x.used && x.used.scan ? 'used' : st.scanMoved < 1 ? 'move first' : 'no points', !st.scanReady);
     }
+    const sb = x.sigBreak;
+    if (sb && sb.flare) chip('Lit up', '+' + sb.flare, true);            // fired, launched or scanned: easier to see for now
+    if (sb && sb.motion > 0) chip('Engine wake', '+' + sb.motion, true);
+    if (sb && sb.haze) chip('In nebula', (sb.haze > 0 ? '+' : '\u2212') + Math.abs(sb.haze));
     if (x.sensor != null) chip('Sensor', x.sensor);
     if (x.signature != null) chip('Signature', x.signature);
   } else {
@@ -1383,7 +1389,7 @@ export function render() {
       h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n)),
       v.objective ? h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '') : null),
     mine ? h('div', { class: 'line' },
-      h('span', null, 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
+      h('span', null, compact ? 'Points ' : 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
       h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), h('span', { class: 'wide' }, ' (moving costs 1 per segment per hex)')), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
@@ -1500,7 +1506,7 @@ export function render() {
       v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length) ? h('small', { class: 'warnnote' }, '\u26A0 laser can fire') : null)]);
 
   hintEl.className = hintErr ? 'err' : '';
-  hintEl.textContent = hint || (mine ? 'Tap one of your ships (white halo) to give it orders.' : aiTurn() ? 'The computer is taking its turn\u2026' : isCodes() && game.phase === 'play' ? 'Waiting for player ' + (turn + 1) + '. Open \u2630 to paste their turn code.' : '');
+  hintEl.textContent = hint || (mine ? 'Tap one of your ships (white rim) to give it orders.' : aiTurn() ? 'The computer is taking its turn\u2026' : isCodes() && game.phase === 'play' ? 'Waiting for player ' + (turn + 1) + '. Open \u2630 to paste their turn code.' : '');
 
   // the drawer (\u2630): impact report, what happened, display settings, the key, game codes
   const rc = reportCard();
@@ -1523,7 +1529,7 @@ export function render() {
       + (haveModels ? ' (' + artCount + ' of ' + plural(v.ships.length, 'ship') + ' on this board have art).' : ' (no art pack was found).') + ' A ship\u2019s parts are always listed in its panel.')));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Key'),
     h('div', { class: 'parts' }, Object.entries(looks).map(([name, l]) => h('span', { class: 'chip' }, h('i', { style: 'background:' + l.color }), l.letter + ' ' + nice(name)))),
-    h('p', { class: 'muted' }, 'A white halo marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
+    h('p', { class: 'muted' }, 'A white rim round a ship\u2019s hexes marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
   if (v.feed.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, v.feed.slice(-12).reverse().map((e) => h('li', null, 'Round ' + e.r + ': ' + describe(e))))));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
