@@ -1,4 +1,10 @@
-# Status (updated 2026-11-17 by maps)
+# Status (updated 2026-11-17 by engine)
+
+## Latest (17 Nov, engine): double-tap zoom no longer lags (branch `smooth-zoom`, PR to main)
+- **Why:** double-tap zoom felt slow on a phone. Two causes: the second tap rebuilt the whole board before the glide could start (51–115 ms blocked on a 4x-slowed CPU), and the glide changed the SVG `viewBox` every frame, so the whole board (glows, ship art) was redrawn about 60 times a second.
+- **Fix (`ui/play.js` camTween, `play.html`):** the glide now moves the picture already on screen with a CSS transform on the board's own GPU layer and redraws once, at the end, at the new detail level. Its clock starts on the first frame. A finger on the board ends a glide at once, and the end-of-glide redraw waits for that finger to lift, so a tap is never lost. Double-tap timing uses the touch's own timestamp (`ev.timeStamp`), so a busy phone cannot turn a double tap into two single taps.
+- **Checked:** 165 tests; headless Chrome 800x360, touch, CPU 4x slower: the tap handler now blocks 1–6 ms (was 51–115). Glide frame times look about the same in headless, which draws in software, so the GPU part needs a real phone. browser_story.cjs: ch1–ch4a win, no console errors (the ch4a save bug is unchanged). **Not checked on a real phone.**
+
 
 ## Latest (17 Nov, maps): phone controls merged
 - Ankur tested the phone controls on his phone and signed off. phone-pwa (steps 1–7) is merged to main. 165 tests pass. browser_story.cjs: ch1–ch4a play through with no errors, but **ch4a is not saved as complete, so ch5 never opens** (the same before the merge).

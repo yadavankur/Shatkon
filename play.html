@@ -57,6 +57,8 @@ body{touch-action:manipulation}
 #mini{align-self:flex-start;border:1px solid var(--line);border-radius:8px;background:rgba(6,10,20,.9);padding:3px;line-height:0;cursor:pointer}
 #mini[hidden]{display:none}
 #mini svg{display:block}
+/* the board lives on its own GPU layer, so a glide only moves it (no layer set-up on every zoom) */
+#wrap>svg{will-change:transform;transform-origin:50% 50%}
 #wrap svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
 #hudtop{position:absolute;left:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:min(600px,calc(100% - 68px));pointer-events:none}
 #hudtop>*{pointer-events:auto}
