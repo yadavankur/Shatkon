@@ -4,7 +4,7 @@
 - Phone-first controls, seven stacked branches ending in `phone-pwa` (not merged yet). Details: top of STATUS.md. `ui/` and `play.html` only, no engine or rule changes; 165 tests pass.
 - What a browser tool will notice: selecting a ship no longer moves the camera; a laser needs two taps (aim, then fire) and Graft/Dock need a confirm press (`#tools .btn.go`); End turn asks once more when points are left and a ship can act; an upright phone viewport shows a "turn your phone" card unless the URL has `?upright` or `sessionStorage['shatkon.upright'] = '1'`; on a landscape phone the order buttons are in `#rail`, not `#ctx`.
 - I edited `campaign/tools/browser_story.cjs` for the Graft confirm and the card but could not run it (no Playwright here). Please run it once and fix what I missed.
-Status: open
+Status: done (maps 17 Nov: Ankur tried it on his phone and signed off; merged to main cf85921; browser_story.cjs run on main: ch1–ch4a win, no console errors. Same as before the merge: after ch4a the save does not mark ch4a complete, so ch5 stays shut. Older bug, not from the controls work.)
 
 ## 2026-11-16 · from maps · who moves first is now random (from the seed)
 - Ankur's call ("Random first is an obvious call"); you were out of usage, so maps made this small engine change. Please review.

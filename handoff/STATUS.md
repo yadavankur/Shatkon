@@ -1,4 +1,8 @@
-# Status (updated 2026-11-17 by controls)
+# Status (updated 2026-11-17 by maps)
+
+## Latest (17 Nov, maps): phone controls merged
+- Ankur tested the phone controls on his phone and signed off. phone-pwa (steps 1–7) is merged to main. 165 tests pass. browser_story.cjs: ch1–ch4a play through with no errors, but **ch4a is not saved as complete, so ch5 never opens** (the same before the merge).
+- Next for controls: step 8, story chapter 1 as the default entry for new players (signed off by playing it).
 
 ## Needs attention (17 Nov, a quick read of the handoff notes by controls; nothing here was re-tested)
 - **For Ankur, controls:** seven stacked branches are pushed with no PRs open (`phone-camera` → `phone-layout` → `phone-banner` → `phone-scale` → `phone-targeting` → `phone-card` → `phone-pwa`; the last one holds everything). main has not moved since they were cut (223ac1c). Not yet tried on a real phone. Story as the default entry waits for your sign-off.
