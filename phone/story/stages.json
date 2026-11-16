@@ -1,0 +1,112 @@
+{
+ "kestrel_bridge": {
+  "img": "img/stages/kestrel_bridge.webp",
+  "focus": [
+   0.45,
+   0.45
+  ]
+ },
+ "kestrel_engine_bay": {
+  "img": "img/stages/kestrel_engine_bay.webp",
+  "focus": [
+   0.5,
+   0.45
+  ]
+ },
+ "halcyon_bridge": {
+  "img": "img/stages/halcyon_bridge.webp",
+  "focus": [
+   0.55,
+   0.4
+  ]
+ },
+ "comms_screen": {
+  "img": "img/stages/comms_screen.webp",
+  "focus": [
+   0.5,
+   0.5
+  ]
+ },
+ "salvage_wreck": {
+  "img": "img/stages/salvage_wreck.webp",
+  "focus": [
+   0.55,
+   0.5
+  ]
+ },
+ "meridian_dark": {
+  "img": "img/stages/meridian_dark.webp",
+  "focus": [
+   0.5,
+   0.48
+  ]
+ },
+ "ashfall_outpost": {
+  "img": "img/stages/ashfall_outpost.webp",
+  "focus": [
+   0.5,
+   0.5
+  ]
+ },
+ "weave_lattice": {
+  "img": "img/stages/weave_lattice.webp",
+  "focus": [
+   0.5,
+   0.5
+  ]
+ },
+ "vista_corridor": {
+  "img": "img/stages/vista_corridor.webp",
+  "focus": [
+   0.5,
+   0.55
+  ]
+ },
+ "vista_quiet_water": {
+  "img": "img/stages/vista_quiet_water.webp",
+  "focus": [
+   0.5,
+   0.7
+  ]
+ },
+ "vista_bloom": {
+  "img": "img/stages/vista_bloom.webp",
+  "focus": [
+   0.5,
+   0.45
+  ]
+ },
+ "campaign_map": {
+  "img": "img/stages/campaign_map.webp",
+  "focus": [
+   0.5,
+   0.55
+  ],
+  "spots": {
+   "ch1": [
+    0.5,
+    0.9
+   ],
+   "ch2": [
+    0.5,
+    0.72
+   ],
+   "ch3": [
+    0.5,
+    0.55
+   ],
+   "ch4a": [
+    0.3,
+    0.38
+   ],
+   "ch4b": [
+    0.72,
+    0.38
+   ],
+   "ch5": [
+    0.5,
+    0.2
+   ]
+  }
+ }
+}

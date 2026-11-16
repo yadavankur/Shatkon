@@ -1,0 +1,80 @@
+{
+ "id": "ch1_salvage",
+ "stage": "salvage_wreck",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "The wreck is warm. It shouldn't be."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "Okay. The walls are... cells? Like honeycomb, but soft. Keep talking to me, Captain.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "Found something. A hex-shaped pod with a rack of... those are missiles. Six. And a launcher that's still twitching.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "neutral",
+   "text": "Bring it. Bring all of it. If we'd had that an hour ago—",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "...Sorry. Just bring it.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "worried",
+   "text": "Captain, Wren's and Kite's guns. It didn't blow them up. It cut them off. Like it wanted the pieces.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "worried",
+   "text": "..."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "(relay, recorded hours ago) Vey, me again. Halcyon's making good time. Whatever the lane throws at you: see you at Meridian.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "(quietly) Three escorts out, one ship home. See you at Meridian, Li. I'm holding you to it."
+  },
+  {
+   "speaker": "narrator",
+   "text": "Kestrel logs three names: Priya Nandakumar. Sefa Lowe. Dov Ancell."
+  },
+  {
+   "effect": "fade_out"
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "salvage",
+ "unlocks": [
+  "launcher",
+  "missiles"
+ ]
+}

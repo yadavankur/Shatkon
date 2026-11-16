@@ -1,0 +1,32 @@
+{
+ "id": "ch1_defeat",
+ "stage": "kestrel_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "glitch"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "Hull's cracking! Pulling back to the buoy line!"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "It's fast, but it's alone. Keep Kestrel's guns on it and make it come to us. Again."
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "defeat"
+}

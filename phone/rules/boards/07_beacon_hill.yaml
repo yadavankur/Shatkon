@@ -1,0 +1,123 @@
+# ============================================================
+#  BOARD: Beacon Hill
+#
+#  A beacon inside a crater of rock with one opening on the east and one on the west. Hold it
+#  through the other side's turn to score; 5 points wins. Holding it lights you up, and the crater
+#  means the holder can only be shot through the two openings.
+#
+#  Try: Only two lines of fire reach the beacon: cover both openings and the enemy holder is a
+#  sitting duck. The couriers get there first, but a courier on the beacon is lit up and dies to
+#  one hit from 3 hexes; take the first point with a skiff behind a courier screen.
+#
+#  You are player_1 (south edge). The computer is player_2. The board is a mirror image, ships
+#  included.
+#  Open it at  play.html?board=07_beacon_hill   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was the beacon in an open nebula (0-10 for the computer moving
+#  second). Now a crater with side openings, a small board (radius 7), and a light fleet of
+#  couriers and skiffs on both sides.
+#  Retune (maps, 2026-11-16): radius 7 -> 9 and every ship 2 rows further back. On radius 7 whoever
+#  moved first got the first missile salvo and won 98 of 120; now 64 of 120. No rule change needed.
+#
+#  Needs a new rule to play as designed: a courier or Comet should not score the beacon
+#  (holds_objective: false on own_move ships); otherwise a 5-hex ship takes every point.
+# ============================================================
+
+board:
+  name: "Beacon Hill"
+  idea: "A beacon inside a crater of rock with one opening on the east and one on the west. Hold it through the other side's turn to score; 5 points wins. Holding it lights you up, and the crater means the holder can only be shot through the two openings."
+  try: "Only two lines of fire reach the beacon: cover both openings and the enemy holder is a sitting duck. The couriers get there first, but a courier on the beacon is lit up and dies to one hit from 3 hexes; take the first point with a skiff behind a courier screen."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "balanced"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Beacon Hill"
+  board: { shape: hexagon, radius: 9 }
+  zones:
+    player_1_home: { edge: south, depth: 3 }
+    player_2_home: { edge: north, depth: 3 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  objective: { at: [0, 0], radius: 1, points_to_win: 5, reveals_holder: true, decides_turn_limit: true }
+  terrain:
+    - { type: asteroid, at: [-2, 2], size: 1 }
+    - { type: asteroid, at: [-1, -1], size: 1 }
+    - { type: asteroid, at: [-1, 2], size: 1 }
+    - { type: asteroid, at: [0, -2], size: 1 }
+    - { type: asteroid, at: [0, 2], size: 1 }
+    - { type: asteroid, at: [1, -2], size: 1 }
+    - { type: asteroid, at: [1, 1], size: 1 }
+    - { type: asteroid, at: [2, -2], size: 1 }
+    - { type: asteroid, at: [-4, 1], size: 1 }
+    - { type: asteroid, at: [4, -1], size: 1 }
+    - { type: asteroid, at: [3, 2], size: 1 }
+    - { type: asteroid, at: [-3, -2], size: 1 }
+
+player_1:
+  ships:
+    - name: "Herald"                # small flagship
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Spur"                # courier (sprint drive, 5 hexes a turn)
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+    - name: "Lark"                # courier (sprint drive, 5 hexes a turn)
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+    - name: "Pip"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Tad"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Bit"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+  deployment:
+    - { ship: "Herald", at: [-2, 8] }
+    - { ship: "Spur", at: [-6, 8] }
+    - { ship: "Lark", at: [2, 7] }
+    - { ship: "Pip", at: [-4, 8] }
+    - { ship: "Tad", at: [0, 8] }
+    - { ship: "Bit", at: [-1, 9] }
+
+player_2:
+  ships:
+    - name: "Crier"                # small flagship
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor] }
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Rowel"                # courier (sprint drive, 5 hexes a turn)
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+    - name: "Finch"                # courier (sprint drive, 5 hexes a turn)
+      hull:
+        - { at: [0, 0], bays: [core, sprint_drive, sensor] }
+    - name: "Nib"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Dot"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Jot"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+  deployment:
+    - { ship: "Crier", at: [2, -8] }
+    - { ship: "Rowel", at: [6, -8] }
+    - { ship: "Finch", at: [-2, -7] }
+    - { ship: "Nib", at: [4, -8] }
+    - { ship: "Dot", at: [0, -8] }
+    - { ship: "Jot", at: [1, -9] }

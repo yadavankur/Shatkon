@@ -1,0 +1,95 @@
+{
+ "id": "ch4a_graft_found",
+ "stage": "salvage_wreck",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "li",
+   "expression": "neutral",
+   "text": "The distress call stopped the moment the last husk went dark.",
+   "via": "comms"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "Transmitter battery, probably.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "Nobody in the shafts. No bodies either. They must have evacuated.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "But Moss, you're going to want to see hangar four. There's a rig in here. Like a docking cradle, but... nicer.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "shock",
+   "text": "Nicer is an understatement. Look at the couplings. No bolts, no clamp teeth. The surfaces just... meet."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "This is Ashfall's prototype. It has to be. A hull-graft rig. It fuses two ships into one: no drift, no stress, no thrust penalty. None of the junk our clamps give us."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "Ashfall was a mining outpost. Where did they get the money for a miracle?",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Miners are cleverer than pilots, Hollis. Everyone knows that."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "neutral",
+   "text": "No maker's stamp anywhere. And the housing is warm. It's running on its own power.",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Hand-built and self-heating. Like I said: miracle."
+  },
+  {
+   "speaker": "li",
+   "expression": "neutral",
+   "text": "If it works, Kestrel and Tern could become one ship. Hollis?",
+   "via": "comms"
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "smile",
+   "text": "Tern always wanted a bigger home.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Do it. Carefully, Moss."
+  }
+ ],
+ "choice": null,
+ "chapter": 4,
+ "kind": "salvage",
+ "unlocks": [
+  "hull_graft"
+ ]
+}

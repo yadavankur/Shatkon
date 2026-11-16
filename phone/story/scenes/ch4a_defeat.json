@@ -1,0 +1,30 @@
+{
+ "id": "ch4a_defeat",
+ "stage": "ashfall_outpost",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "For husks, they bite!"
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "They're slow, Vey. Don't let them bunch up on us. One more pass.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 4,
+ "kind": "defeat"
+}

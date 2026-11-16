@@ -1,0 +1,31 @@
+{
+ "id": "ch5_defeat",
+ "stage": "vista_bloom",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "tern_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "tern_pilot",
+   "expression": "hurt",
+   "text": "It's too strong head-on!"
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "Regroup on Halcyon. We're not done, Vey. Again.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "defeat",
+ "added": true
+}

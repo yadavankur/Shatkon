@@ -1,0 +1,146 @@
+{
+ "id": "ch1_intro",
+ "stage": "kestrel_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "finch_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "stage": "vista_corridor"
+  },
+  {
+   "speaker": "narrator",
+   "text": "The Channels: frontier lanes threaded between asteroid belts and nebula banks. Day 41 out of Harrow Yard."
+  },
+  {
+   "speaker": "narrator",
+   "text": "The survey cutter Kestrel flies home to Meridian Station with three escorts: Finch, Wren and Kite."
+  },
+  {
+   "speaker": "narrator",
+   "text": "The scout Sparrow rides in its cradle. Its pilot, Teo Marsh, has Kestrel's helm today."
+  },
+  {
+   "stage": "kestrel_bridge"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Channel Nine, Captain. Narrowest lane on the chart, and nobody ever bothered to name it. I'm calling it the Throat."
+  },
+  {
+   "speaker": "captain",
+   "expression": "neutral",
+   "text": "Please don't."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "Too late. It's in the log."
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "worried",
+   "text": "Finch to Kestrel. Holding escort position. Probably. Captain, is my spacing right? It looks wrong from here.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Your spacing is perfect, Nanda. It was perfect the last four times you asked."
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "smile",
+   "text": "Right. Good. Great. Captain... permission to panic?",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Denied. Captains panic in private. You have your own cabin now. Use it."
+  },
+  {
+   "speaker": "wren_pilot",
+   "expression": "smile",
+   "text": "Sefa here. I panicked through my whole first command, Nanda. Still brought the ship home. Mostly the same shape.",
+   "via": "comms"
+  },
+  {
+   "speaker": "kite_pilot",
+   "expression": "smile",
+   "text": "Dov here. Can confirm. It was a different shape.",
+   "via": "comms"
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "smile",
+   "text": "Noted. Finch will panic quietly, privately and in formation.",
+   "via": "comms"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "Helm's steady. For the record, I'd also like permission to panic. This ship is four times bigger than mine."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Denied, Teo. Nobody panics on my bridge before lunch."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "neutral",
+   "text": "Oh, and a packet came in on the Meridian relay. Personal. I didn't read it."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "...I read the header."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Vey. Halcyon's out on a courier run, but I'll be back on station before you dock. Don't you dare take the long way.",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "See you at Meridian.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "(quietly) See you at Meridian."
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "smile",
+   "text": "Captain, you're smiling. I can hear it over comms.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Eyes on the lane, Finch. All escorts: run the buoys. Let's get home."
+  },
+  {
+   "speaker": "finch_pilot",
+   "expression": "determined",
+   "text": "Finch copies. First command, first lane. Let's get home.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "intro"
+}

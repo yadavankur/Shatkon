@@ -1,0 +1,105 @@
+# ============================================================
+#  BOARD: Pawn Storm
+#
+#  A cage of six rock clumps around one dreadnought with six shields. Six one-laser skiffs close in
+#  from three sides (west, south, east), with a small flagship. Your skiffs see it from 11 hexes; it
+#  only sees a skiff from 5, so you start out of its sight and out of laser range.
+#
+#  Try: A shield soaks the first hit on its segment each round. Two skiffs on the SAME segment in
+#  one turn: the second shot gets through. Use the rocks as cover on the way in, then arrive
+#  together from opposite sides; the skiff it chases should run, not fight.
+#
+#  You are player_1 (the southern half of the rim). The computer is player_2. The computer's dreadnought
+#  starts in the centre.
+#  Open it at  play.html?board=06_pawn_storm   Edit anything here and reload.
+#
+#  Design notes (maps-rework): was a skiff line against a dreadnought from the far edge. Now an
+#  encirclement.
+#  Retune (maps, 2026-11-16): the first version started every skiff 6 hexes away with a clear line
+#  (42 shots on turn 1, decided by who moved first). Then radius 10, the skiffs started on the rim 9+
+#  hexes from any Leviathan hex (out of laser range 8 and out of its 5-hex sight), each group behind
+#  a rock clump of the cage. Home zone is 7 rows (was the whole board), so scans keep the normal
+#  near-home / mid-field / centre steps. Computer set to "balanced" (aggressive gave 30 of 40).
+#  Retune 2 (maps, 2026-11-16, after the engine bot's AI work): it was 16-4 moving first, 7-13 moving
+#  second. Radius 12, skiffs 11+ hexes out (no shot in round 1 whoever moves first), home zones 8 and
+#  15 rows, and a fifth laser on the Leviathan's core. 21 v 20 of 40 by seat over 80 games.
+# ============================================================
+
+board:
+  name: "Pawn Storm"
+  idea: "A cage of six rock clumps around one dreadnought with six shields. Six one-laser skiffs close in from three sides, with a small flagship. Your skiffs see it from 11 hexes; it only sees a skiff from 5, so you start out of its sight and out of laser range. It moves 2 hexes a turn and can only chase one of you."
+  try: "A shield soaks the first hit on its segment each round. Two skiffs on the SAME segment in one turn: the second shot gets through. Use the rocks as cover on the way in, then arrive together: hit it from opposite sides so it cannot back away from both, and the skiff it chases should run, not fight."
+  rules:                      # world-file numbers this board changes (path: value); empty = the standard rules
+    ai.vs_computer: "balanced"
+
+budget: 99999                 # boards are not held to the fleet budget
+
+map:
+  name: "Pawn Storm"
+  board: { shape: hexagon, radius: 12 }
+  zones:
+    player_1_home: { edge: south, depth: 8 }
+    player_2_home: { edge: north, depth: 15 }
+    no_mans_land:  { everything_else: true }
+  setup:
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+  terrain:
+    - { type: asteroid, at: [-4, 2], radius: 1 }
+    - { type: asteroid, at: [-2, 4], radius: 1 }
+    - { type: asteroid, at: [2, 2], radius: 1 }
+    - { type: asteroid, at: [4, -2], radius: 1 }
+    - { type: asteroid, at: [2, -4], radius: 1 }
+    - { type: asteroid, at: [-2, -2], radius: 1 }
+
+player_1:
+  ships:
+    - name: "Queenside"                # command corvette
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, magazine, sensor], mounts: [armour, shield] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
+    - name: "Pawn a"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn b"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn c"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn d"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn e"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+    - name: "Pawn f"                # skiff
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }
+  deployment:
+    - { ship: "Queenside", at: [-5, 12] }
+    - { ship: "Pawn a", at: [-12, 5] }
+    - { ship: "Pawn b", at: [-12, 7] }
+    - { ship: "Pawn c", at: [-8, 12] }
+    - { ship: "Pawn d", at: [-1, 12] }
+    - { ship: "Pawn e", at: [7, 5] }
+    - { ship: "Pawn f", at: [5, 7] }
+
+player_2:
+  ships:
+    - name: "Leviathan"                # dreadnought
+      flagship: true
+      load: { missile: 3 }
+      hull:
+        - { at: [0, 0], bays: [core, sensor, magazine], mounts: [laser] }   # core laser: evens the board at radius 12
+        - { at: [1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+        - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+        - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield, armour] }
+        - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [laser, shield, point_defence] }
+        - { at: [0, 1], bays: [engine, engine, coupling], mounts: [launcher, armour, shield] }
+  deployment:
+    - { ship: "Leviathan", at: [0, 0] }

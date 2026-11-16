@@ -1,0 +1,35 @@
+# ============================================================
+#  MAP FILE  -  "Open Space"
+#  The board, the zones and the terrain. One file per map.
+#  Coordinates are [q, r] hex coordinates; [0, 0] is the centre.
+# ============================================================
+
+map:
+  name: "Open Space"
+  world: world_v0.4.yaml
+
+  board:
+    shape: hexagon
+    radius: 20                # hexes from centre to edge (1,261 hexes)
+
+  # Each player sets up in their own home zone. The middle is no-man's-land.
+  zones:
+    player_1_home:  { edge: south, depth: 6 }
+    player_2_home:  { edge: north, depth: 6 }
+    no_mans_land:   { everything_else: true }
+
+  setup:
+    secret: true              # both players place without seeing each other
+    ships: own_home_zone
+    drones: own_home_zone
+    mines: { own_home_zone: true, rows_into_no_mans_land: 3 }
+
+  # Terrain is mirrored so neither side has an advantage.
+  terrain:
+    - { type: nebula,   at: [0, 0],   radius: 2 }
+    - { type: asteroid, at: [-6, 3],  size: 3 }
+    - { type: asteroid, at: [6, -3],  size: 3 }
+    - { type: asteroid, at: [-10, 2], size: 1 }
+    - { type: asteroid, at: [10, -2], size: 1 }
+    - { type: asteroid, at: [4, 4],   size: 1 }
+    - { type: asteroid, at: [-4, -4], size: 1 }

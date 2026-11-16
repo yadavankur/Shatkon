@@ -1,0 +1,234 @@
+# ============================================================
+#  HEX SPACE GAME - RULE FILE v0.1
+#
+#  Everything the game knows lives in this file.
+#  - Change any number freely. Comments (#) are your notes.
+#  - The UI will render whatever is in here; it knows no rules.
+#  - The engine only understands the BEHAVIOURS in section 5.
+#    Every object is just a mix of attributes + behaviours.
+# ============================================================
+
+meta:
+  name: "Untitled Hex Space Game"
+  version: "0.1"
+  notes: >
+    First playtest set. Flat board, 1v1. Ships are anonymous
+    blobs built from a point budget. Contents: laser, missile,
+    mine, seeker drone, asteroids, nebula.
+
+
+# ------------------------------------------------------------
+# 1. GAME SETTINGS
+# ------------------------------------------------------------
+game:
+  players: 2
+  board:
+    shape: hexagon
+    radius: 20              # hexes from centre to edge (= 1,261 hexes)
+    deployment_depth: 4     # rows from your own edge where you may set up
+  fleet_budget: 200         # points each player spends building their fleet
+  max_ships: 4
+  flagship_required: true   # one ship must be marked flagship (your "king")
+
+  command_points:
+    per_turn: 3
+    bank_cap: 6             # most unspent points you can carry over
+    bank_hidden: true       # opponent never sees how many you have banked
+    one_piece_can_use_all: true
+
+  round_structure:          # order of play each round
+    - player_1_turn         # spend command points
+    - player_2_turn
+    - flight_phase          # all missiles, drones, flares resolve together
+  flight_phase:
+    ticks: 6                # flight phase is split into this many ticks;
+                            # each object moves (speed / ticks) per tick,
+                            # collisions checked every tick
+
+  first_player: alternate   # who goes first swaps each round
+  turn_limit: 30            # if reached: draw (or score by damage dealt - TBD)
+  win_conditions:
+    - destroy_enemy_flagship
+
+
+# ------------------------------------------------------------
+# 2. DETECTION  (one formula for all stealth)
+# ------------------------------------------------------------
+detection:
+  rule: "visible if distance <= observer.sensor_range + target.signature + target.flare"
+  base_signature: 8         # signature = base_signature - stealth
+  flare:                    # temporary extra signature, lasts until end of next round
+    move: 0
+    fire_laser: 0           # silent...
+    laser_hit: 3            # ...unless it hits: target gets a bearing on you
+    launch: 2
+    detonation: 4           # lights up everything within blast_radius + this
+  out_of_sight: ghost       # enemy that leaves view shows as "last seen here"
+  line_of_sight: required_for_beams_only
+
+
+# ------------------------------------------------------------
+# 3. DAMAGE
+# ------------------------------------------------------------
+damage:
+  rule: "damage = power - armour - (falloff x distance), minimum 0"
+  hit_location: facing_component   # the hex of the ship the shot reaches first
+  blast:
+    ring_reduction: 0.5     # each ring out from a blast centre takes half
+    friendly_fire: true     # your own blasts can hurt you
+  component_destroyed_at_hp: 0
+  ship_destroyed_when: core_destroyed   # alt: all_components_destroyed
+
+
+# ------------------------------------------------------------
+# 4. ACTIONS  (what command points buy)
+# ------------------------------------------------------------
+actions:
+  move:      { cost: 1, note: "move one ship up to its speed; each 60-degree turn uses 1 hex of movement" }
+  fire:      { cost: 1, note: "fire one beam weapon from one ship" }
+  launch:    { cost: 1, note: "launch one missile or drone; you plot its route secretly" }
+  scan:      { cost: 1, note: "reveal one hidden stat of one enemy ship you can see" }
+  detonate:  { cost: 1, note: "remote-detonate one of your drones" }
+  brace:     { cost: 1, note: "+2 armour on all components of one ship until your next turn" }
+  pass:      { cost: 0, note: "end turn; unspent points go to the bank" }
+
+
+# ------------------------------------------------------------
+# 5. BEHAVIOURS  (the only things the engine understands)
+# ------------------------------------------------------------
+behaviours:
+  move:                 { params: [speed], note: "manual movement on your turn" }
+  beam:                 { params: [power, range, falloff], note: "instant, straight line, needs clear line of sight" }
+  launch:               { params: [payload, magazine], note: "creates a child object next to the parent" }
+  fly:                  { params: [speed, fuel, turn_rate], note: "moves in flight phase along its plotted path; fuel = rounds before it dies" }
+  seek:                 { params: [], note: "once it detects an enemy, steers toward it (limited by turn_rate)" }
+  patrol:               { params: [pattern], options: [line, circle, random] }
+  sense:                { params: [sensor_range] }
+  report:               { note: "whatever it sees, its owner sees" }
+  detonate_on_contact:  { params: [power, blast_radius] }
+  detonate_remote:      { note: "owner can trigger it with the detonate action" }
+  block_sight:          { note: "beams and line of sight cannot pass through" }
+  block_movement:       { note: "nothing can enter this hex" }
+  jam:                  { params: [radius, sensor_penalty] }
+
+
+# ------------------------------------------------------------
+# 6. ATTRIBUTES  (the point-buy menu - fleet_budget is spent here)
+#    cost = budget points per unit. Opponent can't see these.
+# ------------------------------------------------------------
+attributes:
+  hp:            { applies_to: component, min: 1, max: 10, cost: 2 }
+  armour:        { applies_to: component, min: 0, max: 6,  cost: 3 }
+  speed:         { applies_to: ship,      min: 0, max: 6,  cost: 4 }
+  sensor_range:  { applies_to: ship,      min: 1, max: 10, cost: 2 }
+  stealth:       { applies_to: ship,      min: 0, max: 8,  cost: 3, note: "lowers signature" }
+  extra_hex:     { applies_to: ship,      min: 0, max: 4,  cost: 5, note: "ships start at 3 hexes, max 7" }
+
+
+# ------------------------------------------------------------
+# 7. SHAPES  (axial hex coordinates, [q, r]; [0,0] is the centre)
+# ------------------------------------------------------------
+shapes:
+  single:  [[0,0]]
+  line_3:  [[-1,0], [0,0], [1,0]]
+  wedge_5: [[0,0], [1,0], [-1,0], [0,1], [-1,1]]
+  flower_7: [[0,0], [1,0], [1,-1], [0,-1], [-1,0], [-1,1], [0,1]]
+
+
+# ------------------------------------------------------------
+# 8. COMPONENTS  (each hex of a ship is one component)
+# ------------------------------------------------------------
+components:
+  core:         { required: 1, note: "lose it, lose the ship" }
+  engine:       { grants: [move], note: "speed drops in proportion to engines lost" }
+  sensor:       { grants: [sense], note: "sensor_range drops in proportion to sensors lost" }
+  beam_mount:   { grants: [beam], holds: 1 }
+  launcher:     { grants: [launch], holds: magazine }
+  armour_plate: { grants: [], note: "does nothing but soak hits" }
+
+
+# ------------------------------------------------------------
+# 9. OBJECTS
+#    category: ship | weapon | projectile | drone | mine | terrain
+#    Ship entries are starting templates - players build their own
+#    blobs from the attribute menu; the engine prices them.
+# ------------------------------------------------------------
+objects:
+
+  # ---- SHIPS (templates) ----
+  scout_blob:
+    category: ship
+    shape: line_3
+    layout: [engine, core, beam_mount]
+    stats: { speed: 4, sensor_range: 6, stealth: 4 }
+    component_stats: { hp: 3, armour: 1 }
+    loadout: { beam_mount: laser }
+
+  cruiser_blob:
+    category: ship
+    shape: flower_7
+    layout: [core, engine, engine, beam_mount, launcher, sensor, armour_plate]
+    stats: { speed: 2, sensor_range: 5, stealth: 1 }
+    component_stats: { hp: 5, armour: 3 }
+    loadout: { beam_mount: laser, launcher: { missile: 4, seeker_drone: 2 } }
+
+  # ---- WEAPONS (mounted, not pieces on the board) ----
+  laser:
+    category: weapon
+    behaviours: [beam]
+    stats: { power: 5, range: 8, falloff: 0.25 }
+    cost: 10
+
+  # ---- PROJECTILES & DRONES (real pieces with a parent) ----
+  missile:
+    category: projectile
+    parent: launcher
+    shape: single
+    behaviours: [fly, seek, detonate_on_contact]
+    stats: { speed: 6, fuel: 3, turn_rate: 1, power: 6, blast_radius: 1, hp: 1, signature: 3 }
+    cost: 8
+
+  seeker_drone:
+    category: drone
+    parent: launcher          # or placed at setup
+    shape: single
+    behaviours: [fly, patrol, sense, report, detonate_on_contact, detonate_remote]
+    stats: { speed: 3, fuel: 6, sensor_range: 3, pattern: random, power: 4, blast_radius: 1, hp: 1, signature: 3 }
+    on_detect: reveals_itself  # spotting an enemy makes it visible to them too
+    cost: 6
+
+  # ---- MINES ----
+  mine:
+    category: mine
+    placement: setup_only     # secretly placed before the game starts
+    shape: single
+    behaviours: [detonate_on_contact]
+    stats: { speed: 0, power: 8, blast_radius: 0, hp: 1, signature: 1 }
+    cost: 5
+    max_per_player: 6
+
+  # ---- TERRAIN (placed by the map, owned by nobody) ----
+  asteroid:
+    category: terrain
+    placement: map
+    sizes: [single, line_3, flower_7]
+    behaviours: [block_sight, block_movement]
+
+  nebula:
+    category: terrain
+    placement: map
+    behaviours: [jam]
+    stats: { radius: 0, sensor_penalty: 3 }
+    note: "ships inside see less but are also harder to see (-2 signature)"
+
+
+# ------------------------------------------------------------
+# 10. PARKED FOR LATER (not used by the engine yet)
+# ------------------------------------------------------------
+# - Twin ships that split (behaviour: split)
+# - Space rivers (drift objects each flight phase)
+# - Gravity wells (extra movement cost to leave)
+# - Warped / merged hexes, wormholes
+# - Curved space: sphere, torus (doughnut) boards
+# - Decoys and chaff
+# - Campaign mode: missions = rule file + map + budget + unlocks

@@ -1,0 +1,50 @@
+{
+ "id": "ch2_contact",
+ "stage": "vista_quiet_water",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "worried",
+   "text": "Two contacts entering the passage. Same glow, same fives.",
+   "via": "comms"
+  },
+  {
+   "show_ship": "seed"
+  },
+  {
+   "speaker": "weave",
+   "expression": "pulse",
+   "glyphs": true,
+   "text": "(untranslated: five pulses, answered by five)"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "worried",
+   "text": "They're talking to each other. Can we not let them finish the conversation?",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Hold still. Let them come to us. Moss, the charges?"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "Cold, quiet and very rude. Ready when they are."
+  }
+ ],
+ "choice": null,
+ "chapter": 2,
+ "kind": "mid_battle"
+}

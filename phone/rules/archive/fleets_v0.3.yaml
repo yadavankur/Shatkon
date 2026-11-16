@@ -1,0 +1,77 @@
+# ============================================================
+#  FLEETS FILE v0.3  -  what each player built
+#
+#  Parts and prices come from world_v0.3.yaml.
+#  Each segment has 3 bays and 3 mounts. Leave a slot out to keep it empty.
+#  Coordinates are [q, r] relative to the ship's own centre [0, 0].
+#  The opponent never sees this file's contents during play.
+# ============================================================
+
+world: world_v0.3.yaml
+map: map_open_space.yaml
+budget: 200
+
+player_1:
+  ships:
+
+    # ---- A small, quiet scout: 3 segments in a line ----
+    - name: "Blob A"
+      points: up
+      destroyed_when: core_lost
+      hull:
+        - at: [-1, 0]                     # west end
+          bays:   { north_west: engine, south: stealth }
+          mounts: { south_west: armour }
+        - at: [0, 0]                      # middle
+          bays:   { north_west: core, north_east: engine, south: stealth }
+        - at: [1, 0]                      # east end
+          bays:   { north_west: sensor, north_east: engine, south: stealth }
+          mounts: { south_east: laser }
+      # cost:   3 segments 9 + 3 engines 18 + 3 stealth 18 + sensor 5 + armour 5 + laser 10 = 65
+      # result: speed 3 / 3 = 1, sensor 4, signature 3 - 1.5 = 2
+
+    # ---- A big flagship: 7 segments, centre plus a ring of six ----
+    - name: "Blob B"
+      flagship: true
+      points: up
+      destroyed_when: core_lost
+      load: { missile: 2 }                # the one magazine holds up to 3
+      hull:
+        - at: [0, 0]                      # centre: all three mounts are buried, so it carries none
+          bays:   { north_west: core, north_east: magazine, south: comms }
+        - at: [1, 0]                      # east
+          bays:   { north_west: engine, north_east: engine }
+          mounts: { north: laser, south_east: shield }
+        - at: [1, -1]                     # north-east
+          bays:   { north_west: engine, north_east: sensor }
+          mounts: { north: launcher, south_east: point_defence }
+        - at: [0, -1]                     # north-west
+          bays:   { north_west: engine }
+        - at: [-1, 0]                     # west
+          bays:   { north_west: engine }
+        - at: [-1, 1]                     # south-west
+          bays:   { south: engine }
+          mounts: { south_west: armour }
+        - at: [0, 1]                      # south-east: no parts, only an armoured skin
+          mounts: { south_east: armour }
+      # cost:   7 segments 21 + 6 engines 36 + sensor 5 + magazine 3 + comms 5 + laser 10 + shield 8
+      #         + launcher 4 + point defence 7 + 2 armour 10 + 2 missiles 16 = 125
+      # result: speed 6 / 7 = 0.86, sensor 4, signature 7
+
+  mines: 2                                # 2 x 5 = 10
+  # FLEET TOTAL: 65 + 125 + 10 = 200 of 200
+
+  # Optional saved starting positions for this map (board coordinates).
+  deployment:
+    - { ship: "Blob A", at: [2, 16] }
+    - { ship: "Blob B", at: [-2, 18] }
+    - { mine: [0, 12] }
+    - { mine: [-5, 13] }
+
+
+# Player 2 uses an exact copy of player 1, mirrored to the other side.
+# Mirrored ships point down, so their mounts face the opposite way.
+player_2:
+  copy_of: player_1
+  mirror_deployment: true
+  mirror_ships: true

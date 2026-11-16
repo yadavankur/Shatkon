@@ -1,0 +1,71 @@
+{
+ "id": "ch4a_outro",
+ "stage": "kestrel_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Six hours later, Kestrel and Tern are one hull."
+  },
+  {
+   "show_ship": "kestrel_grafted"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "The seam's sealed. Thrust is up thirty percent, no clamp drag. Kestrel has never flown this clean."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "smile",
+   "text": "My bunk is now forty metres closer to the coffee. Best day of my life."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "smile",
+   "text": "Party on the big ship! Sparrow's bringing snacks. The snacks are crackers.",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Look at us. A real fleet.",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "A real fleet."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "Captain, can you hear the seam? It hums."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "That's just the coupling settling. Old ships creak, new ships hum."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "smile",
+   "text": "It's a nice rhythm. Almost like counting."
+  },
+  {
+   "effect": "fade_out"
+  }
+ ],
+ "choice": null,
+ "chapter": 4,
+ "kind": "outro"
+}

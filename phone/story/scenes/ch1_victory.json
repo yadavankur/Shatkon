@@ -1,0 +1,58 @@
+{
+ "id": "ch1_victory",
+ "stage": "vista_corridor",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "flash"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "It's breaking up. It's... it's over."
+  },
+  {
+   "speaker": "weave",
+   "expression": "calm",
+   "glyphs": true,
+   "text": "(untranslated: one long pulse, fading)"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "Finch. Wren. Kite. Twenty minutes ago Nanda was asking about spacing."
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "One ship. It took one ship to take three of ours."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "neutral",
+   "text": "Then we make sure the next one can't. Something in that wreck is still warm."
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Teo, suit up and go across. Moss, log it. Log everything."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "On my way, Captain."
+  }
+ ],
+ "choice": null,
+ "chapter": 1,
+ "kind": "victory"
+}

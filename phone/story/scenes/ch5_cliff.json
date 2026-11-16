@@ -1,0 +1,66 @@
+{
+ "id": "ch5_cliff",
+ "stage": "vista_bloom",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "show_ship": "kestrel_grafted"
+  },
+  {
+   "speaker": "narrator",
+   "text": "Kestrel drifts toward the Bloom, its seam burning crimson."
+  },
+  {
+   "speaker": "weave",
+   "expression": "calm",
+   "glyphs": true,
+   "text": "[partial translation] WELCOME HOME, LITTLE CELL."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "I'm sorry. Captain, I'm so sorry."
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "It's not your fault, Moss. Keep cutting. Cut anything."
+  },
+  {
+   "show_ship": "halcyon"
+  },
+  {
+   "speaker": "narrator",
+   "text": "Behind them, Halcyon turns: every engine lit, nose pointed at Kestrel."
+  },
+  {
+   "speaker": "narrator",
+   "text": "Through the static, one line gets through."
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "See you at Meridian, Vey.",
+   "via": "comms"
+  },
+  {
+   "effect": "fade_out"
+  },
+  {
+   "speaker": "narrator",
+   "text": "End of Chapter Five."
+  }
+ ],
+ "choice": null,
+ "chapter": 5,
+ "kind": "cliff"
+}

@@ -1,0 +1,102 @@
+{
+ "id": "ch3_reunion",
+ "stage": "halcyon_bridge",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "li",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Halcyon, docked against Kestrel's flank. The first warm air in days."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Hey, you."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Hey. You were supposed to be on station."
+  },
+  {
+   "speaker": "li",
+   "expression": "worried",
+   "text": "I was. When they came out of the walls, Hollis and I got thirty people into the lower ring and sealed it. Then I came looking for you."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "I told you not to take the long way."
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "I took the Throat. Moss named it."
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "Of course Moss named it."
+  },
+  {
+   "speaker": "li",
+   "expression": "worried",
+   "text": "Vey... where are your escorts? Where's Nanda?"
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "Finch, Wren and Kite. We lost all three in the Throat. Nanda, Sefa, Dov."
+  },
+  {
+   "speaker": "li",
+   "expression": "hurt",
+   "text": "Oh, Vey. I'm so sorry. You kept the promise anyway. You came."
+  },
+  {
+   "speaker": "tern_pilot",
+   "expression": "neutral",
+   "text": "The survivors are holding in the lower ring, and Abara is with them. Abara says go, and draw the Weave away from the station.",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "determined",
+   "text": "So we're coming with you. Halcyon brings long-range comms and seeker drones. Tern brings docking clamps, so we can lock two hulls together when we need the muscle."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "smile",
+   "text": "And I bring one alien point-defence turret, fresh off the wreck. My birthday came early.",
+   "via": "comms"
+  },
+  {
+   "speaker": "li",
+   "expression": "smile",
+   "text": "So. Same fleet now?"
+  },
+  {
+   "speaker": "captain",
+   "expression": "smile",
+   "text": "Same fleet. For good."
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "reunion",
+ "unlocks": [
+  "comms",
+  "seeker_drone",
+  "docking_clamps",
+  "halcyon",
+  "tern"
+ ]
+}

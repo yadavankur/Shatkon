@@ -1,0 +1,59 @@
+{
+ "id": "ch3_despair",
+ "stage": "meridian_dark",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "effect": "shake"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "Missiles gone, every one. They're swatting them out of the sky."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "Point defence. They learned it. From us, maybe."
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "hurt",
+   "text": "Sparrow's leaking air. I can hold. I can hold— Captain, permission to panic?",
+   "via": "comms"
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "...Denied. Nanda asked me that, too. Hold on, Teo."
+  },
+  {
+   "speaker": "captain",
+   "expression": "worried",
+   "text": "Li said see you at Meridian."
+  },
+  {
+   "speaker": "captain",
+   "expression": "hurt",
+   "text": "...I'm at Meridian."
+  },
+  {
+   "speaker": "weave",
+   "expression": "calm",
+   "glyphs": true,
+   "text": "(untranslated: slow pulses, patient, like breathing)"
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "mid_battle"
+}

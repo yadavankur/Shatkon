@@ -1,0 +1,441 @@
+# ============================================================
+#  WORLD FILE v0.4  -  the laws of physics + the parts catalogue
+#
+#  What changed from v0.3:
+#   - Slots have no position or direction. A segment simply has
+#     3 bays (inner hexagons) and 3 mounts (corner diamonds).
+#   - Hits destroy a random part, outer layers first.
+#   - The whole fleet shares one pool of thrust. No dice on movement.
+#   - Stealth has a floor: a ship's hull signature never drops below segments / 3 (rounded up).
+#
+#  The engine reads the NUMBERS on each part, not its name. A new part
+#  with "hits" and "range" is a beam weapon; one with "thrust" is an engine.
+#
+#  Lines starting with # are notes. Change any number freely.
+# ============================================================
+
+meta:
+  name: "Shatkon"
+  version: "0.4"
+
+
+# ------------------------------------------------------------
+# 1. TURNS
+# ------------------------------------------------------------
+turns:
+  command_points:
+    per_turn: 3
+    bank_cap: 6               # most unspent points you can carry over
+  round_structure:
+    - player_turn             # first player spends command points
+    - player_turn             # second player spends command points
+    - flight_phase            # missiles and drones all move together
+  first: random               # who moves in round 1: random (from the game's seed), player_1 or player_2.
+                              # Story chapters always start with the player. A board can pin it.
+  first_player: alternate     # swaps every round
+  flight_phase:
+    ticks: 6                  # the flight phase is cut into 6 small steps.
+                              # A speed-6 missile moves 1 hex every step.
+  turn_limit: 30
+
+
+# ------------------------------------------------------------
+# 2. ACTIONS  (what a command point buys)
+# ------------------------------------------------------------
+actions:
+  move:     { cost: 1, note: "one ship moves; you choose how far (see movement)" }
+  fire:     { cost: 1, note: "fire one beam weapon; each weapon fires once a turn" }
+  launch:   { cost: 1, salvo: true, note: "launch a missile or drone; each launcher launches once a turn. Salvo: a ship's first launch of the turn costs the point, its other launchers then fire on the same order" }
+                              # salvo: false = every launch costs a point. In fleet-against-fleet simulations
+                              # missile ships then got 4 to 7 of 15 missiles away per battle and lost 2 games in 3.
+  scan:     { cost: 1, note: "active scan around one of your ships, once per ship per turn and only after it has moved this turn; rings grow the further forward it is" }
+  detonate: { cost: 1, note: "blow up one of your own drones" }
+  ram:                         # the sacrificial hurl: only story scripts can order it (no player button)
+    hits_per_segment: 4        # the rammer's living segments x this = hits on the target, starting at the segment it strikes
+    reach_bonus: 2             # how much further than its normal move a ship can hurl itself
+    pierces_shields: true      # shields don't soak ram hits
+    note: "a ship flies into an enemy ship and is destroyed; the impact does heavy damage" 
+  end:      { cost: 0, note: "end your turn; unspent points go to the bank" }
+
+
+# ------------------------------------------------------------
+# 3. SEGMENTS AND SLOTS  (how a ship is put together)
+# ------------------------------------------------------------
+#  A ship is 1 to 7 SEGMENTS. Each segment fills one hex of the board.
+#  Each segment has 3 BAYS (the guts) and 3 MOUNTS (the skin).
+#  Slots are just room for parts: which slot a part sits in does not matter.
+segments:
+  max_per_ship: 7
+  bays: 3
+  mounts: 3
+  cost: 3                     # budget points per segment, before parts
+  couplings_required: true    # every segment after the first needs one coupling part,
+                              # which uses up a bay. This is the price of a bigger ship.
+                              # Set to false to switch couplings off.
+  symmetric_hulls: true       # a hull must be symmetrical: a mirror line or a turn maps it onto
+                              # itself (a line, a triangle, a diamond, a flower). Lopsided hulls
+                              # (an L, a T) are refused. Compact shapes show fewer sides to fire.
+
+
+# ------------------------------------------------------------
+# 4. MOVEMENT  (one pool of thrust for the whole fleet)
+# ------------------------------------------------------------
+#  At the start of your turn every working engine in your fleet adds 1 thrust.
+#  Moving a ship 1 hex costs 1 thrust per segment of that ship.
+#  You choose which ships move and how far. Unspent thrust is banked.
+movement:
+  needs_average_of: 0         # 0 = a weak fleet may still move one ship at a time.
+                              # Set to 1 to make a fleet with less than 1 thrust per segment
+                              # sit still until it has banked enough.
+  max_above_average: 1        # no ship may move further in a turn than the fleet average
+                              # (engines / segments, rounded down) plus this
+  bank_turns: 2               # most thrust you can carry over, counted in turns of engine output
+  examples:
+    - "two 2-segment ships, 3 engines: 3 thrust a turn. One ship moves 1 hex (2 thrust) and 1 is banked; next turn both can move"
+    - "two 2-segment ships, 9 engines: 9 thrust. Each ship moves 2 hexes (8 thrust), 1 banked. A ship may move up to 3"
+
+
+# ------------------------------------------------------------
+# 5. DETECTION
+# ------------------------------------------------------------
+detection:
+  rule: "you see a target if distance <= your sensor range + its signature + its flare"
+  sensor_rule: "sensor range = the numbers on the ship's working parts (core 2, each sensor +2)"
+  signature_rule: "signature = segments - 1 per working stealth part (never below segments / 3, rounded up), + flare, + still_signature_bonus if it sat still, +1 after a big move, -2 in a nebula"
+  stealth_floor_segments_per_point: 3   # floor = ceil(segments / this): a 7-segment flagship bottoms out at 3, a 3-segment scout at 1
+  small_object_signature: 1   # missiles and drones; a mine sets its own below
+  flare:                      # temporary extra visibility, lasts until the end of the next round
+    fire_beam: 0              # silent...
+    beam_hit: 3               # ...unless it hits
+    launch: 2
+    point_defence_shot: 2
+    scan: 2                   # an active scan lights up the ship that sends it
+  scan_clear_bonus: 2         # a scan fully reveals everything within (sensor range + this)
+  scan_fuzzy_extra: 4         # (old flat scan; replaced by scan_tiers)
+  scan_tiers: [[2, 4], [4, 7], [6, 10]]   # [clear, faint] rings: near home / mid-field / centre line and beyond
+  scan_mid_rows_past_home: 2  # mid-field starts this many rows past your home zone; full strength from the centre line
+  attack_run_bonus: 1         # +1 laser hit for a ship that moved at least 1 hex this turn before firing (combat v2)
+  still_signature_bonus: 0    # added to a ship that did nothing on its turn (no move, fire, launch or scan).
+                              # Was -1 ("runs silent"). In simulations a 16-missile flagship that never moved
+                              # beat one that manoeuvred and fired back 63% of the time; at 0 it's 44%.
+                              # The current fleet is about even either way. Set -1 to bring it back.
+  move_signature_penalty: 1   # a big move leaves an engine wake...
+  move_signature_from_hexes: 2  # ...from this many hexes of net movement
+  passive_fuzzy_extra: 3      # targets this close to your detection range show up as fuzzy contacts
+  fuzzy_contact_radius: 2     # a rough contact is a circle this many hexes across from its centre; the real position is equally likely to be any hex inside
+  detonation_lights_up: 4     # everything within this many hexes of a blast is revealed to everyone
+  shown_enemy_sensor: 4       # only for display: the play screen says "an enemy with this sensor sees you from N hexes"
+
+
+# ------------------------------------------------------------
+# 6. COMMS NETWORK
+# ------------------------------------------------------------
+comms:
+  rule: >
+    Two ships are linked when the distance between them is no more than the
+    longer of their two link ranges. Links chain into a network.
+    A ship may fire at, or lock a missile onto, any target seen by its network.
+    A player still sees everything any of their ships or drones can see.
+
+
+# ------------------------------------------------------------
+# 7. DAMAGE  (whole hits, random part, outer layers first)
+# ------------------------------------------------------------
+damage:
+  each_hit:
+    - "look at the working parts in the segment that was hit"
+    - "take the ones with the lowest layer number"
+    - "one of them, picked at random, loses 1 hp"
+    - "a hit that finds nothing left to damage wrecks the segment"
+  wrecked_segment: "stays attached, still weighs the ship down, and shots pass through it (beams, missiles and drones alike)"
+  ship_dead_when:             # any one of these kills the ship
+    - core_destroyed
+    - nothing_but_engines     # it has lost parts and only engines and the core still work
+  friendly_fire: true         # your own blasts and mines can hurt you
+  own_munitions_pass_own_ships: true   # your missiles and drones fly through your own hulls
+                                       # instead of exploding on them (blasts still hurt)
+  beams_pass_mines: false              # true: every laser flies over mines instead of stopping on them
+  beams_pass_own_munitions: false      # true: your lasers fly past your own missiles and drones
+                                       # (not mines). false: a beam stops at the first thing it
+                                       # meets, yours included
+
+
+# ------------------------------------------------------------
+# 8. BAY PARTS  (inner hexagons)
+#    layer = how deep it sits; lower layers are hit first
+# ------------------------------------------------------------
+bay_parts:
+  core:
+    note: "the ship's brain; every ship needs exactly one"
+    required: true
+    sensor_range: 2
+    link_range: 4
+    layer: 6
+    cost: 0
+  engine:
+    note: "adds 1 thrust to the fleet pool every turn"
+    thrust: 1
+    layer: 5
+    cost: 6
+  sensor:
+    note: "adds 2 to this ship's sensor range"
+    adds_range: 2
+    layer: 4
+    cost: 5
+  stealth:
+    note: "-1 signature while it works (down to the floor of segments / 3). Free: it only costs a bay slot"
+    hides: 1
+    layer: 4
+    cost: 0
+  flare_mask:
+    note: "shrinks the flash when this ship fires, launches or uses point defence"
+    flare_reduction: 1
+    layer: 4
+    cost: 5
+  magazine:
+    note: "stores missiles and drones for the ship's launchers"
+    holds: 3
+    layer: 4
+    cost: 3
+  comms:
+    note: "long-range link; lose it and your fleet may split into islands"
+    link_range: 12
+    layer: 4
+    cost: 5
+  sprint_drive:
+    note: "a courier's drive: the ship moves up to 5 hexes a turn on its own, taking nothing from the fleet's thrust. Nimble (lasers only hit it from 3 hexes or closer) and fragile; when it dies the flash lights up every ship within 3 hexes, and the ship that shot it"
+    own_move: 5               # hexes a turn, outside the fleet's thrust pool and move limit
+    evades_beyond: 3          # a beam from further away than this misses
+    death_flash: 3            # ships this close are revealed to everyone when it is destroyed
+    holds_objective: false    # too small and fast to hold ground: it neither scores a beacon nor contests one
+    layer: 5
+    cost: 8
+  afterburner:
+    note: "a Comet's drive: a throwaway scout. 8 hexes a turn on its own for 3 turns, then it is burnt out and crawls 1. While it burns it lights up every enemy ship it flies within 2 hexes of, and itself. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it. At most 2 a fleet"
+    own_move: 8               # hexes a turn, outside the fleet's thrust pool and move limit
+    burn_turns: 3             # turns on which it moves at own_move; after that it is burnt out
+    burnt_move: 1             # hexes a turn once burnt out (still on its own drive)
+    reveals_on_pass: 2        # while it burns: after each hex, enemy ships this close are lit up for everyone
+                              # until the end of the next round, and so is the scout (it is loud). Mines are not shown
+    evades_beyond: 2
+    death_flash: 5
+    holds_objective: false
+    max_per_fleet: 2          # buildRules reports a problem when more ships than this in one fleet carry the part
+    layer: 5
+    cost: 10
+  emitter:
+    note: "a decoy emitter: the ship looks 3 segments bigger to sensors, and any missile whose seeker can see it goes for it instead of its target"
+    adds_signature: 3         # added to the ship's signature while it works (it is seen from further away)
+    lures_missiles: true      # a seeker that sees this ship drops its lock and its route and turns on it
+    layer: 4
+    cost: 4
+  coupling:
+    note: "joins a segment to the ship; one needed for every segment after the first"
+    couples: true
+    layer: 4
+    cost: 0
+
+
+# ------------------------------------------------------------
+# 9. MOUNT PARTS  (corner diamonds)
+# ------------------------------------------------------------
+mount_parts:
+  shield:
+    note: "soaks the first hit on its segment; comes back only after a round without being hit"
+    hp: 1
+    recharges: true
+    recharge_every: 1         # rounds before a downed shield comes back
+    recharge_if_unhit: true   # sustained fire keeps it down (combat v2: fights were dragging)
+    layer: 1
+    cost: 8
+  armour:
+    note: "plates that soak hits; they do not come back"
+    hp: 2
+    layer: 2
+    cost: 5
+  laser:
+    note: "instant, straight line, needs a clear line to a target the ship's network can see"
+    hits: 3                   # combat v2 (was 2): 3 hits out to 4 hexes, 2 hits from 5 to 8
+    range: 8
+    loses_1_hit_every: 4
+    layer: 3
+    cost: 10
+  launcher:
+    note: "launches missiles and drones stored in the ship's magazines"
+    launches: true
+    layer: 3
+    cost: 4
+  point_defence:
+    note: "automatic: stops an enemy missile or drone about to hit this ship; lights the ship up"
+    stops_per_round: 1
+    layer: 3
+    cost: 7
+
+
+# ------------------------------------------------------------
+# 10. MUNITIONS  (real pieces on the board)
+# ------------------------------------------------------------
+munitions:
+  missile:
+    speed: 6                  # hexes per round
+    fuel: 3                   # rounds before it burns out
+    turn_rate: 1              # 60-degree turns allowed per tick
+    hits: 3                   # to the segment it strikes, when a shield takes the blow (see wrecks_segment)
+    wrecks_segment: true      # a missile that gets through wrecks the segment it strikes outright: one sinks a
+                              # one-hex boat, two or three a 3-segment ship. A working shield on that segment
+                              # takes the blow instead: the shield goes down and the segment takes `hits`.
+                              # false = always just `hits` (the old rule).
+    blast_radius: 1           # 1 hit to every other segment this close
+    seeker_range: 2           # how close it must be to find a target by itself
+    cost: 8
+
+  seeker_drone:
+    speed: 3
+    fuel: 6
+    sensor_range: 3
+    patrol: random            # options: line, circle, random
+    hits: 2
+    blast_radius: 1
+    reports: true             # what it sees, you see
+    reveals_itself_on_detect: true
+    remote_detonate: true
+    cost: 6
+
+  mine:
+    speed: 0
+    hits: 4
+    blast_radius: 0
+    signature: -6             # very stealthy: practically invisible unless an active scan sweeps over it
+    strikes: layers           # layers: outer parts first like any hit; engines: hits go to the nearest working engines (dead in the water)
+    setup_only: true          # placed secretly before the game
+    max_per_player: 6
+    cost: 5
+
+  naval_mine:                 # a one-hex hull with no core and no engine: the room goes to the charge
+    speed: 0
+    hits: 4
+    wrecks_segment: true      # the segment that sets it off is gone (a working shield takes the blow instead)
+    blast_radius: 1
+    blast_hits: 4             # ...and every other segment within 1 hex takes this many hits: two or three segments in all
+    trigger_range: 1          # goes off when an enemy segment comes within this many hexes (it does not need to be touched)
+    signature: -8             # no engine, no core: even quieter than a contact mine. Only an active scan finds it
+    strikes: layers
+    setup_only: true
+    max_per_player: 4
+    cost: 12
+
+  sleeper_mine:               # a deep mine: almost undetectable, breaks a ship's back, and creeps
+    speed: 0
+    hits: 5
+    wrecks_segments: 2        # the segment that sets it off and the nearest other segment of that ship are wrecked
+                              # outright (the core's segment last). A one- or two-hex ship dies; a 7-hex ship loses two
+    ignores_shields: true     # a shield does not take the blow
+    blast_radius: 1
+    blast_hits: 5             # other ships within 1 hex take this many hits a segment (the struck ship takes no splash on top)
+    trigger_range: 1
+    signature: -10            # only a ship with sensor 11+ ever sees it, from 1 hex (sensor 12: 2 hexes)
+    scan_resist: 2            # an active scan shows it only within this many hexes of the scanning ship (no faint contact beyond)
+    drift: 1                  # hexes it creeps at the end of each flight phase toward an enemy ship it senses...
+    drift_sense: 3            # ...within this many hexes
+    prefers: largest          # of several ships in range it goes for the one with the most segments standing
+    drift_quiet: false        # false: a mine that crept and did not go off gives the ship it is after a faint contact
+    beams_pass: true          # a laser aimed at something else flies over it. Without this any shot across its hex
+                              # destroyed it unseen: its own side's fire swept the field (see docs/maps-rework-engine.md)
+    strikes: layers
+    setup_only: true
+    max_per_player: 3
+    cost: 15
+
+
+# ------------------------------------------------------------
+# 11. TERRAIN TYPES  (placed by the map file)
+# ------------------------------------------------------------
+terrain:
+  asteroid: { blocks_movement: true, blocks_sight: true }
+  nebula:   { sensor_penalty: 3, signature_bonus: -2, note: "inside you see less and are harder to see" }
+
+
+# ------------------------------------------------------------
+# 12. THE COMPUTER OPPONENT  (how it likes to fight)
+# ------------------------------------------------------------
+#  These change how the computer plays, not what is allowed. Story chapters
+#  ignore them: their ships follow the chapter file's ai_profiles.
+ai:
+  vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)
+  variety:                    # so the computer does not play the same game every time (personalities only)
+    tie_break: 0.02           # equal choices are split by a tiny nudge taken from the game's seed. 0 = the old
+                              # behaviour: first in the list wins, which made mirror boards come out 20-0
+    opening_lanes: true       # until it finds you, it comes up the left, the middle or the right (one per game)
+    lane_rounds: 4            # ...for this many rounds, then straight at your home edge
+  tricks:
+    launches_drones: true     # a carrier with nothing located sends a reporting drone ahead, and blows one up next to 2+ segments
+    drones_in_flight: 2       # how many it keeps up at once
+    drone_range: 12           # ...and it only sends one when the place it wants looked at is this close (a drone lasts
+                              # a few rounds; from the home corner they all ran dry over empty space)
+    shoots_mines: 4           # a mine it can see within this many hexes of one of its ships gets shot (false = ignores mines)
+    sweeps_mines: true        # once it knows you have mines (your fleet list shows them, or it has met one), its lead ship
+                              # scans every turn it is where mines may lie. It always steers a hex clear of a mine it has
+                              # seen (two for a proximity or deep mine), remembers it, and backs away from one that stirs
+    mines_as_bait_rounds: 0   # N: for the first N rounds a side that laid mines waits behind them and stands where a
+                              # mine lies between it and you; after that it comes out. 0 = never (it would rather
+                              # hunt than sit). The Minefield and Fog Bank boards set 8
+    aims_missiles: true       # looks where a missile will fly before launching: picks the launch hex that gets it there
+                              # soonest and holds fire when every way ends on a rock (false = the hex nearest the target)
+    missile_flight_rounds: 1  # ...and only when it would arrive within this many flight phases (1 = this round, so you get no
+                              # turn to shoot it down or step aside; 3 = any range, which wasted most of them)
+    minds_decoys: true        # once it knows a ship carries a decoy emitter (a scan, or a missile of its own was pulled
+                              # onto it): lasers shoot the decoy first while it has missiles left, and no missile is
+                              # launched past one; at most one missile is spent on the decoy itself
+    scouts:                   # ships on their own drive (couriers, Comets). false = flown like any other escort (the old way:
+                              # all of them straight at you on turn 1, burnt out by turn 4 with the guns 15 hexes behind)
+      lead: 8                 # a scout stays within this many hexes of a friendly ship that can shoot
+      lead_varies: 2          # ...give or take this many, different for each scout and each game (0 = always the same hexes)
+      one_at_a_time: true     # of several Comets only one flies; the others wait (any move uses up a burn turn)
+      burn_worth: 2.5         # a Comet with burn left moves only when the move is worth this much: no one-hex shuffles
+                              # A scout lasers cannot reach from far (evades_beyond) shadows you from one hex outside that
+                              # reach and keeps scanning; once burnt out it closes to the edge of it, as bait
+    decoys_as_bait: true      # unarmed escorts (decoys, couriers, scouts) run ahead of the fleet to be shot at first
+  personalities:
+    # range:           hexes it tries to fight from: [escorts, flagship]. The laser is at full
+    #                  strength out to 4 hexes and reaches 8.
+    # keep_together:   escorts stay within this many hexes of the flagship (0 = roam freely).
+    #                  In simulations this mattered most: a fleet that arrives together wins.
+    # missile_range:   launches at a target this close or closer. 5 was too timid (gun fleets had
+    #                  been firing for two rounds by then); 12 made missile fleets win 3 games in 4.
+    # attack_run:      steps one hex before firing when it has a command point to spare,
+    #                  for the +1 hit (detection.attack_run_bonus). false = fires from where it stands.
+    # missiles_avoid_point_defence: once a scan has shown which targets have working point
+    #                  defence, missiles go to the others first. false = always the biggest ship.
+    aggressive:
+      note: "closes to point-blank range and launches early"
+      range: [2, 3]
+      keep_together: 3
+      missile_range: 8
+      attack_run: true
+    balanced:
+      note: "fights at full laser strength, fleet in close order"
+      range: [3, 4]
+      keep_together: 3
+      missile_range: 8
+      attack_run: true
+    defensive:
+      note: "stands off at long range with its escort tucked in, and backs away if you close"
+      range: [5, 6]
+      keep_together: 2
+      missile_range: 8
+      attack_run: true
+
+
+# ------------------------------------------------------------
+# 13. PARKED FOR LATER  (not in the engine yet)
+# ------------------------------------------------------------
+# - Ships that rotate
+# - A destroyed coupling breaking the ship in two; twin ships that split on purpose
+# - Upgrade levels for parts (engine mk2 = 1.5 thrust, and so on)
+# - Cutting a wrecked segment loose to shed its weight
+# - Tractor (large ship swallows a small one)
+# - Tunnel / wormhole devices
+# - Distortion stealth (appear bigger or smaller than you are)
+# - Space rivers, gravity wells, warped hexes, sphere / doughnut boards
+# - Campaign: branching map, unlocks and upgrades, salvage collectors,
+#   raw materials between battles, planet-sized final boss

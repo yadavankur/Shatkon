@@ -1,0 +1,53 @@
+{
+ "id": "ch3_split",
+ "stage": "meridian_dark",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "show_ship": "twin"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "shock",
+   "text": "The big one is coming apart! No, it's splitting on purpose!"
+  },
+  {
+   "effect": "flash"
+  },
+  {
+   "show_ship": "twin_a"
+  },
+  {
+   "show_ship": "twin_b"
+  },
+  {
+   "speaker": "weave",
+   "expression": "pulse",
+   "glyphs": true,
+   "text": "(untranslated: five pulses, divided between two voices)"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "shock",
+   "text": "Two ships! It was one ship a second ago! That's cheating!",
+   "via": "comms"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "determined",
+   "text": "Each half is smaller. Pick one and hammer it."
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "mid_battle"
+}

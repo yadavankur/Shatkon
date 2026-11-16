@@ -1,0 +1,69 @@
+{
+ "id": "ch3_intro",
+ "stage": "meridian_dark",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "engineer",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "narrator",
+   "text": "Meridian Station. Home port for nine hundred people."
+  },
+  {
+   "speaker": "narrator",
+   "text": "No lights."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "No beacon, no traffic control, no life signs I can read from here. The ring's... cold."
+  },
+  {
+   "speaker": "captain",
+   "expression": "worried",
+   "text": "Hail them. All channels."
+  },
+  {
+   "speaker": "meridian",
+   "expression": "hurt",
+   "text": "—this is Controller Abara, Meridian— they came out of the cells in the walls— evacuating to the lower ring— if anyone hears this, don't dock. Don't—",
+   "via": "comms"
+  },
+  {
+   "effect": "glitch"
+  },
+  {
+   "speaker": "captain",
+   "expression": "shock",
+   "text": "Li. Try Halcyon. Try Li."
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "Nothing. No answer. I'm sorry, Captain."
+  },
+  {
+   "show_ship": "kestrel_refit"
+  },
+  {
+   "speaker": "engineer",
+   "expression": "worried",
+   "text": "One small mercy: we came in behind the rock cluster. Whatever did this hasn't seen us yet."
+  },
+  {
+   "speaker": "captain",
+   "expression": "determined",
+   "text": "Then we use it. Everyone stays behind the rocks until we know what we're facing."
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "intro"
+}

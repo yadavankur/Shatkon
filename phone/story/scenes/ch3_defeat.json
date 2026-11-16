@@ -1,0 +1,30 @@
+{
+ "id": "ch3_defeat",
+ "stage": "meridian_dark",
+ "cast": [
+  {
+   "id": "captain",
+   "side": "left"
+  },
+  {
+   "id": "sparrow_pilot",
+   "side": "right"
+  }
+ ],
+ "lines": [
+  {
+   "speaker": "engineer",
+   "expression": "hurt",
+   "text": "Hull breach! Fall back behind the rocks!"
+  },
+  {
+   "speaker": "sparrow_pilot",
+   "expression": "determined",
+   "text": "The rocks hid us once. Use them again and make it come to you, Captain.",
+   "via": "comms"
+  }
+ ],
+ "choice": null,
+ "chapter": 3,
+ "kind": "defeat"
+}

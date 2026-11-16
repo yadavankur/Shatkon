@@ -1,0 +1,142 @@
+# ============================================================
+#  CHAPTER 4A  -  ASHFALL             map: ch4a_ashfall (radius 8)
+#  The outpost is silent. Three battered Weave husks barely fight. In the wreck the engineer
+#  finds "Ashfall's prototype" hull-graft rig. Kestrel and Tern are grafted into one ship.
+#  Everyone is protected: this chapter is a breather and a trap the player must not see.
+#
+#  Key numbers (see CHECKS.md):
+#   - Start: Sparrow is 5 hexes from the outpost ring, Kestrel 5; husk_1 is 3 hexes north of it.
+#   - Humans see a husk at 5-7 (sensors 4-6 + husk signature 1-2). Husks have sensor 4.
+#   - Husks: one laser between the three of them (husk_1), no shields; they hold by the wreck
+#     and fight normally (v2: no hold-fire profile); 4, 8 and 5 hull points to kill. At the
+#     gift any husk left goes dark (lasers and engines switched off).
+#   - Gift fallback round 6. Graft fallback: 2 rounds after the gift Tern is taken under tow
+#     (forced toward Kestrel, both locked); the graft fires as soon as they touch.
+#     Tern starts 1 hex from Kestrel's cells, so by round 9-10 at the latest
+#     (PR #2 sims: gift r3-6, graft r5-9).
+# ============================================================
+
+chapter:
+  id: ch4a
+  title: "Ashfall"
+  world: world_v0.4.yaml
+  world_overrides:
+    "turns.turn_limit": 15
+  map: maps/ch4a_ashfall.yaml
+  # Turn limit 15: unreachable, the scripted graft ends the chapter by round ~10.
+
+  player:
+    ships: [kestrel, sparrow, halcyon, tern]   # hulls kestrel@ch4a (flagship), sparrow@ch3, halcyon@ch3, tern@ch3
+    deployment:
+      - { ship: kestrel, at: [-3, 7] }   # cells [-3,6] [-2,6] [-4,7] [-3,7]; its rear hexes [-4,8] [-3,8] are free for Tern
+      - { ship: tern,    at: [0, 6] }    # cells [0,6] [1,6]: one hex clear of Kestrel
+      - { ship: sparrow, at: [-6, 6] }
+      - { ship: halcyon, at: [-7, 7] }   # cells [-7,7] [-6,7] [-7,8]
+  # Fleet thrust 11 for 10 segments: average 1, up to 2 hexes a turn.
+  # Docking clamps are available (ch3 reward) but cost 1 command point per extra core.
+
+  enemy:
+    ships: [husk_1, husk_2, husk_3]    # hulls husk_N@ch4a; husk_1 is the flagship (a fleet needs one;
+                                       # the win list below means killing it does not end the chapter)
+    deployment:
+      - { ship: husk_1, at: [2, -3] }
+      - { ship: husk_2, at: [-3, -3] }   # cells [-3,-3] [-2,-3]
+      - { ship: husk_3, at: [1, -6] }
+    ai: { default: guard }
+
+  ai_profiles:
+    # Bait that fights as well as it can: hold by the wreck and shoot. Their weakness is in the
+    # hulls (one laser between three, no shields, missing plates), not in how they fight.
+    guard: { level: normal, stance: hold, scans: false }
+    # Gone dark (lasers and engines switched off at the gift): nothing left to do but sit.
+    dark:  { level: normal, stance: hold, scans: false }
+
+  script:
+    - id: rails
+      when: start
+      do:
+        - protect: { ship: kestrel, until: end }
+        - protect: { ship: tern,    until: end }
+        - protect: { ship: sparrow, until: end }
+        - protect: { ship: halcyon, until: end }
+      guide:
+        ship: kestrel
+        clear: gift
+        steps:
+          - label: "Reach the outpost"
+            move_to: { zone: outpost }
+            done: reached
+
+    - id: too_easy
+      flavor: true
+      when: { any: [ { destroyed: husk_1 }, { destroyed: husk_2 }, { destroyed: husk_3 } ] }
+      do:
+        - bark: b4_too_easy
+
+    # Fallback for gift: in round 6 any husks still around drift apart and go dark.
+    - id: husks_dark
+      fallback_for: gift
+      when: { all: [ { round: 6 }, { not: gift } ] }
+      do:
+        - remove: { ship: husk_1, as: dark }
+        - remove: { ship: husk_2, as: dark }
+        - remove: { ship: husk_3, as: dark }
+
+    - id: gift
+      when:
+        any:
+          - all: [ { destroyed: husk_1 }, { destroyed: husk_2 }, { destroyed: husk_3 } ]
+          - { in_zone: { side: player, zone: outpost } }
+          - husks_dark
+      do:
+        # any husk left goes dark: guns and engines die (a mechanic, not a hold-fire profile)
+        - disable: { ship: husk_1, parts: [laser, engine] }
+        - disable: { ship: husk_2, parts: [laser, engine] }
+        - disable: { ship: husk_3, parts: [laser, engine] }
+        - ai: { side: enemy, profile: dark }
+        - scene: ch4a_graft_found
+        - unlock: graft
+        - bark: b4_graft_hint
+      guide:                                   # on-map move guide: campaign/GUIDE_PROPOSAL.md
+        ship: tern
+        clear: { any: [ tow, { grafted: [kestrel, tern] } ] }
+        steps:
+          - label: "Bring Tern here"
+            move_to: { near: kestrel, within: 1 }   # touching: the Graft order needs touching ships
+            done: reached
+          - label: "Graft"
+            graft: kestrel
+            done: grafted
+
+    # Fallback for grafted: 2 rounds after the gift, Tern is towed toward Kestrel each turn and
+    # both ships stop answering the helm (so the player cannot pull them apart).
+    - id: tow
+      fallback_for: grafted
+      when: { all: [ { after: { beat: gift, rounds: 2 } }, { not: { grafted: [kestrel, tern] } } ] }
+      do:
+        - lock:  { ship: tern,    actions: all, until: grafted, reason: "The rig has Tern in tow" }
+        - lock:  { ship: kestrel, actions: all, until: grafted, reason: "Holding still for the graft" }
+        - force: { ship: tern, do: [ { move_toward: kestrel } ], each_turn: true, until: grafted }
+        - objective: "The rig is pulling Tern in."
+
+    # The player's own Graft order, or the scripted one once the tow has them touching
+    # (the engine's graft needs touching ships). ch5 flies the canonical kestrel@ch5 hull.
+    - id: grafted
+      when:
+        any:
+          - { grafted: [kestrel, tern] }
+          - all: [ gift, { docked: [kestrel, tern] } ]   # docking (earned in ch3) also joins them; without this the chapter would stall
+          - all: [ tow, { distance_below: { a: kestrel, b: tern, hexes: 2 } } ]
+      do:
+        - graft: [kestrel, tern]                    # no-op if the player already did it (Tern is gone)
+        - bark: b4_seam_hums
+        - scene: ch4a_outro
+        - end: { result: win }
+
+  win:  [ { grafted: [kestrel, tern] } ]
+  lose: [ { destroyed: kestrel } ]                  # unreachable (everyone protected)
+  scenes: { intro: ch4a_intro, win: [], lose: ch4a_defeat }   # ch4a_outro plays from the script
+  rewards:
+    capabilities: [graft]
+    roster_remove: [tern]                           # Tern is part of Kestrel now
+    # ch5: the loader picks kestrel@ch5 (the canonical grafted hull) ahead of the hull carried over

@@ -1,0 +1,176 @@
+{
+ "b1_scouts_ahead": {
+  "speaker": "finch_pilot",
+  "expression": "smile",
+  "lines": [
+   "Finch, Wren and Kite running ahead.",
+   "If the rocks move, I'll yell."
+  ]
+ },
+ "b1_contact_glyphs": {
+  "speaker": "finch_pilot",
+  "expression": "worried",
+  "lines": [
+   "It's pulsing at us in groups of five.",
+   "Logging everything."
+  ]
+ },
+ "b1_finch_hit": {
+  "speaker": "finch_pilot",
+  "expression": "hurt",
+  "lines": [
+   "Finch is hit! I'm losing systems!"
+  ]
+ },
+ "b1_seed_shield": {
+  "speaker": "engineer",
+  "expression": "worried",
+  "lines": [
+   "Our shots are splashing off. It has a shield!",
+   "Keep hitting the same side."
+  ]
+ },
+ "b1_seed_closing": {
+  "speaker": "captain",
+  "expression": "determined",
+  "lines": [
+   "It's closing on Kestrel. Teo, keep our guns on it!"
+  ]
+ },
+ "b1_weapons_gone": {
+  "speaker": "wren_pilot",
+  "expression": "worried",
+  "lines": [
+   "Wren's guns are slag. Kite's too.",
+   "We've got engines. That's all we've got."
+  ]
+ },
+ "b1_hurl_wren": {
+  "speaker": "wren_pilot",
+  "expression": "determined",
+  "lines": [
+   "Wren, taking the bow.",
+   "Don't watch this one, Captain."
+  ]
+ },
+ "b1_hurl_kite": {
+  "speaker": "kite_pilot",
+  "expression": "determined",
+  "lines": [
+   "Kite has the stern.",
+   "Been a privilege, Kestrel."
+  ]
+ },
+ "b2_mines_set": {
+  "speaker": "engineer",
+  "expression": "smile",
+  "lines": [
+   "Charges are cold and quiet.",
+   "Please don't fly into our own."
+  ]
+ },
+ "b2_choke": {
+  "speaker": "sparrow_pilot",
+  "expression": "determined",
+  "lines": [
+   "They're in the choke. Nowhere to turn."
+  ]
+ },
+ "b2_mine_boom": {
+  "speaker": "sparrow_pilot",
+  "expression": "smile",
+  "lines": [
+   "Boom! Map that!"
+  ]
+ },
+ "b2_dead_in_water": {
+  "speaker": "sparrow_pilot",
+  "expression": "smile",
+  "lines": [
+   "Its engines are cooked! It's just drifting!",
+   "Dead in the water. Line it up."
+  ]
+ },
+ "b2_second_seed": {
+  "speaker": "sparrow_pilot",
+  "expression": "determined",
+  "lines": [
+   "Second contact, right behind the first.",
+   "It still hasn't seen the charges."
+  ]
+ },
+ "b3_cover": {
+  "speaker": "captain",
+  "expression": "determined",
+  "lines": [
+   "Stay behind the rocks. Make it come to us."
+  ]
+ },
+ "b3_pd_stopped": {
+  "speaker": "engineer",
+  "expression": "worried",
+  "lines": [
+   "Missile swatted. Their point defence is fast."
+  ]
+ },
+ "b3_hull_low": {
+  "speaker": "engineer",
+  "expression": "hurt",
+  "lines": [
+   "The hull's paper-thin. One more hit and we're breathing vacuum."
+  ]
+ },
+ "b3_flank_open": {
+  "speaker": "li",
+  "expression": "determined",
+  "lines": [
+   "Their back's wide open. Hitting it now!"
+  ]
+ },
+ "b4_too_easy": {
+  "speaker": "sparrow_pilot",
+  "expression": "smile",
+  "lines": [
+   "Is it just me, or are these things barely fighting?",
+   "Easiest job ever."
+  ]
+ },
+ "b4_graft_hint": {
+  "speaker": "engineer",
+  "expression": "smile",
+  "lines": [
+   "I'm reading a strange power source in hangar four.",
+   "Ooh. Shiny."
+  ]
+ },
+ "b4_seam_hums": {
+  "speaker": "tern_pilot",
+  "expression": "smile",
+  "lines": [
+   "The seam's humming again.",
+   "Kind of soothing, actually."
+  ]
+ },
+ "b5_jammed": {
+  "speaker": "tern_pilot",
+  "expression": "worried",
+  "lines": [
+   "Comms are jammed! Line of sight only!"
+  ]
+ },
+ "b5_kestrel_unresponsive": {
+  "speaker": "engineer",
+  "expression": "shock",
+  "lines": [
+   "Kestrel isn't answering the helm!",
+   "Something is overriding us!"
+  ]
+ },
+ "b5_li_coming": {
+  "speaker": "li",
+  "expression": "determined",
+  "lines": [
+   "Hold on, Vey. I'm coming."
+  ]
+ }
+}

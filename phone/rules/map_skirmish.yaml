@@ -1,0 +1,33 @@
+# ============================================================
+#  MAP FILE  -  "Skirmish"
+#  A small board for quick test games: the fleets start close
+#  enough to find each other within a round or two.
+#  Coordinates are [q, r] hex coordinates; [0, 0] is the centre.
+# ============================================================
+
+map:
+  name: "Skirmish"
+  world: world_v0.4.yaml
+
+  board:
+    shape: hexagon
+    radius: 8                 # hexes from centre to edge (217 hexes)
+
+  zones:
+    player_1_home:  { edge: south, depth: 3 }
+    player_2_home:  { edge: north, depth: 3 }
+    no_mans_land:   { everything_else: true }
+
+  setup:
+    secret: true
+    ships: own_home_zone
+    drones: own_home_zone
+    mines: { own_home_zone: true, rows_into_no_mans_land: 6 }   # mines can go out into no man's land
+
+  # Terrain is mirrored so neither side has an advantage.
+  terrain:
+    - { type: nebula,   at: [0, 0],   radius: 1 }
+    - { type: asteroid, at: [-4, 1],  size: 1 }
+    - { type: asteroid, at: [4, -1],  size: 1 }
+    - { type: asteroid, at: [3, 2],   size: 1 }
+    - { type: asteroid, at: [-3, -2], size: 1 }
