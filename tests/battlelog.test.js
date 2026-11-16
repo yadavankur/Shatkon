@@ -151,3 +151,18 @@ test('analyser: spots points thrown away, ships left in view, wasted missiles an
   assert.match(text, /The enemy found you first/);
   assert.match(text, /Ship lost, round 2: You lost the flagship Kestrel \(1a\)/);
 });
+
+// The battle log was written for the old root game; the Comet, the mines and the decoy came from beta.
+test('battle log: a board with Comets and mines logs, replays, and has words for every event', async () => {
+  const { loadBoard } = await import('../tools/boards.mjs');
+  const { eventWords } = await import('../engine/log.js');
+  const g = aiGame(loadBoard('02_minefield').rules, 3, 6000);
+  const log = JSON.parse(JSON.stringify(battleLog(g, { viewer: 'all', seat: 'cpu' })));
+  assert.equal(hashState(replayLog(log)), hashState(g));
+  assert.doesNotMatch(JSON.stringify([log.turns, log.summary]), /undefined|NaN|\[object/);
+  const nm = (id) => id, side = (p) => 'P' + (p + 1);
+  assert.equal(eventWords({ t: 'scan', found: 2, pinged: 1 }, nm, side), 'scan: 2 things revealed, 1 faint contact');
+  assert.equal(eventWords({ t: 'scan', found: 0, pinged: 0 }, nm, side), 'scan: nothing revealed');
+  for (const e of [{ t: 'pass_reveal', ship: '1a', found: ['2a'] }, { t: 'burnt_out', ship: '1a', move: 1 }, { t: 'lured', obj: 'o1', kind: 'missile', from: '2a', to: '2b' }, { t: 'mine_stir', near: '1a' }])
+    assert.match(eventWords(e, nm, side) || '', /\w/, e.t + ' has no words in the log');
+});

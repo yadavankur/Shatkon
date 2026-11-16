@@ -80,6 +80,22 @@ test('missiles fly through a wrecked segment, as beams do, and hit the next live
   assert.ok(direct, 'the live segment behind the wreck takes the full missile: ' + JSON.stringify(dmg.map((e) => [e.seg, e.hits, e.cause])));
 });
 
+test('...and under the world file\'s wreck rule the missile wrecks that live segment (the wreck in front does not soak it)', () => {
+  const carrier = pod('C', [0, 5], ['core', 'magazine', 'sensor'], ['launcher'], { load: { missile: 2 } });
+  const target = { name: 'T', at: [0, 0], flagship: true, hull: [
+    { at: [0, 0], bays: ['engine', 'coupling'], mounts: ['armour'] },
+    { at: [0, -1], bays: ['core', 'engine', 'sensor'], mounts: ['armour', 'armour'] }] };
+  let { game: g, problems } = battle({ radius: 8, p1: [carrier], p2: [target] });
+  assert.deepEqual(problems, []);
+  assert.equal(g.rules.munitions.missile.wrecks_segment, true, 'the shipped rule');
+  const t = ship(g, '2a');
+  t.segs[0].wrecked = true; for (const p of t.segs[0].parts) p.hp = 0;
+  g = apply(g, { type: 'launch', ship: '1a', kind: 'missile', start: [0, 4], target: null, route: [2, 2, 2, 2, 2, 2] });
+  g = end(end(g));
+  assert.equal(ship(g, '2a').segs[1].wrecked, true, 'the core segment behind the wreck is gone');
+  assert.equal(g.winner, 0);
+});
+
 // ---------------------------------------------------------------- (e) AI and one hits formula
 test('the computer reads laser range, hits and falloff from the rules', () => {
   const { world } = shippedFiles();

@@ -99,7 +99,12 @@ export function eventWords(e, nm, side) {
     case 'stopped': return 'point defence on ' + nm(e.ship) + ' stopped a ' + e.kind;
     case 'obj_lost': return 'the ' + e.kind + ' ' + e.obj + ' was lost: it ' + e.why;
     case 'obj_destroyed': return 'a ' + e.kind + ' at ' + at(e.at) + ' was destroyed';
-    case 'scan': return 'scan found ' + plural((e.found || []).length, 'contact');
+    // (found and pinged are counts; this line used to read them as lists and printed "undefined contacts")
+    case 'scan': return 'scan: ' + (e.found ? plural(e.found, 'thing') + ' revealed' : 'nothing revealed') + (e.pinged ? ', ' + plural(e.pinged, 'faint contact') : '');
+    case 'pass_reveal': return nm(e.ship) + ' flew past ' + (e.found || []).map(nm).join(', ') + ' under afterburner and lit ' + ((e.found || []).length === 1 ? 'it' : 'them') + ' up (and itself)';
+    case 'burnt_out': return nm(e.ship) + '\u2019s afterburner burnt out: it now moves ' + e.move + (e.move === 1 ? ' hex' : ' hexes') + ' a turn';
+    case 'lured': return 'the ' + e.kind + ' ' + e.obj + ' turned on the decoy emitter of ' + nm(e.to) + (e.from ? ' and dropped its lock on ' + nm(e.from) : '');
+    case 'mine_stir': return 'something small crept toward ' + nm(e.near) + ' (a faint contact)';
     case 'ammo_lost': return nm(e.ship) + ' lost ' + plural(e.count, 'stored munition');
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';

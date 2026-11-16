@@ -76,7 +76,7 @@
 | Clear ring never wider than sensor range + 2 | | Checked |
 | Mid-field starts 2 rows past your home rows | | Checked |
 | A scan reads out every part of every ship in the clear ring | | Checked (`doScan`) |
-| Attack run | +1 laser hit if the ship has moved at least 1 hex this turn | Checked (`attackRunFor`) |
+| Attack run | +1 laser hit if the ship has moved at least 1 hex this turn | Checked (`beamHits`) |
 | A ship that did nothing | no signature change (was −1) | Value checked; the code that applies it not re-read |
 | Engine wake | +1 signature after 2 or more hexes of net movement | Not re-checked |
 | Rough contacts | within 3 hexes beyond sight; the circle is 2 hexes across | Not re-checked |

@@ -131,11 +131,6 @@ function enemyAt(state, at, p, shooter) {
   return (shooter && here.find((x) => networkSees(state, shooter, x))) || here[0] || null;
 }
 
-// Does this shot earn the attack-run bonus? The ship must have moved this turn.
-export function attackRunFor(state, ship) {
-  return !!state.rules.det.attackRun && netMoved(state, ship) >= 1;
-}
-
 // Hits a beam weapon (its part rules c) does at distance d, before any attack-run bonus.
 // The one place the falloff is worked out: doFire, beamTargets and the computer player use it.
 export function beamHitsAt(c, d) {
