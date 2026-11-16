@@ -375,6 +375,20 @@ ai:
     mines_as_bait_rounds: 0   # N: for the first N rounds a side that laid mines waits behind them and stands where a
                               # mine lies between it and you; after that it comes out. 0 = never (it would rather
                               # hunt than sit). The Minefield and Fog Bank boards set 8
+    aims_missiles: true       # looks where a missile will fly before launching: picks the launch hex that gets it there
+                              # soonest and holds fire when every way ends on a rock (false = the hex nearest the target)
+    missile_flight_rounds: 1  # ...and only when it would arrive within this many flight phases (1 = this round, so you get no
+                              # turn to shoot it down or step aside; 3 = any range, which wasted most of them)
+    minds_decoys: true        # once it knows a ship carries a decoy emitter (a scan, or a missile of its own was pulled
+                              # onto it): lasers shoot the decoy first while it has missiles left, and no missile is
+                              # launched past one; at most one missile is spent on the decoy itself
+    scouts:                   # ships on their own drive (couriers, Comets). false = flown like any other escort (the old way:
+                              # all of them straight at you on turn 1, burnt out by turn 4 with the guns 15 hexes behind)
+      lead: 8                 # a scout stays within this many hexes of a friendly ship that can shoot
+      one_at_a_time: true     # of several Comets only one flies; the others wait (any move uses up a burn turn)
+      burn_worth: 2.5         # a Comet with burn left moves only when the move is worth this much: no one-hex shuffles
+                              # A scout lasers cannot reach from far (evades_beyond) shadows you from one hex outside that
+                              # reach and keeps scanning; once burnt out it closes to the edge of it, as bait
     decoys_as_bait: true      # unarmed escorts (decoys, couriers, scouts) run ahead of the fleet to be shot at first
   personalities:
     # range:           hexes it tries to fight from: [escorts, flagship]. The laser is at full

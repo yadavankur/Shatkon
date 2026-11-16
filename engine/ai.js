@@ -130,6 +130,17 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     return 3 * all.filter(isWeapon).length - all.filter((p) => R.parts[p.t].recharges || R.parts[p.t].hp > 1).length +
       (liveParts(g).some(isWeapon) ? 4 : 0) - (liveParts(g).some((p) => R.parts[p.t].recharges) ? 3 : 0);
   };
+  // ---- decoys (tricks.minds_decoys) ----
+  // A ship this side knows carries a working decoy emitter: a scan has shown the part, or one of its
+  // own missiles has already been pulled onto it (the 'lured' line in its feed).
+  const luredTo = new Set(v.feed.filter((e) => e.t === 'lured').map((e) => e.to));
+  const isDecoy = (t) => !!t && !t.mine && (luredTo.has(t.id) || t.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].lures_missiles)));
+  const decoys = pers && T.minds_decoys === true ? foes.filter(isDecoy) : [];
+  const seekR = (R.munitions.missile || {}).seeker_range || 0;
+  const decoysNear = (path, t) => decoys.some((d) => d.id !== t.id && path.some((c) => minDist([c], d.cells) <= seekR));
+  // one missile is enough for a decoy: is one of mine already on its way to it?
+  const decoyClaimed = (t) => v.objs.some((o) => o.mine && o.target === t.id);
+  const missilesLeft = mine.reduce((n, m) => n + ((m.load || {}).missile || 0), 0);
   // What a beam would stop on before it got to its target: a mine or a missile on the line that this
   // side knows about (its own, or an enemy one in sight). The rules stop a beam on the first thing it
   // meets, so a fleet firing across its own minefield used to sweep it (see doFire for the exceptions).
@@ -175,6 +186,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       score += noise('f' + s.id + t.seg + '.' + t.part + H.key(t.at));
       // a personality told to ignore harmless ships does not spend a shot (and light itself up) on one
       if (pers && tgt && pr.ignores_harmless === true && harmless(tgt)) score = 1;
+      // ...but a decoy is not harmless to a fleet with missiles still to fire: a laser clears it out of their way
+      if (tgt && missilesLeft > 0 && decoys.includes(tgt)) score = t.hits * 10 + 14;
       if (!best || score > best.score)
         best = { score, hits: t.hits, ship: s, tgt, action: { type: 'fire', ship: s.id, seg: t.seg, part: t.part, at: t.at } };
     }
@@ -208,6 +221,35 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       targets.sort((a, b) => pd(a.t) - pd(b.t));
     }
     if (!targets.length) continue;
+    if (pers && T.aims_missiles === true) {
+      // A personality looks where the missile will fly before it lets go (the same forecast the play
+      // screen draws): of the launch hexes it takes the one from which the missile reaches its
+      // target soonest, and it does not launch at all when every way ends on a rock or the board
+      // edge. (It used to launch from the hex nearest the target, whatever lay between.)
+      // tricks.minds_decoys: a missile that would fly within seeker range of a ship known to carry a
+      // working decoy emitter will turn on it. So the launch is only made when no decoy is on the way;
+      // failing that, one missile (never a salvo) is spent on the decoy itself.
+      let pick = null;
+      for (const { t } of targets) {
+        if (T.minds_decoys === true && isDecoy(t) && decoyClaimed(t)) continue;
+        for (const st of lo.starts) {
+          const act = { type: 'launch', ship: s.id, kind: 'missile', start: st, target: t.id, route: [] };
+          const fc = E.forecast(state, act);
+          if (!fc || fc.ends !== 'hit' || fc.hit !== t.id) continue;
+          // missile_flight_rounds: N = it only launches when the missile gets there within N flight
+          // phases (1 = this very round, before the target can move twice). A missile that has to
+          // chase for two or three rounds mostly loses its lock or is shot down on the way.
+          // And a one-hex boat is only worth a missile that lands before it gets another turn.
+          if (fc.rounds > (T.missile_flight_rounds ?? 3)) continue;
+          if (t.segs.length === 1 && !(fc.rounds <= 1 && state.turn === state.order.length - 1)) continue;
+          if (T.minds_decoys === true && !isDecoy(t) && decoysNear(fc.path, t)) continue;
+          if (!pick || fc.path.length < pick.n) pick = { n: fc.path.length, act };
+        }
+        if (pick) break;
+      }
+      if (!pick) continue;
+      return pick.act;
+    }
     const t = targets[0].t;
     let start = lo.starts[0];
     for (const st of lo.starts) if (minDist([st], t.cells) < minDist([start], t.cells)) start = st;
@@ -411,8 +453,26 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const bait = (s) => !!pers && !s.flagship && ((prof(s).bait_ship === 'smallest' && mine.length > 1 && s.id === baitId) || ((prof(s).unarmed_ships === 'bait' || T.decoys_as_bait === true) && !lasersOf(s).length &&
     !(Object.values(s.load || {}).some((n) => n > 0) && s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].launches)))));
   const zoneOf = (z) => ((R.campaign && R.campaign.zones) || {})[z] || [];
-  // a ship on its own drive (a courier, a Comet): fast, cheap, and not held to the fleet's pace
-  const fastScout = (s) => s.segs.some((g) => !g.wrecked && (g.parts || []).some((p) => p.hp > 0 && R.parts[p.t].own_move));
+  // ---- scouts: ships on their own drive (a courier's sprint drive, a Comet's afterburner) ----
+  // tricks.scouts: how a personality flies them (false = like any other escort, as before)
+  //   lead: a scout stays within this many hexes of a friendly ship with guns or missiles, so what it
+  //         finds (and the flash when it dies) can be shot at. It used to run the length of the board.
+  //   one_at_a_time: of several afterburner scouts only one flies; the rest wait where they are, since
+  //         every turn a Comet moves at all uses up one of its burn turns
+  //   burn_worth: a Comet with burn left only moves when the move is worth this much (no shuffling a hex)
+  //   A scout that lasers cannot reach from far away (evades_beyond) shadows the enemy from just outside
+  //   that distance instead of flying right up to them: it stays alive and keeps scanning. Once it is
+  //   burnt out it is spent: it closes in to the edge of their reach, to be shot at (and flash) or ignored.
+  const SC = pers && T.scouts && typeof T.scouts === 'object' ? T.scouts : null;
+  const liveParts0 = (s) => s.segs.flatMap((g) => (g.wrecked ? [] : (g.parts || []).filter((p) => p.hp > 0).map((p) => R.parts[p.t])));
+  const fastScout = (s) => liveParts0(s).some((c) => c.own_move);
+  const evadeOf = (s) => liveParts0(s).reduce((m, c) => Math.max(m, c.evades_beyond || 0), 0);
+  const burnLeft = (s) => { const st = fastScout(s) ? E.shipStatus(state, s.id) : null; return st ? st.burnLeft : null; };   // null: no afterburner
+  const armedFriend = (m) => lasersOf(m).length > 0 || (Object.values(m.load || {}).some((n) => n > 0) && liveParts0(m).some((c) => c.launches));
+  const guns = SC ? mine.filter((m) => !fastScout(m) && armedFriend(m)) : [];
+  // the one Comet that flies: the one with the least burn left (finish one before starting the next)
+  const burners = SC ? mine.filter((m) => burnLeft(m) > 0).sort((a, b) => burnLeft(a) - burnLeft(b) || (a.id < b.id ? -1 : 1)) : [];
+  const grounded = (s) => !!SC && SC.one_at_a_time === true && burners.length > 1 && burners[0].id !== s.id && burners.some((b) => b.id === s.id);
   const scorePos = (s, center) => {
     const cells = s.segs.map((g) => H.add(center, g.off));
     if (cells.some((c) => knownMines.has(H.key(c)))) return -1e6;
@@ -443,6 +503,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       let want = (easy ? [2, 3] : v.round > 8 ? [3, 4] : [5, 6])[s.flagship ? 1 : 0]; // normal keeps a cautious stand-off distance
       if (Array.isArray(pr.range)) want = pr.range[s.flagship ? 1 : 0];   // a personality fights from its own range
       if (bait(s)) want = 2;   // a decoy goes right up to them: something to shoot at, and eyes up close
+      if (SC && fastScout(s) && evadeOf(s)) want = evadeOf(s) + (burnLeft(s) === 0 ? 0 : 1);   // a scout shadows from just outside their reach
       if (typeof pr.stand_off === 'number') want = pr.stand_off;
       if (pr.stance === 'charge') want = 1;
       score -= d > want ? stepsToRange(s, target, want)(center) * 3 : (want - d) * 3;
@@ -493,6 +554,13 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       const others = mine.filter((m) => m.id !== s.id);
       if (s.flagship && others.length) score -= Math.max(0, minDist(cells, others[0].cells) - 5) * 0.8;
     }
+    if (SC && fastScout(s)) {
+      // not too far ahead of the guns
+      if (guns.length && typeof SC.lead === 'number') score -= Math.max(0, minDist(cells, guns.flatMap((m) => m.cells)) - SC.lead) * 3;
+      // and, while it still has its legs, never inside the reach of an enemy that could be armed
+      const ev = evadeOf(s);
+      if (ev && burnLeft(s) !== 0) for (const f of foes) if (!harmless(f) && minDist(cells, f.cells) <= ev) score -= 8;
+    }
     // a personality keeps its fleet together: an escort that runs ahead alone is picked off
     if (pers && pr.keep_together && !s.flagship) {
       const flag = mine.find((m) => m.flagship && m.id !== s.id);
@@ -542,9 +610,12 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   let bestMove = null;
   for (const s of mine) {
     if (prof(s).stance === 'hold') continue;
+    if (grounded(s) && !foes.some((f) => minDist(s.cells, f.cells) <= evadeOf(s) + 1)) continue;   // a waiting Comet only moves to get out of reach
     const here = scorePos(s, s.pos);
+    // the first hex a Comet moves in a turn costs it a burn turn
+    const burn = SC && !s.moved && burnLeft(s) > 0 ? SC.burn_worth ?? 0 : 0;
     for (const r of reachOf(s)) {
-      const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + noise('m' + s.id + H.key(r.at));
+      const gain = scorePos(s, r.at) - here - r.path.length * 0.05 + noise('m' + s.id + H.key(r.at)) - burn;
       if (gain > (easy ? 1.5 : 0.5) && (!bestMove || gain > bestMove.gain))
         bestMove = { gain, action: { type: 'move', ship: s.id, path: r.path } };
     }
