@@ -2,6 +2,14 @@
 
 
 
+## Latest (17 Nov, gamedev chat): minimal HUD, icons and bars with labels (branch `hud-minimal`, PR to main)
+From Ankur: the screen was too busy and repeated itself. Mock-ups: https://claude.ai/artifact/DPcT5WDa8v2MiB444hhwTQ (project doc `shatkon-hud-redesign-2026-11-17.md`).
+- **Turn bar:** round ring, the round strip (words with labels, coloured dashes without), point diamonds (hollow = spent this turn), thrust as one block per point (as long as it needs; a single bar past 24), the part a previewed move spends lit green. The compact layout measures the bar's height (`--hudh`) instead of a fixed 84px.
+- **Ship card:** one hull block per segment, badges for signature, "In enemy reach" (−N if hit), lit up / wake / nebula / "there" for a previewed move. Everything else (the sentences, every part) is behind the cut corner tab; on a phone it opens as an overlay. `statChips` is gone (its numbers moved onto the buttons and badges).
+- **Order buttons:** icon + pips or a count + label underneath. Laser shows the damage near and far for this ship now (move-first bonus included): "−3 near · −2 far". Scan shows a padlock until the ship has moved. Missile/Drone ammo pips sit on their buttons. End turn and Undo are icon buttons; the laser warning is a badge; "End turn?" and "Last action" always show their words.
+- **Labels:** on by default; the "Aa" button (top right, captioned "Labels" even with labels off) hides them. `localStorage shatkon.labels`. Graft/Dock and the confirm row (Move here / Fire / Cancel) keep their text.
+- Checked: 165 tests; headless Chrome 800x360, 667x375 and 1280x720: idle, selected, details open, labels off, no console errors. **Not run:** `campaign/tools/browser_story.cjs` (no Node Playwright here); it uses `#tools button:has-text("Graft")` and `#tools .btn.go`, both kept. Not checked on a real phone.
+
 ## Latest (17 Nov, engine): the board explains the rules while you play (branch `ux-clarity`, PR to main)
 From Ankur's playtest: the game felt one-sided because the rules behind it were invisible (the enemy's 3-hit shots were the move-first bonus, his launcher died to the first shot, double turns looked like the computer cheating, he skipped a turn by double-tapping End turn).
 - **Fire mode** shades every hex the selected ship's lasers reach, with −3 / −2 on each hex and a big −N on enemies in reach; the hint spells out "move 1 hex first: +1". Fire opens whenever a laser is ready ("show reach"), not only with a target. `E.beamField`.

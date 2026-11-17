@@ -3,6 +3,7 @@
 
 import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
+import { beamHits } from '../engine/actions.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { initStory, openCampaign, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -1325,42 +1326,105 @@ function shipCard(x, v) {
     h('div', { class: 'parts' }, sg.parts ? (sg.parts.length ? sg.parts.map((p) => h('span', { class: 'chip' + (p.hp <= 0 ? ' dead' : p.hp < p.max ? ' hurt' : '') }, h('i', { style: 'background:' + looks[p.t].color }), nice(p.t) + (p.max > 1 ? ' ' + p.hp + '/' + p.max : ''))) : h('span', { class: 'muted' }, 'empty')) : h('span', { class: 'muted' }, 'unknown: scan from close range to see inside'))));
   return h('div', { class: 'card who' + x.owner }, h('h2', { style: 'color:var(--me)' }, x.id + (x.name ? ' "' + x.name + '"' : '') + (x.flagship ? ' (flagship)' : '') + (x.mine ? '' : ' (enemy)')), lines.map((l) => h('p', null, l)), rows);
 }
-// The key numbers of a ship, as small chips for its panel.
-function statChips(x, v) {
-  const out = [], chip = (label, val, zero) => out.push(h('span', { class: 'stat' + (zero ? ' zero' : '') }, label + ' ', h('b', null, val)));
-  if (x.hull != null) chip('Hull', x.hull + '%', x.hull <= 30);
+// ---------- the compact HUD: icons, pips and bars (labels underneath, on by default, toggled with "Aa") ----------
+let labelsOn = (() => { try { return localStorage.getItem('shatkon.labels') !== 'off'; } catch (e) { return true; } })();
+function setLabels(on) { labelsOn = on; try { localStorage.setItem('shatkon.labels', on ? 'on' : 'off'); } catch (e) {} render(); }
+const ICONS = {
+  move: 'M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3',
+  laser: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  missile: 'M12 2c3 2 5 6 5 10l-2 5H9l-2-5c0-4 2-8 5-10zM9 17l-2 4M15 17l2 4',
+  drone: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 4l4 4M20 4l-4 4M4 20l4-4M20 20l-4-4',
+  scan: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM12 12l6-6',
+  boom: 'M12 2v5M12 17v5M2 12h5M17 12h5M5 5l3.5 3.5M19 19l-3.5-3.5M19 5l-3.5 3.5M5 19l3.5-3.5',
+  end: 'M4 12h12M11 6l6 6-6 6M20 5v14',
+  undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+  lock: 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  hit: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 1v5M12 18v5M1 12h5M18 12h5',
+  flame: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
+  sensor: 'M5 19a10 10 0 0 1 0-14M19 5a10 10 0 0 1 0 14M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M12 11v2',
+  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+};
+const FILLED = { laser: 1 };
+function ico(name, size = 20) {
+  return svgEl('svg', { class: 'ico', width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: FILLED[name] ? 'currentColor' : 'none', stroke: FILLED[name] ? 'none' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svgEl('path', { d: ICONS[name] }));
+}
+const lbl = (text, cls) => h('span', { class: 'lbl' + (cls ? ' ' + cls : '') }, text);
+// round progress: a ring that fills as the rounds go by
+function roundRing(round, limit) {
+  const c = 2 * Math.PI * 15, done = Math.min(round, limit) / limit;
+  return h('span', { class: 'ring', role: 'img', 'aria-label': 'Round ' + Math.min(round, limit) + ' of ' + limit, title: 'Round ' + Math.min(round, limit) + ' of ' + limit },
+    svgEl('svg', { width: 34, height: 34, viewBox: '0 0 36 36', 'aria-hidden': 'true' },
+      svgEl('circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'var(--line)', 'stroke-width': 3 }),
+      svgEl('circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'var(--me,var(--accent))', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': (c * done).toFixed(1) + ' ' + c.toFixed(1), transform: 'rotate(-90 18 18)' })),
+    h('b', null, Math.min(round, limit)));
+}
+// command points: a diamond each; hollow ones are points already spent this turn
+function cpPips(cp, perTurn, spendNext) {
+  const out = [];
+  for (let i = 0; i < Math.min(cp, 12); i++) out.push(h('i', { class: 'dia' + (spendNext && i === cp - 1 ? ' next' : '') }));
+  for (let i = 0; i < Math.max(0, perTurn - cp); i++) out.push(h('i', { class: 'dia used' }));
+  return h('span', { class: 'meter cp', role: 'img', 'aria-label': plural(cp, 'command point'), title: plural(cp, 'command point') + ' (each order costs 1; unspent points carry over)' },
+    h('span', { class: 'pipsrow' }, out, cp > 12 ? h('b', null, '+' + (cp - 12)) : null), lbl('Points ' + cp));
+}
+// thrust: one block per point of thrust (as long as it needs to be), the part a previewed move would spend lit green
+function thrustBar(thrust, spend) {
+  const many = thrust > 24, kids = [];
+  if (many) kids.push(h('span', { class: 'tbar' }, h('span', { style: 'width:' + Math.round((100 * Math.max(0, thrust - spend)) / thrust) + '%' }), spend ? h('span', { class: 'spend', style: 'width:' + Math.round((100 * spend) / thrust) + '%' }) : null));
+  else for (let i = 0; i < thrust; i++) kids.push(h('i', { class: i >= thrust - spend ? 'spend' : null }));
+  return h('span', { class: 'meter th', role: 'img', 'aria-label': 'Thrust ' + thrust + (spend ? ', this move spends ' + spend : ''), title: 'Thrust ' + thrust + ': moving costs 1 per segment per hex' },
+    h('span', { class: 'pipsrow' }, ico('flame', 14), h('span', { class: 'blocks' }, kids)), lbl('Thrust ' + thrust + (spend ? ' −' + spend : '')));
+}
+// hull: one block per segment, filled by what is left of that segment's parts (unknown for an unscanned enemy segment)
+function hullBlocks(x, R) {
+  return h('span', { class: 'hullsegs', role: 'img', 'aria-label': 'Hull ' + (x.hull != null ? x.hull + '%' : 'unknown') + ', ' + plural(x.segs.length, 'segment') },
+    x.segs.map((sg) => {
+      if (!sg.parts) return h('i', { class: 'unk', title: 'not scanned' });
+      let hp = 0, max = 0;
+      for (const p of sg.parts) if (!(R.parts[p.t] || {}).recharges) { hp += sg.wrecked ? 0 : Math.max(0, p.hp); max += p.max; }
+      const pc = sg.wrecked ? 0 : max ? Math.round((100 * hp) / max) : 100;
+      return h('i', { class: pc > 60 ? 'ok' : pc > 0 ? 'hurt' : 'gone', title: sg.wrecked ? 'wrecked' : pc + '%' }, h('span', { style: 'width:' + pc + '%' }));
+    }));
+}
+// the few numbers worth showing at a glance; everything else is behind the corner tab
+function shipStrip(x, v) {
+  const R = game.rules, out = [hullBlocks(x, R)], row = [];
+  const badge = (icon, text, cls, label, title) => row.push(h('span', { class: 'sbadge ' + cls, title, role: 'img', 'aria-label': title }, ico(icon, 15), text != null ? h('b', null, text) : null, label ? lbl(label) : null));
   if (x.mine || seat === 'all') {
+    if (x.signature != null) badge('eye', x.signature, 'sig', 'seen', 'Signature ' + x.signature + ': an enemy with sensor ' + v.shownSensor + ' spots this ship from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex'));
     const st = canCommand(x, v) ? E.shipStatus(game, x.id) : null;
     if (st) {
-      chip('Move', st.moveLeft, !st.moveLeft);
-      if (st.beams) chip('Lasers', st.beamsReady + '/' + st.beams, !st.beamsReady);
-      for (const [k, n] of Object.entries(st.ammo)) chip(pretty(nice(k)) + 's', n, !n);
-      if (st.launchers) chip('Launcher', st.launchersReady ? 'ready' : 'used', !st.launchersReady);
-      chip('Scan', st.scanReady ? 'ready' : x.used && x.used.scan ? 'used' : st.scanMoved < 1 ? 'move first' : 'no points', !st.scanReady);
-      // could a visible enemy shoot this ship next turn (worst case: it steps closer and fires)? and at the move being previewed?
       const dm = E.dangerMap(game, typeof who() === 'number' ? who() : turnOf()), worst = (cells) => Math.max(0, ...cells.map((c) => dm.get(hex.key(c)) || 0));
       const here = worst(x.cells);
-      out.push(h('span', { class: 'stat' + (here ? ' danger' : ''), title: 'How hard a visible enemy could hit this ship on its next turn, at worst (it steps closer and fires). Red rings on the move markers mean the same.' },
-        here ? 'In enemy reach ' : 'Out of enemy reach', here ? h('b', null, '\u2212' + here) : null));
+      if (here) badge('hit', '−' + here, 'danger', 'if hit', 'In enemy reach: a visible enemy could step closer and hit this ship for up to ' + here + ' next turn');
       if (pending && pending.type === 'move' && pending.ship === x.id) {
         const to = pending.path.reduce((c, d) => hex.step(c, d), x.pos), there = worst(x.cells.map((c) => [c[0] - x.pos[0] + to[0], c[1] - x.pos[1] + to[1]]));
-        out.push(h('span', { class: 'stat' + (there ? ' danger' : '') }, there ? 'There ' : 'There: out of reach', there ? h('b', null, '\u2212' + there) : null));
+        badge('move', there ? '−' + there : '0', there ? 'danger' : 'safe', 'there', there ? 'After this move: an enemy could hit it for up to ' + there : 'After this move: out of enemy reach');
       }
     }
     const sb = x.sigBreak;
-    if (sb && sb.flare) chip('Lit up', '+' + sb.flare, true);            // fired, launched or scanned: easier to see for now
-    if (sb && sb.motion > 0) chip('Engine wake', '+' + sb.motion, true);
-    if (sb && sb.haze) chip('In nebula', (sb.haze > 0 ? '+' : '\u2212') + Math.abs(sb.haze));
-    if (x.sensor != null) chip('Sensor', x.sensor);
-    if (x.signature != null) chip('Signature', x.signature);
+    if (sb && sb.flare) badge('flame', '+' + sb.flare, 'warn', 'lit up', 'Lit up +' + sb.flare + ' (fired, launched or scanned): easier to see for now');
+    if (sb && sb.motion > 0) badge('flame', '+' + sb.motion, 'warn', 'wake', 'Engine wake +' + sb.motion + ' from a big move');
+    if (sb && sb.haze) badge('eye', (sb.haze > 0 ? '+' : '−') + Math.abs(sb.haze), 'sig', 'nebula', 'In a nebula');
   } else {
-    chip('Intel', x.tier >= 3 ? '\u25A3 full readout' : '\u25C6 located');
-    let hp = 0, max = 0;
-    for (const sg of x.segs.filter((sg) => sg.parts)) for (const p of sg.parts) if (!game.rules.parts[p.t].recharges) { hp += sg.wrecked ? 0 : Math.max(0, p.hp); max += p.max; }
-    if (max) chip('Hull about', Math.round((100 * hp) / max) + '%');
-    chip('Segments', x.segs.length);
+    badge('scan', x.tier >= 3 ? '▣' : '◆', 'sig', x.tier >= 3 ? 'full scan' : 'located', x.tier >= 3 ? 'Full readout from a scan' : 'Located: scan it from close range to see its parts');
   }
-  return h('div', { class: 'stats' }, out);
+  out.push(h('div', { class: 'srow' }, row));
+  return out;
+}
+// an order button: an icon, its pips or badge, and a label underneath (hidden with labels off)
+function ibtn({ icon, label, sub, on, pressed, pips, pipCls, badge, lock, title, onclick, cls }) {
+  return h('button', { class: 'btn ib' + (cls ? ' ' + cls : ''), 'aria-pressed': pressed == null ? null : String(pressed), disabled: !on, title: title || null, 'aria-label': label + (sub ? ': ' + sub : ''), onclick },
+    h('span', { class: 'ibic' }, ico(icon, 22), lock ? h('span', { class: 'lockb' }, ico('lock', 11)) : null, badge != null ? h('b', { class: 'cnt' }, badge) : null),
+    pips ? h('span', { class: 'ibpips' + (pipCls ? ' ' + pipCls : '') }, pips.map((full) => h('i', { class: full ? 'on' : null }))) : null,
+    lbl(label, 'name'), sub ? h('small', { class: 'lbl' }, sub) : null);
+}
+// a laser's hits close up and at full range, for this ship right now (the move-first bonus included)
+function laserHits(shipId) {
+  const ship = game.ships.find((z) => z.id === shipId);
+  let near = 0, far = 0;
+  for (const w of E.workingParts(game, ship)) if (E.num(w.c.range) && E.num(w.c.hits)) { near = Math.max(near, beamHits(game, ship, w.c, 1)); far = Math.max(far, beamHits(game, ship, w.c, E.num(w.c.range))); }
+  return { near, far };
 }
 function codeBox(label, text, button) {
   const ta = h('textarea', { readonly: true, 'aria-label': label }, text);
@@ -1413,6 +1477,7 @@ export function render() {
   // one compact game-mode picker
   const compact = isCompact();
   document.body.classList.toggle('compact', compact);
+  document.body.classList.toggle('nolabels', !labelsOn);
   if (compact !== wasCompact) { wasCompact = compact; cam.w = 0; }      // the board has a new size: start from the whole map
   // compact: the header is hidden, so the mode picker, sound, help and the Play/Lab tabs live at the top of the menu
   const dh = $('#drawerhdr'), hr = $('.hdr-r'), hl = $('.hdr-l');
@@ -1478,18 +1543,22 @@ export function render() {
   const seatName = (p) => seat === 'cpu' ? (p === 0 ? 'You' : 'Enemy') : isCodes() ? (p === seat ? 'You' : 'Them') : 'P' + (p + 1);
   const stepNames = game.order.map(seatName).concat('Missiles fly');
   const nextFirst = R.firstPlayer === 'fixed' ? game.order[0] : game.order[game.order.length - 1];
+  const title = game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
+    : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1);
+  // what a previewed move would spend: a point, and thrust (1 per segment per hex)
+  const pvShip = pending && pending.type === 'move' ? v.ships.find((x) => x.id === pending.ship) : null;
+  const thSpend = pvShip && pvShip.mine ? Math.min(v.thrust, pending.path.length * (E.shipStatus(game, pvShip.id) || { costPerHex: pvShip.segs.length }).costPerHex) : 0;
   fill(bar, [h('div', { class: 'line top' },
-      h('span', { class: 'big' }, game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
-        : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1)),
-      h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
-        stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : '') }, n)]),
-        game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null),
-      v.objective ? h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '') : null),
-    mine ? h('div', { class: 'line' },
-      h('span', null, compact ? 'Points ' : 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
-      h('span', null, 'Thrust ', h('b', { class: 'n' }, v.thrust), h('span', { class: 'wide' }, ' (moving costs 1 per segment per hex)')), v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null) : null,
+      roundRing(v.round, R.turnLimit),
+      h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
+        stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
+        game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
+      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending), thrustBar(v.thrust, thSpend)) : null,
+      mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null),
+    v.objective ? h('div', { class: 'line' }, h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '')) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
+  if (compact) { const ht = $('#hudtop'); if (ht) document.body.style.setProperty('--hudh', Math.ceil(ht.getBoundingClientRect().bottom - ($('#stage').getBoundingClientRect().top || 0) + 2) + 'px'); }
 
   // board: it fills the screen. Ships you can command wear a halo; the rest of yours are marked as busy.
   const opts = options(v);
@@ -1518,6 +1587,8 @@ export function render() {
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
     h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
     document.fullscreenEnabled ? h('button', { 'aria-label': 'Full screen', title: 'Full screen', 'aria-pressed': String(!!document.fullscreenElement), onclick: toggleFull }, '\u2922') : null]);
+  // labels under the icons: on by default; the Aa button keeps its own caption so it can always be found
+  camEl.appendChild(h('span', { class: 'aawrap' }, h('button', { class: 'aa', 'aria-pressed': String(labelsOn), 'aria-label': labelsOn ? 'Hide labels' : 'Show labels', title: labelsOn ? 'Hide labels' : 'Show labels', onclick: () => setLabels(!labelsOn) }, 'Aa'), h('span', { class: 'aacap' }, 'Labels')));
   if (compact) camEl.appendChild(HDR.menu);
 
   // the ship panel: orders and key numbers for the ship you tapped (what is known, for an enemy)
@@ -1534,24 +1605,31 @@ export function render() {
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
     const lim = v.story ? (v.story.limits || {})[me.name] : null;
     const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
-    const btn = (m, label, sub, on) => h('button', { class: 'btn', 'aria-pressed': String(mode === m && on && !barred(m)), disabled: !on || barred(m), title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); render(); } }, label, h('small', null, barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub));
+    const btn = (m, icon, label, sub, on, extra = {}) => ibtn({ icon, label, sub: barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub, on: on && !barred(m), pressed: mode === m && on && !barred(m),
+      title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); render(); }, ...extra });
     const launchWhy = (kind) => !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
+    const ammoPips = (kind) => Array.from({ length: Math.min(8, st.ammo[kind] || 0) }, () => st.launchersReady > 0);
+    const targets = new Set(shots.map((x) => x.target)).size, lh = st.beams ? laserHits(sel) : null;
+    const scanLocked = !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan);
     fill(tools, [
-      btn('move', 'Move', st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', st.moveLeft > 0),
-      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : v.cp < R.cost.fire ? 'no points' : 'show reach', st.beamsReady && v.cp >= R.cost.fire) : null,
-      has('missile') ? btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile')) : null,
-      has('seeker_drone') ? btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone')) : null,
+      btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0),
+      // the laser's damage close up and far away is the point: closer hits harder
+      st.beams ? btn('fire', 'laser', 'Laser', !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no points' : '\u2212' + lh.near + ' near \u00b7 \u2212' + lh.far + ' far', st.beamsReady && v.cp >= R.cost.fire,
+        { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : 'show where the lasers reach' }) : null,
+      has('missile') ? btn('missile', 'missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), { pips: ammoPips('missile'), pipCls: 'amber' }) : null,
+      has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
-      h('button', { class: 'btn', disabled: !st.scanReady, onclick: () => {
+      ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
+        sub: st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now',
+        title: scanLocked && v.cp ? 'Move this ship first, then scan ' + me.scan.r[0] + ' / ' + me.scan.r[1] : null, onclick: () => {
         mode = 'scan'; pending = { type: 'scan', ship: sel };
         const [r1, r2] = me.scanR;
         say('Scan preview (' + me.scan.name + ', ' + plural(me.scan.forward, 'row') + ' from your edge): everything inside the green ring (' + r1 + ' hexes) gets a full readout, hidden mines included. The amber ring ('
           + r2 + ' hexes) only picks up faint contacts. ' + scanNextText(me.scan) + ' Scanning lights your ship up for a round. Press Scan now.');
         render();
-      } }, 'Scan', h('small', null, st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now'),
-        !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan) && v.cp ? h('small', null, 'then ' + me.scan.r[0] + ' / ' + me.scan.r[1]) : null),
-      v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'Detonate', 'a drone', v.cp >= R.cost.detonate) : null,
+      } }),
+      v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'boom', 'Detonate', 'a drone', v.cp >= R.cost.detonate) : null,
       ...(v.story ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
         const a = game.ships.find((z) => z.id === me.id);
         return game.ships.filter((z) => !z.dead && z.owner === a.owner && z.id !== a.id && E.gap(a, z) === 1).map((z) =>
@@ -1582,15 +1660,18 @@ export function render() {
         h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'), logButtons())]);
     }
   } else if (shown) {
-    const own = shown.id === sel && !look, more = h('details', { class: 'more' }, h('summary', null, 'Parts and details'), shipCard(shown, v));
-    more.open = detailsOpen;
-    more.addEventListener('toggle', () => { detailsOpen = more.open; });
+    const own = shown.id === sel && !look;
     ctx.hidden = false;
-    ctx.className = 'who' + shown.owner;
-    fill(ctx, [h('div', { class: 'ctx-head' },
+    ctx.className = 'who' + shown.owner + (detailsOpen ? ' open' : '');
+    // the cut corner: tap it for every number and every part (an overlay over the board)
+    const tab = h('button', { class: 'chamfer', 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Hide ship details' : 'Show all ship details', title: detailsOpen ? 'Hide details' : 'All details',
+      onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'minus' : 'plus', 11));
+    fill(ctx, [tab, h('div', { class: 'ctx-head' },
         h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
-        closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } say(''); })),
-      statChips(shown, v), own && !compact ? tools : null, more]);
+        closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } detailsOpen = false; say(''); })),
+      shipStrip(shown, v),
+      own && !compact ? tools : null,
+      detailsOpen ? h('div', { class: 'more' }, shipCard(shown, v)) : null]);
     if (own && compact) railTools = tools;
   } else { ctx.hidden = true; ctx.className = ''; }
 
@@ -1599,18 +1680,24 @@ export function render() {
   if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
   if (mine && !hid) fill(tb, [
-    undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
+    undoStack.length ? ibtn({ icon: 'undo', label: 'Undo', sub: 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'), on: true, title: 'Undo (Ctrl+Z)', onclick: undo, cls: 'undo' }) : null,
     // Ending a turn in which nothing was done, while a ship could act, asks in a pop-up (two separate
     // buttons, so a double tap can't skip a turn). Ending with points left after doing something asks once
     // more on the same button, and a second press within half a second counts as the same tap.
-    h('button', { class: 'btn go' + (v.cp === 1 || endArmed ? ' last' : ''), onclick: () => {
-        if (endArmed && performance.now() - endArmedAt < 500) return;
-        if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
-        if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
-        else act({ type: 'end' });
-      } }, endArmed ? 'End turn?' : v.cp === 1 ? 'Last action' : 'End turn',
-      h('small', null, endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
-      v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length) ? h('small', { class: 'warnnote' }, '\u26A0 laser can fire') : null)]);
+    (() => {
+      const laserLeft = v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length);
+      const name = endArmed ? 'End turn?' : v.cp === 1 ? 'Last action' : 'End turn';
+      const sub = endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
+      return h('button', { class: 'btn go ib endb' + (v.cp === 1 || endArmed ? ' last' : '') + (endArmed ? ' armed' : ''), 'aria-label': name + (sub ? ': ' + sub : '') + (laserLeft ? '. A laser can still fire' : ''), onclick: () => {
+          if (endArmed && performance.now() - endArmedAt < 500) return;
+          if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
+          if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
+          else act({ type: 'end' });
+        } },
+        h('span', { class: 'ibic' }, ico('end', 24), laserLeft ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
+        h('span', { class: 'lbl name' + (endArmed || v.cp === 1 ? ' keep' : '') }, name), sub ? h('small', { class: 'lbl' }, sub) : null,
+        laserLeft ? h('small', { class: 'lbl warnnote' }, 'laser can fire') : null);
+    })()]);
 
   hintEl.className = hintErr ? 'err' : '';
   hintEl.textContent = hint || (mine ? 'Tap one of your ships (white rim) to give it orders.' : aiTurn() ? 'The computer is taking its turn\u2026' : isCodes() && game.phase === 'play' ? 'Waiting for player ' + (turn + 1) + '. Open \u2630 to paste their turn code.' : '');

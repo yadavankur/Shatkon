@@ -68,7 +68,7 @@ body{touch-action:manipulation}
 #wrap svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
 #hudtop{position:absolute;left:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:min(600px,calc(100% - 68px));pointer-events:none}
 #hudtop>*{pointer-events:auto}
-#camera{position:absolute;right:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:6px}
+#camera{position:absolute;right:8px;top:8px;z-index:5;display:flex;flex-direction:row;align-items:flex-start;gap:6px}
 #camera button{border:1px solid var(--line);background:rgba(16,24,48,.9);border-radius:8px;width:44px;height:40px;padding:0;cursor:pointer;color:var(--text);font-size:17px}
 #lower{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:8px;pointer-events:none}
 #lower>*{pointer-events:auto}
@@ -91,8 +91,9 @@ body{touch-action:manipulation}
 .stat{font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:1px 7px;background:var(--panel2);color:var(--muted);white-space:nowrap}
 .stat b{color:var(--text);font-family:var(--mono)}
 .stat.zero b{color:var(--bad)}
-#tools{display:flex;gap:6px;flex-wrap:wrap;margin:0}
+#tools{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
 #tools .btn{flex:1 1 86px;min-width:86px}
+#tools .btn.ib{flex:1 1 70px;min-width:70px}
 #ctx details.more{margin-top:8px;font-size:13px}
 #ctx details.more summary{cursor:pointer;color:var(--muted)}
 #ctx details.more .card{border:0;background:transparent;padding:0;margin:6px 0 0}
@@ -327,7 +328,7 @@ body.compact header{display:none}
 body.compact #hudtop{left:var(--sl);top:var(--st);width:var(--col);max-width:none;gap:4px}
 body.compact #turnbar{width:100%;padding:3px 8px;border-radius:8px}
 body.compact #turnbar .big{font-size:14px}
-body.compact .steps{flex-basis:100%;gap:1px;flex-wrap:nowrap;white-space:nowrap}
+body.compact .steps{gap:1px 2px;flex-wrap:wrap;white-space:nowrap}
 body.compact .stepchip{font-size:9px;padding:0 4px;line-height:14px}
 body.compact .stepsep{font-size:7px}
 body.compact #turnbar .line{font-size:12px;gap:0 8px;margin-top:0}
@@ -335,7 +336,7 @@ body.compact .ledger,body.compact #turnbar .wide{display:none}
 body.compact #camera{right:var(--sr);top:var(--st);flex-direction:row}
 body.compact #camera button{width:44px;min-width:44px;height:44px;min-height:44px}
 body.compact #camera .zoom{display:none}
-body.compact #lower{inset:auto;left:var(--sl);bottom:var(--sb);top:0;width:var(--col);padding:84px 0 0;gap:6px}   /* below the turn bar (3 lines with the round strip) */
+body.compact #lower{inset:auto;left:var(--sl);bottom:var(--sb);top:0;width:var(--col);padding:var(--hudh,84px) 0 0;gap:6px}   /* below the turn bar (its height is measured each render) */
 body.compact #dock{display:block}
 body.compact #hint{font-size:12.5px;line-height:1.3;padding:5px 8px;max-height:5.4em}
 body.compact #hint:empty{display:none}
@@ -346,10 +347,96 @@ body.compact #rail{display:flex;flex-direction:column;justify-content:flex-end;g
 body.compact #rail>*{pointer-events:auto}
 body.compact #tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;overflow:visible;padding:0}
 body.compact #tools .btn{min-width:0;min-height:46px;padding:5px 8px;background:rgba(16,24,48,.95)}
-body.compact #tools .btn small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.compact #tools .btn:not(.ib) small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.compact #turnbtns{display:flex;gap:6px}
 body.compact #turnbtns .btn{min-height:50px;flex:1}
 body.compact #turnbtns .btn.go{flex:2;text-align:center;font-weight:700}
+body.compact.nolabels #tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+body.compact #turnbtns .btn.ib{min-height:50px}
+body.compact #camera{align-items:flex-start}
+/* the minimal HUD: icons, pips and bars, with short labels underneath (on by default; "Aa" hides them) */
+.ico{display:block;flex:none}
+body.nolabels .lbl:not(.keep){display:none}
+#turnbar .line.top{gap:4px 10px;flex-wrap:wrap}
+.ring{position:relative;width:34px;height:34px;flex:none;line-height:0}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px var(--mono);color:var(--text);line-height:1}
+.tbwho{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 0}
+#turnbar .tbwho .big{font-size:13px;letter-spacing:.06em;text-transform:uppercase;line-height:1.1}
+.meters{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;flex-basis:100%}
+.meter{display:inline-flex;flex-direction:column;gap:2px;align-items:flex-start}
+.meter .lbl{font-size:10.5px;color:var(--muted);line-height:1}
+.pipsrow{display:inline-flex;align-items:center;gap:5px;min-height:14px}
+.pipsrow b{font:11px var(--mono);color:var(--accent)}
+.dia{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border-radius:2px;background:var(--accent);flex:none}
+.dia.used{background:transparent;border:1.5px solid var(--line);width:8px;height:8px}
+.dia.next{background:var(--good);box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--good)}
+.th .ico{color:#7fd8c9}
+.blocks{display:inline-flex;gap:2px;flex-wrap:wrap;max-width:150px}
+.blocks i{display:block;width:4px;height:11px;border-radius:1px;background:#7fd8c9}
+.blocks i.spend{background:var(--good);opacity:.55}
+.tbar{display:inline-flex;width:110px;height:8px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.tbar span{display:block;height:100%;background:#7fd8c9}.tbar span.spend{background:var(--good);opacity:.55}
+/* the round strip: words with labels on, coloured dashes with them off */
+.stepchip.s0{border-color:#7fd8f055}.stepchip.s1{border-color:#ff8bd855}
+body.nolabels .steps{gap:3px;flex-wrap:nowrap}
+body.nolabels .stepsep{display:none}
+body.nolabels .stepchip{font-size:0;line-height:0;padding:0;border:0;width:10px;height:4px;border-radius:2px;background:var(--line);opacity:.8}
+body.nolabels .stepchip.s0{background:var(--p0);opacity:.45}body.nolabels .stepchip.s1{background:var(--p1);opacity:.45}
+body.nolabels .stepchip.fly{background:#ff9d4d;opacity:.6}body.nolabels .stepchip.next{opacity:.3}
+body.nolabels .stepchip.now{width:22px;height:5px;opacity:1;background:var(--me,var(--text))}
+/* the ship card: hull blocks, a few badges, the cut corner for everything else */
+#ctx{position:relative}
+@media (min-width:760px){#ctx{position:absolute}}
+body.compact #ctx{position:relative;top:auto;right:auto}
+.chamfer{position:absolute;right:0;bottom:0;width:44px;height:44px;border:0;padding:0;background:transparent;cursor:pointer;z-index:1}
+.chamfer::before{content:'';position:absolute;right:0;bottom:0;width:26px;height:26px;background:var(--me,var(--accent));clip-path:polygon(100% 0,100% 100%,0 100%);border-bottom-right-radius:10px}
+.chamfer .ico{position:absolute;right:3px;bottom:3px;color:var(--bg);stroke-width:4}
+.chamfer:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.hullsegs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:3px;margin:4px 0 2px;max-width:280px}
+.hullsegs i{display:block;height:8px;border-radius:3px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
+.hullsegs i span{display:block;height:100%;background:var(--me,var(--good))}
+.hullsegs i.hurt span{background:var(--warn)}
+.hullsegs i.gone{border:1px dashed var(--bad)}
+.hullsegs i.unk{background:repeating-linear-gradient(135deg,var(--panel2) 0 3px,var(--line) 3px 5px)}
+.srow{display:flex;flex-wrap:wrap;gap:5px;margin:6px 30px 2px 0}
+.srow:empty{display:none}
+.sbadge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 5px;border-radius:999px;font-size:12px;line-height:18px;white-space:nowrap;background:var(--panel2)}
+.sbadge b{font-family:var(--mono)}
+.sbadge .lbl{font-size:10.5px;opacity:.85;margin-left:1px}
+.sbadge.danger{color:#ff8a8a;background:rgba(255,90,90,.14)}
+.sbadge.sig{color:#b9a7f0;background:rgba(185,167,240,.12)}
+.sbadge.warn{color:var(--warn);background:rgba(217,164,65,.14)}
+.sbadge.safe{color:var(--good);background:rgba(47,224,176,.12)}
+#ctx .more{margin-top:6px;font-size:13px;padding-bottom:22px}
+#ctx .more .card{border:0;background:transparent;padding:0;margin:6px 0 0}
+#ctx .more .card h2{display:none}
+#ctx.open{z-index:7}
+body.compact #ctx.open{position:fixed;left:var(--sl);top:var(--st);bottom:var(--sb);width:min(400px,50vw);max-height:none;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.7);background:#0c1326;overflow:hidden;display:flex;flex-direction:column}
+body.compact #ctx.open .more{flex:1 1 auto;min-height:0;overflow:auto}
+#ctx.open .more{max-height:60vh;overflow:auto}
+body.compact #ctx.open .more{max-height:none}
+/* order buttons: icon, pips or a count, label underneath */
+.btn.ib{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:6px 4px 5px;min-width:0}
+.ibic{position:relative;line-height:0}
+.ib .cnt{position:absolute;top:-7px;right:-13px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--warn);color:#1a1206;font:700 11px/17px system-ui,sans-serif;display:flex;align-items:center;justify-content:center}
+.ib .lockb{position:absolute;right:-9px;bottom:-5px;color:var(--muted)}
+.ibpips{display:flex;gap:3px;height:3px;margin-top:2px}
+.ibpips i{display:block;width:7px;height:3px;border-radius:2px;background:var(--line)}
+.ibpips i.on{background:var(--accent)}.ibpips.amber i.on{background:var(--warn)}
+.ib .lbl.name{font-size:12.5px;font-weight:600;line-height:1.1}
+.ib small.lbl{font-size:10.5px;color:var(--muted);max-width:100%;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ib[aria-pressed="true"] .ico{color:var(--hl)}
+.ib .ico{color:var(--accent)}
+.endb .warnb{background:var(--warn)}
+.endb .warnb .ico{color:#1a1206}
+.btn.go.endb .ico{color:var(--accent)}
+.btn.go.last.endb .ico,.btn.go.last.endb .lbl.name{color:var(--bad)}
+body.nolabels .btn.ib{padding:9px 4px}
+/* the labels switch keeps its own caption, so it can always be found */
+.aawrap{display:inline-flex;flex-direction:column;align-items:center;gap:1px}
+#camera .aa{font:700 15px system-ui,sans-serif;letter-spacing:.02em}
+#camera .aa[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.aacap{font-size:9.5px;line-height:1;color:var(--muted)}
 /* a phone held upright: ask for it to be turned (the upright layout still works: "Play upright anyway") */
 #rotate{display:none;position:fixed;inset:0;z-index:80;background:rgba(4,7,15,.97);align-items:center;justify-content:center;padding:20px;text-align:center}
 #rotate .card{max-width:340px}
