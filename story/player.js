@@ -99,6 +99,12 @@ export async function playScene(sceneId, mountEl, opts = {}) {
   const box = el('div', 'sk-box', root); const nameEl = el('div', 'sk-name', box); const textEl = el('div', 'sk-text', box); el('div', 'sk-next', box, { 'aria-hidden': 'true' }).textContent = '▸';
   const choiceEl = el('div', 'sk-choice', root); choiceEl.hidden = true;
   const live = el('div', 'sk-live', root, { 'aria-live': 'polite', role: 'log', 'aria-atomic': 'false' });
+  // Short landscape screens fit the ship above the dialogue box: tell the CSS how tall the box is right now.
+  let boxWatch = null;
+  if (typeof ResizeObserver === 'function') {
+    boxWatch = new ResizeObserver(() => { const h = box.offsetHeight; if (h) root.style.setProperty('--sk-boxh', `${h}px`); });
+    boxWatch.observe(box);
+  }
   let skipBtn = null;
   if (o.skippable !== false) { skipBtn = el('button', 'sk-skip', root, { type: 'button', 'aria-label': 'Skip scene' }); skipBtn.textContent = 'Skip ▸▸'; }
 
@@ -310,6 +316,7 @@ export async function playScene(sceneId, mountEl, opts = {}) {
       }
     }
   } finally {
+    if (boxWatch) boxWatch.disconnect();
     document.removeEventListener('keydown', onKey);
     root.removeEventListener('click', onPointer);
     root.remove();

@@ -1,6 +1,13 @@
-# Status (updated 2026-11-17 by engine)
+# Status (updated 2026-11-17 by gamedev)
 
 
+
+## Latest (17 Nov, gamedev chat): story cutscenes fit a phone held sideways (branch `cutscene-landscape`, PR to main)
+From Ankur: cutscenes look clean in portrait but worse in landscape, and the game is played in landscape. In landscape the dialogue box covered the bottom half of the centre ship art and hid its label ("SEED").
+- **Only short landscape screens change** (wider than 6:5 and under 540 px tall). Portrait and desktop are untouched: 116 portrait screenshots at 390x844 are pixel-identical before and after.
+- **Dialogue box** is compact (smaller type and padding, three lines tall) and sits between the two portraits (60% of the width). **Centre ship art** is scaled to fit entirely in the space above the box, with its label showing. The **comms frame** and the **Weave glyph row** are fitted the same way; a ship left on screen behind them is dimmed.
+- Code: one CSS block at the end of the story CSS (`story/core.js`) plus a small `ResizeObserver` in `story/player.js` that tells the CSS how tall the box is (`--sk-boxh`). No rotate-your-phone screen was added.
+- Checked: 165 tests; headless Chrome 800x360, 844x390, 932x430, 1024x461: 14 scenes across chapters 1-5 (ship, comms, glyphs, no-art), nothing runs under the box. Choice screens already fit and are unchanged. Not checked on a real phone. Screenshots: `/workspace/cutscene-shots/` on the box (not in the repo).
 
 ## Latest (17 Nov, gamedev chat): landing page (branch `landing`, PR to main)
 Ankur's plan (project doc `shatkon-landing-plan-2026-11-17.md`): one simple front door, menus you tap down through.
