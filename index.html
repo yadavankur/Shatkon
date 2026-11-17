@@ -14,68 +14,73 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 /* The landing page: three doors (Story, Play, Workshop) and Continue. Each door opens one level down;
-   a game starts in play.html with ?mode=... (see the end of ui/play.js main()). */
-:root{--bg:#040812;--panel:#0c1830;--panel2:#08111f;--line:#1f3552;--text:#e7ecf6;--muted:#8f9cba;--accent:#7fd8f0;--good:#2fe0b0;--warn:#d9a441;--p1:#ff8bd8}
+   a game starts in play.html with ?mode=... (see the end of ui/play.js main()). Laid out like a game's
+   title screen: logo and a stack of buttons in the middle, round icon buttons along the bottom. */
+:root{--bg:#040812;--panel:rgba(10,20,38,.72);--line:rgba(127,216,240,.22);--text:#e7ecf6;--muted:#a7b3cc;--accent:#7fd8f0;--gold:#e8c15a}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:radial-gradient(ellipse at 50% 120%,#0d2140 0%,var(--bg) 60%) fixed,var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));min-height:100dvh;display:flex;flex-direction:column}
+body{margin:0;color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:linear-gradient(180deg,rgba(4,8,18,.55) 0%,rgba(4,8,18,.25) 45%,rgba(4,8,18,.8) 100%),url(story/img/stages/vista_quiet_water.webp) center/cover fixed,var(--bg);
+  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));min-height:100dvh;display:flex;flex-direction:column}
 a{color:inherit}
 button{font:inherit;color:inherit}
-.top{display:flex;align-items:center;gap:12px;min-height:44px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.18em;font-size:18px}
-.brand img{width:30px;height:30px}
-.back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(12,24,48,.8);text-decoration:none;font-size:20px;flex:none}
-.top h1{margin:0;font-size:18px;font-weight:700}
-.sp{flex:1}
-.iconbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(12,24,48,.8);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;text-decoration:none;font-size:18px}
-main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;width:100%;max-width:980px;margin:0 auto;padding:12px 0}
-.continue{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;border:1px solid var(--accent);background:rgba(127,216,240,.08);text-decoration:none;min-height:56px}
-.continue b{color:var(--accent);font-size:16px}
-.continue span{color:var(--muted);font-size:13px}
-.continue .go{margin-left:auto;font-size:22px;color:var(--accent)}
-.doors{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px}
-.door{display:flex;flex-direction:column;justify-content:flex-start;gap:6px;min-height:150px;padding:16px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(18,34,64,.95),rgba(8,17,31,.95));text-decoration:none;position:relative;overflow:hidden}
-.door:hover,.door:focus-visible{border-color:var(--accent);outline:none}
-.door .ico{color:var(--accent);margin-bottom:auto}
-.door b{font-size:20px}
-.door span{color:var(--muted);font-size:13px}
-.door.story{border-color:#e8c15a66;background:linear-gradient(160deg,#2a2210,#0b1020 70%)}
-.door.story .ico{color:#e8c15a}
-.door.story b{color:#ffe08a}
-.door .tag{position:absolute;top:14px;right:14px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#1a1206;background:#e8c15a;border-radius:999px;padding:2px 9px}
-.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
-.item{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(12,24,48,.85);text-decoration:none;cursor:pointer;text-align:left;min-height:64px}
-.item:hover,.item:focus-visible{border-color:var(--accent);outline:none}
-.item .ico{color:var(--accent);flex:none;margin-top:2px}
-.item b{display:block;font-size:15.5px}
-.item span{display:block;color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.item i{display:block;font-style:normal;font-size:12.5px;color:#bfe9d3;margin-top:4px}
-.item .num{flex:none;width:28px;height:28px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 13px ui-monospace,monospace;color:var(--accent)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:0;background:transparent;padding:0 16px;min-height:40px;cursor:pointer;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg);font-weight:700}
-.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.muted{color:var(--muted);font-size:13px}
-footer{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
-footer a,footer button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:rgba(12,24,48,.8);text-decoration:none;cursor:pointer;font-size:14px}
-.sheet{position:fixed;inset:0;z-index:10;background:rgba(4,8,18,.8);display:flex;align-items:center;justify-content:center;padding:16px}
-.sheet[hidden]{display:none}
-.sheet .box{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
-.sheet h2{margin:0;font-size:17px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .ico{display:block}
+.top{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px}
+.top h1{margin:0;font-size:15px;font-weight:300;letter-spacing:.32em;text-transform:uppercase;color:var(--text)}
+.top h1::before,.top h1::after{content:'';display:inline-block;width:22px;height:1px;background:currentColor;opacity:.6;vertical-align:middle;margin:0 10px}
+.back{position:absolute;left:0;top:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#f2f6fb;color:#071020;text-decoration:none;font-size:26px;line-height:1;padding-bottom:3px}
+.sp{display:none}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:100%;max-width:980px;margin:0 auto;padding:10px 0}
+/* home: logo and a stack of buttons */
+.logo{width:auto;height:min(24vh,150px);filter:drop-shadow(0 4px 18px rgba(0,0,0,.6))}
+.home{display:flex;flex-direction:column;align-items:center;gap:14px}
+.stack{display:flex;flex-direction:column;align-items:center;gap:10px}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-width:220px;min-height:46px;padding:0 26px;border-radius:12px;background:rgba(127,216,240,.88);color:#04101c;text-decoration:none;font-size:19px;font-weight:300;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.pill:hover,.pill:focus-visible{background:#a6e6f7;outline:none}
+.pill.story{background:rgba(232,193,90,.92)}
+.pill.story:hover,.pill.story:focus-visible{background:#f2d27a}
+.pill.ghost{background:rgba(10,20,38,.7);color:var(--text);border:1px solid var(--line)}
+.pill small{font-size:12px;letter-spacing:.04em;text-transform:none;opacity:.8}
+.continue{flex-direction:column;gap:0;line-height:1.1;padding:6px 26px}
+/* sub screens: a few centered cards */
+.list{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;width:100%}
+.item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:230px;min-height:150px;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-decoration:none;cursor:pointer;text-align:center}
+.item:hover,.item:focus-visible{border-color:var(--accent);background:rgba(16,34,60,.85);outline:none}
+.item .ico{color:var(--accent)}
+.item b{display:block;font-size:17px;font-weight:300;letter-spacing:.14em;text-transform:uppercase}
+.item span{color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.item .num{width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font:600 13px ui-monospace,monospace;color:var(--accent)}
+.boards .item{width:180px;min-height:120px;padding:12px}
+.boards .item b{font-size:14px;letter-spacing:.08em}
+.boards .item span{-webkit-line-clamp:2;font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:0 18px;min-height:40px;cursor:pointer;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#04101c;font-weight:700}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.muted{color:var(--muted);font-size:13px;text-align:center;max-width:520px;margin:0}
+/* bottom: round icon buttons with a caption */
+footer{display:flex;gap:18px;justify-content:center;align-items:flex-start}
+footer:empty{display:none}
+footer a,footer button{display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;padding:0;cursor:pointer;text-decoration:none;font-size:11.5px;color:var(--text);text-shadow:0 1px 3px #000}
+footer .round{width:50px;height:50px;border-radius:50%;background:#071020;border:2px solid #f2f6fb;display:flex;align-items:center;justify-content:center;color:#f2f6fb}
+footer a:hover .round,footer button:hover .round{border-color:var(--accent);color:var(--accent)}
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(4,8,18,.75);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet[hidden]{display:none}
+.sheet .box{width:min(420px,100%);background:#0c1830;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.sheet h2{margin:0;font-size:15px;font-weight:300;letter-spacing:.24em;text-transform:uppercase}
+.sheet .muted{text-align:left}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.done{min-height:44px;padding:0 20px;border-radius:12px;border:0;background:var(--accent);color:#04101c;cursor:pointer;font-weight:700}
 /* a phone held sideways: everything fits on one screen */
 @media (max-height:540px) and (orientation:landscape){
-  main{padding:6px 0;gap:10px}
-  .door{min-height:118px;padding:12px 14px}
-  .door b{font-size:18px}
-  .list{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
-  .item{padding:9px 12px;min-height:54px}
-}
-@media (max-width:640px) and (orientation:portrait){
-  .doors{grid-template-columns:1fr}
-  .door{min-height:104px}
+  main{gap:10px;padding:4px 0}
+  .home{flex-direction:row;gap:48px}
+  .logo{height:min(52vh,170px)}
+  .pill{min-height:40px;font-size:16px;min-width:200px}
+  .stack{gap:7px}
+  .item{width:200px;min-height:118px;padding:12px}
+  .boards .item{width:150px;min-height:100px;padding:10px}
+  footer .round{width:44px;height:44px}
 }
 </style>
 </head>
@@ -143,28 +148,27 @@ function route() {
   const top = $('#top'), main = $('#main');
   top.textContent = ''; main.textContent = '';
   if (sc.title) top.append(h('a', { class: 'back', href: '#' + sc.back, 'aria-label': 'Back' }, '‹'), h('h1', null, sc.title));
-  else top.append(h('div', { class: 'brand' }, h('img', { src: 'docs/brand/favicon.svg', alt: '' }), 'SHATKON'));
-  top.append(h('span', { class: 'sp' }));
+
   sc.draw(main);
   const f = $('#foot'); f.textContent = '';
-  if (!sc.title) f.append(h('a', { href: 'docs/' }, ico('doc', 18), 'How to play'), h('button', { onclick: openSettings }, ico('gear', 18), 'Settings'));
+  if (!sc.title) f.append(h('button', { onclick: openSettings }, h('span', { class: 'round' }, ico('gear', 22)), 'Settings'), h('a', { href: 'docs/' }, h('span', { class: 'round' }, ico('doc', 22)), 'How to play'));
 }
 window.addEventListener('hashchange', route);
 
 function home(main) {
   let last = null;
   try { last = JSON.parse(ls.get('shatkon.last') || 'null'); } catch (e) {}
+  const stack = h('div', { class: 'stack' });
   if (last && !last.over) {
     const what = last.story ? 'Story' + (last.title ? ': ' + last.title : '') : ({ cpu: 'Vs computer', pass: 'Same phone', all: 'Open board' }[last.seat] || 'Two phones');
-    const href = last.board ? game({ board: last.board }) : 'play.html';
-    main.append(h('a', { class: 'continue', href }, ico('play', 22), h('div', null, h('b', null, 'Continue'), h('span', null, ' ' + what + (last.round ? ' · round ' + last.round : ''))), h('span', { class: 'go' }, '›')));
+    stack.append(h('a', { class: 'pill continue', href: last.board ? game({ board: last.board }) : 'play.html' }, 'Continue', h('small', null, what + (last.round ? ' \u00b7 round ' + last.round : ''))));
   }
-  main.append(h('div', { class: 'doors' },
-    h('a', { class: 'door story', href: game({ mode: 'story' }) }, ico('story', 30), h('span', { class: 'tag' }, 'START HERE'), h('b', null, 'Story'), h('span', null, 'Learn to play, one chapter at a time.')),
-    h('a', { class: 'door', href: '#play' }, ico('play', 28), h('b', null, 'Play'), h('span', null, 'The computer, or a friend on the same phone or two phones.')),
-    h('a', { class: 'door', href: '#workshop' }, ico('tools', 28), h('b', null, 'Workshop'), h('span', null, 'Design ships, test chapters, see the whole board.'))));
+  stack.append(h('a', { class: 'pill story', href: game({ mode: 'story' }) }, 'Story'),
+    h('a', { class: 'pill', href: '#play' }, 'Play'),
+    h('a', { class: 'pill ghost', href: '#workshop' }, 'Workshop'));
+  main.append(h('div', { class: 'home' }, h('img', { class: 'logo', src: 'docs/brand/lockup.svg', alt: 'Shatkon' }), stack));
 }
-const item = (href, icon, name, about, onclick) => h(href ? 'a' : 'button', { class: 'item', href, onclick }, ico(icon), h('div', null, h('b', null, name), h('span', null, about)));
+const item = (href, icon, name, about, onclick) => h(href ? 'a' : 'button', { class: 'item', href, onclick }, ico(icon, 30), h('b', null, name), h('span', null, about));
 function playMenu(main) {
   main.append(h('div', { class: 'list' },
     item('#play/cpu', 'cpu', 'Vs computer', 'Pick a board and how hard the computer plays.'),
@@ -192,7 +196,7 @@ async function boardPicker(mode) {
     const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'How hard the computer plays' });
     const draw = () => { seg.textContent = ''; for (const [v, t] of [['easy', 'Easy'], ['normal', 'Normal']]) seg.append(h('button', { 'aria-pressed': String(level === v), onclick: () => { level = v; ls.set('shatkon.ai', v); draw(); } }, t)); };
     draw();
-    main.append(h('div', { class: 'bar' }, h('span', { class: 'muted' }, 'Computer'), seg));
+    main.append(h('div', { class: 'bar' }, seg));
   }
   const list = h('div', { class: 'list' }, h('span', { class: 'muted' }, 'Loading the boards…'));
   main.append(list);
@@ -202,7 +206,7 @@ async function boardPicker(mode) {
   for (const b of bs) {
     const m = /^(\d+)\.\s*(.*)$/.exec(b.name) || [null, '', b.name];
     list.append(h('button', { class: 'item', onclick: () => { const p = { board: b.id, mode, new: '1' }; if (mode === 'cpu') p.level = level; location.href = game(p); } },
-      h('span', { class: 'num' }, m[1] || '•'), h('div', { title: b.tip || null }, h('b', null, m[2]), h('span', null, b.about))));
+      h('span', { class: 'num' }, m[1] || '•'), h('b', { title: b.tip || null }, m[2]), h('span', null, b.about)));
   }
 }
 
@@ -218,7 +222,7 @@ function openSettings() {
     toggle('shatkon.labels', labels, 'on', 'off', 'Labels under icons'),
     toggle('shatkon.sfx', sound, '1', '0', 'Sound'),
     h('p', { class: 'muted' }, 'To play full screen from your home screen: open the browser’s menu and choose “Install app” or “Add to Home Screen”.'),
-    h('div', { class: 'row' }, h('span', { class: 'sp' }), h('button', { class: 'iconbtn', style: 'width:auto;padding:0 16px', onclick: () => { box.hidden = true; } }, 'Done'))));
+    h('div', { class: 'row' }, h('span'), h('button', { class: 'done', onclick: () => { box.hidden = true; } }, 'Done'))));
   box.hidden = false;
   box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };
 }
