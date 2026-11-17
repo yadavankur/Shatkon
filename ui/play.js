@@ -1723,7 +1723,7 @@ export function render() {
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
     h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Home'),
-    h('a', { class: 'btn', href: 'docs/', target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),
+    h('a', { class: 'btn', href: 'docs/', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),
     null),
     installed() ? null : h('div', { class: 'row', style: 'align-items:center' },
       installEvt ? h('button', { class: 'btn go', onclick: async () => { const e = installEvt; installEvt = null; try { await e.prompt(); } catch (err) {} render(); } }, 'Install Shatkon', h('small', null, 'full screen, from your home screen')) : null,

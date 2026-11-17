@@ -253,10 +253,24 @@ footer{padding:50px 18px 80px;text-align:center;color:var(--dim);font-size:13px;
 @media (max-width:1000px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.flow{grid-template-columns:repeat(2,minmax(0,1fr))}.explorer{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:680px){.g2,.g3,.g4,.flow,.dmg{grid-template-columns:minmax(0,1fr)}.chap .card{grid-template-columns:minmax(0,1fr)}.chap{padding-left:52px}.timeline::before{left:18px}.chap .node{left:2px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}section.sec{padding-top:60px}.brand span{display:none}.caption{position:static;border-radius:0;border-width:1px 0 0}.teaser{aspect-ratio:3/4}.teaser .por{height:50%;top:6%;bottom:auto}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.chap{opacity:1;transform:none}.hm-l,.wm-l{stroke-dashoffset:0}.hm-bloom{transform:none;opacity:1}.hm-node,.wm-n{opacity:1}.hm-glow{opacity:.45}.hm-shim{opacity:0}}
+/* always-visible way out: the manual has no browser back button when the game is installed full screen */
+.exit{position:fixed;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));z-index:60;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 var(--font);text-decoration:none;box-shadow:0 0 14px -4px rgba(95,247,255,.5)}
+.exit b{font-size:24px;line-height:1;color:var(--neon);font-weight:700;margin-top:-2px}
+.exit:hover,.exit:focus-visible{background:rgba(10,36,60,.98);border-color:var(--neon);outline:none}
+header.nav .nav-in{padding-left:max(172px,calc(env(safe-area-inset-left) + 164px))}
+@media (max-width:680px){header.nav .brand span{display:none}header.nav .nav-in{padding-left:max(160px,calc(env(safe-area-inset-left) + 152px))}}
 </style>
 </head>
 <body>
 <a class="skip" href="#quick">Skip to content</a>
+<a class="exit" id="exitGame" href="../index.html" aria-label="Back to game"><b aria-hidden="true">&#8249;</b>Back to game</a>
+<script>
+/* Back to game: return to the page the reader came from (the play screen's own address resumes that board's saved game); the landing page if unknown */
+(function(){var a=document.getElementById('exitGame');if(!a)return;var ref='';
+try{if(document.referrer){var u=new URL(document.referrer);if(u.origin===location.origin&&!/\/docs\//.test(u.pathname)){ref=u.pathname+u.search+u.hash;sessionStorage.setItem('shatkon.manualFrom',ref)}}
+if(!ref)ref=sessionStorage.getItem('shatkon.manualFrom')||'';
+if(ref)a.setAttribute('href',ref)}catch(e){}})();
+</script>
 <header class="nav"><div class="nav-in">
   <a class="brand" href="#top" aria-label="SHATKON home"><svg id="navMark" viewBox="-115 -115 230 230" aria-hidden="true"></svg><span>SHATKON</span></a>
   <nav class="nav-links" id="navlinks" aria-label="Sections"></nav>
