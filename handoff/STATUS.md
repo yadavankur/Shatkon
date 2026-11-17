@@ -1,6 +1,17 @@
 # Status (updated 2026-11-17 by engine)
 
 
+
+## Latest (17 Nov, engine): the board explains the rules while you play (branch `ux-clarity`, PR to main)
+From Ankur's playtest: the game felt one-sided because the rules behind it were invisible (the enemy's 3-hit shots were the move-first bonus, his launcher died to the first shot, double turns looked like the computer cheating, he skipped a turn by double-tapping End turn).
+- **Fire mode** shades every hex the selected ship's lasers reach, with −3 / −2 on each hex and a big −N on enemies in reach; the hint spells out "move 1 hex first: +1". Fire opens whenever a laser is ready ("show reach"), not only with a target. `E.beamField`.
+- **Move mode**: a red ring on move markers where a visible enemy could shoot the ship next turn (worst case: it steps closer and fires, with the strongest laser in the rules, since you may not know what it carries); the ship panel says "In enemy reach −N" / "There −N" for a previewed move. `E.dangerMap`.
+- **Incoming enemy missiles** you can see: red dashed line along their heading for this round, red ring and "missile hits this round" where it runs into your ship. Uses only position and heading (no lock or route). `E.incoming`.
+- **"Flight phase" is now "Missiles fly"** (banner, help, hints). A round with nothing in the air shows "End of round".
+- **Round strip** in the turn bar, now also on phones: You ▸ Enemy ▸ Missiles fly ▸ You again. The "Your turn" banner says "You go again: the first move swaps every round" on a double turn.
+- **Ending a turn with nothing done** opens a pop-up (Keep playing / End turn anyway; the end button wakes after 0.6 s). Ending with points left after acting still asks on the button, and a second press within 0.5 s is ignored.
+- Help text fixed: lasers are 3 hits up to 4 hexes, 2 up to 8, +1 after moving (it said 2 and 1).
+- Checked: 165 tests; headless Chrome 800x360 phone: screenshots of each piece, no console errors; browser_story ch1–ch4a win (ch4a save bug unchanged).
 ## Latest (17 Nov, engine): battle logs carry times; the "no seed" puzzle explained (branch `log-timestamps`, PR to main)
 - **Times:** the play page writes `started` (new game or chapter), `at` on each finished turn, and `updated` (every save) into the save; the battle log shows `started`, `lastPlayed` and each turn's `at`, plus a "Played:" line in the summary. Times are UTC. They are kept out of `hashState` (codec SKIP), so replays and the two-phone sync are unaffected. Turns from an older save or from the other phone's game code are not back-stamped.
 - **Why a game played today had no seed:** on 16 Nov the boards lived in `beta/`, whose engine had no seed (it went into the main engine on 15 Nov). When beta became the main game, the page copied the beta saves across, so opening `?board=NAME` can restore a seedless beta game. Every new game since has a seed: 48 of 48 test games (default board, all 10 boards, all 5 chapters, saved and reloaded) replay exactly. The log's note now says this instead of "started before battle logs existed".

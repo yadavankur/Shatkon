@@ -46,6 +46,12 @@ main[hidden]{display:none}
 #turnbar .line.top{margin-top:0}
 .stepchip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--muted)}
 .stepchip.now{color:var(--bg);background:var(--me,var(--text));border-color:transparent;font-weight:700}
+/* the round, step by step: You ▸ Enemy ▸ Missiles fly ▸ Enemy again */
+.steps{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}
+.stepsep{font-style:normal;color:var(--muted);font-size:9px;opacity:.7}
+.stepchip.fly{color:#ff9d4d;border-color:#ff9d4d55}
+.stepchip.next{border-style:dashed;opacity:.8}
+.stat.danger{color:#ff8a8a;border-color:#ff5a5a88}.stat.danger b{color:#ff5a5a}
 .pips{letter-spacing:2px;color:var(--accent);font-size:15px}
 .pips i{font-style:normal;color:var(--line)}
 b.n{font-family:var(--mono);color:var(--accent)}
@@ -99,7 +105,7 @@ body{touch-action:manipulation}
   #tools{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
   #tools .btn{flex:0 0 auto}
   #turnbar .wide{display:none}
-  .stepchip{display:none}
+  .stepchip{font-size:10px;padding:0 6px}
   header h1{font-size:15px}
   #tabs a{padding:6px 10px}
 }
@@ -197,6 +203,7 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 #seat select{background:var(--panel);color:var(--text);border:0;padding:7px 10px;min-height:38px;font:inherit;cursor:pointer;border-radius:8px}
 .iconbtn{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-width:40px;min-height:38px;cursor:pointer;color:var(--text);font-size:16px;line-height:1}
 .modal{position:fixed;inset:0;z-index:60;background:rgba(4,7,15,.82);display:flex;align-items:center;justify-content:center;padding:14px}
+#endask .endask{max-width:380px} #endask .row{display:flex;justify-content:space-between;gap:12px;margin-top:12px} #endask .btn{flex:1}
 .modal[hidden]{display:none}
 .modal-box{max-width:560px;max-height:calc(100vh - 28px);overflow:auto;margin:0;border-color:var(--accent)}
 .modal-box h2{font-size:17px;color:var(--accent)}
@@ -320,16 +327,19 @@ body.compact header{display:none}
 body.compact #hudtop{left:var(--sl);top:var(--st);width:var(--col);max-width:none;gap:4px}
 body.compact #turnbar{width:100%;padding:3px 8px;border-radius:8px}
 body.compact #turnbar .big{font-size:14px}
+body.compact .steps{flex-basis:100%;gap:1px;flex-wrap:nowrap;white-space:nowrap}
+body.compact .stepchip{font-size:9px;padding:0 4px;line-height:14px}
+body.compact .stepsep{font-size:7px}
 body.compact #turnbar .line{font-size:12px;gap:0 8px;margin-top:0}
-body.compact .stepchip,body.compact .ledger,body.compact #turnbar .wide{display:none}
+body.compact .ledger,body.compact #turnbar .wide{display:none}
 body.compact #camera{right:var(--sr);top:var(--st);flex-direction:row}
 body.compact #camera button{width:44px;min-width:44px;height:44px;min-height:44px}
 body.compact #camera .zoom{display:none}
-body.compact #lower{inset:auto;left:var(--sl);bottom:var(--sb);top:0;width:var(--col);padding:66px 0 0;gap:6px}
+body.compact #lower{inset:auto;left:var(--sl);bottom:var(--sb);top:0;width:var(--col);padding:84px 0 0;gap:6px}   /* below the turn bar (3 lines with the round strip) */
 body.compact #dock{display:block}
 body.compact #hint{font-size:12.5px;line-height:1.3;padding:5px 8px;max-height:5.4em}
 body.compact #hint:empty{display:none}
-body.compact #ctx{position:static;width:auto;max-height:none;min-height:0;flex:0 1 auto;padding:6px 8px}
+body.compact #ctx{position:static;width:auto;max-height:none;min-height:0;flex:0 1 auto;padding:6px 8px;overflow:auto}
 body.compact .ctx-head h2{font-size:14px}
 body.compact .stats{margin:2px 0 4px}
 body.compact #rail{display:flex;flex-direction:column;justify-content:flex-end;gap:6px;position:absolute;z-index:6;right:var(--sr);bottom:var(--sb);width:var(--col);max-height:calc(100% - 60px);pointer-events:none}
@@ -386,11 +396,11 @@ body.compact #turnbtns .btn.go{flex:2;text-align:center;font-weight:700}
     <ol>
       <li><b>Goal:</b> destroy the enemy <b>flagship</b> (marked &#9733;). Each player has a small scout and a big flagship, built from hex segments full of parts.</li>
       <li><b>Your turn:</b> you get <b>3 command points</b>. Moving one ship, firing one laser, launching one missile or scanning costs 1 point each. Unspent points are banked (up to 6).</li>
-      <li><b>Who moves first</b> in round 1 is picked at random each game and shown when the game starts (story chapters: you always start). After that the first move swaps every round.</li>
+      <li><b>Who moves first</b> in round 1 is picked at random each game and shown when the game starts (story chapters: you always start). After that the first move swaps every round, so whoever moves last in a round moves first in the next: a double turn, and it goes to each side in turn. The strip at the top shows the round step by step.</li>
       <li><b>Your ships:</b> a ship with a <b>white rim</b> round its hexes is yours to command. Tap it and its panel opens with its orders (move, fire, launch, scan) and its key numbers. A ship without the rim can't take orders right now, so tapping it opens nothing. The view only moves when you move it: drag to pan, pinch or use the mouse wheel to zoom, <b>double-tap one of your ships</b> to zoom in on it and double-tap it again to zoom back out. &#9974; shows the whole board.</li>
-      <li><b>Moving:</b> tap your ship, tap a green marker to preview, then tap it again. Your fleet shares one pool of <b>thrust</b>; a bigger ship costs more thrust per hex.</li>
+      <li><b>Moving:</b> tap your ship, tap a green marker to preview, then tap it again. Your fleet shares one pool of <b>thrust</b>; a bigger ship costs more thrust per hex. A <b>red ring</b> on a marker means an enemy you can see could shoot your ship there on its next turn; the ship panel says how hard ("In enemy reach &minus;3").</li>
       <li><b>Fog of war:</b> you only see what your ships can detect. Big ships are easier to spot, stealth parts and the purple nebula hide you, and firing or launching makes you flare up. A "?" marks where an enemy was last seen.</li>
-      <li><b>Lasers</b> hit instantly in a straight line (2 hits up to 4 hexes, 1 hit up to 8) and asteroids block them. <b>Missiles</b> fly during the <b>Flight</b> step after both players have moved, so lock on and plan ahead. Point defence can stop one missile a round.</li>
+      <li><b>Lasers</b> hit instantly in a straight line: <b>3 hits up to 4 hexes, 2 hits up to 8</b>, and <b>+1</b> if the ship moved at least 1 hex earlier in the turn. Asteroids and your own ships block them. Press <b>Fire</b> and the board shows your reach in red, with the hits a shot does on every hex. <b>Missiles</b> don't move when you launch them: at the end of each round, after both players have had their turn, <b>missiles fly</b> (6 hexes a round). Enemy missiles you can see are drawn with a red dashed line to where they are heading. Point defence can stop one missile a round.</li>
       <li><b>Detection tiers:</b> a red fuzzy circle means <i>something</i> is somewhere inside it (any hex in the circle is equally likely, and the circle doesn't move while the target sits still, so looking again tells you nothing new); &#9670; means you know exactly where a ship is; &#9635; means a fresh scan shows every part and its hull.</li>
       <li><b>Scan</b> (1 point, once per ship per turn): <b>a ship can only scan on a turn it has moved</b> (at least 1 hex away from where it started the turn; moving there and back doesn't count). The further forward the ship is, the stronger the scan: near your home edge it sees 2 hexes clearly and 4 faintly, in mid-field 4 / 7, and from the centre line onwards 6 / 10. Before sending it you see both rings and how much further forward the next tier is. Everything in the green ring is fully revealed, hidden mines included; the amber ring only picks up faint contacts. Scanning lights your ship up.</li>
       <li><b>Stealth &amp; signature</b> work like engines and thrust: a ship's signature starts at its size (1 per segment) and each <i>working</i> stealth part takes 1 off, down to a floor of segments&nbsp;&divide;&nbsp;3 (rounded up). Firing, launching or scanning adds a flare. You're spotted when an enemy is within <i>their sensor range + your signature</i>, so the flagship (7 segments, 4 stealth = 3) is seen from 7 hexes instead of 11. Stealth parts are free; lose one to damage and you lose its &minus;1.</li>

@@ -4,7 +4,7 @@
 import { key, add, step, dist, line, sightLine, turnToward, dirToward } from './hex.js';
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap, beamHits, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
+import { moveCap, beamHits, beamHitsAt, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
@@ -62,6 +62,101 @@ export function beamTargets(state, shipId) {
       if (t.segs && d > (maxAttr(state, t, 'evades_beyond') || Infinity)) hits = 0;   // too nimble to hit from this far
       if (hits > 0) out.push({ seg: w.si, part: w.pi, weapon: w.p.t, at: c, target: t.id, hits });
     });
+  }
+  return out;
+}
+
+// ---------- what the board shows to explain the rules while you play ----------
+// All three use only what the current player can see: hidden ships never block or show.
+
+// Where this ship's lasers can reach right now and how hard they hit there (every hex, not only enemy
+// ones), so the range rings explain themselves. A hex counts when one of the ship's ready lasers is in
+// range, the line is clear of asteroids and of your own ships, and nothing you can see stands in front
+// of it (a beam stops at the first thing it meets). runBonus: the extra hit a move first would add
+// (attack run), when this ship has not moved yet this turn and still can.
+//   -> null, or { cells: [{ at, hits }], range, moved, runBonus }
+export function beamField(state, shipId) {
+  const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
+  if (!ship || ship.owner !== p || pl.cp < state.rules.cost.fire) return null;
+  const guns = workingParts(state, ship).filter((w) => num(w.c.range) && num(w.c.hits) && !ship.used[w.si + '.' + w.pi]);
+  if (!guns.length) return null;
+  const g = geom(state.rules), occ = occupancy(state), vis = new Set(pl.vis);
+  const mine = new Set(footprint(ship).map(key));
+  const stops = (h) => {      // something this player knows would take the beam before it goes further
+    const o = occ.get(key(h));
+    if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked && (o.ship.owner === p || vis.has(o.ship.id))) return true;
+    return state.objs.some((x) => x.pos[0] === h[0] && x.pos[1] === h[1] && (x.owner === p || vis.has(x.id))
+      && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0)
+      && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed))
+      && state.rules.munitions[x.kind].beams_pass !== true);
+  };
+  const ownInWay = (h) => { const o = occ.get(key(h)); return o && o.ship !== ship && o.ship.owner === p && !o.ship.segs[o.seg].wrecked; };
+  const best = new Map();
+  let range = 0;
+  for (const w of guns) {
+    const src = segHex(ship, w.si), R = num(w.c.range);
+    range = Math.max(range, R);
+    for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) {
+      const c = [src[0] + q, src[1] + r], k = key(c), d = dist(src, c);
+      if (d < 1 || mine.has(k) || !g.inside(c)) continue;
+      const cells = sightLine(src, c, (h) => g.blockSight.has(key(h)));
+      if (!cells) continue;
+      let blocked = false;
+      for (let j = 1; j < cells.length - 1 && !blocked; j++) blocked = ownInWay(cells[j]) || stops(cells[j]);
+      if (blocked || ownInWay(c)) continue;
+      const hits = beamHits(state, ship, w.c, d);
+      if (hits > 0 && (best.get(k) || 0) < hits) best.set(k, hits);
+    }
+  }
+  const moved = netMoved(state, ship) >= 1, run = num(state.rules.det.attackRun);
+  const canMove = reach(state, shipId).length > 0;
+  return { cells: [...best].map(([k, hits]) => ({ at: k.split(',').map(Number), hits })), range, moved, runBonus: !moved && canMove && pl.cp >= state.rules.cost.fire + state.rules.cost.move ? run : 0 };
+}
+
+// How hard visible enemy ships could hit each hex on their next turn, at worst: as if each carried the
+// strongest laser in the rules, stepped one hex closer and fired (with the attack-run hit). The player
+// may not know what an enemy ship carries, so this is the rule, not a reading of its parts.
+//   -> Map(hexKey -> hits)
+export function dangerMap(state, viewer) {
+  const pl = state.players[viewer], vis = new Set(pl.vis), g = geom(state.rules), out = new Map();
+  let gun = null;
+  for (const c of Object.values(state.rules.parts)) if (num(c.range) && num(c.hits) && (!gun || num(c.hits) > num(gun.hits))) gun = c;
+  if (!gun) return out;
+  const run = num(state.rules.det.attackRun), R = num(gun.range) + 1;
+  for (const e of state.ships) {
+    if (e.dead || e.owner === viewer || !vis.has(e.id)) continue;
+    for (const src of footprint(e)) for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) {
+      const c = [src[0] + q, src[1] + r], k = key(c), d = dist(src, c);
+      if (d < 1 || !g.inside(c)) continue;
+      const reachD = Math.max(1, d - 1);
+      if (reachD > num(gun.range) || !sightLine(src, c, (h) => g.blockSight.has(key(h)))) continue;
+      const hits = beamHitsAt(gun, reachD) + run;
+      if (hits > 0 && (out.get(k) || 0) < hits) out.set(k, hits);
+    }
+  }
+  return out;
+}
+
+// Where the enemy missiles this player can see are heading this round: straight along their current
+// heading for one round's flight (a seeker may still turn toward a ship it finds), stopping at an
+// asteroid, the board edge, or a ship this player knows is there.
+//   -> [{ id, from, path, ends: 'hit' | 'edge' | 'asteroid' | 'open', hit }]
+export function incoming(state, viewer) {
+  const pl = state.players[viewer], vis = new Set(pl.vis), g = geom(state.rules), occ = occupancy(state), out = [];
+  for (const o of state.objs) {
+    const m = state.rules.munitions[o.kind];
+    if (o.owner === viewer || !vis.has(o.id) || !num(m.speed) || m.patrol || o.dir == null) continue;
+    let pos = o.pos, ends = 'open', hit = null;
+    const path = [];
+    for (let i = 0; i < num(m.speed); i++) {
+      const np = step(pos, o.dir), k = key(np);
+      if (!g.inside(np)) { ends = 'edge'; break; }
+      if (g.blockMove.has(k)) { ends = 'asteroid'; break; }
+      path.push(np); pos = np;
+      const oc = occ.get(k);
+      if (oc && (oc.ship.owner === viewer || vis.has(oc.ship.id)) && oc.ship.owner !== o.owner) { ends = 'hit'; hit = oc.ship.id; break; }
+    }
+    out.push({ id: o.id, kind: o.kind, from: o.pos.slice(), path, ends, hit, seeker: num(m.seeker_range) });
   }
   return out;
 }

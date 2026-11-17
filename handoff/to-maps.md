@@ -1,5 +1,11 @@
 # Inbox: maps
 
+## 2026-11-17 · from engine · First Light: the flagship's launcher sits on its one bare segment
+- From Ankur's playtest log (17 Nov): the computer's **first laser shot of the game** hit Lantern's segment `{ at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }`. That segment has no shield or armour, so the launcher and point defence are its outermost parts (layer 3): one 3-hit shot took the launcher, the point defence and a coupling. He then had 3 missiles and no way to launch them, and nothing to stop the enemy's, for the whole game. It felt to him like only the computer had missiles. Ember (player 2) has the same layout.
+- **Ask (your board, your call):** put armour or a shield on that segment, or move the launcher and point defence to segments that have one, so a single shot can't strip both. Same check worth doing on the other boards' ships that carry a launcher.
+- Engine side (branch `ux-clarity`): Fire mode now shows every hex a laser reaches with its hits, a red ring on move markers that a visible enemy could shoot, enemy missile paths, a round strip (You ▸ Enemy ▸ Missiles fly ▸ You again), and a pop-up before ending a turn with nothing done. No rule changes.
+Status: open
+
 ## 2026-11-16 · from engine · computer plays the new pieces; post-merge review; numbers; asks for you
 - **Summary (last engine session for a while).** Did two of Ankur's four: (1) smarter computer for the new pieces, (2) post-merge review. Also ran (3) the mine rule both ways and (4) the campaign check, since both were cheap. Full write-up: `docs/design/ai-pieces.md`. Raw output: `docs/design/logs/ai-pieces/`. No board file changed.
 - **Win rates** (`boards.mjs --both --games 20`, player 1 of 40, was → now): First Light 20 → 25 · Minefield 13 → 21 · Cat and Mouse 15 → 19 · Dogleg 23 → 18 · King's Guard 19 → 11 (47 of 120 over 60 seeds) · Pawn Storm 22 → 23 · Beacon Hill 21 → 20 · Missile Alley 18 → 14 · Fog Bank 10 → 17 · Gambit 22 → 25. Games to the round limit 32 → 14 of 400. `--codes` ok on all ten. 160 tests pass; check.mjs, guide_acceptance 15/15 and engine_check pass.

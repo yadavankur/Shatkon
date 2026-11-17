@@ -48,6 +48,7 @@ async function toggleFull() {      // full screen, and held sideways where the b
 }
 let undoStack = [];               // states before undoable actions this turn
 let endArmed = false;             // End turn was pressed once with points still to spend: the next press ends it
+let endArmedAt = 0;               // ...when (a second press this soon is a double tap, not a decision)
 let curtain = null;               // pass and play: the player waiting behind the curtain
 let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
@@ -535,7 +536,7 @@ function ramFx(r, delay) {
   }, delay);
   return dur;
 }
-// missiles and drones flying through the flight phase, tick by tick
+// missiles and drones flying after both turns of a round ("Missiles fly"), tick by tick
 let fxBusyUntil = 0;
 function flightFx(frames, evs, viewer, base = 0) {
   let step = 300,
@@ -546,7 +547,7 @@ function flightFx(frames, evs, viewer, base = 0) {
     );
   if (!flying) {
     for (let i = frames[0].ev; i < frames[frames.length - 1].ev; i++) if (evs[i]) eventFx(evs[i], viewer, base + 500);
-    setTimeout(() => toast('Flight phase', 'flight', 'Nothing in the air that you can see'), base);
+    setTimeout(() => toast('End of round', 'flight', 'No missiles in the air that you can see'), base);
     return 1100;
   }
   fxBusyUntil = Math.max(fxBusyUntil, performance.now() + base + total + 600);
@@ -609,7 +610,7 @@ function flightFx(frames, evs, viewer, base = 0) {
       x.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
     }
   }, base);
-  setTimeout(() => toast('Flight phase', 'flight', 'Missiles and drones fly'), base);
+  setTimeout(() => toast('Missiles fly', 'flight', 'After both turns, every missile and drone moves'), base);
   for (let k = 0; k < frames.length - 1; k++)
     for (let i = frames[k].ev; i < frames[k + 1].ev; i++) {
       let r = evs[i];
@@ -663,7 +664,7 @@ function playFx(evs, viewer, flight, roundEnded) {
     eventFx(r, viewer, t + (r.t === 'sighted' && scanned ? 900 : 0));
   });
   if (fl && !flown) t += flightFx(fl, evs, viewer, t);
-  if (!fl && roundEnded) { const at0 = t; setTimeout(() => toast('Flight phase', 'flight', 'Nothing in the air that you can see'), at0); t += 1100; }
+  if (!fl && roundEnded) { const at0 = t; setTimeout(() => toast('End of round', 'flight', 'No missiles in the air that you can see'), at0); t += 1100; }
   if (t > 0) fxBusyUntil = Math.max(fxBusyUntil, performance.now() + t + 250);
   return t;
 }
@@ -793,7 +794,11 @@ function act(action, quiet, byAI) {
       const next = turnOf();
       const text = seat === 'cpu' ? (next === 0 ? 'Your turn' : 'Enemy turn') : seat === 'pass' ? 'Pass to Player ' + (next + 1)
         : isCodes() ? (next === seat ? 'Your turn' : 'Send your turn code') : 'Player ' + (next + 1) + '\'s turn';
-      const sub = 'Round ' + Math.min(game.round, game.rules.turnLimit) + (seat === 'cpu' && next === 1 ? ' \u00B7 the computer is moving' : seat === 'cpu' || (isCodes() && next === seat) ? ' \u00B7 ' + plural(game.players[next].cp, 'command point') : '');
+      // the first move swaps every round, so whoever moved last also moves first next round: say so
+      const again = game.round > prev.round && next === p;
+      const name = seat === 'cpu' ? (next === 0 ? 'You go' : 'The enemy goes') : isCodes() ? (next === seat ? 'You go' : 'They go') : 'Player ' + (next + 1) + ' goes';
+      const sub = again ? name + ' again: the first move swaps every round'
+        : 'Round ' + Math.min(game.round, game.rules.turnLimit) + (seat === 'cpu' && next === 1 ? ' \u00B7 the computer is moving' : seat === 'cpu' || (isCodes() && next === seat) ? ' \u00B7 ' + plural(game.players[next].cp, 'command point') : '');
       setTimeout(() => toast(text, 'p' + next, sub), Math.max(50, fxBusyUntil - performance.now()));   // after the animations
     }
     if (game.phase === 'over') setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (game.winner === 0 ? 'Victory!' : 'Defeat') : 'Player ' + (game.winner + 1) + ' wins', 'over'), 600);
@@ -871,7 +876,7 @@ function describe(e) {
 }
 function forecastText(f, kind) {
   if (!f) return '';
-  const when = f.rounds <= 1 ? 'in this round\'s flight phase' : 'in ' + f.rounds + ' rounds';
+  const when = f.rounds <= 1 ? 'at the end of this round, when missiles fly' : 'in ' + f.rounds + ' rounds';
   if (f.ends === 'hit') return 'On this path the ' + nice(kind) + ' reaches ' + f.hit + ' ' + when + ', if nothing moves.';
   if (f.ends === 'edge') return 'On this path it flies off the board ' + when + ' unless its seeker finds something within ' + game.rules.munitions[kind].seeker_range + ' hexes.';
   if (f.ends === 'asteroid') return 'On this path it hits an asteroid.';
@@ -883,6 +888,39 @@ function compass(a, b) {
   return ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
 }
 
+// What the Fire button says: the hit numbers come from the rules (laser: 3 out to 4 hexes, 2 out to 8),
+// and the attack-run bonus is spelled out while this ship could still earn it.
+function fireHelp(id) {
+  const f = E.beamField(game, id), R = game.rules;
+  let gun = null;
+  for (const c of Object.values(R.parts)) if (c.range && c.hits && (!gun || c.hits > gun.hits)) gun = c;
+  const step = gun && gun.loses_1_hit_every, rule = gun ? (step ? gun.hits + ' up to ' + step + ' hexes, ' + (gun.hits - 1) + ' up to ' + Math.min(gun.range, 2 * step) : gun.hits + ' up to ' + gun.range) + ' hexes' : '';
+  const targets = E.beamTargets(game, id).length;
+  return 'Red: your laser reach and the hits a shot does there (' + rule + ').'
+    + (f && f.moved && R.det.attackRun ? ' Moved this turn: +' + R.det.attackRun + ' on every shot.' : '')
+    + (f && f.runBonus ? ' Move 1 hex first: +' + f.runBonus + '.' : '')
+    + (targets ? ' Tap a ringed enemy, then tap again to fire.' : ' No enemy in reach yet.');
+}
+
+// "End your turn without doing anything?" A real pop-up: Keep playing is the big button, End turn sits apart
+// from where the End turn button was, and it only wakes up after a moment, so a double tap can't skip a turn.
+function confirmEmptyTurn(cp) {
+  if ($('#endask')) return;
+  const close = () => { const m = $('#endask'); if (m) m.remove(); };
+  const end = h('button', { class: 'btn', disabled: true, onclick: () => { close(); act({ type: 'end' }); } }, 'End turn anyway');
+  const keep = h('button', { class: 'btn go', onclick: close }, 'Keep playing');
+  const bank = game.rules.cp.bankCap;
+  const box = h('div', { id: 'endask', class: 'modal', role: 'dialog', 'aria-modal': 'true', onclick: (e) => { if (e.target.id === 'endask') close(); } },
+    h('div', { class: 'card modal-box endask' },
+      h('h2', null, 'End your turn without doing anything?'),
+      h('p', null, 'You have ' + plural(cp, 'command point') + ' and at least one ship that can still move, fire, launch or scan. '
+        + (bank ? 'Unspent points are kept for next turn, up to ' + bank + '.' : 'Unspent points are lost.')),
+      h('div', { class: 'row' }, end, keep)));
+  document.body.appendChild(box);
+  setTimeout(() => { end.disabled = false; }, 600);
+  keep.focus();
+}
+
 // ---------- what a tap would do in the current mode ----------
 function options(v) {
   const map = new Map();
@@ -890,7 +928,7 @@ function options(v) {
   if (mode === 'move') for (const r of E.reach(game, sel)) map.set(hex.key(r.at), { action: { type: 'move', ship: sel, path: r.path }, mark: 'move', label: r.path.length });
   if (mode === 'fire') for (const t of E.beamTargets(game, sel)) {
     const k = hex.key(t.at);
-    if (!map.has(k) || map.get(k).hits < t.hits) map.set(k, { action: { type: 'fire', ship: sel, seg: t.seg, part: t.part, at: t.at }, mark: 'target', hits: t.hits, label: t.hits });
+    if (!map.has(k) || map.get(k).hits < t.hits) map.set(k, { action: { type: 'fire', ship: sel, seg: t.seg, part: t.part, at: t.at }, mark: 'target', hits: t.hits, label: '\u2212' + t.hits });
   }
   if (mode === 'missile' || mode === 'seeker_drone') {
     const lo = E.launchOptions(game, sel), me = v.ships.find((x) => x.id === sel);
@@ -1299,6 +1337,15 @@ function statChips(x, v) {
       for (const [k, n] of Object.entries(st.ammo)) chip(pretty(nice(k)) + 's', n, !n);
       if (st.launchers) chip('Launcher', st.launchersReady ? 'ready' : 'used', !st.launchersReady);
       chip('Scan', st.scanReady ? 'ready' : x.used && x.used.scan ? 'used' : st.scanMoved < 1 ? 'move first' : 'no points', !st.scanReady);
+      // could a visible enemy shoot this ship next turn (worst case: it steps closer and fires)? and at the move being previewed?
+      const dm = E.dangerMap(game, typeof who() === 'number' ? who() : turnOf()), worst = (cells) => Math.max(0, ...cells.map((c) => dm.get(hex.key(c)) || 0));
+      const here = worst(x.cells);
+      out.push(h('span', { class: 'stat' + (here ? ' danger' : ''), title: 'How hard a visible enemy could hit this ship on its next turn, at worst (it steps closer and fires). Red rings on the move markers mean the same.' },
+        here ? 'In enemy reach ' : 'Out of enemy reach', here ? h('b', null, '\u2212' + here) : null));
+      if (pending && pending.type === 'move' && pending.ship === x.id) {
+        const to = pending.path.reduce((c, d) => hex.step(c, d), x.pos), there = worst(x.cells.map((c) => [c[0] - x.pos[0] + to[0], c[1] - x.pos[1] + to[1]]));
+        out.push(h('span', { class: 'stat' + (there ? ' danger' : '') }, there ? 'There ' : 'There: out of reach', there ? h('b', null, '\u2212' + there) : null));
+      }
     }
     const sb = x.sigBreak;
     if (sb && sb.flare) chip('Lit up', '+' + sb.flare, true);            // fired, launched or scanned: easier to see for now
@@ -1426,11 +1473,17 @@ export function render() {
 
   // turn bar (top left): whose turn, where we are in the round, what is left to spend
   bar.className = 'who' + (game.phase === 'over' && v.winner !== 'draw' ? v.winner : turn);
-  const stepNames = game.order.map((p) => 'Player ' + (p + 1)).concat('Flight');
+  // The round, step by step: both turns, then the missiles fly; then the next round starts with whoever just
+  // moved last (the first move swaps every round), so a double turn is visible before it happens.
+  const seatName = (p) => seat === 'cpu' ? (p === 0 ? 'You' : 'Enemy') : isCodes() ? (p === seat ? 'You' : 'Them') : 'P' + (p + 1);
+  const stepNames = game.order.map(seatName).concat('Missiles fly');
+  const nextFirst = R.firstPlayer === 'fixed' ? game.order[0] : game.order[game.order.length - 1];
   fill(bar, [h('div', { class: 'line top' },
       h('span', { class: 'big' }, game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
         : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1)),
-      h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), stepNames.map((n, i) => h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') }, n)),
+      h('span', null, 'Round ', h('b', { class: 'n' }, Math.min(v.round, R.turnLimit)), ' of ' + R.turnLimit), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
+        stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : '') }, n)]),
+        game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null),
       v.objective ? h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '') : null),
     mine ? h('div', { class: 'line' },
       h('span', null, compact ? 'Points ' : 'Command points ', h('span', { class: 'pips', 'aria-label': v.cp + ' command points' }, '●'.repeat(Math.min(v.cp, 12)), h('i', null, '●'.repeat(Math.max(0, R.cp.perTurn - v.cp)))), ' ', h('b', { class: 'n' }, v.cp)),
@@ -1452,7 +1505,13 @@ export function render() {
   const halo = new Set(v.ships.filter((x) => canCommand(x, v)).map((x) => x.id));
   const idle = new Set(v.ships.filter((x) => x.mine && mine && !halo.has(x.id)).map((x) => x.id));
   wrap.textContent = '';
-  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid,
+  // what the board explains while you play: your lasers' reach (Fire), where visible enemies could hit the
+  // selected ship (Move), and enemy missiles heading somewhere. All from what this screen may know.
+  const eyes = typeof who() === 'number' ? who() : turnOf();
+  const field = mine && sel && mode === 'fire' && !hid ? E.beamField(game, sel) : null;
+  const danger = mine && sel && mode === 'move' && !hid ? E.dangerMap(game, eyes) : null;
+  const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
+  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
     halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
@@ -1469,7 +1528,7 @@ export function render() {
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
-    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: 'Tap a red ring to aim at it (the number is how many hits it will do), then tap it again to fire.',
+    const help = { move: 'Tap a glowing green marker to see where the ship would end up, then tap it again (white tick) to move.', fire: fireHelp(sel),
       missile: 'Tap an amber ring to lock on to that ship, or tap any hex to fire straight at it. You will see its path before it launches.',
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones, then tap it again to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
@@ -1480,7 +1539,7 @@ export function render() {
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     fill(tools, [
       btn('move', 'Move', st.moveLeft ? 'up to ' + st.moveLeft : 'no moves left', st.moveLeft > 0),
-      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : 'nothing in range', shots.length > 0) : null,
+      st.beams ? btn('fire', 'Fire', !st.beamsReady ? 'already fired' : shots.length ? plural(new Set(shots.map((x) => x.target)).size, 'target') : v.cp < R.cost.fire ? 'no points' : 'show reach', st.beamsReady && v.cp >= R.cost.fire) : null,
       has('missile') ? btn('missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile')) : null,
       has('seeker_drone') ? btn('seeker_drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone')) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
@@ -1541,9 +1600,13 @@ export function render() {
   // end of turn (bottom right): always in the same place
   if (mine && !hid) fill(tb, [
     undoStack.length ? h('button', { class: 'btn', onclick: undo, title: 'Undo (Ctrl+Z)' }, 'Undo', h('small', null, 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'))) : null,
-    // ending with points left while a ship can still act asks once more (a second press on the same button)
+    // Ending a turn in which nothing was done, while a ship could act, asks in a pop-up (two separate
+    // buttons, so a double tap can't skip a turn). Ending with points left after doing something asks once
+    // more on the same button, and a second press within half a second counts as the same tap.
     h('button', { class: 'btn go' + (v.cp === 1 || endArmed ? ' last' : ''), onclick: () => {
-        if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
+        if (endArmed && performance.now() - endArmedAt < 500) return;
+        if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
+        if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
         else act({ type: 'end' });
       } }, endArmed ? 'End turn?' : v.cp === 1 ? 'Last action' : 'End turn',
       h('small', null, endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : ''),
