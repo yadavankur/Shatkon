@@ -2,7 +2,8 @@
 // Network first: every file is fetched fresh whenever there is a connection, so a new version of the
 // game or its rule files is never held back by an old copy. The copy kept here is only used offline.
 const CACHE = 'shatkon-offline-v1';
-self.addEventListener('install', () => self.skipWaiting());
+// The launch splash's drawing file is kept from the very first visit, so the splash also shows when the game is first opened with no signal.
+self.addEventListener('install', (ev) => { ev.waitUntil(caches.open(CACHE).then((c) => c.add('lib/splash.js')).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', (ev) => ev.waitUntil((async () => {
   for (const k of await caches.keys()) if (k !== CACHE && k.startsWith('shatkon-')) await caches.delete(k);
   await self.clients.claim();
