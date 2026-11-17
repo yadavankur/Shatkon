@@ -161,7 +161,7 @@ function home(main) {
   const stack = h('div', { class: 'stack' });
   if (last && !last.over) {
     const what = last.story ? 'Story' + (last.title ? ': ' + last.title : '') : ({ cpu: 'Vs computer', pass: 'Same phone', all: 'Open board' }[last.seat] || 'Two phones');
-    stack.append(h('a', { class: 'pill continue', href: last.board ? game({ board: last.board }) : 'play.html' }, 'Continue', h('small', null, what + (last.round ? ' \u00b7 round ' + last.round : ''))));
+    stack.append(h('a', { class: 'pill continue', href: last.board ? game({ board: last.board }) : 'play.html?continue=1' }, 'Continue', h('small', null, what + (last.round ? ' \u00b7 round ' + last.round : ''))));
   }
   stack.append(h('a', { class: 'pill story', href: game({ mode: 'story' }) }, 'Story'),
     h('a', { class: 'pill', href: '#play' }, 'Play'),
