@@ -259,6 +259,36 @@ footer{padding:50px 18px 80px;text-align:center;color:var(--dim);font-size:13px;
 .exit:hover,.exit:focus-visible{background:rgba(10,36,60,.98);border-color:var(--neon);outline:none}
 header.nav .nav-in{padding-left:max(172px,calc(env(safe-area-inset-left) + 164px))}
 @media (max-width:680px){header.nav .brand span{display:none}header.nav .nav-in{padding-left:max(160px,calc(env(safe-area-inset-left) + 152px))}}
+/* short screens (a phone on its side, up to about 500 px tall): slim header, smaller demos, tighter spacing */
+@media (max-height:500px){
+html{scroll-padding-top:56px}
+body{font-size:15px;line-height:1.5}
+.exit{top:max(4px,env(safe-area-inset-top));min-height:40px;padding:0 14px 0 10px;font-size:13px}
+header.nav .nav-in{min-height:48px;padding-top:0;padding-bottom:0;gap:10px;padding-left:max(158px,calc(env(safe-area-inset-left) + 150px))}
+header.nav .brand{font-size:13px;letter-spacing:.16em}
+header.nav .brand svg{width:20px;height:20px}
+.nav-links{scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav-links a{font-size:12px;padding:6px 9px}
+.hero{min-height:0;padding:56px 18px 28px}
+.heromark{width:clamp(90px,26vh,150px)}
+.logo{gap:12px}
+section.sec{padding:34px 0 16px}
+h2{font-size:clamp(1.3rem,3.2vw,1.8rem)}
+.lead{font-size:1rem}
+.card{padding:14px}
+p{margin-bottom:.7em}
+.geo svg,.hexsvg,.stage svg,.mapcard svg,.designer svg,#flawSvg,#geoSvg,#combatSvg,#shipSvg,#boardDemo{max-height:55vh}
+.ideas svg{max-height:36vh}
+.stage{max-height:55vh}
+.ginfo,.seginfo{min-height:0}
+.ctrls label{margin:0 0 4px}
+.ctrls input[type=range]{height:22px;margin:0}
+.chap{margin-bottom:20px}
+.chap .pic{min-height:0}
+.chap .pic img{max-height:55vh}
+.wmk{display:none}
+footer{padding:28px 18px 40px;margin-top:30px}
+}
 </style>
 </head>
 <body>
