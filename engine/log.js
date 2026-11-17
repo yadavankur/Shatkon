@@ -44,8 +44,8 @@ export function replay(rules, seed, turns, hook) {
 
 // Every turn so far, the unfinished one included.
 function turnsOf(state) {
-  const out = state.history.map((h) => ({ round: h.round, player: h.player, pre: h.pre, post: h.post, actions: h.actions.slice() }));
-  if (state.phase === 'play' && state.pending.length) out.push({ round: state.round, player: current(state), pre: state.pre, actions: state.pending.slice() });
+  const out = state.history.map((h) => ({ round: h.round, player: h.player, pre: h.pre, post: h.post, at: h.at, actions: h.actions.slice() }));
+  if (state.phase === 'play' && state.pending.length) out.push({ round: state.round, player: current(state), pre: state.pre, at: state.updated, actions: state.pending.slice() });
   return out;
 }
 
@@ -141,6 +141,8 @@ export function battleLog(state, opts = {}) {
     format: LOG_FORMAT, v: 1, created: opts.now || new Date().toISOString(), game: 'SHATKON',
     chapter: R.campaign ? R.campaign.title || R.campaign.id || 'story chapter' : null,
     seat, sides, viewer,
+    // wall-clock times from the play page (absent in games saved before 17 Nov 2026 and in tools/tests)
+    started: state.started || null, lastPlayed: state.updated || null,
     scope: full ? 'full: everything that happened on both sides (the game is over, or both players were shown)'
       : 'partial: only what ' + side(viewer) + ' could see (the game was still going when this was saved)',
     summary: [],
@@ -150,8 +152,8 @@ export function battleLog(state, opts = {}) {
   };
   const turns = turnsOf(state);
   if (state.seed == null) {
-    log.note = 'This game was started before battle logs existed, so it cannot be replayed; only the list of actions is shown.';
-    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
+    log.note = 'This game has no seed, so it cannot be replayed; only the list of actions is shown. It was started before battle logs existed (15 Nov 2026), or on the old beta page before beta became the main game (16 Nov 2026), and its save was carried over.';
+    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
     log.summary = analyse(log).text;
     return log;
   }
@@ -167,7 +169,7 @@ export function battleLog(state, opts = {}) {
       const t = turns[ti];
       if (!cur || cur.i !== ti) {
         const pl = prev.players[t.player], mine = full || t.player === viewer;
-        cur = { i: ti, round: t.round, player: t.player, side: side(t.player), actions: [] };
+        cur = { i: ti, round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: [] };
         if (full) { cur.pre = t.pre; cur.rng = prev.rng; }
         if (mine) { cur.cp = { start: pl.cp }; cur.thrust = { start: pl.thrust }; }
         moved0 = new Map(prev.ships.filter((x) => x.owner === t.player && !x.dead).map((x) => [x.id, x.pos.join(',')]));
@@ -198,7 +200,7 @@ export function battleLog(state, opts = {}) {
     });
   } catch (e) {
     log.note = 'The replay did not match this game (' + e.message + '), so results are missing. Please report this.';
-    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
+    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
     log.summary = analyse(log).text;
     return log;
   }
@@ -295,6 +297,7 @@ export function analyse(log) {
   const winner = log.result && log.result.winner;
   lines.push('SHATKON battle recap' + (log.chapter ? ' \u2014 ' + log.chapter : ''));
   if (log.result) lines.push(log.result.phase === 'over' ? 'Result: ' + (winner === 'draw' ? 'a draw' : side(winner) + ' won') + ' in round ' + Math.min(log.result.round, log.result.turnLimit || 99) + '.' : 'The game was still going (round ' + log.result.round + ') when this was saved.');
+  if (log.started || log.lastPlayed) lines.push('Played: ' + (log.started ? 'started ' + log.started : 'start time not recorded') + (log.lastPlayed ? ', last move ' + log.lastPlayed : '') + ' (UTC).');
   lines.push('What this covers: ' + log.scope + '.');
   if (log.note) lines.push('Note: ' + log.note);
   lines.push('');

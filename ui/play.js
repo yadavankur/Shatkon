@@ -100,8 +100,18 @@ async function loadRules() {
 // The Lab replaces the rules new games use (Lab fleets, rule knobs).
 export function setRules(r, p) { rules = r; problems = p; }
 
+// Wall-clock times go into the save (and so into the battle log): when the game started, when each turn
+// ended, and when it was last played. Only turns played on this page are stamped: a save loaded from an older
+// version, or a game code from the other phone, keeps whatever times it came with (stampFrom).
+let stampFrom = 0;
+function stampTimes() {
+  const now = new Date().toISOString(), hist = game.history || [];
+  for (let i = Math.min(stampFrom, hist.length); i < hist.length; i++) if (!hist[i].at) hist[i].at = now;
+  stampFrom = hist.length;
+  game.updated = now;
+}
 function save() {
-  if (game) E.exportGame(game).then((c) => store.set('shatkon.game', c));
+  if (game) { stampTimes(); E.exportGame(game).then((c) => store.set('shatkon.game', c)); }
   store.set('shatkon.seat', String(seat));
 }
 export function say(text, err) { hint = text; hintErr = !!err; }
@@ -717,6 +727,7 @@ function aiStep() {
 
 export function newGame() {
   game = E.start(rules, (Date.now() % 2147483647) | 0);
+  game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
@@ -733,6 +744,7 @@ export function newGame() {
 // A story chapter (from ui/campaign.js): always against the computer.
 export function startStoryGame(chRules, title) {
   game = E.start(chRules, (Date.now() % 2147483647) | 0);
+  game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   seat = 'cpu';
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
@@ -1576,7 +1588,7 @@ export function render() {
     h('p', { class: 'muted' }, 'The battle log is every turn of this game, what each ship did and what it hit, with a short recap at the top. Before the game ends it only holds what you could see.'),
     h('p', { class: 'muted' }, 'To play on two phones: one player starts a new game and sends the game code. After that you only swap turn codes. Each phone holds the full game, so the fog relies on neither of you looking at the other seat.')));
   panels.appendChild(pasteBox('Load a game code', 'Load game', async (text) => {
-    try { game = await E.importGame(text); looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; moveAnims = []; drawerOpen = false; say('Game loaded.'); save(); }
+    try { game = await E.importGame(text); stampFrom = game.history.length; looks = partLooks(game.rules); sel = look = pending = null; code = ''; cam.w = 0; moveAnims = []; drawerOpen = false; say('Game loaded.'); save(); }
     catch (e) { say(e.message.charAt(0).toUpperCase() + e.message.slice(1) + '.', true); }
     render();
   }));
@@ -1695,7 +1707,7 @@ function initExtras() {
   const saved = store.get('shatkon.game');
   if (saved) {
     try {
-      game = await E.importGame(saved); looks = partLooks(game.rules);
+      game = await E.importGame(saved); stampFrom = game.history.length; looks = partLooks(game.rules);
       if (seat === 'pass' && game.phase === 'play') curtain = turnOf();
       say('Your saved game has been restored.');
     } catch (e) { game = null; }

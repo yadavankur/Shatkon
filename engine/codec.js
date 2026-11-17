@@ -14,7 +14,9 @@ export function fnv(str) {
 
 // Things that are bookkeeping, not part of the position on the board.
 // 'seed' (the starting seed, kept for replays) is left out so fingerprints match games saved before it.
-const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events', 'flight', 'seed']);
+// 'started' and 'updated' are wall-clock times the play page writes into saves (see ui/play.js save());
+// they are not part of the position, and a replay or the other phone would never match them.
+const SKIP = new Set(['rules', 'history', 'lastTurn', 'pending', 'pre', 'events', 'flight', 'seed', 'started', 'updated']);
 // A small seeded random number generator (mulberry32). Same seed, same sequence, on every device.
 export function seededRandom(seed) {
   let t = seed | 0;
