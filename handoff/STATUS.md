@@ -1,5 +1,10 @@
 # Status (updated 2026-11-17 by engine)
 
+
+## Latest (17 Nov, engine): battle logs carry times; the "no seed" puzzle explained (branch `log-timestamps`, PR to main)
+- **Times:** the play page writes `started` (new game or chapter), `at` on each finished turn, and `updated` (every save) into the save; the battle log shows `started`, `lastPlayed` and each turn's `at`, plus a "Played:" line in the summary. Times are UTC. They are kept out of `hashState` (codec SKIP), so replays and the two-phone sync are unaffected. Turns from an older save or from the other phone's game code are not back-stamped.
+- **Why a game played today had no seed:** on 16 Nov the boards lived in `beta/`, whose engine had no seed (it went into the main engine on 15 Nov). When beta became the main game, the page copied the beta saves across, so opening `?board=NAME` can restore a seedless beta game. Every new game since has a seed: 48 of 48 test games (default board, all 10 boards, all 5 chapters, saved and reloaded) replay exactly. The log's note now says this instead of "started before battle logs existed".
+- Checked: 165 tests; headless Chrome on `?board=01_first_light`: times present across a reload, log replays.
 ## Latest (17 Nov, engine): double-tap zoom no longer lags (branch `smooth-zoom`, PR to main)
 - **Why:** double-tap zoom felt slow on a phone. Two causes: the second tap rebuilt the whole board before the glide could start (51–115 ms blocked on a 4x-slowed CPU), and the glide changed the SVG `viewBox` every frame, so the whole board (glows, ship art) was redrawn about 60 times a second.
 - **Fix (`ui/play.js` camTween, `play.html`):** the glide now moves the picture already on screen with a CSS transform on the board's own GPU layer and redraws once, at the end, at the new detail level. Its clock starts on the first frame. A finger on the board ends a glide at once, and the end-of-glide redraw waits for that finger to lift, so a tap is never lost. Double-tap timing uses the touch's own timestamp (`ev.timeStamp`), so a busy phone cannot turn a double tap into two single taps.

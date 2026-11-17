@@ -62,7 +62,7 @@ test('battle log: saved and reloaded games give the same log; old saves still lo
   // a game saved before battle logs: no seed, still gives a log of the actions
   const ol = battleLog(old, { viewer: 'all' });
   assert.equal(ol.replayable, false);
-  assert.match(ol.note, /before battle logs existed/);
+  assert.match(ol.note, /no seed/);
   assert.equal(ol.turns.length, g.history.length + (g.pending.length && g.phase === 'play' ? 1 : 0));
   // the save holds no events: the log is rebuilt, not stored
   assert.ok(!('log' in saveLike(g)));
