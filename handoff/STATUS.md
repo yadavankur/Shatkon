@@ -9,6 +9,14 @@ From Ankur: cutscenes look clean in portrait but worse in landscape, and the gam
 - Code: one CSS block at the end of the story CSS (`story/core.js`) plus a small `ResizeObserver` in `story/player.js` that tells the CSS how tall the box is (`--sk-boxh`). No rotate-your-phone screen was added.
 - Checked: 165 tests; headless Chrome 800x360, 844x390, 932x430, 1024x461: 14 scenes across chapters 1-5 (ship, comms, glyphs, no-art), nothing runs under the box. Choice screens already fit and are unchanged. Not checked on a real phone. Screenshots: `/workspace/cutscene-shots/` on the box (not in the repo).
 
+## Latest (17 Nov, gamedev chat): a way out of the Field Manual (branch `fix-manual-exit`, PR to main)
+From Ankur: "if I launch the documentation I can't seem to get out of it". The installed game is full screen, so there is no browser back button, and the manual had no link back at all.
+- **Field Manual (`docs/index.html` + source `docs/tools/src/template.html`):** a fixed "Back to game" button, top left, 44 px tall, always on screen. It returns to the page you opened the manual from (the landing page, the play screen on the same board so the saved game resumes, the rule viewer). If it can't tell, it goes to the landing page. The build script (`build.py`) writes to `/workspace/shatkon-guide`, which isn't here, so the same edit was made by hand in the template and the built page; they match.
+- **Play screen menu:** "Field manual" opens in the same tab (it used to open a new window).
+- **Other pages:** `rules.html`, `boards.html` and `ui/ships-gallery.html` got a sticky "Back to game" bar at the top (to the landing page). `story/demo.html` is a developer page, not linked from the game: left alone.
+- Checked: 165 tests; headless Chrome 800x360 and 1280x800: landing → manual → Back lands on the landing page; play screen (First Light, one turn ended) → menu → Field manual → Back resumes the same game, ships in the same places; each extra page's button works. Screenshots in `/workspace/manual-exit-shots/`.
+- Watch out: a plain `play.html?continue=1` loses the board (saves are kept per board), so a link back to the play screen must keep its `?board=` address. The manual copies the exact address it came from.
+
 ## Latest (17 Nov, gamedev chat): landing page (branch `landing`, PR to main)
 Ankur's plan (project doc `shatkon-landing-plan-2026-11-17.md`): one simple front door, menus you tap down through.
 - **`index.html` is now the landing page:** Continue (the last unfinished game, from `localStorage shatkon.last`), then three doors: **Story** (start here), **Play** → Vs computer (Easy/Normal + board) / Same phone (board) / Two phones (Start: board, you get the game code / Join: paste one), **Workshop** → Ship Lab, Test a chapter, Open board (no fog), Ship gallery, Rule viewer. Footer: How to play (docs/), Settings (labels, sound). The board list is read from `boards.html`, still the one list of boards.

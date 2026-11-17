@@ -37,9 +37,14 @@ a{color:var(--teal)}
 .sk-shield{animation:skshield 3.2s ease-in-out infinite}@keyframes skshield{0%,100%{stroke-opacity:.35}50%{stroke-opacity:.7}}
 .sk-ember{animation:ember 1.7s ease-in-out infinite alternate}@keyframes ember{from{opacity:.45}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.twinkle,.sk-thrust,.sk-shield,.sk-ember{animation:none}}
+.exitbar{position:sticky;top:0;z-index:100;padding:max(6px,env(safe-area-inset-top)) 8px 6px max(8px,env(safe-area-inset-left));background:rgba(4,8,18,.94);border-bottom:1px solid #1f3552}
+.exitbar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none}
+.exitbar a b{font-size:24px;line-height:1;color:#5ff7ff;font-weight:700;margin-top:-2px}
+.exitbar a:hover,.exitbar a:focus-visible{border-color:#5ff7ff;outline:none}
 </style>
 </head>
 <body>
+<div class="exitbar"><a href="../index.html" aria-label="Back to game"><b aria-hidden="true">&#8249;</b>Back to game</a></div>
 <header>
   <h1>SHATKON · SHIP GALLERY</h1>
   <p class="lead">Your ships (<code>ui/frigate.js</code>) are classic sci-fi vessels assembled from the modules actually fitted: one fused hull plate over the hex cluster (hex-angle chamfers, faint seams), a broad armoured keel down the bow line with a teal stripe, broad struts out to off-axis hexes. Each hex is laid out by where it sits: prow wedge and sensor nose at the bow, engine block and plumes at the stern, wing armour and hard points on the flanks, bridge on the core. Bow toward the enemy; the ship never leaves its own hexes.

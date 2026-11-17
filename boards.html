@@ -16,9 +16,14 @@
   a.board span { display: block; color: #9aa7b4; font-size: 14px; }
   a.board i { display: block; font-style: normal; font-size: 14px; margin-top: 6px; }
   code { background: #1c2632; padding: 1px 5px; border-radius: 4px; }
+.exitbar{position:sticky;top:0;z-index:100;padding:max(6px,env(safe-area-inset-top)) 8px 6px max(8px,env(safe-area-inset-left));background:rgba(4,8,18,.94);border-bottom:1px solid #1f3552}
+.exitbar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none}
+.exitbar a b{font-size:24px;line-height:1;color:#5ff7ff;font-weight:700;margin-top:-2px}
+.exitbar a:hover,.exitbar a:focus-visible{border-color:#5ff7ff;outline:none}
 </style>
 </head>
 <body>
+<div class="exitbar"><a href="index.html" aria-label="Back to game"><b aria-hidden="true">&#8249;</b>Back to game</a></div>
 <main>
 <h1>Ten boards to try</h1>
 <p class="lead"><a href="docs/" style="color:#5aa0e6">Open the field manual</a>: how to play, every ship part and the rules in plain words.</p>
