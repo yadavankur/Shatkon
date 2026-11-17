@@ -2,6 +2,14 @@
 
 
 
+## Latest (17 Nov, gamedev chat): landing page (branch `landing`, PR to main)
+Ankur's plan (project doc `shatkon-landing-plan-2026-11-17.md`): one simple front door, menus you tap down through.
+- **`index.html` is now the landing page:** Continue (the last unfinished game, from `localStorage shatkon.last`), then three doors: **Story** (start here), **Play** → Vs computer (Easy/Normal + board) / Same phone (board) / Two phones (Start: board, you get the game code / Join: paste one), **Workshop** → Ship Lab, Test a chapter, Open board (no fog), Ship gallery, Rule viewer. Footer: How to play (docs/), Settings (labels, sound). The board list is read from `boards.html`, still the one list of boards.
+- **The rule viewer moved to `rules.html`.** The manifest's start page is `index.html`.
+- **play.html takes `?mode=`**: story, test, cpu (`&level=easy|normal`), pass, all, p1, join; `&new=1` starts a fresh game. The query is dropped afterwards so a reload continues. The in-game mode dropdown is gone: the header (or the compact menu) shows ⌂ Home and the mode being played. The drawer's Rule viewer/Boards links became Home. The campaign map's "Back to skirmish" became ⌂ Home. `openTest()` exported from `ui/campaign.js`.
+- Sound is now also kept globally (`shatkon.sfx`), so the landing page's setting reaches every board.
+- Checked: 165 tests; headless Chrome 800x360: every landing screen, Vs computer → Cat and Mouse easy starts with that mode, Continue appears afterwards, Story opens the map, `?mode=test` opens Test a chapter, `?mode=p1` shows the game code. No console errors. Not checked on a real phone; `browser_story.cjs` not run (no Node Playwright here).
+
 ## Latest (17 Nov, gamedev chat): minimal HUD, icons and bars with labels (branch `hud-minimal`, PR to main)
 From Ankur: the screen was too busy and repeated itself. Mock-ups: https://claude.ai/artifact/DPcT5WDa8v2MiB444hhwTQ (project doc `shatkon-hud-redesign-2026-11-17.md`).
 - **Turn bar:** round ring, the round strip (words with labels, coloured dashes without), point diamonds (hollow = spent this turn), thrust as one block per point (as long as it needs; a single bar past 24), the part a previewed move spends lit green. The compact layout measures the bar's height (`--hudh`) instead of a fixed 84px.

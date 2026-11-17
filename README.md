@@ -8,7 +8,8 @@ This repository holds the rule files, the game engine, the game itself and a vie
 | Path | What it is |
 | --- | --- |
 | `play.html` | The game: against the computer, pass and play on one device, or on two phones by swapping turn codes. Its Lab tab is a ship designer and test range. |
-| `index.html` | The rule viewer. One self-contained page that shows the rule files. |
+| `index.html` | The landing page: Story, Play (vs computer, same phone, two phones) and Workshop. |
+| `rules.html` | The rule viewer (was `index.html`). One self-contained page that shows the rule files. |
 | `rules/` | The rule files: the world (physics and parts), the map, and the fleets. `rules/index.yaml` lists which ones are loaded. |
 | `engine/` | The game logic. No screen code in here. |
 | `ui/` | The play screen (`play.js`), the board drawing (`board.js`) and the Ship Lab (`lab.js`). No game rules in here. |
@@ -69,7 +70,7 @@ To run the tests: `node --test` (Node 20 or newer, nothing to install).
 - **On GitHub Pages:** in the repository go to Settings, then Pages, choose "Deploy from a branch",
   pick `main` and `/ (root)`, and save. After a minute the viewer is live at
   `https://<your-username>.github.io/<repository-name>/` and reads the `rules` folder by itself.
-- **On your own device:** open `index.html`, tap "Open files" and choose your `.yaml` files.
+- **On your own device:** open `rules.html`, tap "Open files" and choose your `.yaml` files.
   Opened this way the page cannot read the `rules` folder, so it shows built-in examples until you choose files.
 
 ## Changing the rules

@@ -6,7 +6,7 @@ import { computerMove } from '../engine/ai.js';
 import { beamHits } from '../engine/actions.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { initStory, openCampaign, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
+import { initStory, openCampaign, openTest, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
 
 // ---------- tiny DOM helpers ----------
@@ -113,8 +113,15 @@ function stampTimes() {
   game.updated = now;
 }
 function save() {
-  if (game) { stampTimes(); E.exportGame(game).then((c) => store.set('shatkon.game', c)); }
+  if (game) { stampTimes(); E.exportGame(game).then((c) => store.set('shatkon.game', c)); rememberLast(); }
   store.set('shatkon.seat', String(seat));
+}
+// what the landing page's Continue shows: the last game played, wherever it was
+function rememberLast() {
+  try {
+    const C = game.rules.campaign;
+    localStorage.setItem('shatkon.last', JSON.stringify({ board: BOARD, seat, story: !!C, title: C ? C.title : null, round: Math.min(game.round, game.rules.turnLimit), over: game.phase === 'over', at: Date.now() }));
+  } catch (e) {}
 }
 export function say(text, err) { hint = text; hintErr = !!err; }
 // Whose eyes the screen shows: both, one seat, the player to move (pass and play), or you (vs computer).
@@ -1461,7 +1468,7 @@ function copyLog() {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(f.text).then(() => { say('Battle log copied. Paste it into a message or a note to keep it.'); render(); }, show);
   else show();
 }
-let logBox = null;
+let logBox = null, shareCode = null;   // shareCode: a new two-phone game's code, shown in the menu until it is closed
 const logButtons = () => [
   h('button', { class: 'btn', onclick: downloadLog, title: 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
   h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log')];
@@ -1483,26 +1490,11 @@ export function render() {
   const dh = $('#drawerhdr'), hr = $('.hdr-r'), hl = $('.hdr-l');
   if (compact) for (const n of [HDR.tabs, HDR.seat, HDR.sfx, HDR.help]) put(n, dh);
   else { put(HDR.tabs, hl); for (const n of [HDR.seat, HDR.sfx, HDR.help, HDR.menu]) put(n, hr); }
+  // the game mode is chosen on the landing page (index.html), not here: this only says what is being played
   const seatEl = $('#seat'); seatEl.textContent = '';
-  const modeSel = h('select', { 'aria-label': 'Game mode', onchange: (ev) => {
-    let val = ev.target.value;
-    if (val === 'story') { ev.target.value = seat === 'cpu' ? (aiLevel === 'easy' ? 'cpu-easy' : 'cpu') : String(seat); openCampaign(); return; }
-    if (val.indexOf('cpu') === 0) { aiLevel = val === 'cpu-easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); val = 'cpu'; }
-    seat = val === '0' || val === '1' ? Number(val) : val;
-    if (game && game.rules.campaign) { newGame(); return; }   // leaving the story: the chapter game can't become a skirmish, so start a fresh one
-    sel = look = pending = null; mode = 'move'; cam.w = 0; undoStack = [];
-    curtain = seat === 'pass' && game && game.phase === 'play' ? turnOf() : null;
-    say({ cpu: 'Playing against the computer. You are Player 1.', pass: 'Pass and play: each player only sees what their own fleet sees. Hand the device over between turns.',
-      all: 'Both players: everything is visible, handy for learning or testing.' }[seat] || 'Two devices: you are Player ' + (seat + 1) + '. Send your opponent the game code (Game card below), then swap turn codes.');
-    save(); render();
-  } });
-  for (const [val, label] of [['story', '\u2726 Story campaign'], ['cpu-easy', 'Vs computer: easy'], ['cpu', 'Vs computer: normal'], ['pass', 'Pass and play'], ['all', 'Both players (open)'], [0, 'Two devices: Player 1'], [1, 'Two devices: Player 2']]) {
-    const op = h('option', { value: String(val) }, label);
-    const story = !!(game && game.rules.campaign);
-    if (val === 'story' ? story : story ? false : val === 'cpu-easy' ? seat === 'cpu' && aiLevel === 'easy' : val === 'cpu' ? seat === 'cpu' && aiLevel !== 'easy' : seat === val) op.selected = true;
-    modeSel.appendChild(op);
-  }
-  seatEl.appendChild(modeSel);
+  const modeName = game && game.rules.campaign ? 'Story' : ({ cpu: aiLevel === 'easy' ? 'Vs computer: easy' : 'Vs computer: normal', pass: 'Same phone', all: 'Open board' }[seat] || 'Two phones: Player ' + (seat + 1));
+  seatEl.appendChild(h('a', { class: 'homebtn', href: 'index.html', title: 'Home: choose another game' }, '\u2302 Home'));
+  seatEl.appendChild(h('span', { class: 'modename' }, modeName));
   const sfxBtn = $('#sfx');
   if (sfxBtn) { sfxBtn.textContent = sfxOn ? '\u{1F50A}' : '\u{1F507}'; sfxBtn.setAttribute('aria-label', sfxOn ? 'Sound on' : 'Sound off'); sfxBtn.setAttribute('aria-pressed', String(sfxOn)); }
   setFlip(game && (seat === 1 || (seat === 'pass' && turnOf() === 1)) ? -1 : 1);   // your own side is always at the bottom
@@ -1713,6 +1705,7 @@ export function render() {
       catch (e) { say(e.message.charAt(0).toUpperCase() + e.message.slice(1) + '.', true); }
       render();
     }));
+  if (shareCode) panels.appendChild(codeBox('Game code: send this to your friend', shareCode, 'Copy game code'));
   if (logBox) panels.appendChild(codeBox('Battle log', logBox, 'Copy log'));
   if (code && isCodes()) panels.appendChild(codeBox('Your turn code: send this to your opponent', code, 'Copy turn code'));
   const styleBtn = (val, label, on) => h('button', { 'aria-pressed': String(shipStyle === val), disabled: !on, onclick: () => { shipStyle = val; store.set('shatkon.ships', val); render(); } }, label);
@@ -1728,9 +1721,9 @@ export function render() {
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
-    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Rule viewer'),
+    h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Home'),
     h('a', { class: 'btn', href: 'docs/', target: '_blank', rel: 'noopener', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),
-    h('a', { class: 'btn', href: 'boards.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Boards')),
+    null),
     installed() ? null : h('div', { class: 'row', style: 'align-items:center' },
       installEvt ? h('button', { class: 'btn go', onclick: async () => { const e = installEvt; installEvt = null; try { await e.prompt(); } catch (err) {} render(); } }, 'Install Shatkon', h('small', null, 'full screen, from your home screen')) : null,
       h('span', { class: 'muted' }, installEvt ? '' : 'To play full screen from your home screen: open the browser\u2019s menu and choose "Add to Home Screen" (iPhone: the Share button first) or "Install app".')),
@@ -1770,13 +1763,13 @@ function initExtras() {
     );
     $('#helpbtn').addEventListener('click', () => showHelp(true));
   }
-  const setDrawer = (on) => { drawerOpen = on; if (!on) logBox = null; render(); };
+  const setDrawer = (on) => { drawerOpen = on; if (!on) logBox = shareCode = null; render(); };
   if ($('#menubtn')) $('#menubtn').addEventListener('click', () => setDrawer(!drawerOpen));
   if ($('#drawerclose')) $('#drawerclose').addEventListener('click', () => setDrawer(false));
   if ($('#sfx'))
     $('#sfx').addEventListener('click', () => {
       sfxOn = !sfxOn;
-      store.set('shatkon.sfx', sfxOn ? '1' : '0');
+      store.set('shatkon.sfx', sfxOn ? '1' : '0'); try { localStorage.setItem('shatkon.sfx', sfxOn ? '1' : '0'); } catch (e) {}
       render();
       tone(660, 660, 0.08, 'sine', 0.06);
     });
@@ -1846,7 +1839,7 @@ function initExtras() {
   const savedSeat = store.get('shatkon.seat');
   if (savedSeat === '0' || savedSeat === '1') seat = Number(savedSeat);
   else if (savedSeat === 'all' || savedSeat === 'pass' || savedSeat === 'cpu') seat = savedSeat;
-  sfxOn = store.get('shatkon.sfx') !== '0';
+  sfxOn = (localStorage.getItem('shatkon.sfx') ?? store.get('shatkon.sfx')) !== '0';
   { const st = store.get('shatkon.ships'); shipStyle = st === 'model' || st === 'schematic' ? st : 'hull'; }
   // ship art: any pack in the story/ships.json format (see ui/board.js). Without one, ships stay schematic.
   try { const r = await fetch('story/ships.json'); if (r.ok) { setModels(await r.json()); haveModels = true; } } catch (e) {}
@@ -1865,7 +1858,25 @@ function initExtras() {
   // a small hook for automated tests
   window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
   labRoute();
-  if (!game) newGame(); else render();
+  // the landing page opens the game with ?mode=: story, test, cpu (&level=easy|normal), pass, all, p1, join;
+  // &new=1 starts a fresh game in that mode. The query is then dropped, so a reload continues the game.
+  const q = new URLSearchParams(location.search), qm = q.get('mode');
+  if (qm) {
+    if (qm === 'cpu') { seat = 'cpu'; aiLevel = q.get('level') === 'easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); }
+    else if (qm === 'pass' || qm === 'all') seat = qm;
+    else if (qm === 'p1') seat = 0;
+    else if (qm === 'join') seat = 1;
+    if (seat !== null) store.set('shatkon.seat', String(seat));
+    const fresh = q.get('new') === '1' || (game && game.rules.campaign && qm !== 'story' && qm !== 'test');
+    if (qm !== 'story' && qm !== 'test' && qm !== 'join' && (fresh || !game)) newGame();
+    else if (!game) newGame(); else render();
+    if (qm === 'story') openCampaign();
+    if (qm === 'test') openCampaign().then(() => openTest());
+    if (qm === 'p1') E.exportGame(game).then((c) => { shareCode = c; drawerOpen = true; say('Send the game code in the menu to your friend. They choose Play \u2192 Two phones \u2192 Join.'); render(); });
+    if (qm === 'join') { drawerOpen = true; say('Paste the game code your friend sent you into "Load a game code" in the menu.'); render(); }
+    q.delete('mode'); q.delete('new'); q.delete('level');
+    try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) {}
+  } else if (!game) newGame(); else render();
   // the service worker (sw.js): installable, and the game still opens with no signal. Never fatal.
   try { if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
   $('#wrap').addEventListener('pointerdown', () => { if (glideEnd) glideEnd(true); }, true);   // a finger on the board ends a camera glide, so a drag starts from what is on screen

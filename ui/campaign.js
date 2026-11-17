@@ -63,6 +63,7 @@ export async function openCampaign() {
   loadProgress();
   drawMap();
 }
+export function openTest() { if (data) drawTest(); }
 export function closeCampaign() { document.getElementById('story').hidden = true; }
 
 function drawMap() {
@@ -98,7 +99,7 @@ function drawMap() {
   const s = settings();
   box.textContent = '';
   box.appendChild(h('div', { class: 'cm' },
-    h('div', { class: 'cm-top' }, h('h2', null, C.title || 'Campaign'), h('button', { class: 'btn', onclick: () => closeCampaign() }, 'Back to skirmish')),
+    h('div', { class: 'cm-top' }, h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;color:var(--text);display:inline-flex;align-items:center' }, '\u2302 Home'), h('h2', null, C.title || 'Campaign'), h('span', { class: 'sp' })),
     h('div', { class: 'cm-scroll' }, art),
     h('div', { class: 'cm-foot' },
       h('label', null, 'Captain ', h('select', { onchange: (ev) => setSettings({ captain: ev.target.value }) },
