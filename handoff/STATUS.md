@@ -9,6 +9,11 @@ From Ankur: cutscenes look clean in portrait but worse in landscape, and the gam
 - Code: one CSS block at the end of the story CSS (`story/core.js`) plus a small `ResizeObserver` in `story/player.js` that tells the CSS how tall the box is (`--sk-boxh`). No rotate-your-phone screen was added.
 - Checked: 165 tests; headless Chrome 800x360, 844x390, 932x430, 1024x461: 14 scenes across chapters 1-5 (ship, comms, glyphs, no-art), nothing runs under the box. Choice screens already fit and are unchanged. Not checked on a real phone. Screenshots: `/workspace/cutscene-shots/` on the box (not in the repo).
 
+## Latest (17 Nov, gamedev chat): the Field Manual fits a phone on its side (branch `manual-landscape`, stacked on `fix-manual-exit`)
+From Ankur's screenshot (~1024x461): the logo demo filled the screen, the top bar was tall and overflowed, the sliders took a lot of room.
+- **`docs/index.html` + `docs/tools/src/template.html`:** one new block, `@media (max-height:500px)` only, so desktop and portrait are unchanged. Slim 48 px header (Back button + brand + a nav that scrolls sideways), demo drawings capped at 55% of the screen height (aspect kept), smaller hero logo, tighter section gaps, type, cards and sliders, decorative watermarks hidden. Edited by hand in both files (build.py can't run here), so they match.
+- Checked: 165 tests; headless Chrome 800x360, 844x390, 932x430: no sideways overflow; logo demo, board, ships, combat and maps sections screenshotted. Before/after in `/workspace/manual-exit-shots/before|after`.
+
 ## Latest (17 Nov, gamedev chat): a way out of the Field Manual (branch `fix-manual-exit`, PR to main)
 From Ankur: "if I launch the documentation I can't seem to get out of it". The installed game is full screen, so there is no browser back button, and the manual had no link back at all.
 - **Field Manual (`docs/index.html` + source `docs/tools/src/template.html`):** a fixed "Back to game" button, top left, 44 px tall, always on screen. It returns to the page you opened the manual from (the landing page, the play screen on the same board so the saved game resumes, the rule viewer). If it can't tell, it goes to the landing page. The build script (`build.py`) writes to `/workspace/shatkon-guide`, which isn't here, so the same edit was made by hand in the template and the built page; they match.
