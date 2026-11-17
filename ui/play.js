@@ -6,7 +6,7 @@ import { computerMove } from '../engine/ai.js';
 import { beamHits } from '../engine/actions.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { initStory, openCampaign, openTest, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
+import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
 
 // ---------- tiny DOM helpers ----------
@@ -1861,6 +1861,7 @@ function initExtras() {
   labRoute();
   // the landing page opens the game with ?mode=: story, test, cpu (&level=easy|normal), pass, all, p1, join;
   // &new=1 starts a fresh game in that mode. The query is then dropped, so a reload continues the game.
+  if (game && game.rules.campaign) await resumeStory();   // cutscene art for a story chapter carried on from a save
   const q = new URLSearchParams(location.search), qm = q.get('mode');
   // play.html opened bare (an old home-screen icon or bookmark) shows the landing page first;
   // the landing page's own links always say what to open (?mode=, ?board= or ?continue=1)

@@ -63,6 +63,9 @@ export async function openCampaign() {
   loadProgress();
   drawMap();
 }
+// A story chapter restored from a save (Continue, a reload) never opened the map, so load the
+// campaign and the cutscene player now: without them scenes fall back to plain text cards.
+export async function resumeStory() { try { await loadAll(); loadProgress(); } catch (e) {} }
 export function openTest() { if (data) drawTest(); }
 export function closeCampaign() { document.getElementById('story').hidden = true; }
 
