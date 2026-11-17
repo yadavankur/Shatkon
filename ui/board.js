@@ -104,7 +104,7 @@ function diamond(cx, cy, k) {
 }
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
-export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null,
+export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
   halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
@@ -398,6 +398,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const pl of plans) drawPlan(pl.f, false);
   drawPlan(plan, true);
 
+  // a small red label over a group of hexes: "in enemy reach −3" (a visible enemy could hit the ship there)
   // choosing where to move: dim the rest of the board so the ways out stand out. The ship itself stays bright.
   const moves = [...opts].filter(([, o]) => o.mark === 'move');
   const mover = moves.length ? v.ships.find((x) => x.id === sel) : null;
@@ -406,6 +407,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#fff' }),
       s('path', { d: mover.cells.map((c) => cellPath(c, 1.08)).join(''), fill: '#000' })));
     svg.appendChild(s('rect', { x: f1(-bw), y: f1(-bh), width: f1(2 * bw), height: f1(2 * bh), fill: '#02040a', 'fill-opacity': 0.55, mask: 'url(#movescrim)', 'pointer-events': 'none', class: 'movescrim' }));
+
   }
 
   if (ghost) {
@@ -456,6 +458,41 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(gl);
   }
 
+  // Incoming enemy missiles you can see: where they are heading this round (red dashes), and a red ring
+  // with "hit" when that line runs into one of your ships. A seeker may still turn toward a ship it finds.
+  if (incoming && incoming.length && !hidden) {
+    const ig = s('g', { 'pointer-events': 'none', class: 'incoming' }), red = '#ff5a5a';
+    for (const m of incoming) {
+      if (!m.path.length) continue;
+      const pts = [m.from].concat(m.path);
+      ig.appendChild(s('polyline', { points: pts.map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' '), fill: 'none', stroke: red, 'stroke-width': f1(2 / px), 'stroke-opacity': 0.9, 'stroke-dasharray': f1(5 / px) + ' ' + f1(3 / px), 'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'flow' }));
+      const end = pts[pts.length - 1];
+      if (m.ends === 'hit') {
+        ig.appendChild(s('path', { d: cellPath(end, 1.06), fill: red, 'fill-opacity': 0.18, stroke: red, 'stroke-width': f1(2.2 / px) }));
+        ig.appendChild(s('text', { x: f1(X(end)), y: f1(Y(end) - S * 1.25), 'font-size': fs(11), 'font-weight': 800, fill: red, stroke: '#060a14', 'stroke-width': f1(3 / px), 'paint-order': 'stroke' }, 'missile hits this round'));
+      } else {
+        ig.appendChild(s('circle', { cx: f1(X(end)), cy: f1(Y(end)), r: f1(3 / px), fill: red }));
+        ig.appendChild(s('text', { x: f1(X(end)), y: f1(Y(end) + 10 / px), 'font-size': fs(9), 'font-weight': 700, fill: red, stroke: '#060a14', 'stroke-width': f1(3 / px), 'paint-order': 'stroke' }, 'enemy missile, this round'));
+      }
+    }
+    svg.appendChild(ig);
+  }
+
+  // Fire mode: every hex this ship's lasers reach, with how many hits a shot does there (faint), so the
+  // rule "3 up close, 2 further out" is on the board. Enemy hexes get the big number (drawn with the ring below).
+  if (field && !hidden) {
+    const fg = s('g', { 'pointer-events': 'none', class: 'beamfield' });
+    const tk = new Set([...opts].filter(([, o]) => o.mark === 'target').map(([k]) => k));
+    const top = Math.max(...field.cells.map((c) => c.hits));
+    const near = field.cells.filter((c) => c.hits >= top), far = field.cells.filter((c) => c.hits < top);
+    if (far.length) fg.appendChild(s('path', { d: far.map((c) => cellPath(c.at, 0.97)).join(''), fill: '#ff6b6b', 'fill-opacity': 0.06, stroke: '#ff6b6b', 'stroke-opacity': 0.14, 'stroke-width': f1(0.8 / px) }));
+    if (near.length) fg.appendChild(s('path', { d: near.map((c) => cellPath(c.at, 0.97)).join(''), fill: '#ff6b6b', 'fill-opacity': 0.13, stroke: '#ff6b6b', 'stroke-opacity': 0.22, 'stroke-width': f1(0.8 / px) }));
+    const ghostCells = new Set(v.ships.filter((x) => !x.mine).flatMap((x) => x.cells.map(hex.key)));
+    if (S * px >= 11) for (const c of field.cells) if (!tk.has(hex.key(c.at)) && !ghostCells.has(hex.key(c.at)))
+      fg.appendChild(s('text', { x: f1(X(c.at)), y: f1(Y(c.at)), 'font-size': fs(S * px >= 22 ? 11 : 9), 'font-weight': 700, fill: '#ffb0b0', 'fill-opacity': c.hits >= top ? 0.75 : 0.5 }, '\u2212' + c.hits));
+    svg.appendChild(fg);
+  }
+
   // what can be tapped right now
   for (const [k, o] of opts) {
     const c = hex.unkey(k), cx = f1(X(c)), cy = f1(Y(c));
@@ -483,12 +520,26 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       }
       g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc), fill: green, stroke: '#06140e', 'stroke-width': f1(1.2 / px) }));
       g.appendChild(s('text', { x: f1(qx), y: f1(qy), 'font-size': fs(chosen ? 13 : 12), 'font-weight': 800, fill: '#06140e' }, chosen ? '✓' : o.label));
+      if (danger && mover) {   // could a visible enemy shoot the ship here? worst case, after it steps closer
+        let worst = 0;
+        for (const x of mover.cells) worst = Math.max(worst, danger.get(hex.key([x[0] - mover.pos[0] + c[0], x[1] - mover.pos[1] + c[1]])) || 0);
+        if (worst) {     // a red ring round the chip; the number too once the chips are big enough to read it
+          g.appendChild(s('circle', { cx: f1(qx), cy: f1(qy), r: f1(rc + 2.4 / px), fill: 'none', stroke: '#ff5a5a', 'stroke-width': f1(2.4 / px) }));
+          if (rc * px >= 13) {
+            const bx = qx + rc * 0.9, by = qy + rc * 0.9, br = 7.5 / px;
+            g.appendChild(s('circle', { cx: f1(bx), cy: f1(by), r: f1(br), fill: '#ff5a5a', stroke: '#06140e', 'stroke-width': f1(1 / px) }));
+            g.appendChild(s('text', { x: f1(bx), y: f1(by), 'font-size': fs(8.5), 'font-weight': 800, fill: '#1a0606' }, '\u2212' + worst));
+          }
+        }
+      }
       svg.appendChild(g);
     } else if (o.mark === 'way') svg.appendChild(s('circle', { cx, cy, r: 3, fill: '#5cc8ff', 'fill-opacity': 0.85, stroke: '#060a14', 'stroke-width': 0.6 }));
     else {
       const colr = o.mark === 'target' ? '#ff6b6b' : '#f5b942';
       svg.appendChild(s('path', { d: cellPath(c, 1.06), fill: colr, 'fill-opacity': 0.12, stroke: colr, 'stroke-width': 1.8 }));
-      if (o.label != null) {
+      if (o.mark === 'target' && o.label != null) {      // how hard this shot hits, big, on the enemy itself
+        svg.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(17), 'font-weight': 900, fill: '#ffffff', stroke: '#b3122a', 'stroke-width': f1(4 / px), 'paint-order': 'stroke', 'pointer-events': 'none' }, o.label));
+      } else if (o.label != null) {
         const r = 7.5 / px;
         svg.appendChild(s('circle', { cx: f1(X(c) + S * 0.75), cy: f1(Y(c) - S * 0.75), r: f1(r), fill: colr }));
         svg.appendChild(s('text', { x: f1(X(c) + S * 0.75), y: f1(Y(c) - S * 0.75), 'font-size': fs(10), 'font-weight': 700, fill: '#0a0f1e' }, o.label));
