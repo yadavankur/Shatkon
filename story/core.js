@@ -223,6 +223,24 @@ const CSS = `
 .sk-story .sk-bark .sk-who{font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--sk-accent,var(--sk-gold));margin:2px 0 3px}
 .sk-story .sk-bark .sk-say{font-size:14px;line-height:1.35}
 .sk-story .sk-bark .sk-say p{margin:0}
+/* Short landscape screens (a phone held sideways): the ship, comms frame and glyphs fit in the space above a compact dialogue box.
+   Tall or portrait screens never match this, so they look exactly as before. */
+@container skstory (min-aspect-ratio: 6/5) and (max-height: 540px){
+ .sk-story .sk-ship,.sk-story .sk-comms,.sk-story .sk-glyphs{--sk-gap:max(6px,1.6cqh);--sk-areah:calc(100cqh - 2*var(--sk-gap) - var(--sk-boxh,27cqh) - 4px)}
+ .sk-story .sk-box{bottom:max(6px,1.6cqh);width:min(60cqw,calc(100% - 20px));min-width:min(380px,calc(100% - 20px));min-height:0;padding:6px 12px 7px;border-radius:8px}
+ .sk-story .sk-name{font-size:11px;min-height:0;margin-bottom:2px;gap:6px}
+ .sk-story .sk-name .sk-via{font-size:9px;padding:2px 6px}
+ .sk-story .sk-text{font-size:clamp(12.5px,3.3cqh,16px);line-height:1.35;min-height:4.05em}
+ .sk-story .sk-next{right:10px;bottom:5px;font-size:12px}
+ .sk-story .sk-ship,.sk-story .sk-ship.sk-low{margin:0;top:var(--sk-gap);height:var(--sk-areah);width:calc(var(--sk-areah)*1.3334);max-width:70cqw;display:flex;flex-direction:column;align-items:center}
+ .sk-story .sk-ship img{flex:1 1 0;min-height:0;width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 0 12px rgba(92,200,255,.25))}
+ .sk-story .sk-ship figcaption{flex:none;font-size:11px;margin-top:-1cqh;padding-bottom:1px}
+ .sk-story .sk-ship.sk-low.sk-shown{opacity:.4}
+ .sk-story .sk-comms{top:var(--sk-gap);width:min(84cqw,560px,calc(var(--sk-areah)*1.7778))}
+ .sk-story .sk-comms .sk-tag{font-size:9px}
+ .sk-story .sk-glyphs{top:var(--sk-gap);width:min(70cqw,520px,calc(var(--sk-areah)*2.1))}
+ .sk-story .sk-glyphs .sk-weave{width:min(calc(var(--sk-areah)*.5),30cqw);margin-bottom:-8%}
+}
 @media (prefers-reduced-motion: reduce){
  .sk-story .sk-bg,.sk-story .sk-por,.sk-story .sk-ship,.sk-story .sk-comms,.sk-story .sk-bark{transition:none}
  .sk-story .sk-ship img,.sk-story .sk-glyphs .sk-g,.sk-story .sk-glyphs .sk-weave,.sk-story .sk-comms .sk-screen::after,.sk-story .sk-box.sk-done .sk-next,.sk-story .sk-comms.sk-mimic .sk-screen img{animation:none}
