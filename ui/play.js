@@ -1356,7 +1356,7 @@ const FILLED = { laser: 1 };
 function ico(name, size = 20) {
   return svgEl('svg', { class: 'ico', width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: FILLED[name] ? 'currentColor' : 'none', stroke: FILLED[name] ? 'none' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svgEl('path', { d: ICONS[name] }));
 }
-const lbl = (text, cls) => h('span', { class: 'lbl' + (cls ? ' ' + cls : '') }, text);
+const lbl = (text, cls) => h('span', { class: 'tl' + (cls ? ' ' + cls : '') }, text);
 // round progress: a ring that fills as the rounds go by
 function roundRing(round, limit) {
   const c = 2 * Math.PI * 15, done = Math.min(round, limit) / limit;
@@ -1424,7 +1424,7 @@ function ibtn({ icon, label, sub, on, pressed, pips, pipCls, badge, lock, title,
   return h('button', { class: 'btn ib' + (cls ? ' ' + cls : ''), 'aria-pressed': pressed == null ? null : String(pressed), disabled: !on, title: title || null, 'aria-label': label + (sub ? ': ' + sub : ''), onclick },
     h('span', { class: 'ibic' }, ico(icon, 22), lock ? h('span', { class: 'lockb' }, ico('lock', 11)) : null, badge != null ? h('b', { class: 'cnt' }, badge) : null),
     pips ? h('span', { class: 'ibpips' + (pipCls ? ' ' + pipCls : '') }, pips.map((full) => h('i', { class: full ? 'on' : null }))) : null,
-    lbl(label, 'name'), sub ? h('small', { class: 'lbl' }, sub) : null);
+    lbl(label, 'name'), sub ? h('small', { class: 'tl' }, sub) : null);
 }
 // a laser's hits close up and at full range, for this ship right now (the move-first bonus included)
 function laserHits(shipId) {
@@ -1580,6 +1580,7 @@ export function render() {
     h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
     document.fullscreenEnabled ? h('button', { 'aria-label': 'Full screen', title: 'Full screen', 'aria-pressed': String(!!document.fullscreenElement), onclick: toggleFull }, '\u2922') : null]);
   // labels under the icons: on by default; the Aa button keeps its own caption so it can always be found
+  if (compact) camEl.appendChild(h('a', { class: 'camhome', href: 'index.html', 'aria-label': 'Home', title: 'Home' }, '\u2302'));
   camEl.appendChild(h('span', { class: 'aawrap' }, h('button', { class: 'aa', 'aria-pressed': String(labelsOn), 'aria-label': labelsOn ? 'Hide labels' : 'Show labels', title: labelsOn ? 'Hide labels' : 'Show labels', onclick: () => setLabels(!labelsOn) }, 'Aa'), h('span', { class: 'aacap' }, 'Labels')));
   if (compact) camEl.appendChild(HDR.menu);
 
@@ -1687,8 +1688,8 @@ export function render() {
           else act({ type: 'end' });
         } },
         h('span', { class: 'ibic' }, ico('end', 24), laserLeft ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
-        h('span', { class: 'lbl name' + (endArmed || v.cp === 1 ? ' keep' : '') }, name), sub ? h('small', { class: 'lbl' }, sub) : null,
-        laserLeft ? h('small', { class: 'lbl warnnote' }, 'laser can fire') : null);
+        h('span', { class: 'tl name' + (endArmed || v.cp === 1 ? ' keep' : '') }, name), sub ? h('small', { class: 'tl' }, sub) : null,
+        laserLeft ? h('small', { class: 'tl warnnote' }, 'laser can fire') : null);
     })()]);
 
   hintEl.className = hintErr ? 'err' : '';
@@ -1861,6 +1862,9 @@ function initExtras() {
   // the landing page opens the game with ?mode=: story, test, cpu (&level=easy|normal), pass, all, p1, join;
   // &new=1 starts a fresh game in that mode. The query is then dropped, so a reload continues the game.
   const q = new URLSearchParams(location.search), qm = q.get('mode');
+  // play.html opened bare (an old home-screen icon or bookmark) shows the landing page first;
+  // the landing page's own links always say what to open (?mode=, ?board= or ?continue=1)
+  if (!location.search && !/^#lab/.test(location.hash)) { location.replace('index.html'); return; }
   if (qm) {
     if (qm === 'cpu') { seat = 'cpu'; aiLevel = q.get('level') === 'easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); }
     else if (qm === 'pass' || qm === 'all') seat = qm;
@@ -1875,7 +1879,8 @@ function initExtras() {
     if (qm === 'p1') E.exportGame(game).then((c) => { shareCode = c; drawerOpen = true; say('Send the game code in the menu to your friend. They choose Play \u2192 Two phones \u2192 Join.'); render(); });
     if (qm === 'join') { drawerOpen = true; say('Paste the game code your friend sent you into "Load a game code" in the menu.'); render(); }
     q.delete('mode'); q.delete('new'); q.delete('level');
-    try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) {}
+    if (!q.toString()) q.set('continue', '1');   // a reload continues this game instead of going to the landing page
+    try { history.replaceState(null, '', location.pathname + '?' + q + location.hash); } catch (e) {}
   } else if (!game) newGame(); else render();
   // the service worker (sw.js): installable, and the game still opens with no signal. Never fatal.
   try { if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}

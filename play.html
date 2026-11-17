@@ -356,7 +356,7 @@ body.compact #turnbtns .btn.ib{min-height:50px}
 body.compact #camera{align-items:flex-start}
 /* the minimal HUD: icons, pips and bars, with short labels underneath (on by default; "Aa" hides them) */
 .ico{display:block;flex:none}
-body.nolabels .lbl:not(.keep){display:none}
+body.nolabels .tl:not(.keep){display:none}
 #turnbar .line.top{gap:4px 10px;flex-wrap:wrap}
 .ring{position:relative;width:34px;height:34px;flex:none;line-height:0}
 .ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px var(--mono);color:var(--text);line-height:1}
@@ -364,7 +364,7 @@ body.nolabels .lbl:not(.keep){display:none}
 #turnbar .tbwho .big{font-size:13px;letter-spacing:.06em;text-transform:uppercase;line-height:1.1}
 .meters{display:flex;align-items:center;gap:4px 14px;flex-wrap:wrap;flex-basis:100%}
 .meter{display:inline-flex;flex-direction:column;gap:2px;align-items:flex-start}
-.meter .lbl{font-size:10.5px;color:var(--muted);line-height:1}
+.meter .tl{font-size:10.5px;color:var(--muted);line-height:1}
 .pipsrow{display:inline-flex;align-items:center;gap:5px;min-height:14px}
 .pipsrow b{font:11px var(--mono);color:var(--accent)}
 .dia{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border-radius:2px;background:var(--accent);flex:none}
@@ -402,7 +402,7 @@ body.compact #ctx{position:relative;top:auto;right:auto}
 .srow:empty{display:none}
 .sbadge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 5px;border-radius:999px;font-size:12px;line-height:18px;white-space:nowrap;background:var(--panel2)}
 .sbadge b{font-family:var(--mono)}
-.sbadge .lbl{font-size:10.5px;opacity:.85;margin-left:1px}
+.sbadge .tl{font-size:10.5px;opacity:.85;margin-left:1px}
 .sbadge.danger{color:#ff8a8a;background:rgba(255,90,90,.14)}
 .sbadge.sig{color:#b9a7f0;background:rgba(185,167,240,.12)}
 .sbadge.warn{color:var(--warn);background:rgba(217,164,65,.14)}
@@ -423,14 +423,14 @@ body.compact #ctx.open .more{max-height:none}
 .ibpips{display:flex;gap:3px;height:3px;margin-top:2px}
 .ibpips i{display:block;width:7px;height:3px;border-radius:2px;background:var(--line)}
 .ibpips i.on{background:var(--accent)}.ibpips.amber i.on{background:var(--warn)}
-.ib .lbl.name{font-size:12.5px;font-weight:600;line-height:1.1}
-.ib small.lbl{font-size:10.5px;color:var(--muted);max-width:100%;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ib .tl.name{font-size:12.5px;font-weight:600;line-height:1.1}
+.ib small.tl{font-size:10.5px;color:var(--muted);max-width:100%;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ib[aria-pressed="true"] .ico{color:var(--hl)}
 .ib .ico{color:var(--accent)}
 .endb .warnb{background:var(--warn)}
 .endb .warnb .ico{color:#1a1206}
 .btn.go.endb .ico{color:var(--accent)}
-.btn.go.last.endb .ico,.btn.go.last.endb .lbl.name{color:var(--bad)}
+.btn.go.last.endb .ico,.btn.go.last.endb .tl.name{color:var(--bad)}
 body.nolabels .btn.ib{padding:9px 4px}
 /* Home and the name of the mode being played (the mode is chosen on the landing page) */
 #seat{display:inline-flex;align-items:center;gap:10px;border:0}
@@ -440,6 +440,7 @@ body.nolabels .btn.ib{padding:9px 4px}
 .aawrap{display:inline-flex;flex-direction:column;align-items:center;gap:1px}
 #camera .aa{font:700 15px system-ui,sans-serif;letter-spacing:.02em}
 #camera .aa[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.camhome{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(12,19,38,.9);color:var(--text);text-decoration:none;font-size:22px}
 .aacap{font-size:9.5px;line-height:1;color:var(--muted)}
 /* a phone held upright: ask for it to be turned (the upright layout still works: "Play upright anyway") */
 #rotate{display:none;position:fixed;inset:0;z-index:80;background:rgba(4,7,15,.97);align-items:center;justify-content:center;padding:20px;text-align:center}
