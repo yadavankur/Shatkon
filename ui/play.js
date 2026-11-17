@@ -127,33 +127,59 @@ function curtainUp() {
 function selZoom() {
   return $('#wrap').clientWidth > 600 ? 9 : 6;
 }
-// smooth camera moves: render at the target camera, then tween the SVG viewBox
-let camTw = 0;
+// Smooth camera moves. The board is drawn once, at the target camera. During the glide the SVG keeps
+// one fixed viewBox (the wider of the two views, so nothing is cut off) and only its CSS transform
+// changes: the phone's GPU moves the picture it already has instead of redrawing every hex, ship and
+// glow on every frame (changing the viewBox each frame did that, which made double-tap zoom feel slow).
+// The sharp view is put back at the end. The clock starts on the first frame, so a slow redraw just
+// before the glide cannot eat into it.
+// `after` (optional) runs when the glide ends: double-tap zoom passes render, so the glide starts at once
+// on the picture already on screen and the board is redrawn at the new detail level when it stops.
+let camTw = 0, renders = 0;
 let camUntil = 0;
-function camTween(from) {
-  if (reduceMotion || !from || !(from.w > 0)) return;
-  let to = { x: cam.x, y: cam.y, w: cam.w };
-  if (![to.x, to.y, to.w, from.x, from.y, from.w].every(isFinite)) return;
-  if (Math.abs(to.w - from.w) < 1e-3 && Math.hypot(to.x - from.x, to.y - from.y) < 1e-3) return;
-  let t0 = performance.now(),
-    id = ++camTw,
-    dur = 380;
-  camUntil = t0 + dur + 20;
-  let step = (now) => {
-    if (id !== camTw) return;
-    let k = Math.min(1, (now - t0) / dur),
-      ez = 1 - Math.pow(1 - k, 3),
-      w = from.w + (to.w - from.w) * ez,
-      x = from.x + (to.x - from.x) * ez,
-      y = from.y + (to.y - from.y) * ez,
-      box = $('#wrap'),
-      svg = $('#wrap svg');
-    if (svg && box && box.clientWidth) {
-      let hh = (w * box.clientHeight) / box.clientWidth;
-      svg.setAttribute('viewBox', [x - w / 2, y - hh / 2, w, hh].map(f1).join(' '));
-      miniView({ x, y, w });
+let glideEnd = null;            // finishes the running glide at once (a new glide, or a finger on the board)
+function camTween(from, after) {
+  if (glideEnd) glideEnd();
+  const now0 = () => { if (after) after(); };
+  if (reduceMotion || !from || !(from.w > 0)) return now0();
+  const to = { x: cam.x, y: cam.y, w: cam.w };
+  if (![to.x, to.y, to.w, from.x, from.y, from.w].every(isFinite)) return now0();
+  if (Math.abs(to.w - from.w) < 1e-3 && Math.hypot(to.x - from.x, to.y - from.y) < 1e-3) return now0();
+  const id = ++camTw, dur = 380, V = from.w >= to.w ? from : to;      // the fixed view drawn during the glide
+  let t0 = 0, held = null;
+  camUntil = performance.now() + dur + 60;
+  const vbox = (c, box) => { const hh = (c.w * box.clientHeight) / box.clientWidth; return [c.x - c.w / 2, c.y - hh / 2, c.w, hh].map(f1).join(' '); };
+  const r0 = renders;
+  const finish = (fingerDown) => {
+    if (glideEnd !== finish) return;
+    glideEnd = null; camUntil = 0;
+    const box = $('#wrap'), svg = $('#wrap svg');
+    if (svg) { svg.style.transform = ''; if (box && box.clientWidth) svg.setAttribute('viewBox', vbox(cam, box)); }
+    miniView(cam);
+    if (!after) return;
+    // A finger landed mid-glide: redraw once it lifts (and only if its tap did not redraw already), so the
+    // board is not swapped out from under a tap that is still in progress.
+    if (fingerDown) addEventListener('pointerup', () => setTimeout(() => { if (renders === r0) after(); }, 0), { once: true });
+    else if (renders === r0) after();
+  };
+  glideEnd = finish;
+  const step = (now) => {
+    if (id !== camTw || glideEnd !== finish) return;
+    if (!t0) t0 = now;
+    const box = $('#wrap'), svg = $('#wrap svg');
+    if (!svg || !box || !box.clientWidth) return finish();
+    const k = Math.min(1, (now - t0) / dur), ez = 1 - Math.pow(1 - k, 3);
+    if (k >= 1) return finish();
+    if (held !== svg) {          // first frame, or the board was redrawn mid-glide: set it up for the glide
+      held = svg;
+      svg.style.transformOrigin = '50% 50%';
+      svg.setAttribute('viewBox', vbox(V, box));
     }
-    if (k < 1) requestAnimationFrame(step);
+    const w = from.w + (to.w - from.w) * ez, x = from.x + (to.x - from.x) * ez, y = from.y + (to.y - from.y) * ez;
+    const px = box.clientWidth / w;     // screen pixels per board unit at this point of the glide
+    svg.style.transform = 'translate(' + ((V.x - x) * px).toFixed(2) + 'px,' + ((V.y - y) * px).toFixed(2) + 'px) scale(' + (V.w / w).toFixed(4) + ')';
+    miniView({ x, y, w });
+    requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
@@ -879,20 +905,20 @@ let lastTap = { id: null, t: 0 }, zoomShip = null;
 function zoomOnShip(ship) {
   if (zoomShip === ship.id && cam.w < fitWidth() * 0.98) {
     const from = { x: cam.x, y: cam.y, w: cam.w };
-    wholeMap(); say('The whole board. Double-tap one of your ships to zoom in on it.'); render(); camTween(from);
+    wholeMap(); say('The whole board. Double-tap one of your ships to zoom in on it.'); camTween(from, render);
   } else {
-    frame(ship.cells.concat(E.reach(game, ship.id).map((r) => r.at)), selZoom());
+    say('Zoomed in on ' + shipName(ship) + '. Double-tap it again, or press \u26F6, to see the whole board.');
     zoomShip = ship.id;
-    say('Zoomed in on ' + shipName(ship) + '. Double-tap it again, or press \u26F6, to see the whole board.'); render();
+    frame(ship.cells.concat(E.reach(game, ship.id).map((r) => r.at)), selZoom(), render);
   }
 }
 
-function tap(c, v, opts, viaChip) {
+function tap(c, v, opts, viaChip, t) {
   let o = opts.get(hex.key(c));
   endArmed = false;
   const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
   if (!viaChip) {
-    const id = under && canCommand(under, v) ? under.id : null, now = performance.now();
+    const id = under && canCommand(under, v) ? under.id : null, now = t || performance.now();   // when the finger landed, not when the tap was handled: a busy phone must not turn a double tap into two single taps
     if (id && lastTap.id === id && now - lastTap.t < 400) { lastTap = { id: null, t: 0 }; return zoomOnShip(under); }
     lastTap = { id, t: now };
     // a one-hex move of a big ship ends on its own hull: only its chip stands for that move, the hull is the ship
@@ -1002,9 +1028,9 @@ function fitWidth() {
   return Math.max(W * (2 * R + 1) + 16, ((S * (3 * R + 2) + 16) * bw) / free);
 }
 export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); zoomShip = null; }
-function frame(cells, minHexes) {       // bring a set of hexes into view, with a short glide (only ever on a player's gesture)
+function frame(cells, minHexes, after) {       // bring a set of hexes into view, with a short glide (only ever on a player's gesture)
   const box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = Math.max(1, box.clientHeight);
-  if (!cells.length) return wholeMap();
+  if (!cells.length) { wholeMap(); if (after) after(); return; }
   const xs = cells.map((c) => FL * W * (c[0] + c[1] / 2)), ys = cells.map((c) => FL * 1.5 * S * c[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const from = cam.w > 0 && isFinite(cam.w) && isFinite(cam.x) && isFinite(cam.y) ? { x: cam.x, y: cam.y, w: cam.w } : null;
@@ -1013,7 +1039,7 @@ function frame(cells, minHexes) {       // bring a set of hexes into view, with 
   cam.w = Math.min(fitWidth(), perPx * bw);
   const k = cam.w / bw;
   cam.x = (x0 + x1) / 2 + (k * (I.r - I.l)) / 2; cam.y = (y0 + y1) / 2 + (k * (I.b - I.t)) / 2;       // centre it in the free part
-  camTween(from);
+  camTween(from, after);
 }
 function zoomBy(k) { cam.w = Math.max(4 * W, Math.min(fitWidth(), cam.w * k)); }
 
@@ -1324,6 +1350,7 @@ function pasteBox(label, button, onText) {
 
 // ---------- render ----------
 export function render() {
+  renders++;
   // one compact game-mode picker
   const compact = isCompact();
   document.body.classList.toggle('compact', compact);
@@ -1413,7 +1440,7 @@ export function render() {
   const halo = new Set(v.ships.filter((x) => canCommand(x, v)).map((x) => x.id));
   const idle = new Set(v.ships.filter((x) => x.mine && mine && !halo.has(x.id)).map((x) => x.id));
   wrap.textContent = '';
-  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip) => tap(c, v, opts, viaChip), pending, hidden: hid,
+  wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid,
     halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
@@ -1679,5 +1706,6 @@ function initExtras() {
   if (!game) newGame(); else render();
   // the service worker (sw.js): installable, and the game still opens with no signal. Never fatal.
   try { if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
+  $('#wrap').addEventListener('pointerdown', () => { if (glideEnd) glideEnd(true); }, true);   // a finger on the board ends a camera glide, so a drag starts from what is on screen
   window.addEventListener('resize', () => { if (!game) return; if (cam.max && cam.w >= cam.max * 0.98) cam.w = 0; render(); });   // a whole-map view stays a whole-map view
 })();

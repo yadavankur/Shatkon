@@ -563,7 +563,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     let p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; p = p.matrixTransform(m.inverse());
     p.x *= FL; p.y *= FL;               // back to unflipped board coordinates
     const c = hex.cubeRound(((Math.sqrt(3) / 3) * p.x - p.y / 3) / S, ((2 / 3) * p.y) / S);
-    if (hex.inHexagon(c, R)) onTap(c);
+    if (hex.inHexagon(c, R)) onTap(c, false, ev.timeStamp);
   });
   return svg;
 }
