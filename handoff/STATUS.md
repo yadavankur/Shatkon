@@ -1,6 +1,14 @@
-# Status (updated 2026-11-17 by engine)
+# Status (updated 2026-11-17 by gamedev)
 
 
+
+## Latest (17 Nov, gamedev chat): a way out of the Field Manual (branch `fix-manual-exit`, PR to main)
+From Ankur: "if I launch the documentation I can't seem to get out of it". The installed game is full screen, so there is no browser back button, and the manual had no link back at all.
+- **Field Manual (`docs/index.html` + source `docs/tools/src/template.html`):** a fixed "Back to game" button, top left, 44 px tall, always on screen. It returns to the page you opened the manual from (the landing page, the play screen on the same board so the saved game resumes, the rule viewer). If it can't tell, it goes to the landing page. The build script (`build.py`) writes to `/workspace/shatkon-guide`, which isn't here, so the same edit was made by hand in the template and the built page; they match.
+- **Play screen menu:** "Field manual" opens in the same tab (it used to open a new window).
+- **Other pages:** `rules.html`, `boards.html` and `ui/ships-gallery.html` got a sticky "Back to game" bar at the top (to the landing page). `story/demo.html` is a developer page, not linked from the game: left alone.
+- Checked: 165 tests; headless Chrome 800x360 and 1280x800: landing → manual → Back lands on the landing page; play screen (First Light, one turn ended) → menu → Field manual → Back resumes the same game, ships in the same places; each extra page's button works. Screenshots in `/workspace/manual-exit-shots/`.
+- Watch out: a plain `play.html?continue=1` loses the board (saves are kept per board), so a link back to the play screen must keep its `?board=` address. The manual copies the exact address it came from.
 
 ## Latest (17 Nov, gamedev chat): landing page (branch `landing`, PR to main)
 Ankur's plan (project doc `shatkon-landing-plan-2026-11-17.md`): one simple front door, menus you tap down through.
