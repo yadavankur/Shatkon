@@ -2,7 +2,7 @@
   "name": "Shatkon",
   "short_name": "Shatkon",
   "description": "A turn-based game of hex ships, fog of war and missiles.",
-  "start_url": "play.html",
+  "start_url": "index.html",
   "scope": "./",
   "display": "fullscreen",
   "display_override": [
