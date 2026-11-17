@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shatkon</title>
+<script>
+// Launch splash (see lib/splash.js): once per browser session, and not when the address already says where to go.
+// A plain dark full-screen box goes up now, before anything is drawn, so the page underneath never flashes.
+(function () { try {
+  var s = sessionStorage, force = /[?&]splash(=|&|$)/.test(location.search), seen = s.getItem('shatkon.splash');
+  if (!force && (seen || location.search || location.hash)) { s.setItem('shatkon.splash', '1'); return; }
+  s.setItem('shatkon.splash', '1');
+  var d = document, e = d.documentElement, box = d.createElement('div'), js = d.createElement('script');
+  box.id = 'splash'; box.setAttribute('aria-hidden', 'true'); box.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#040812';
+  e.appendChild(box);
+  js.src = 'lib/splash.js'; js.async = true; js.onerror = function () { box.remove(); };
+  d.head.appendChild(js);
+  setTimeout(function () { if (!window.ShatkonSplash && box.parentNode) box.remove(); }, 6000);   // never stay stuck if the file cannot load
+} catch (x) {} })();
+</script>
 <link rel="icon" href="docs/brand/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#040812">
