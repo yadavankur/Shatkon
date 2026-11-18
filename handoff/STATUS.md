@@ -1,8 +1,14 @@
-# Status (updated 2026-11-18 by maps)
+# Status (updated 2026-11-19 by maps)
 
 The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
 
 
+
+## Latest (19 Nov, maps): board picker by difficulty (menu only)
+- The vs-computer / workshop board list is now easiest to hardest, with **First Light first** as the way in: First Light, Beacon Hill, Cat and Mouse, Fog Bank, Pawn Storm, The Gambit, King's Guard, The Dogleg, The Minefield, Missile Alley.
+- Each card has a preview of the real board (hexes, terrain, starting ships), a row of 6 stars (Easy 2, Medium 4, Hard 6), a label, and a short description from the board brief. Board files and rules are unchanged; links and saves still use the old file names (`01_first_light` and so on).
+- Easy: Beacon Hill, Cat and Mouse, Fog Bank, Pawn Storm. Medium: First Light, The Gambit, King's Guard, The Dogleg. Hard: The Minefield, Missile Alley. Numbers and unapproved spacing suggestions are in [BACKLOG.md](../BACKLOG.md).
+- `sw.js` cache is now `shatkon-offline-v3`. No rule, ship or deflection change.
 
 ## Latest (18 Nov night, gamedev chat): phone HUD drawer, laser band 3, turn-order check (branch `hud-drawer`)
 - **Laser: range 8 → 9**, so it reads 3 / 2 / 1 hits (1–4, 5–8, 9). The world file and the help text are updated. Board check (`--both --games 20`), player 1's fleet out of 40, laser 8 → 9: First Light 17→20, Minefield 11→12, Cat and Mouse 24→21, Dogleg 16→14, King's Guard 20→24, Pawn Storm 8→22, Beacon Hill 25→23, **Missile Alley 8→4** (already outside 10–30), Fog Bank 27→23, Gambit 18→23. The ch4A guide check 12b now accepts step 2 ("Graft") at the gift beat, because the run-up changed and Tern is already in place.

@@ -69,7 +69,39 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ---
 
+
+## Notes: board difficulty (19 Nov)
+
+Player 1 is the human in vs-computer mode (every board file, `boards.html`, and the play screen say so). Figures are 80 computer-versus-computer games as written, seeds 1–80, Normal computer. Share is (wins + half draws) / 80. 95% interval is about ±10–12 points near 50%, so neighbours in the middle band are only a good-enough rank, not exact. These numbers did not change any ships or rules.
+
+| Menu order | File | Board | Player 1 record (share) | Label | Stars |
+|---|---|---|---|---|---|
+| 1 | 01_first_light | First Light | 40-40-0 (50%) | Medium | 4 / 6 |
+| 2 | 07_beacon_hill | Beacon Hill | 55-25-0 (69%) | Easy | 2 / 6 |
+| 3 | 03_cat_and_mouse | Cat and Mouse | 47-26-7 (63%) | Easy | 2 / 6 |
+| 4 | 09_fog_bank | Fog Bank | 47-33-0 (59%) | Easy | 2 / 6 |
+| 5 | 06_pawn_storm | Pawn Storm | 45-35-0 (56%) | Easy | 2 / 6 |
+| 6 | 10_gambit | The Gambit | 40-38-2 (51%) | Medium | 4 / 6 |
+| 7 | 05_kings_guard | King's Guard | 38-41-1 (48%) | Medium | 4 / 6 |
+| 8 | 04_the_dogleg | The Dogleg | 33-47-0 (41%) | Medium | 4 / 6 |
+| 9 | 02_minefield | The Minefield | 26-53-1 (33%) | Hard | 6 / 6 |
+| 10 | 08_missile_alley | Missile Alley | 13-67-0 (16%) | Hard | 6 / 6 |
+
+Beacon Hill is written as a mirror but the south / player-1 seat won 69%; some of that ease may be a seat or computer quirk. A person may find The Minefield easier than 33%, and Fog Bank harder than 59%, because the computer is weak at mines and at using Comets.
+
+**Unapproved suggestions** (to space the ladder; do not apply until Ankur says so):
+
+1. Fog Bank: remove one of its three sleeper mines, so it sits more clearly in Medium.
+2. Pawn Storm: remove the laser from Leviathan's core segment (`core+sensor+magazine+laser`, no shield), so the pawns have a slightly clearer Easy step above the 50% group.
+3. The Gambit: add a second point_defence to Patron, so the lure plan is more forgiving and this board sits above First Light and King's Guard.
+4. The Dogleg: cut Hive's seeker drones from 4 to 3, so the canyon plays blinder and sits in the harder half of Medium.
+5. Missile Alley: remove the point_defence from Buckler's core segment (the escort still has point defence on the second segment), so a focused salvo is more likely to land and the board is less of a wall, still Hard.
+
+If core deflection is turned on later, this ladder does not hold (Fog Bank and Pawn Storm fall sharply; The Minefield eases a little) and should be ranked again.
+
 ## Done recently
+
+- **Board picker by difficulty** (19 Nov, maps). Menu and presentation only: First Light first, then easiest to hardest; each card has a board preview, 2 / 4 / 6 of 6 stars (Easy / Medium / Hard), a label, and a short description. Board files, ships and rules were not changed. Source: chat 19 Nov.
 
 - **Thrust per ship** (18 Nov, maps). Each ship's own engines move that ship; the shared fleet pool is gone. A ship with no engine (or sprint drive / afterburner) can't be built. The Minefield Dowser and the Missile Alley boats got more engines. Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md), [handoff/STATUS.md](handoff/STATUS.md)
 - **Phone-first controls (steps 1–7)** merged: the camera stays still, landscape compact layout, phase banner, targeting confirms, ship card, and installable app. Source: [handoff/STATUS.md](handoff/STATUS.md)

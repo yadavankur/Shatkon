@@ -2,45 +2,70 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shatkon boards</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="docs/brand/favicon.svg" type="image/svg+xml">
 <style>
-  body { margin: 0; background: #0d1117; color: #dbe2ea; font: 16px/1.5 system-ui, sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  p.lead { color: #9aa7b4; margin: 0 0 20px; }
-  a.board { display: block; padding: 14px 16px; margin: 0 0 10px; border: 1px solid #2a3442; border-radius: 8px; color: inherit; text-decoration: none; background: #141b24; }
-  a.board:hover, a.board:focus { border-color: #5aa0e6; }
-  a.board b { display: block; font-size: 17px; }
-  a.board span { display: block; color: #9aa7b4; font-size: 14px; }
-  a.board i { display: block; font-style: normal; font-size: 14px; margin-top: 6px; }
-  code { background: #1c2632; padding: 1px 5px; border-radius: 4px; }
-.exitbar{position:sticky;top:0;z-index:100;padding:max(6px,env(safe-area-inset-top)) 8px 6px max(8px,env(safe-area-inset-left));background:rgba(4,8,18,.94);border-bottom:1px solid #1f3552}
-.exitbar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none}
-.exitbar a b{font-size:24px;line-height:1;color:#5ff7ff;font-weight:700;margin-top:-2px}
-.exitbar a:hover,.exitbar a:focus-visible{border-color:#5ff7ff;outline:none}
+  :root{--bg:#040812;--panel:rgba(10,20,38,.82);--line:rgba(127,216,240,.22);--text:#e7ecf6;--muted:#a7b3cc;--accent:#7fd8f0;--gold:#e8c15a;--hard:#ff8a5c}
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg)}
+  .exitbar{position:sticky;top:0;z-index:100;padding:max(6px,env(safe-area-inset-top)) 8px 6px max(8px,env(safe-area-inset-left));background:rgba(4,8,18,.94);border-bottom:1px solid #1f3552}
+  .exitbar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none}
+  .exitbar a b{font-size:24px;line-height:1;color:#5ff7ff;font-weight:700;margin-top:-2px}
+  .exitbar a:hover,.exitbar a:focus-visible{border-color:#5ff7ff;outline:none}
+  main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+  h1{font-size:22px;font-weight:300;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px}
+  p.lead{color:var(--muted);margin:0 0 16px;max-width:720px}
+  p.lead a{color:var(--accent)}
+  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  a.board{display:flex;flex-direction:column;gap:8px;padding:0 0 12px;border:1px solid var(--line);border-radius:12px;color:inherit;text-decoration:none;background:var(--panel);overflow:hidden}
+  a.board:hover,a.board:focus-visible{border-color:var(--accent);outline:none}
+  a.board .preview{display:block;width:100%;aspect-ratio:16/10;object-fit:contain;background:#071018;border-bottom:1px solid var(--line)}
+  a.board b{display:block;font-size:16px;font-weight:300;letter-spacing:.1em;text-transform:uppercase;padding:0 12px}
+  a.board span{display:block;color:var(--muted);font-size:13px;padding:0 12px}
+  a.board i{display:none}
+  .stars{display:flex;align-items:center;gap:6px;padding:0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .stars i{width:11px;height:11px;display:inline-block;background:center/contain no-repeat;opacity:.28;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='%23a7b3cc' stroke-width='1.7' stroke-linejoin='round' d='M12 2.4l2.7 5.7 6.3.8-4.7 4.4 1.3 6.3L12 16.8 6.4 19.6l1.3-6.3L3 8.9l6.3-.8z'/></svg>")}
+  .stars i.on{opacity:1;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e8c15a' d='M12 2.2l2.9 6.1 6.7.8-5 4.7 1.3 6.6L12 17.3 5.1 20.4 6.4 13.8 1.4 9.1l6.7-.8z'/></svg>")}
+  .stars em{font-style:normal;font-weight:700}
+  a.board[data-difficulty="easy"] .stars em{color:var(--accent)}
+  a.board[data-difficulty="medium"] .stars em{color:var(--gold)}
+  a.board[data-difficulty="hard"] .stars em{color:var(--hard)}
+  @media (max-height:540px) and (orientation:landscape){
+    main{padding:12px 12px 24px}
+    .list{grid-template-columns:repeat(5,1fr);gap:8px}
+    a.board{gap:4px;padding-bottom:8px}
+    a.board .preview{aspect-ratio:2/1;object-fit:contain}
+    a.board b{font-size:12px;letter-spacing:.06em;padding:0 8px}
+    a.board span{font-size:11px;padding:0 8px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+    .stars{padding:0 8px;gap:4px}
+  }
 </style>
 </head>
 <body>
 <div class="exitbar"><a href="index.html" aria-label="Back to game"><b aria-hidden="true">&#8249;</b>Back to game</a></div>
 <main>
 <h1>Ten boards to try</h1>
-<p class="lead"><a href="docs/" style="color:#5aa0e6">Open the field manual</a>: how to play, every ship part and the rules in plain words.</p>
-<p class="lead">You are player 1; the computer is player 2. The boards start on different edges; the top of each board file says which. Each board is one text file in <code>rules/boards/</code>: edit it and reload. To play a friend by pasted codes, open the board, choose a seat in the game's own menu and send the game code; your friend does not need the board link.</p>
+<p class="lead"><a href="docs/">Open the field manual</a>: how to play, every ship part and the rules in plain words.</p>
+<p class="lead">You are player 1; the computer is player 2. Boards are listed from easiest to hardest, with First Light first so you can learn the controls. Each board is a file in <code>rules/boards/</code>: edit it and reload. To play a friend by pasted codes, open the board, choose a seat in the game's own menu and send the game code; your friend does not need this page.</p>
 
-<a class="board" href="play.html?board=01_first_light"><b>1. First Light</b><span>The smallest board (radius 6). An even, mirrored duel: a 4-segment flagship and a gunboat each, five rocks.</span><i>Try: step a hex before you fire; fire from a rock edge so only one of them has a line on you.</i></a>
-<a class="board" href="play.html?board=02_minefield"><b>2. The Minefield</b><span>An open field full of invisible mines, three of them new sleeper mines. You brought a minesweeper. Diagonal start.</span><i>Try: lead with the Dowser; it sees a sleeper mine from 2 hexes. Stop and shoot it. One lane is clean.</i></a>
-<a class="board" href="play.html?board=03_cat_and_mouse"><b>3. Cat and Mouse</b><span>You hunt a stealth fleet on the biggest board with three Comets: 8 hexes a turn, and a 5-hex flash when they die.</span><i>Try: a Comet is meant to be lost. Have your guns close to where it will die.</i></a>
-<a class="board" href="play.html?board=04_the_dogleg"><b>4. The Dogleg</b><span>A canyon with two right-angle bends. No laser sees round a corner. Seeker drones do.</span><i>Try: send a drone round the bend first, then fight where they must step into your line.</i></a>
-<a class="board" href="play.html?board=05_kings_guard"><b>5. King's Guard</b><span>Chess from the side: unarmed kings, fleets on neighbouring edges, close at the corner and far at the ends.</span><i>Try: hold the corner with one ship; send the rest round to their king.</i></a>
-<a class="board" href="play.html?board=06_pawn_storm"><b>6. Pawn Storm</b><span>One dreadnought in a cage of rock. Six one-laser skiffs start on the rim, out of its sight and reach, and close in from three sides.</span><i>Try: come in under cover, then two skiffs on the same segment in one turn, from opposite sides.</i></a>
-<a class="board" href="play.html?board=07_beacon_hill"><b>7. Beacon Hill</b><span>The beacon sits in a rock crater with two side openings, with room to manoeuvre before you reach it. Couriers and skiffs only. Five points wins.</span><i>Try: cover both openings and the enemy holder is a sitting duck.</i></a>
-<a class="board" href="play.html?board=08_missile_alley"><b>8. Missile Alley</b><span>A long five-hex-wide alley. You have 18 missiles and boats that see first; they have point defence on every ship, and nowhere to spread out.</span><i>Try: three missiles on one ship in one round; the blast hits the ship beside it too.</i></a>
-<a class="board" href="play.html?board=09_fog_bank"><b>9. Fog Bank</b><span>You defend, outgunned, from behind a fog bank you have mined with sleeper mines.</span><i>Try: show a ship just beyond a mine and let them come through it.</i></a>
-<a class="board" href="play.html?board=10_gambit"><b>10. The Gambit</b><span>Salvo against decoy: hidden snipers and a three-launcher Volley boat. You have three worthless Lures.</span><i>Try: feed the salvo a Lure, then strike while it reloads.</i></a>
+<!-- This page is the one list the landing-page picker reads. Order here is the menu order; file names stay as they are so saved games and links keep working. -->
+<div class="list">
+<a class="board" href="play.html?board=01_first_light" data-difficulty="medium"><img class="preview" src="icons/boards/01_first_light.svg" alt=""><b>1. First Light</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">The smallest board: a quick, even duel to learn the controls. A flagship and a gunboat each, with five rocks to hide behind.</span><i>Try: step a hex before you fire; fire from a rock edge so only one of them has a line on you.</i></a>
+<a class="board" href="play.html?board=07_beacon_hill" data-difficulty="easy"><img class="preview" src="icons/boards/07_beacon_hill.svg" alt=""><b>2. Beacon Hill</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">A beacon sits in a rock crater with two openings. Hold it through the other side's turn to score; five points wins.</span><i>Try: cover both openings and the enemy holder is a sitting duck.</i></a>
+<a class="board" href="play.html?board=03_cat_and_mouse" data-difficulty="easy"><img class="preview" src="icons/boards/03_cat_and_mouse.svg" alt=""><b>3. Cat and Mouse</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You hunt a hidden stealth fleet on the biggest board. You have three Comets: they fly far, and light up everything nearby when they die.</span><i>Try: a Comet is meant to be lost. Have your guns close to where it will die.</i></a>
+<a class="board" href="play.html?board=09_fog_bank" data-difficulty="easy"><img class="preview" src="icons/boards/09_fog_bank.svg" alt=""><b>4. Fog Bank</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You defend, outgunned two to one, from behind a fog bank you have mined. Fight from behind your mines and let them come to you.</span><i>Try: show a ship just beyond a mine and let them come through it.</i></a>
+<a class="board" href="play.html?board=06_pawn_storm" data-difficulty="easy"><img class="preview" src="icons/boards/06_pawn_storm.svg" alt=""><b>5. Pawn Storm</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">Six one-laser skiffs close in on a dreadnought in a cage of rock. It can only chase one of you; two shots on the same segment in one turn get through its shield.</span><i>Try: come in under cover, then two skiffs on the same segment in one turn, from opposite sides.</i></a>
+<a class="board" href="play.html?board=10_gambit" data-difficulty="medium"><img class="preview" src="icons/boards/10_gambit.svg" alt=""><b>6. The Gambit</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Hidden snipers wait with a boat that fires three missiles at the first ship it sees. You have three Lures: feed one to the salvo, then strike.</span><i>Try: feed the salvo a Lure, then strike while it reloads.</i></a>
+<a class="board" href="play.html?board=05_kings_guard" data-difficulty="medium"><img class="preview" src="icons/boards/05_kings_guard.svg" alt=""><b>7. King's Guard</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Chess from the side: each flagship is an unarmed king. Hold the corner with one ship and send the rest the long way to their king.</span><i>Try: hold the corner with one ship; send the rest round to their king.</i></a>
+<a class="board" href="play.html?board=04_the_dogleg" data-difficulty="medium"><img class="preview" src="icons/boards/04_the_dogleg.svg" alt=""><b>8. The Dogleg</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">A canyon with two right-angle bends. No laser sees round a corner, so send a drone first, then fight where they must step into your line.</span><i>Try: send a drone round the bend first, then fight where they must step into your line.</i></a>
+<a class="board" href="play.html?board=02_minefield" data-difficulty="hard"><img class="preview" src="icons/boards/02_minefield.svg" alt=""><b>9. The Minefield</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">An open field of invisible mines lies between you and their dug-in fleet. Lead with the minesweeper, and look for the one clean lane.</span><i>Try: lead with the Dowser; it sees a sleeper mine from 2 hexes. Stop and shoot it. One lane is clean.</i></a>
+<a class="board" href="play.html?board=08_missile_alley" data-difficulty="hard"><img class="preview" src="icons/boards/08_missile_alley.svg" alt=""><b>10. Missile Alley</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">A long, narrow alley. You have many missiles; they have point defence and a shield on every ship, and nowhere to spread out.</span><i>Try: three missiles on one ship in one round; the blast hits the ship beside it too.</i></a>
+</div>
 
-<p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code> and <code>docs/maps-rework.md</code> (new ships: Comet, Dowser, sleeper mine, carrier, Volley).</p>
+<p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code> and <code>docs/maps-rework.md</code>.</p>
 </main>
 </body>
 </html>
