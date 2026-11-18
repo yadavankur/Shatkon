@@ -4,6 +4,12 @@ The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
 
 
 
+## Latest (18 Nov, gamedev chat): Lab part picker (branch `lab-picker`)
+- The six slot dropdowns in the Lab are now one segment drawn as the game draws it (3 interior hexes, 3 exterior corner diamonds; core in gold). Tapping a slot opens a drawer from the far side: tabs by group, part tiles (icon, name, cost), and a dock showing what changes before you Fit.
+- **Everything is read from the rules:** parts from `bay_parts` / `mount_parts`; tabs from a new optional `group:` field (added to every part in `rules/world_v0.4.yaml`: propulsion, sensors, stealth, utility, defence, weapons; a part without one is guessed from what it does, or goes under "Other"); stat changes from `labStats` on a copy of the design; "can't fit" reasons are the new problems `buildRules` reports for that copy. The note shows as one line; tapping it shows the full text.
+- The core can't be removed; tapping it offers to move it to another segment. No locks or Mk levels (not a concept outside the campaign yet).
+- Checked: 174 tests; headless Chrome 844x390 and 1280x800: open, preview (sensor 4→6, signature 1→2, cost 47→52), a refusal ("3 segments need 2 couplings"), full note, Fit. No console errors.
+
 ## Latest (18 Nov, maps): thrust per ship is in (approved by Ankur; tow not built)
 Rules from `docs/proposals/thrust-and-tow.md`: each engine gives its own ship 1 thrust a turn; a hex costs 1 thrust per segment; speed limit floor(engines / segments) + 1; a ship banks up to 2 turns of its own engines, never less than one hex; the fleet pool, `canMove` and `needs_average_of` are gone; a ship with no engine, sprint drive or afterburner is refused (Lab and hull check; no shipped ship needed an exemption). Sprint drive / afterburner unchanged. `movement.exterior_per_weight` is built but off.
 - **Player sees:** the thrust bar shows the selected ship's own thrust (hidden with no ship selected); the ship card and the ledger are per ship; the Lab says "3 thrust a turn, 3 thrust a hex → about 1 hex a turn, up to 2" or "saves up and moves 1 hex every N turns" or "no engine: can't move".

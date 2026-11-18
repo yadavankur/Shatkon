@@ -701,7 +701,8 @@ function labRender() {
     labDetectPanel(),
     labSimPanel(),
     labKnobPanel(),
-    labPlayPanel()
+    labPlayPanel(),
+    labPicker()
   );
   window.scrollTo(0, y);
 }
@@ -710,14 +711,161 @@ function labRerender() {
   labRender();
 }
 
+
+// ---------- the part picker: tap a slot, pick from the parts that fit it, see what changes, Fit ----------
+// Everything comes from the rule file: which parts fit (bay_parts / mount_parts), their group (the
+// optional `group:` field, else guessed from what the part does), cost, note and limits; the stat
+// changes and the reasons a part can't go in come from labStats (the same engine as Play).
+const PICK_TABS = {
+  bays: [['propulsion', 'Propulsion', 'engine'], ['sensors', 'Sensors', 'sensor'], ['stealth', 'Stealth', 'stealth'], ['utility', 'Utility', 'magazine']],
+  mounts: [['defence', 'Defence', 'shield'], ['weapons', 'Weapons', 'laser']]
+};
+const PICK_ICONS = {
+  core: 'M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  engine: 'M12 3c1.2 3.5 4.5 5.5 4.5 10a4.5 4.5 0 0 1-9 0c0-2.2 1.2-3.4 2.2-4.5.1 2.2 1.1 3.3 2.3 3.3 0-3.3-1.1-5.5 0-8.8z',
+  sprint_drive: 'M4 6l6 6-6 6M12 6l6 6-6 6',
+  afterburner: 'M16 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM13.5 10.5L4 20M12 8.5L5 15.5M15.5 11.5L8.5 18.5',
+  sensor: 'M12 13v8M8.5 9.5a5 5 0 0 1 7 0M5.6 6.6a9 9 0 0 1 12.8 0',
+  comms: 'M12 21V9M8 21h8M7 4.5a7 7 0 0 0 0 9M17 4.5a7 7 0 0 1 0 9M9.6 7a3.5 3.5 0 0 0 0 4M14.4 7a3.5 3.5 0 0 1 0 4',
+  stealth: 'M3 12s3.5-6 9-6c1.7 0 3.2.5 4.5 1.3M21 12s-3.5 6-9 6c-1.7 0-3.2-.5-4.5-1.3M4 20L20 4',
+  flare_mask: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8',
+  emitter: 'M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 6.5a5.5 5.5 0 1 0 0 11M12 3a9 9 0 1 1 0 18',
+  magazine: 'M4 5h16v5H4zM4 12h16v5H4zM8 19.5h8',
+  coupling: 'M5.5 9h3a3 3 0 0 1 0 6h-3a3 3 0 0 1 0-6zM15.5 9h3a3 3 0 0 1 0 6h-3a3 3 0 0 1 0-6zM9 12h6',
+  shield: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
+  armour: 'M4 7l8-3 8 3M4 12l8-3 8 3M4 17l8-3 8 3',
+  point_defence: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 2v5M12 17v5M2 12h5M17 12h5',
+  laser: 'M13 2L4.5 14H11l-1 8 8.5-12H12z',
+  launcher: 'M12 2.5c3 2 5 6 5 10l-2 4.5H9l-2-4.5c0-4 2-8 5-10zM9 17l-2 4.5M15 17l2 4.5',
+  x: 'M6 6l12 12M18 6L6 18', check: 'M5 12.5l4.5 4.5L19 7', plus: 'M12 5v14M5 12h14', ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8'
+};
+function pickIcon(name, size = 22) {
+  const d = PICK_ICONS[name];
+  if (!d) {   // a part with no drawn icon: its coloured letter, as on the hull editor
+    const lk = partLooks(rules)[name] || { color: '#8f9cba', letter: '?' };
+    return h('span', { class: 'pk-letter', style: 'background:' + lk.color + ';width:' + size + 'px;height:' + size + 'px', 'aria-hidden': 'true' }, lk.letter);
+  }
+  return svgEl('svg', { class: 'pk-i', width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: name === 'laser' ? 'currentColor' : 'none', stroke: name === 'laser' ? 'none' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svgEl('path', { d }));
+}
+const pretty = (p) => (p ? p.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Empty');
+// a part's tab: its `group:` in the rule file, else a guess from what it does
+function partGroup(c) {
+  if (c.group) return c.group;
+  if (c.thrust || c.own_move) return 'propulsion';
+  if (c.adds_range || c.link_range) return 'sensors';
+  if (c.hides || c.flare_reduction || c.adds_signature) return 'stealth';
+  if (c.hits || c.launches) return 'weapons';
+  if (c.recharges || c.stops_per_round || c.slot === 'mount') return 'defence';
+  return 'utility';
+}
+// the numbers a part can change, and which way is better
+function pickStatRows(a, b) {
+  const rows = [
+    ['Cost', a.cost, b.cost, 0, ' of ' + a.budget],
+    ['Thrust', a.thrust, b.thrust, 1],
+    ['Speed', a.speed, b.speed, 1, ' hexes'],
+    ['Own drive', a.ownMove, b.ownMove, 1, ' hexes'],
+    ['Sensor range', a.sensor, b.sensor, 1],
+    ['Seen from (signature)', a.sig.total, b.sig.total, -1],
+    ['Hit points', a.hullHp, b.hullHp, 1],
+    ['Shields', a.shields, b.shields, 1],
+    ['Lasers', a.lasers.length, b.lasers.length, 1],
+    ['Launchers', a.launchers, b.launchers, 1],
+    ['Magazine holds', a.magazine, b.magazine, 1],
+    ['Point defence', a.pd, b.pd, 1]
+  ];
+  return rows.filter((r) => r[1] !== r[2]);
+}
+function labSlotHex(side, des, si) {
+  const seg = des.hull[si], P = LAB.pick, size = 150, c = size / 2;
+  const BAYP = [[-21, -11], [21, -11], [0, 25]], MOUNTP = [[0, -64], [55.4, 32], [-55.4, 32]];
+  const btn = (kind, k, [x, y]) => {
+    const p = seg[kind][k], on = P && P.side === side && P.seg === si && P.kind === kind && P.k === k, bay = kind === 'bays', sz = bay ? 42 : 38;
+    return h('button', { class: 'pk-slot ' + (bay ? 'bay' : 'mount') + (p ? '' : ' empty') + (p === 'core' ? ' core' : '') + (on ? ' on' : ''),
+      style: 'left:' + (c + x - sz / 2) + 'px;top:' + (c + y - sz / 2) + 'px',
+      'aria-label': (bay ? 'Interior' : 'Exterior') + ' slot ' + (k + 1) + ': ' + (p ? pretty(p) : 'empty'),
+      onclick: () => { LAB.pick = { side, seg: si, kind, k, tab: null, prev: p || null, more: false }; labRerender(); } },
+      h('span', null, pickIcon(p || 'plus', bay ? 20 : 17)));
+  };
+  return h('div', { class: 'pk-seg', style: 'width:' + size + 'px;height:' + size + 'px' },
+    svgEl('svg', { class: 'pk-hex', width: size, height: size, viewBox: '-75 -75 150 150', 'aria-hidden': 'true' }, svgEl('path', { d: 'M0 -64 L55.4 -32 L55.4 32 L0 64 L-55.4 32 L-55.4 -32 Z' })),
+    ...BAYP.map((xy, k) => btn('bays', k, xy)), ...MOUNTP.map((xy, k) => btn('mounts', k, xy)));
+}
+function labPicker() {
+  const P = LAB.pick;
+  if (!P) return null;
+  const des = LAB[P.side], seg = des.hull[P.seg];
+  if (!seg) { LAB.pick = null; return null; }
+  const close = () => { LAB.pick = null; labRerender(); };
+  const cur = seg[P.kind][P.k] || null, R = rules.parts, world = P.kind === 'bays' ? labDocs.world.bay_parts : labDocs.world.mount_parts;
+  const head = (title, sub) => h('div', { class: 'pk-head' }, h('div', { class: 'pk-ctx' }, h('b', null, title), h('span', null, sub)),
+    h('button', { class: 'pk-x', 'aria-label': 'Close', onclick: close }, pickIcon('x', 18)));
+  const box = (kids) => h('div', { class: 'pk-back', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
+    h('aside', { class: 'pk-drawer ' + (P.side === 'a' ? 'right' : 'left'), role: 'dialog', 'aria-label': 'Choose a part' }, kids));
+  const shipLbl = 'Ship ' + P.side.toUpperCase() + ' · Segment ' + (P.seg + 1);
+  // the core: never removed or doubled; it can only move to another segment
+  if (cur === 'core') {
+    return box([head(shipLbl, 'Core · fixed'), h('div', { class: 'pk-core' }, h('div', { class: 'pk-coreic' }, pickIcon('core', 40)),
+      h('b', null, 'The core can’t be removed'), h('span', null, 'Every ship has exactly one. It sits deepest (layer ' + ((R.core || {}).layer || 6) + '): when it goes, the ship goes.'),
+      des.hull.length > 1 ? h('div', { class: 'pk-move' }, h('span', null, 'Move it to segment'), h('div', { class: 'pk-chips' }, des.hull.map((g, i) => h('button', { class: i === P.seg ? 'on' : null, 'aria-pressed': String(i === P.seg),
+        onclick: () => { if (i === P.seg) return; const to = g.bays, j = to.indexOf('') >= 0 ? to.indexOf('') : 0; seg.bays[P.k] = to[j] === 'core' ? '' : to[j] || ''; to[j] = 'core'; LAB.pick = null; labRerender(); } }, String(i + 1))))) : null)]);
+  }
+  const hasCore = des.hull.some((g) => g.bays.includes('core'));
+  const names = Object.keys(world || {}).filter((n) => n !== 'core' || !hasCore).filter((n) => R[n]);
+  const tabs = PICK_TABS[P.kind].filter(([g]) => names.some((n) => partGroup(R[n]) === g));
+  const others = names.filter((n) => !PICK_TABS[P.kind].some(([g]) => g === partGroup(R[n])));
+  if (others.length) tabs.push(['other', 'Other', others[0]]);
+  const groupOf = (n) => (others.includes(n) ? 'other' : partGroup(R[n]));
+  if (!P.tab) P.tab = (cur && groupOf(cur)) || (tabs[0] || [])[0];
+  const shown = names.filter((n) => groupOf(n) === P.tab);
+  // preview: the ship with the candidate in this slot, through the same engine
+  const prev = P.prev;
+  let dock;
+  if (prev !== undefined && prev !== cur) {
+    const a = labStats(des), cand = structuredClone(des);
+    cand.hull[P.seg][P.kind][P.k] = prev || '';
+    const b = labStats(cand), fresh = b.problems.filter((p) => !a.problems.includes(p));
+    const c = prev ? R[prev] : null, note = c ? c.note || '' : 'Leave this slot empty.';
+    const rows = pickStatRows(a, b);
+    dock = [h('div', { class: 'pk-dtop' }, h('div', { class: 'pk-dname' }, pickIcon(prev || 'x', 20), h('b', null, prev ? pretty(prev) : 'Empty slot'),
+        cur ? h('span', { class: 'pk-rep' }, 'replaces ' + pretty(cur)) : null),
+      h('button', { class: 'pk-note', onclick: () => { P.more = true; labRerender(); }, title: 'Tap for the full description' }, note)),
+      fresh.length ? h('div', { class: 'pk-ban' }, pickIcon('ban', 20), h('span', null, fresh.join(' ')))
+        : h('div', { class: 'pk-stats' }, rows.length ? rows.map(([n, x, y, dir, unit]) => {
+          const better = dir === 0 ? null : (y > x) === (dir > 0);
+          return h('div', { class: 'pk-row' }, h('span', null, n), h('b', { class: better == null ? 'neu' : better ? 'up' : 'dn' }, x + ' → ' + y + (unit && dir !== 0 ? unit : '')));
+        }) : h('div', { class: 'pk-row same' }, h('span', null, 'No change to the numbers shown here'))),
+      h('div', { class: 'pk-act' }, h('button', { class: 'pk-fit', disabled: fresh.length > 0, onclick: () => { seg[P.kind][P.k] = prev || ''; LAB.pick = null; labRerender(); } }, fresh.length ? 'Can’t fit' : prev ? 'Fit' : 'Empty it'))];
+  } else {
+    const c = cur ? R[cur] : null;
+    dock = [h('div', { class: 'pk-dtop' }, h('div', { class: 'pk-dname' }, pickIcon(cur || 'plus', 20), h('b', null, cur ? pretty(cur) + ' fitted' : 'Empty slot')),
+      c ? h('button', { class: 'pk-note', onclick: () => { P.more = true; labRerender(); } }, c.note || '') : h('div', { class: 'pk-hint' }, 'Tap a part to see what it changes.'))];
+  }
+  const tile = (n) => {
+    const c = n ? R[n] : null, on = (P.prev ?? cur) === n;
+    return h('button', { class: 'pk-tile' + (on ? ' sel' : '') + (n === cur ? ' fitted' : ''), 'aria-pressed': String(on), 'aria-label': (n ? pretty(n) + ', cost ' + c.cost : 'Empty slot'),
+      onclick: () => { P.prev = n; labRerender(); } },
+      n === cur ? h('span', { class: 'pk-tick' }, pickIcon('check', 12)) : null,
+      n ? h('span', { class: 'pk-cost' }, String(c.cost)) : null,
+      pickIcon(n || 'x', 28), h('span', { class: 'pk-name' }, n ? pretty(n) : 'Empty'));
+  };
+  const full = P.more ? (prev !== undefined && prev !== cur ? prev : cur) : null;
+  return box([head(shipLbl, (P.kind === 'bays' ? 'Interior' : 'Exterior') + ' slot · ' + (cur ? pretty(cur) + ' fitted' : 'empty')),
+    h('div', { class: 'pk-body' },
+      h('div', { class: 'pk-rail' }, tabs.map(([g, label, ic]) => h('button', { class: 'pk-tab' + (g === P.tab ? ' on' : ''), 'aria-pressed': String(g === P.tab), onclick: () => { P.tab = g; labRerender(); } }, pickIcon(ic, 22), h('span', null, label)))),
+      h('div', { class: 'pk-grid' }, shown.map(tile), cur ? tile(null) : null)),
+    h('div', { class: 'pk-dock' }, dock),
+    full && R[full] ? h('div', { class: 'pk-full', onclick: () => { P.more = false; labRerender(); } }, h('div', { class: 'pk-fullbox' }, h('div', { class: 'pk-dname' }, pickIcon(full, 22), h('b', null, pretty(full))),
+      h('p', null, R[full].note || ''), h('span', { class: 'muted' }, 'Cost ' + R[full].cost + ' · layer ' + R[full].layer + ' (lower layers are hit first)' + (R[full].max_per_fleet ? ' · at most ' + R[full].max_per_fleet + ' a fleet' : '')),
+      h('button', { class: 'pk-fit' }, 'Close'))) : null]);
+}
+
 const LAB_COLORS = { a: '#7fd8f0', b: '#ff8bd8' };   // team colours (ui/ships.js TEAM)
 
 function labDesigner(side) {
   let des = LAB[side],
     st = labStats(des),
     pal = partLooks(rules),
-    bayParts = Object.keys(labDocs.world.bay_parts || {}),
-    mountParts = Object.keys(labDocs.world.mount_parts || {}),
     sel = Math.min(LAB.sel[side], des.hull.length - 1),
     seg = des.hull[sel],
     set = (fn) => () => {
@@ -840,19 +988,6 @@ function labDesigner(side) {
     const partsOf = (sg) => [...(sg.bays || []), ...(sg.mounts || [])].filter((t) => t && rules.parts && rules.parts[t]).map((t) => ({ t, hp: rules.parts[t].hp || 1, max: rules.parts[t].hp || 1 }));
     if (des.hull.length) preview.appendChild((side === 'b' ? drawShip : drawFrigate)({ cells: des.hull.map((sg) => sg.at), segs: des.hull.map((sg) => ({ parts: partsOf(sg), wrecked: false })), owner: side === 'b' ? 1 : 0, rules, xy: px, S, forward: [0, -1], detail: 1, flagship: des.flagship }));
   } catch (e) {}
-  let slotSel = (arr, k, opts) =>
-    h(
-      'select',
-      {
-        'aria-label': (opts === bayParts ? 'Bay ' : 'Mount ') + (k + 1),
-        onchange: (ev) => {
-          arr[k] = ev.target.value;
-          return labRerender();
-        }
-      },
-      h('option', { value: '' }, '\u2014 empty \u2014'),
-      ...opts.map((p) => h('option', { value: p, selected: arr[k] === p }, p.replace(/_/g, ' ')))
-    );
   let lib = labLibrary();
   let sig = st.sig,
     sigTxt = labSigText(sig);
@@ -944,19 +1079,8 @@ function labDesigner(side) {
       h(
         'div',
         { class: 'lab-seg' },
-        h('div', { class: 'muted' }, 'Segment ' + (sel + 1) + ' of ' + des.hull.length + ' \u00B7 tap + to add one'),
-        h(
-          'div',
-          { class: 'lab-slots' },
-          h('small', null, 'Bays'),
-          ...[0, 1, 2].map((k) => slotSel(seg.bays, k, bayParts))
-        ),
-        h(
-          'div',
-          { class: 'lab-slots' },
-          h('small', null, 'Mounts'),
-          ...[0, 1, 2].map((k) => slotSel(seg.mounts, k, mountParts))
-        ),
+        h('div', { class: 'muted' }, 'Segment ' + (sel + 1) + ' of ' + des.hull.length + ' \u00B7 tap a slot to fit a part'),
+        labSlotHex(side, des, sel),
         h(
           'div',
           { class: 'lab-row' },
