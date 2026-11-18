@@ -179,36 +179,43 @@ bay_parts:
     layer: 6
     cost: 0
   engine:
+    group: propulsion   # the Lab part picker's tab: propulsion, sensors, stealth, utility, defence or weapons
     note: "gives this ship 1 thrust every turn; moving costs 1 thrust per segment per hex"
     thrust: 1
     layer: 5
     cost: 6
   sensor:
+    group: sensors
     note: "adds 2 to this ship's sensor range"
     adds_range: 2
     layer: 4
     cost: 5
   stealth:
+    group: stealth
     note: "-1 signature while it works (down to the floor of segments / 3). Free: it only costs a bay slot"
     hides: 1
     layer: 4
     cost: 0
   flare_mask:
+    group: stealth
     note: "shrinks the flash when this ship fires, launches or uses point defence"
     flare_reduction: 1
     layer: 4
     cost: 5
   magazine:
+    group: utility
     note: "stores missiles and drones for the ship's launchers"
     holds: 3
     layer: 4
     cost: 3
   comms:
+    group: sensors
     note: "long-range link; lose it and your fleet may split into islands"
     link_range: 12
     layer: 4
     cost: 5
   sprint_drive:
+    group: propulsion
     note: "a courier's drive: the ship moves up to 5 hexes a turn on its own, needing no thrust. Nimble (lasers only hit it from 3 hexes or closer) and fragile; when it dies the flash lights up every ship within 3 hexes, and the ship that shot it"
     own_move: 5               # hexes a turn, needing no thrust and outside the move limit
     evades_beyond: 3          # a beam from further away than this misses
@@ -217,6 +224,7 @@ bay_parts:
     layer: 5
     cost: 8
   afterburner:
+    group: propulsion
     note: "a Comet's drive: a throwaway scout. 8 hexes a turn on its own for 3 turns, then it is burnt out and crawls 1. While it burns it lights up every enemy ship it flies within 2 hexes of, and itself. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it. At most 2 a fleet"
     own_move: 8               # hexes a turn, needing no thrust and outside the move limit
     burn_turns: 3             # turns on which it moves at own_move; after that it is burnt out
@@ -230,12 +238,14 @@ bay_parts:
     layer: 5
     cost: 10
   emitter:
+    group: stealth
     note: "a decoy emitter: the ship looks 3 segments bigger to sensors, and any missile whose seeker can see it goes for it instead of its target"
     adds_signature: 3         # added to the ship's signature while it works (it is seen from further away)
     lures_missiles: true      # a seeker that sees this ship drops its lock and its route and turns on it
     layer: 4
     cost: 4
   coupling:
+    group: utility
     note: "joins a segment to the ship; one needed for every segment after the first"
     couples: true
     layer: 4
@@ -247,6 +257,7 @@ bay_parts:
 # ------------------------------------------------------------
 mount_parts:
   shield:
+    group: defence
     note: "soaks the first hit on its segment; comes back only after a round without being hit"
     hp: 1
     recharges: true
@@ -255,11 +266,13 @@ mount_parts:
     layer: 1
     cost: 8
   armour:
+    group: defence
     note: "plates that soak hits; they do not come back"
     hp: 2
     layer: 2
     cost: 5
   laser:
+    group: weapons
     note: "instant, straight line, needs a clear line to a target the ship's network can see"
     hits: 3                   # combat v2 (was 2): 3 hits out to 4 hexes, 2 hits from 5 to 8
     range: 8
@@ -267,11 +280,13 @@ mount_parts:
     layer: 3
     cost: 10
   launcher:
+    group: weapons
     note: "launches missiles and drones stored in the ship's magazines"
     launches: true
     layer: 3
     cost: 4
   point_defence:
+    group: defence
     note: "automatic: stops an enemy missile or drone about to hit this ship; lights the ship up"
     stops_per_round: 1
     layer: 3
