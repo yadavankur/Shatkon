@@ -1,3 +1,6 @@
+## Latest (19 Nov, maps): board picker scrolls; living hex field
+- The vs-computer board list now scrolls (cards had been wrapping into columns off to the side). The mountain photo on that screen is replaced by a dark hex field with an occasional neon pulse along the lines. Menu only. `sw.js` cache is `shatkon-offline-v5`.
+
 # Status (updated 2026-11-19 by maps)
 
 The project's to-do list is now [BACKLOG.md](../BACKLOG.md).

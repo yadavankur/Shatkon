@@ -65,21 +65,18 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
 .item b{display:block;font-size:17px;font-weight:300;letter-spacing:.14em;text-transform:uppercase}
 .item span{color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .item .num{width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font:600 13px ui-monospace,monospace;color:var(--accent)}
-/* board picker: a vertical ladder, easy at the top, with a warmer sky on this screen only */
-body.ladder{color:#152033;
-  background:linear-gradient(180deg,rgba(186,214,235,.78) 0%,rgba(244,214,150,.42) 48%,rgba(90,130,150,.48) 100%),url(story/img/stages/vista_quiet_water.webp) center/cover fixed,#8eb4d4}
-body.ladder::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='48' viewBox='0 0 28 48'><path fill='none' stroke='%23152033' stroke-width='0.7' d='M14 0v8.5l-14 8v15l14 8 14-8v-15l-14-8zM0 16.5l14 8 14-8M0 31.5l14 8 14-8'/></svg>");background-size:28px 48px}
+/* board picker: a vertical ladder. Dark hex field on this screen only.
+   The base .list wraps and centres its cards. Here we must nowrap and
+   start at the top, or later boards go into off-screen columns and the
+   first boards sit above the scrollport — vertical scroll does nothing useful. */
+body.ladder{background:#040812;overflow:hidden;height:100%;max-height:100dvh}
+#ladder-hex{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
 body.ladder .top,body.ladder main,body.ladder footer{position:relative;z-index:1}
-body.ladder .top h1{color:#152033}
-body.ladder .top h1::before,body.ladder .top h1::after{background:#152033}
-body.ladder .bar .muted{color:#152033}
-body.ladder .seg{background:rgba(255,248,236,.82);border-color:rgba(21,32,51,.22)}
-body.ladder .seg button{color:#3a4a5c}
-main.boards{justify-content:flex-start;min-height:0;overflow:hidden;align-items:stretch;max-width:860px;display:flex;flex-direction:column;gap:8px}
+main.boards{justify-content:flex-start;flex:1 1 0%;min-height:0;overflow:hidden;align-items:stretch;max-width:860px;display:flex;flex-direction:column;gap:8px}
 .boards .bar{flex:0 0 auto;padding:2px 0 6px}
 .bar .muted{margin:0;max-width:none}
-.boards .list.ladder{display:flex;flex-direction:column;gap:0;flex:1;min-height:0;overflow:auto;width:100%;padding:2px 4px 18px 0;align-items:stretch}
-.boards .item.board-card{display:flex;flex-direction:row;align-items:stretch;gap:10px;width:100%;min-height:0;padding:0 0 8px;border:0;background:transparent;border-radius:0;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;text-align:left;cursor:pointer;animation:ladder-in .42s ease both;animation-delay:calc(var(--i, 0) * 55ms)}
+.boards .list.ladder{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:flex-start;gap:0;flex:1 1 0%;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;width:100%;padding:2px 4px 18px 0;align-items:stretch}
+.boards .item.board-card{display:flex;flex-direction:row;align-items:stretch;gap:10px;width:100%;flex:0 0 auto;min-height:auto;padding:0 0 8px;border:0;background:transparent;border-radius:0;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;text-align:left;cursor:pointer;touch-action:pan-y;animation:ladder-in .42s ease both;animation-delay:calc(var(--i, 0) * 55ms)}
 @keyframes ladder-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .boards .item.board-card:hover,.boards .item.board-card:focus-visible{background:transparent;border-color:transparent;outline:none}
 .board-card .step{flex:0 0 32px;width:32px;display:flex;flex-direction:column;align-items:center;position:relative}
@@ -224,9 +221,171 @@ const SCREENS = {
   workshop: { title: 'Workshop', back: '', draw: workshop },
   'workshop/open': { title: 'Open board', back: 'workshop', draw: () => boardPicker('all') },
 };
+
+// A dark pointy-top hex field behind the board ladder only. A few short
+// neon pulses travel along random edges and fade. The grid stays still
+// when the player asks for less motion, and the animation pauses if the tab is hidden.
+const ladderHex = { on: false, canvas: null, ctx: null, grid: null, pulses: [], raf: 0, last: 0, nextAt: 0, reduce: false };
+
+function stopLadderHex() {
+  ladderHex.on = false;
+  if (ladderHex.raf) cancelAnimationFrame(ladderHex.raf);
+  ladderHex.raf = 0;
+  if (ladderHex.onVis) document.removeEventListener('visibilitychange', ladderHex.onVis);
+  if (ladderHex.onResize) window.removeEventListener('resize', ladderHex.onResize);
+  if (ladderHex.canvas) ladderHex.canvas.remove();
+  ladderHex.canvas = ladderHex.ctx = ladderHex.grid = null;
+  ladderHex.pulses = [];
+}
+
+function startLadderHex() {
+  stopLadderHex();
+  const c = document.createElement('canvas');
+  c.id = 'ladder-hex';
+  c.setAttribute('aria-hidden', 'true');
+  document.body.prepend(c);
+  ladderHex.canvas = c;
+  ladderHex.ctx = c.getContext('2d');
+  ladderHex.on = true;
+  ladderHex.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  ladderHex.onResize = () => paintLadderHex(true);
+  ladderHex.onVis = () => {
+    if (document.hidden) { if (ladderHex.raf) cancelAnimationFrame(ladderHex.raf); ladderHex.raf = 0; }
+    else if (ladderHex.on && !ladderHex.reduce) { ladderHex.last = performance.now(); tickLadderHex(); }
+  };
+  window.addEventListener('resize', ladderHex.onResize);
+  document.addEventListener('visibilitychange', ladderHex.onVis);
+  paintLadderHex(true);
+  if (!ladderHex.reduce) { ladderHex.last = performance.now(); ladderHex.nextAt = ladderHex.last + 280; tickLadderHex(); }
+}
+
+function buildHexGrid(w, h) {
+  const S = 28, W = Math.sqrt(3) * S, rowH = 1.5 * S;
+  const cols = Math.ceil(w / W) + 2, rows = Math.ceil(h / rowH) + 2;
+  const edges = [], byV = new Map(), seen = new Set();
+  const vk = (x, y) => Math.round(x) + ',' + Math.round(y);
+  const add = (x1, y1, x2, y2) => {
+    const a = vk(x1, y1), b = vk(x2, y2);
+    const k = a < b ? a + '|' + b : b + '|' + a;
+    if (seen.has(k)) return;
+    seen.add(k);
+    edges.push({ x1, y1, x2, y2, a, b });
+    if (!byV.has(a)) byV.set(a, []);
+    if (!byV.has(b)) byV.set(b, []);
+    byV.get(a).push({ x: x2, y: y2, key: b });
+    byV.get(b).push({ x: x1, y: y1, key: a });
+  };
+  for (let r = -1; r <= rows; r++) {
+    for (let c = -1; c <= cols; c++) {
+      const cx = W * (c + (r & 1) * 0.5), cy = rowH * r, pts = [];
+      for (let i = 0; i < 6; i++) {
+        const ang = -Math.PI / 2 + i * Math.PI / 3;
+        pts.push([cx + S * Math.cos(ang), cy + S * Math.sin(ang)]);
+      }
+      for (let i = 0; i < 6; i++) add(pts[i][0], pts[i][1], pts[(i + 1) % 6][0], pts[(i + 1) % 6][1]);
+    }
+  }
+  return { edges, byV };
+}
+
+function paintLadderHex(rebuild) {
+  const c = ladderHex.canvas, ctx = ladderHex.ctx;
+  if (!c || !ctx) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = innerWidth, h = innerHeight;
+  if (rebuild || c.width !== Math.floor(w * dpr) || c.height !== Math.floor(h * dpr)) {
+    c.width = Math.floor(w * dpr);
+    c.height = Math.floor(h * dpr);
+    ladderHex.grid = buildHexGrid(w, h);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#040812';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(127,216,240,0.18)';
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const e of ladderHex.grid.edges) { ctx.moveTo(e.x1, e.y1); ctx.lineTo(e.x2, e.y2); }
+  ctx.stroke();
+  for (const p of ladderHex.pulses) drawLadderPulse(ctx, p);
+}
+
+function spawnLadderPulse() {
+  const g = ladderHex.grid;
+  if (!g || !g.edges.length) return;
+  const start = g.edges[(Math.random() * g.edges.length) | 0];
+  const path = [{ x: start.x1, y: start.y1, key: start.a }, { x: start.x2, y: start.y2, key: start.b }];
+  let cur = start.b, prev = start.a;
+  const extra = 1 + ((Math.random() * 3) | 0);
+  for (let i = 0; i < extra; i++) {
+    const nbrs = (g.byV.get(cur) || []).filter((n) => n.key !== prev);
+    if (!nbrs.length) break;
+    const n = nbrs[(Math.random() * nbrs.length) | 0];
+    path.push({ x: n.x, y: n.y, key: n.key });
+    prev = cur; cur = n.key;
+  }
+  let total = 0;
+  const seg = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const dx = path[i + 1].x - path[i].x, dy = path[i + 1].y - path[i].y;
+    const len = Math.hypot(dx, dy);
+    seg.push({ x1: path[i].x, y1: path[i].y, x2: path[i + 1].x, y2: path[i + 1].y, len, start: total });
+    total += len;
+  }
+  if (total < 1) return;
+  ladderHex.pulses.push({ seg, total, t: 0, alpha: 0 });
+}
+
+function drawLadderPulse(ctx, p) {
+  if (p.alpha <= 0) return;
+  const trail = Math.min(p.total * 0.45, 40), head = Math.min(p.t, p.total), tail = Math.max(0, head - trail);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(95,247,255,' + (0.9 * p.alpha) + ')';
+  ctx.shadowColor = 'rgba(95,247,255,' + (0.85 * p.alpha) + ')';
+  ctx.shadowBlur = 10;
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  let started = false;
+  for (const s of p.seg) {
+    const a = s.start, b = s.start + s.len;
+    const u0 = Math.max(tail, a), u1 = Math.min(head, b);
+    if (u1 <= u0) continue;
+    const t0 = (u0 - a) / s.len, t1 = (u1 - a) / s.len;
+    const x0 = s.x1 + (s.x2 - s.x1) * t0, y0 = s.y1 + (s.y2 - s.y1) * t0;
+    const x1 = s.x1 + (s.x2 - s.x1) * t1, y1 = s.y1 + (s.y2 - s.y1) * t1;
+    if (!started) { ctx.moveTo(x0, y0); started = true; } else ctx.lineTo(x0, y0);
+    ctx.lineTo(x1, y1);
+  }
+  if (started) ctx.stroke();
+  ctx.restore();
+}
+
+function tickLadderHex(now) {
+  if (!ladderHex.on || ladderHex.reduce || document.hidden) { ladderHex.raf = 0; return; }
+  now = now || performance.now();
+  const dt = Math.min(0.05, (now - ladderHex.last) / 1000);
+  ladderHex.last = now;
+  if (ladderHex.pulses.length < 3 && now >= ladderHex.nextAt) {
+    spawnLadderPulse();
+    ladderHex.nextAt = now + 800 + Math.random() * 1800;
+  }
+  const speed = 86;
+  for (const p of ladderHex.pulses) {
+    p.t += speed * dt;
+    if (p.t < 16) p.alpha = Math.min(1, p.t / 16);
+    else if (p.t >= p.total) p.alpha = Math.max(0, 1 - (p.t - p.total) / 0.5);
+    else p.alpha = 1;
+  }
+  ladderHex.pulses = ladderHex.pulses.filter((p) => p.alpha > 0.02);
+  paintLadderHex(false);
+  ladderHex.raf = requestAnimationFrame(tickLadderHex);
+}
+
 function route() {
   const key = location.hash.replace(/^#\/?/, ''), sc = SCREENS[key] || SCREENS[''];
   const top = $('#top'), main = $('#main');
+  stopLadderHex();
   top.textContent = ''; main.textContent = ''; main.className = ''; document.body.classList.remove('ladder');
   if (sc.title) top.append(h('a', { class: 'back', href: '#' + sc.back, 'aria-label': 'Back' }, '‹'), h('h1', null, sc.title));
 
@@ -274,6 +433,7 @@ async function boardPicker(mode) {
   const main = $('#main');
   main.classList.add('boards');
   document.body.classList.add('ladder');
+  startLadderHex();
   let level = ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal';
   if (mode === 'cpu') {
     const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'How hard the computer plays' });
