@@ -428,6 +428,7 @@ ai:
 
 # ------------------------------------------------------------
 # 13. PARKED FOR LATER  (not in the engine yet)
+# The main to-do list is BACKLOG.md at the repo root.
 # ------------------------------------------------------------
 # - Ships that rotate
 # - A destroyed coupling breaking the ship in two; twin ships that split on purpose

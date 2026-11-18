@@ -1,5 +1,7 @@
 # Status (updated 2026-11-17 by gamedev)
 
+The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
+
 
 
 ## Latest (17 Nov, gamedev chat): story cutscenes fit a phone held sideways (branch `cutscene-landscape`, PR to main)
