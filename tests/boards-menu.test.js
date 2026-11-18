@@ -24,7 +24,7 @@ const ORDER = [
 const FILL = { easy: 2, medium: 4, hard: 6 };
 
 test('the board menu lists all ten boards in the player difficulty order, with stars and previews', () => {
-  const cards = [...html.matchAll(/<a class="board" href="play\.html\?board=([^"]+)" data-difficulty="(easy|medium|hard)">([\s\S]*?)<\/a>/g)];
+  const cards = [...html.matchAll(/<a class="board" href="play\.html\?board=([^"]+)" data-difficulty="(easy|medium|hard)"[^>]*>([\s\S]*?)<\/a>/g)];
   assert.equal(cards.length, 10, 'ten board cards');
   cards.forEach((m, i) => {
     const [id, level, wantName] = ORDER[i];

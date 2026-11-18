@@ -4,6 +4,9 @@ The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
 
 
 
+## Latest (19 Nov, maps): board picker is a list you climb
+- The vs-computer board menu is now a vertical ladder (easy at the top, numbered hex steps, a path between them) with a warmer sky and a colour tint per difficulty; descriptions are no longer cut short. Menu only. `sw.js` cache is `shatkon-offline-v4`.
+
 ## Latest (19 Nov, maps): board picker by difficulty (menu only)
 - The vs-computer / workshop board list is now easiest to hardest, with **First Light first** as the way in: First Light, Beacon Hill, Cat and Mouse, Fog Bank, Pawn Storm, The Gambit, King's Guard, The Dogleg, The Minefield, Missile Alley.
 - Each card has a preview of the real board (hexes, terrain, starting ships), a row of 6 stars (Easy 2, Medium 4, Hard 6), a label, and a short description from the board brief. Board files and rules are unchanged; links and saves still use the old file names (`01_first_light` and so on).

@@ -13,34 +13,61 @@
   .exitbar a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px 0 12px;border-radius:999px;background:rgba(6,18,34,.94);border:1px solid rgba(95,247,255,.5);color:#fff;font:700 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none}
   .exitbar a b{font-size:24px;line-height:1;color:#5ff7ff;font-weight:700;margin-top:-2px}
   .exitbar a:hover,.exitbar a:focus-visible{border-color:#5ff7ff;outline:none}
-  main{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
-  h1{font-size:22px;font-weight:300;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px}
-  p.lead{color:var(--muted);margin:0 0 16px;max-width:720px}
-  p.lead a{color:var(--accent)}
-  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-  a.board{display:flex;flex-direction:column;gap:8px;padding:0 0 12px;border:1px solid var(--line);border-radius:12px;color:inherit;text-decoration:none;background:var(--panel);overflow:hidden}
-  a.board:hover,a.board:focus-visible{border-color:var(--accent);outline:none}
-  a.board .preview{display:block;width:100%;aspect-ratio:16/10;object-fit:contain;background:#071018;border-bottom:1px solid var(--line)}
-  a.board b{display:block;font-size:16px;font-weight:300;letter-spacing:.1em;text-transform:uppercase;padding:0 12px}
-  a.board span{display:block;color:var(--muted);font-size:13px;padding:0 12px}
+  main{max-width:860px;margin:0 auto;padding:20px 16px 48px;position:relative;z-index:1}
+  body{color:#152033;background:linear-gradient(180deg,rgba(186,214,235,.78) 0%,rgba(244,214,150,.42) 48%,rgba(90,130,150,.48) 100%),url(story/img/stages/vista_quiet_water.webp) center/cover fixed,#8eb4d4}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='48' viewBox='0 0 28 48'><path fill='none' stroke='%23152033' stroke-width='0.7' d='M14 0v8.5l-14 8v15l14 8 14-8v-15l-14-8zM0 16.5l14 8 14-8M0 31.5l14 8 14-8'/></svg>");background-size:28px 48px}
+  h1{font-size:22px;font-weight:300;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px;color:#152033}
+  p.lead{color:#334155;margin:0 0 16px;max-width:720px}
+  p.lead a{color:#1e5a8a;font-weight:700}
+  code{background:rgba(255,248,236,.8);padding:1px 5px;border-radius:4px}
+  .list{display:flex;flex-direction:column;gap:0}
+  a.board{display:flex;flex-direction:row;align-items:stretch;gap:10px;padding:0 0 8px;border:0;background:transparent;color:inherit;text-decoration:none;animation:ladder-in .42s ease both;animation-delay:calc(var(--i, 0) * 55ms)}
+  @keyframes ladder-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  a.board:hover,a.board:focus-visible{outline:none}
+  a.board:hover .card,a.board:focus-visible .card{box-shadow:0 6px 20px rgba(21,32,51,.2);outline:2px solid rgba(21,32,51,.25);outline-offset:1px}
+  .step{flex:0 0 32px;width:32px;display:flex;flex-direction:column;align-items:center;position:relative}
+  .step .n{flex:0 0 32px;width:28px;height:32px;border-radius:0;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font:700 12px/1 ui-monospace,monospace;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));z-index:1;transition:filter .3s ease}
+  a.board[data-difficulty="easy"] .n{background:#2f9e62}
+  a.board[data-difficulty="medium"] .n{background:#d39a1c}
+  a.board[data-difficulty="hard"] .n{background:#e05a32}
+  a.board:hover .n,a.board:focus-visible .n{filter:drop-shadow(0 0 5px rgba(255,255,255,.95)) drop-shadow(0 0 11px rgba(95,247,255,.75))}
+  a.board:not(:last-child) .step::after{content:'';flex:1;width:4px;margin-top:-1px;border-radius:2px;min-height:8px}
+  a.board[data-difficulty="easy"]:not(:last-child) .step::after{background:linear-gradient(#2f9e62,#7bc47a)}
+  a.board[data-difficulty="medium"]:not(:last-child) .step::after{background:linear-gradient(#d39a1c,#e8c15a)}
+  a.board[data-difficulty="hard"]:not(:last-child) .step::after{background:linear-gradient(#e05a32,#ff8a5c)}
+  a.board .card{flex:1;min-width:0;display:flex;flex-direction:row;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid rgba(21,32,51,.14);background:#fff8ec;box-shadow:0 4px 16px rgba(21,32,51,.12)}
+  a.board[data-difficulty="easy"] .card{background:linear-gradient(90deg,rgba(70,190,120,.38),#f3fff6 58%);border-color:rgba(47,158,98,.45)}
+  a.board[data-difficulty="medium"] .card{background:linear-gradient(90deg,rgba(232,193,90,.46),#fffaf0 58%);border-color:rgba(211,154,28,.5)}
+  a.board[data-difficulty="hard"] .card{background:linear-gradient(90deg,rgba(224,90,50,.34),#fff5f0 58%);border-color:rgba(224,90,50,.48)}
+  a.board .preview{flex:0 0 112px;width:112px;height:86px;object-fit:contain;border-radius:8px;background:#1a3a58;border:1px solid rgba(21,32,51,.16)}
+  a.board .meta{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+  a.board b{display:block;font-size:16px;font-weight:300;letter-spacing:.1em;text-transform:uppercase;padding:0;color:#152033}
+  a.board .about{display:block;color:#334155;font-size:13px;line-height:1.4;padding:0}
   a.board i{display:none}
-  .stars{display:flex;align-items:center;gap:6px;padding:0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-  .stars i{width:11px;height:11px;display:inline-block;background:center/contain no-repeat;opacity:.28;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='%23a7b3cc' stroke-width='1.7' stroke-linejoin='round' d='M12 2.4l2.7 5.7 6.3.8-4.7 4.4 1.3 6.3L12 16.8 6.4 19.6l1.3-6.3L3 8.9l6.3-.8z'/></svg>")}
+  .stars{display:flex;align-items:center;gap:6px;padding:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .stars i{width:11px;height:11px;display:inline-block;background:center/contain no-repeat;opacity:.35;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='none' stroke='%23556678' stroke-width='1.7' stroke-linejoin='round' d='M12 2.4l2.7 5.7 6.3.8-4.7 4.4 1.3 6.3L12 16.8 6.4 19.6l1.3-6.3L3 8.9l6.3-.8z'/></svg>")}
   .stars i.on{opacity:1;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23e8c15a' d='M12 2.2l2.9 6.1 6.7.8-5 4.7 1.3 6.6L12 17.3 5.1 20.4 6.4 13.8 1.4 9.1l6.7-.8z'/></svg>")}
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23d39a1c' d='M12 2.2l2.9 6.1 6.7.8-5 4.7 1.3 6.6L12 17.3 5.1 20.4 6.4 13.8 1.4 9.1l6.7-.8z'/></svg>")}
   .stars em{font-style:normal;font-weight:700}
-  a.board[data-difficulty="easy"] .stars em{color:var(--accent)}
-  a.board[data-difficulty="medium"] .stars em{color:var(--gold)}
-  a.board[data-difficulty="hard"] .stars em{color:var(--hard)}
+  a.board[data-difficulty="easy"] .stars em{color:#1e7a4a}
+  a.board[data-difficulty="medium"] .stars em{color:#9a6e0c}
+  a.board[data-difficulty="hard"] .stars em{color:#c2451e}
   @media (max-height:540px) and (orientation:landscape){
     main{padding:12px 12px 24px}
-    .list{grid-template-columns:repeat(5,1fr);gap:8px}
-    a.board{gap:4px;padding-bottom:8px}
-    a.board .preview{aspect-ratio:2/1;object-fit:contain}
-    a.board b{font-size:12px;letter-spacing:.06em;padding:0 8px}
-    a.board span{font-size:11px;padding:0 8px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
-    .stars{padding:0 8px;gap:4px}
+    a.board{gap:8px;padding-bottom:6px}
+    .step{flex-basis:26px;width:26px}
+    .step .n{flex-basis:26px;width:22px;height:26px;font-size:11px}
+    a.board .card{padding:6px 8px;gap:8px;border-radius:10px}
+    a.board .preview{flex-basis:76px;width:76px;height:58px}
+    a.board b{font-size:13px;letter-spacing:.06em}
+    a.board .about{font-size:12px;line-height:1.3}
+    .stars{gap:3px;font-size:10px}
+    .stars i{width:9px;height:9px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    a.board{animation:none}
+    .step .n{transition:none}
   }
 </style>
 </head>
@@ -53,16 +80,16 @@
 
 <!-- This page is the one list the landing-page picker reads. Order here is the menu order; file names stay as they are so saved games and links keep working. -->
 <div class="list">
-<a class="board" href="play.html?board=01_first_light" data-difficulty="medium"><img class="preview" src="icons/boards/01_first_light.svg" alt=""><b>1. First Light</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">The smallest board: a quick, even duel to learn the controls. A flagship and a gunboat each, with five rocks to hide behind.</span><i>Try: step a hex before you fire; fire from a rock edge so only one of them has a line on you.</i></a>
-<a class="board" href="play.html?board=07_beacon_hill" data-difficulty="easy"><img class="preview" src="icons/boards/07_beacon_hill.svg" alt=""><b>2. Beacon Hill</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">A beacon sits in a rock crater with two openings. Hold it through the other side's turn to score; five points wins.</span><i>Try: cover both openings and the enemy holder is a sitting duck.</i></a>
-<a class="board" href="play.html?board=03_cat_and_mouse" data-difficulty="easy"><img class="preview" src="icons/boards/03_cat_and_mouse.svg" alt=""><b>3. Cat and Mouse</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You hunt a hidden stealth fleet on the biggest board. You have three Comets: they fly far, and light up everything nearby when they die.</span><i>Try: a Comet is meant to be lost. Have your guns close to where it will die.</i></a>
-<a class="board" href="play.html?board=09_fog_bank" data-difficulty="easy"><img class="preview" src="icons/boards/09_fog_bank.svg" alt=""><b>4. Fog Bank</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You defend, outgunned two to one, from behind a fog bank you have mined. Fight from behind your mines and let them come to you.</span><i>Try: show a ship just beyond a mine and let them come through it.</i></a>
-<a class="board" href="play.html?board=06_pawn_storm" data-difficulty="easy"><img class="preview" src="icons/boards/06_pawn_storm.svg" alt=""><b>5. Pawn Storm</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">Six one-laser skiffs close in on a dreadnought in a cage of rock. It can only chase one of you; two shots on the same segment in one turn get through its shield.</span><i>Try: come in under cover, then two skiffs on the same segment in one turn, from opposite sides.</i></a>
-<a class="board" href="play.html?board=10_gambit" data-difficulty="medium"><img class="preview" src="icons/boards/10_gambit.svg" alt=""><b>6. The Gambit</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Hidden snipers wait with a boat that fires three missiles at the first ship it sees. You have three Lures: feed one to the salvo, then strike.</span><i>Try: feed the salvo a Lure, then strike while it reloads.</i></a>
-<a class="board" href="play.html?board=05_kings_guard" data-difficulty="medium"><img class="preview" src="icons/boards/05_kings_guard.svg" alt=""><b>7. King's Guard</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Chess from the side: each flagship is an unarmed king. Hold the corner with one ship and send the rest the long way to their king.</span><i>Try: hold the corner with one ship; send the rest round to their king.</i></a>
-<a class="board" href="play.html?board=04_the_dogleg" data-difficulty="medium"><img class="preview" src="icons/boards/04_the_dogleg.svg" alt=""><b>8. The Dogleg</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">A canyon with two right-angle bends. No laser sees round a corner, so send a drone first, then fight where they must step into your line.</span><i>Try: send a drone round the bend first, then fight where they must step into your line.</i></a>
-<a class="board" href="play.html?board=02_minefield" data-difficulty="hard"><img class="preview" src="icons/boards/02_minefield.svg" alt=""><b>9. The Minefield</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">An open field of invisible mines lies between you and their dug-in fleet. Lead with the minesweeper, and look for the one clean lane.</span><i>Try: lead with the Dowser; it sees a sleeper mine from 2 hexes. Stop and shoot it. One lane is clean.</i></a>
-<a class="board" href="play.html?board=08_missile_alley" data-difficulty="hard"><img class="preview" src="icons/boards/08_missile_alley.svg" alt=""><b>10. Missile Alley</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">A long, narrow alley. You have many missiles; they have point defence and a shield on every ship, and nowhere to spread out.</span><i>Try: three missiles on one ship in one round; the blast hits the ship beside it too.</i></a>
+<a class="board" href="play.html?board=01_first_light" data-difficulty="medium" style="--i:0"><span class="step" aria-hidden="true"><span class="n">1</span></span><span class="card"><img class="preview" src="icons/boards/01_first_light.svg" alt=""><span class="meta"><b>First Light</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">The smallest board: a quick, even duel to learn the controls. A flagship and a gunboat each, with five rocks to hide behind.</span><i>Try: step a hex before you fire; fire from a rock edge so only one of them has a line on you.</i></span></span></a>
+<a class="board" href="play.html?board=07_beacon_hill" data-difficulty="easy" style="--i:1"><span class="step" aria-hidden="true"><span class="n">2</span></span><span class="card"><img class="preview" src="icons/boards/07_beacon_hill.svg" alt=""><span class="meta"><b>Beacon Hill</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">A beacon sits in a rock crater with two openings. Hold it through the other side's turn to score; five points wins.</span><i>Try: cover both openings and the enemy holder is a sitting duck.</i></span></span></a>
+<a class="board" href="play.html?board=03_cat_and_mouse" data-difficulty="easy" style="--i:2"><span class="step" aria-hidden="true"><span class="n">3</span></span><span class="card"><img class="preview" src="icons/boards/03_cat_and_mouse.svg" alt=""><span class="meta"><b>Cat and Mouse</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You hunt a hidden stealth fleet on the biggest board. You have three Comets: they fly far, and light up everything nearby when they die.</span><i>Try: a Comet is meant to be lost. Have your guns close to where it will die.</i></span></span></a>
+<a class="board" href="play.html?board=09_fog_bank" data-difficulty="easy" style="--i:3"><span class="step" aria-hidden="true"><span class="n">4</span></span><span class="card"><img class="preview" src="icons/boards/09_fog_bank.svg" alt=""><span class="meta"><b>Fog Bank</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">You defend, outgunned two to one, from behind a fog bank you have mined. Fight from behind your mines and let them come to you.</span><i>Try: show a ship just beyond a mine and let them come through it.</i></span></span></a>
+<a class="board" href="play.html?board=06_pawn_storm" data-difficulty="easy" style="--i:4"><span class="step" aria-hidden="true"><span class="n">5</span></span><span class="card"><img class="preview" src="icons/boards/06_pawn_storm.svg" alt=""><span class="meta"><b>Pawn Storm</b><span class="stars" aria-label="Easy, 2 of 6"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><em>Easy</em></span><span class="about">Six one-laser skiffs close in on a dreadnought in a cage of rock. It can only chase one of you; two shots on the same segment in one turn get through its shield.</span><i>Try: come in under cover, then two skiffs on the same segment in one turn, from opposite sides.</i></span></span></a>
+<a class="board" href="play.html?board=10_gambit" data-difficulty="medium" style="--i:5"><span class="step" aria-hidden="true"><span class="n">6</span></span><span class="card"><img class="preview" src="icons/boards/10_gambit.svg" alt=""><span class="meta"><b>The Gambit</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Hidden snipers wait with a boat that fires three missiles at the first ship it sees. You have three Lures: feed one to the salvo, then strike.</span><i>Try: feed the salvo a Lure, then strike while it reloads.</i></span></span></a>
+<a class="board" href="play.html?board=05_kings_guard" data-difficulty="medium" style="--i:6"><span class="step" aria-hidden="true"><span class="n">7</span></span><span class="card"><img class="preview" src="icons/boards/05_kings_guard.svg" alt=""><span class="meta"><b>King's Guard</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">Chess from the side: each flagship is an unarmed king. Hold the corner with one ship and send the rest the long way to their king.</span><i>Try: hold the corner with one ship; send the rest round to their king.</i></span></span></a>
+<a class="board" href="play.html?board=04_the_dogleg" data-difficulty="medium" style="--i:7"><span class="step" aria-hidden="true"><span class="n">8</span></span><span class="card"><img class="preview" src="icons/boards/04_the_dogleg.svg" alt=""><span class="meta"><b>The Dogleg</b><span class="stars" aria-label="Medium, 4 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><em>Medium</em></span><span class="about">A canyon with two right-angle bends. No laser sees round a corner, so send a drone first, then fight where they must step into your line.</span><i>Try: send a drone round the bend first, then fight where they must step into your line.</i></span></span></a>
+<a class="board" href="play.html?board=02_minefield" data-difficulty="hard" style="--i:8"><span class="step" aria-hidden="true"><span class="n">9</span></span><span class="card"><img class="preview" src="icons/boards/02_minefield.svg" alt=""><span class="meta"><b>The Minefield</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">An open field of invisible mines lies between you and their dug-in fleet. Lead with the minesweeper, and look for the one clean lane.</span><i>Try: lead with the Dowser; it sees a sleeper mine from 2 hexes. Stop and shoot it. One lane is clean.</i></span></span></a>
+<a class="board" href="play.html?board=08_missile_alley" data-difficulty="hard" style="--i:9"><span class="step" aria-hidden="true"><span class="n">10</span></span><span class="card"><img class="preview" src="icons/boards/08_missile_alley.svg" alt=""><span class="meta"><b>Missile Alley</b><span class="stars" aria-label="Hard, 6 of 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><em>Hard</em></span><span class="about">A long, narrow alley. You have many missiles; they have point defence and a shield on every ship, and nowhere to spread out.</span><i>Try: three missiles on one ship in one round; the blast hits the ship beside it too.</i></span></span></a>
 </div>
 
 <p class="lead">Ship types, the thinking behind each board and what the quick simulations showed: <code>docs/ships-and-boards.md</code> and <code>docs/maps-rework.md</code>.</p>
