@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shatkon · Ship builder mock-up v2</title>
+<style>
+:root{
+  --bg:#040812;--panel:#0c1830;--panel2:#08111f;--line:#1f3552;
+  --text:#e7ecf6;--muted:#8f9cba;--accent:#7fd8f0;--good:#2fe0b0;
+  --bad:#ff7a7a;--warn:#d9a441;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --glow:rgba(127,216,240,.28);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{min-height:100dvh;
+  background:
+    radial-gradient(900px 480px at 18% -10%,#0a1c36 0%,transparent 60%),
+    radial-gradient(700px 400px at 100% 100%,#0a1820 0%,transparent 50%),
+    var(--bg);
+}
+
+.hangar{min-height:100dvh;display:flex;flex-direction:column}
+
+/* —— chrome —— */
+.note{background:#1a1406;border-bottom:1px solid #4a3a12;color:#e9cf8f;padding:7px 14px;font-size:12.5px;flex:none}
+.note em{color:#fff3c8;font-style:normal}
+header{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+header .brand{letter-spacing:.14em;font-weight:700;font-size:13px}
+.htab{padding:5px 12px;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:13px}
+.htab.on{background:var(--panel);color:var(--text)}
+.segs{display:flex;gap:6px;margin-left:auto}
+.seg{padding:5px 11px;border-radius:8px;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+.seg.on{border-color:var(--accent);color:var(--text);background:var(--panel);box-shadow:0 0 0 1px var(--glow)}
+
+/* —— hangar stage —— */
+.stage{
+  display:grid;
+  grid-template-columns:260px minmax(0,1fr) 280px;
+  grid-template-areas:"ship slots stats" "ship pop stats";
+  grid-template-rows:auto 1fr;
+  gap:12px 20px;
+  padding:16px 20px 20px;
+  max-width:1400px;width:100%;margin:0 auto;
+  flex:1;min-height:0;
+}
+.ship{grid-area:ship;display:flex;flex-direction:column;justify-content:center}
+.slots{grid-area:slots}
+.hud{grid-area:stats;display:flex;flex-direction:column;justify-content:center}
+.popwrap{grid-area:pop;display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding-left:4px}
+
+.panel{
+  background:linear-gradient(180deg,#0c1830 0%,#08111f 100%);
+  border:1px solid var(--line);border-radius:12px;padding:14px;
+  position:relative;
+}
+.panel h2,.lbl{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 10px;font-weight:600;
+}
+.ship h1{font-size:18px;margin:0 0 8px;font-weight:650;letter-spacing:.02em;text-align:center}
+.preview{display:flex;justify-content:center;padding:4px 0 2px}
+
+/* —— slots —— */
+.zones{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.zone h3{margin:0 0 3px;font-size:14px;font-weight:650}
+.zone p{margin:0 0 8px;color:var(--muted);font-size:12px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.slot{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:8px 6px 7px;border-radius:10px;min-height:72px;text-align:center;
+  background:#07101c;border:1px solid var(--line);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);
+}
+.slot .nm{font-size:12px;font-weight:600;line-height:1.2}
+.slot.empty{border-style:dashed;color:var(--muted)}
+.slot.empty .nm{font-weight:500}
+.slot.tapped{
+  border-style:solid;border-color:var(--accent);color:var(--text);
+  outline:2px solid var(--accent);outline-offset:2px;
+  box-shadow:0 0 16px var(--glow),inset 0 0 12px rgba(127,216,240,.08);
+}
+.ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#11253f;flex:none}
+.ic svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.slot.empty .plus{font-size:20px;line-height:1;color:var(--accent);font-weight:400}
+
+/* —— pop-over —— */
+.popover{
+  width:100%;max-width:480px;
+  background:linear-gradient(180deg,#122544 0%,#0a1628 100%);
+  border:1px solid #3a6284;border-radius:14px;padding:14px 14px 10px;
+  box-shadow:0 18px 40px rgba(0,0,0,.55),0 0 0 1px rgba(127,216,240,.12),0 0 28px rgba(127,216,240,.1);
+  position:relative;
+}
+.popover:before{
+  content:"";position:absolute;top:-7px;left:auto;right:14%;
+  width:12px;height:12px;background:#122544;border-left:1px solid #3a6284;border-top:1px solid #3a6284;
+  transform:rotate(45deg);
+}
+.popover:after,.popover .br:before,.popover .br:after{content:"";position:absolute;width:10px;height:10px;pointer-events:none}
+.popover:after{top:6px;left:6px;border-top:1.5px solid var(--accent);border-left:1.5px solid var(--accent);opacity:.7}
+.popover .br:before{top:6px;right:6px;border-top:1.5px solid var(--accent);border-right:1.5px solid var(--accent);opacity:.7}
+.popover .br:after{bottom:6px;right:6px;border-bottom:1.5px solid var(--accent);border-right:1.5px solid var(--accent);opacity:.7}
+.gtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:2px 0 12px}
+.gt{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:8px 2px 7px;border-radius:9px;border:1px solid transparent;
+  color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;
+}
+.gt .ic{width:28px;height:28px;background:#0c1c30}
+.gt .ic svg{width:16px;height:16px;stroke:currentColor}
+.gt.on{color:var(--accent);background:#143047;border-color:var(--accent);box-shadow:0 0 10px var(--glow)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{
+  aspect-ratio:1;min-height:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#071320;border:1px solid var(--line);border-radius:12px;
+  position:relative;padding:8px 6px 22px;
+}
+.tile .ic{width:52px;height:52px;border-radius:12px;background:#10253f}
+.tile .ic svg{width:32px;height:32px;stroke-width:1.6}
+.tile .cost{
+  position:absolute;right:8px;bottom:6px;
+  font-family:var(--mono);font-size:14px;color:var(--warn);font-weight:700;
+}
+.tile.preview{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(127,216,240,.4),0 0 18px rgba(127,216,240,.2);
+  background:#102c42;
+}
+.tile.lock{opacity:.42;filter:grayscale(.25)}
+.tile .pad{
+  position:absolute;top:6px;left:6px;font-size:14px;line-height:1;
+  background:#1a1010;border-radius:4px;padding:2px 4px;
+}
+.why{margin:8px 0 0;text-align:right;font-size:11px;color:#ffb3b3}
+.why .made{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:#2a2140;color:#d6c3ff;font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+.foot{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:2px 10px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.foot .pn{font-weight:700;font-size:16px;grid-column:1;grid-row:1}
+.foot .one{color:var(--muted);font-size:13px;grid-column:1;grid-row:2}
+.actions{grid-column:2;grid-row:1/span 2;display:flex;align-items:center;gap:8px}
+.info{
+  width:34px;height:34px;border-radius:8px;border:1px solid var(--line);
+  background:#0c1830;color:var(--accent);font-size:15px;display:grid;place-items:center;
+  cursor:pointer;padding:0;
+}
+.info:hover,#how:focus-visible+.foot .info{border-color:var(--accent)}
+#how{position:absolute;opacity:0;pointer-events:none}
+.how{display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#07101c;border:1px solid var(--line);font-size:13px;color:#c8d3e8}
+.how b{display:block;margin-bottom:4px;color:var(--text);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.how ul{margin:0;padding-left:18px}.how li{margin:3px 0}
+#how:checked ~ .how{display:block}
+#how:checked ~ .foot .info{border-color:var(--accent);background:#143047}
+.btn{
+  padding:8px 18px;border-radius:8px;border:0;background:var(--good);color:#04121c;
+  font-weight:800;font-size:14px;letter-spacing:.08em;text-transform:uppercase;cursor:default;
+  box-shadow:0 0 12px rgba(47,224,176,.25);
+}
+.cancel{margin:8px 2px 2px;color:var(--muted);font-size:12px;text-align:right}
+
+/* —— stat bars (the key idea) —— */
+.hud .preview-tag{
+  display:inline-block;align-self:flex-start;margin:0 0 12px;padding:2px 8px;border-radius:999px;
+  background:#0b2a24;border:1px solid #1d5c4c;color:#bff5e3;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+}
+.stat{margin:0 0 12px}
+.stat .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+.stat .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat .v{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap}
+.stat .v .to{color:var(--good)}
+.stat .v.cost .to{color:var(--bad)}
+.bar{
+  position:relative;height:11px;border-radius:5px;background:#13233a;overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.bar .now,.bar .ghost{position:absolute;top:0;left:0;height:100%;border-radius:5px}
+.bar .now{background:var(--accent);z-index:2}
+.bar .ghost{background:var(--good);opacity:.45;z-index:1}
+.bar .ghost.pay{background:var(--bad);opacity:.5}
+.delta{margin-top:6px;padding:8px 9px;border-radius:8px;background:#0b2a24;border:1px solid #1d5c4c;font-size:12.5px;color:#bff5e3;line-height:1.4}
+.delta b{color:#fff}
+
+/* —— expanded-state frame (below the hangar, desktop) —— */
+.alt{
+  max-width:1400px;width:100%;margin:0 auto;padding:6px 20px 28px;
+  border-top:1px solid var(--line);flex:none;
+}
+.alt h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:14px 0 10px}
+.alt .popover{max-width:480px}
+.alt .popover:before{display:none}
+
+/* —— phone portrait —— */
+@media (max-width:700px){
+  body{height:100dvh;overflow:hidden}
+  .hangar{height:100dvh;min-height:0;overflow:hidden}
+  header{padding:4px 8px;gap:5px}
+  .segs{margin-left:0;width:100%}
+  .htab,.seg{padding:4px 9px;font-size:12px}
+  .note{font-size:11px;padding:5px 10px;line-height:1.3}
+  .stage{
+    display:grid;
+    grid-template-columns:124px 1fr;
+    grid-template-areas:
+      "ship stats"
+      "slots slots"
+      "pop pop";
+    grid-template-rows:auto auto 1fr;
+    gap:6px;padding:6px 6px 6px;max-width:none;min-height:0;
+  }
+  .ship,.hud{padding:7px 7px 6px;justify-content:flex-start}
+  .ship h1{font-size:13px;margin-bottom:0}
+  .preview{padding:0}
+  .preview svg{width:100px;height:112px}
+  .zones{grid-template-columns:1fr;gap:5px}
+  .zone p{display:none}
+  .zone h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+  .slot{min-height:50px;padding:4px 3px 4px;gap:1px;border-radius:8px}
+  .slot .nm{font-size:10.5px}
+  .ic{width:22px;height:22px;border-radius:6px}
+  .ic svg{width:14px;height:14px}
+  .slot.empty .plus{font-size:16px}
+  .popwrap{align-items:stretch;padding:0;min-height:0}
+  .popover{max-width:none;height:100%;padding:8px 8px 6px;display:flex;flex-direction:column}
+  .popover:before{right:auto;left:82%;top:-6px}
+  .gtabs{margin:0 0 6px;gap:4px}
+  .gt{padding:5px 2px 4px;font-size:9px}
+  .gt .ic{width:22px;height:22px}
+  .grid{gap:6px;flex:0 0 auto}
+  .tile{aspect-ratio:1;width:100%;max-height:108px;padding:4px 4px 16px;justify-self:center}
+  .tile .ic{width:38px;height:38px}
+  .tile .ic svg{width:24px;height:24px}
+  .tile .cost{font-size:12px}
+  .why{margin:4px 0 0;font-size:10.5px}
+  .foot{margin-top:6px;padding-top:6px}
+  .foot .pn{font-size:14px}
+  .foot .one{font-size:12px}
+  .stat{margin:0 0 3px}
+  .stat .k{font-size:9px}
+  .stat .v{font-size:11.5px}
+  .stat .row1{margin-bottom:2px}
+  .bar{height:6px}
+  .hud .preview-tag{margin:0 0 5px;font-size:9px;padding:1px 6px}
+  .hud h2{display:none}
+  .delta{display:none}
+  .cancel{text-align:center;margin:4px 0 0;font-size:11px}
+  .info{width:30px;height:30px}
+  .btn{padding:7px 14px;font-size:13px}
+  .alt{display:none}
+}
+
+/* —— phone landscape (the tight one) —— */
+@media (max-height:500px) and (min-width:700px){
+  body{height:100dvh;overflow:hidden}
+  .hangar{height:100dvh;min-height:0;overflow:hidden}
+  .note{padding:3px 10px;font-size:11px;line-height:1.3}
+  header{padding:3px 10px;gap:6px}
+  header .brand{font-size:11px}
+  .htab,.seg{padding:3px 9px;font-size:12px}
+  .stage{
+    grid-template-columns:158px minmax(0,1fr) 200px;
+    grid-template-rows:auto 1fr;
+    gap:8px 10px;padding:8px 10px 8px;max-width:none;
+  }
+  .panel{padding:8px 9px;border-radius:10px}
+  .ship,.hud{justify-content:center}
+  .ship h1{font-size:13px;margin:0 0 0}
+  .preview{padding:0}
+  .preview svg{width:96px;height:108px}
+  .lbl{margin:0 0 6px}
+  .zones{gap:8px}
+  .zone h3{font-size:12px}
+  .zone p{display:none}
+  .slot{min-height:52px;padding:4px 4px 5px;gap:2px;border-radius:8px}
+  .slot .nm{font-size:10.5px}
+  .ic{width:22px;height:22px;border-radius:6px}
+  .ic svg{width:14px;height:14px}
+  .slot.empty .plus{font-size:16px}
+  .popwrap{min-height:0;padding:0;align-items:stretch}
+  .popover{padding:8px 8px 6px;border-radius:10px;max-width:none;height:100%;display:flex;flex-direction:column}
+  .popover:before{right:auto;left:47%;top:-6px} /* under the 3rd of 6 slots (end of Interior) */
+  .gtabs{margin:0 0 6px;gap:4px}
+  .gt{padding:3px 2px 3px;font-size:9px;gap:1px}
+  .gt .ic{width:20px;height:20px}
+  .gt .ic svg{width:13px;height:13px}
+  .grid{gap:6px}
+  .tile{aspect-ratio:auto;height:74px;padding:4px 4px 16px;border-radius:9px}
+  .tile .ic{width:36px;height:36px;border-radius:8px}
+  .tile .ic svg{width:24px;height:24px}
+  .tile .cost{font-size:12px;right:5px;bottom:3px}
+  .why{margin:4px 0 0;font-size:10px}
+  .foot{margin-top:auto;padding-top:6px;gap:0 8px}
+  .foot .pn{font-size:13px}
+  .foot .one{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .info{width:28px;height:28px;font-size:13px}
+  .btn{padding:6px 14px;font-size:12px}
+  .cancel{margin:4px 2px 0;font-size:10.5px}
+  .hud .preview-tag{margin:0 0 6px;font-size:9px;padding:1px 6px}
+  .hud h2{margin:0 0 6px}
+  .stat{margin:0 0 5px}
+  .stat .k{font-size:9.5px}
+  .stat .v{font-size:12px}
+  .bar{height:7px}
+  .delta{margin-top:4px;padding:5px 7px;font-size:11px}
+  .how{font-size:12px;padding:6px 8px;margin-top:6px}
+  .alt{display:none}
+}
+</style>
+</head>
+<body>
+<div class="hangar">
+<div class="note">
+  Static mock-up — nothing here works. Previewing the Sensor. The <em>Mk&nbsp;II</em> tile is made up; other numbers are real.
+</div>
+
+<header>
+  <span class="brand">SHATKON</span>
+  <span class="htab">Play</span>
+  <span class="htab on">Ship builder</span>
+  <div class="segs">
+    <span class="seg on">Segment 1 · front</span>
+    <span class="seg">+ Add segment</span>
+  </div>
+</header>
+
+<div class="stage">
+
+  <!-- SHIP -->
+  <section class="panel ship">
+    <h1>Ship A</h1>
+    <div class="preview">
+      <svg viewBox="-60 -70 120 140" width="180" height="200" aria-hidden="true">
+        <polygon points="0,-58 50,-29 50,29 0,58 -50,29 -50,-29" fill="#0f2035" stroke="#2d6f84" stroke-width="2"/>
+        <path d="M0,-40 L18,-10 L18,26 L8,36 L-8,36 L-18,26 L-18,-10 Z" fill="#c9d3dd" stroke="#6b7c8c" stroke-width="2"/>
+        <path d="M0,-34 L10,-14 L-10,-14 Z" fill="#2fb8a0"/>
+        <rect x="-7" y="-8" width="14" height="18" rx="4" fill="#7fd8f0"/>
+        <rect x="-8" y="36" width="16" height="10" rx="2" fill="#39475a"/>
+        <ellipse cx="0" cy="54" rx="6" ry="9" fill="#7fd8f0" opacity=".6"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- SLOTS -->
+  <section class="panel slots">
+    <div class="zones">
+      <div class="zone">
+        <h3>Interior</h3>
+        <p>Heavy systems inside the hull. Hit last.</p>
+        <div class="row">
+          <div class="slot">
+            <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="9"/></svg></span>
+            <span class="nm">Core</span>
+          </div>
+          <div class="slot">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v10M7 8l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+            <span class="nm">Decoy emitter</span>
+          </div>
+          <div class="slot empty tapped">
+            <span class="plus">+</span>
+            <span class="nm">Add part</span>
+          </div>
+        </div>
+      </div>
+      <div class="zone">
+        <h3>Exterior</h3>
+        <p>Bolted on the hull. Hit first.</p>
+        <div class="row">
+          <div class="slot empty"><span class="plus">+</span><span class="nm">Add part</span></div>
+          <div class="slot empty"><span class="plus">+</span><span class="nm">Add part</span></div>
+          <div class="slot empty"><span class="plus">+</span><span class="nm">Add part</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POP-OVER, anchored under the tapped interior slot -->
+  <div class="popwrap">
+    <div class="popover" role="dialog" aria-label="Choose an interior part">
+      <span class="br"></span>
+      <div class="gtabs">
+        <div class="gt">
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2c2.8 3.6 4 6.6 4 10a4 4 0 0 1-8 0c0-3.4 1.2-6.4 4-10z"/><path d="M9 17l-2.2 4M15 17l2.2 4M12 16.5V21"/></svg></span>
+          Propulsion
+        </div>
+        <div class="gt on">
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+          Sensors
+        </div>
+        <div class="gt">
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"/><path d="M4 20 20 4"/></svg></span>
+          Stealth
+        </div>
+        <div class="gt">
+          <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5h8v2M9 13h6"/></svg></span>
+          Utility
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="tile preview" title="Sensor">
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+          <span class="cost">5</span>
+        </div>
+        <div class="tile" title="Comms">
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21V10"/><circle cx="12" cy="7" r="2.4"/><path d="M16.2 9.2a4.2 4.2 0 0 1 0 5.6M19 7a7 7 0 0 1 0 10M7.8 9.2a4.2 4.2 0 0 0 0 5.6M5 7a7 7 0 0 0 0 10"/></svg></span>
+          <span class="cost">5</span>
+        </div>
+        <div class="tile lock" title="Sensor Mk II — made up">
+          <span class="pad" aria-hidden="true">🔒</span>
+          <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+          <span class="cost">8</span>
+        </div>
+      </div>
+      <div class="why">Unlocks in chapter 3 <span class="made">made-up</span></div>
+
+      <input type="checkbox" id="how">
+      <div class="foot">
+        <div class="pn">Sensor</div>
+        <div class="one">Adds 2 to this ship’s sensor range</div>
+        <div class="actions">
+          <label class="info" for="how" title="How it works">ⓘ</label>
+          <span class="btn">Fit</span>
+        </div>
+      </div>
+      <div class="how">
+        <b>How it works</b>
+        <ul>
+          <li>Adds 2 to this ship’s sensor range. The core already gives 2, so fitting this takes the ship from 2 to 4.</li>
+          <li>Sits at layer 4: shields, armour and weapons on the exterior are hit before it.</li>
+          <li>Costs 5.</li>
+        </ul>
+      </div>
+      <div class="cancel">Tap outside to cancel</div>
+    </div>
+  </div>
+
+  <!-- STAT BARS: stay visible beside the pop-over -->
+  <section class="panel hud">
+    <h2>This ship</h2>
+    <div class="preview-tag">Preview · Sensor</div>
+
+    <div class="stat">
+      <div class="row1"><span class="k">Thrust</span><span class="v">0</span></div>
+      <div class="bar"><i class="now" style="width:0%"></i></div>
+    </div>
+    <div class="stat">
+      <div class="row1"><span class="k">Sensor range</span><span class="v">2 → <span class="to">4</span></span></div>
+      <div class="bar"><i class="now" style="width:25%"></i><i class="ghost" style="width:50%"></i></div>
+    </div>
+    <div class="stat">
+      <div class="row1"><span class="k">Signature</span><span class="v">4</span></div>
+      <div class="bar"><i class="now" style="width:50%"></i></div>
+    </div>
+    <div class="stat">
+      <div class="row1"><span class="k">Missiles</span><span class="v">0</span></div>
+      <div class="bar"><i class="now" style="width:0%"></i></div>
+    </div>
+    <div class="stat">
+      <div class="row1"><span class="k">Toughness</span><span class="v">2 → <span class="to">3</span></span></div>
+      <div class="bar"><i class="now" style="width:25%"></i><i class="ghost" style="width:37.5%"></i></div>
+    </div>
+    <div class="stat">
+      <div class="row1"><span class="k">Total cost</span><span class="v cost">7 → <span class="to">12</span></span></div>
+      <div class="bar"><i class="now" style="width:17.5%"></i><i class="ghost pay" style="width:30%"></i></div>
+    </div>
+    <div class="delta"><b>Sensor</b> · range <b>2&nbsp;→&nbsp;4</b> · toughness <b>2&nbsp;→&nbsp;3</b> · cost <b>7&nbsp;→&nbsp;12</b>.</div>
+  </section>
+
+</div>
+</div>
+
+<!-- Second state: the same pop-over with How it works open. Hidden on short landscape. -->
+<section class="alt">
+  <h2>Same pop-over, How it works open</h2>
+  <div class="popover" role="img" aria-label="Pop-over with How it works expanded">
+    <span class="br"></span>
+    <div class="gtabs">
+      <div class="gt">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2c2.8 3.6 4 6.6 4 10a4 4 0 0 1-8 0c0-3.4 1.2-6.4 4-10z"/><path d="M9 17l-2.2 4M15 17l2.2 4M12 16.5V21"/></svg></span>
+        Propulsion
+      </div>
+      <div class="gt on">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        Sensors
+      </div>
+      <div class="gt">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"/><path d="M4 20 20 4"/></svg></span>
+        Stealth
+      </div>
+      <div class="gt">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5h8v2M9 13h6"/></svg></span>
+        Utility
+      </div>
+    </div>
+    <div class="grid">
+      <div class="tile preview">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="tile">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21V10"/><circle cx="12" cy="7" r="2.4"/><path d="M16.2 9.2a4.2 4.2 0 0 1 0 5.6M19 7a7 7 0 0 1 0 10M7.8 9.2a4.2 4.2 0 0 0 0 5.6M5 7a7 7 0 0 0 0 10"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="tile lock">
+        <span class="pad" aria-hidden="true">🔒</span>
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">8</span>
+      </div>
+    </div>
+    <div class="why">Unlocks in chapter 3 <span class="made">made-up</span></div>
+    <div class="foot">
+      <div class="pn">Sensor</div>
+      <div class="one">Adds 2 to this ship’s sensor range</div>
+      <div class="actions">
+        <span class="info" style="border-color:var(--accent);background:#143047">ⓘ</span>
+        <span class="btn">Fit</span>
+      </div>
+    </div>
+    <div class="how" style="display:block">
+      <b>How it works</b>
+      <ul>
+        <li>Adds 2 to this ship’s sensor range. The core already gives 2, so fitting this takes the ship from 2 to 4.</li>
+        <li>Sits at layer 4: shields, armour and weapons on the exterior are hit before it.</li>
+        <li>Costs 5.</li>
+      </ul>
+    </div>
+    <div class="cancel">Tap outside to cancel</div>
+  </div>
+</section>
+
+</body>
+</html>
