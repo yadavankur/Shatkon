@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shatkon · Slot picker mock-up</title>
+<!--
+  STATIC MOCK-UP of a drop-in slot picker on the CURRENT Lab page.
+
+  The Lab screenshots behind this (lab-bg-desk.png, lab-bg-land.png) are
+  the real play.html#lab, captured 18 Nov 2026, with the help dialog dismissed
+  and the default Blob A / Blob B presets. Nothing else on that page is redesigned.
+
+  The component itself is everything namespaced .sk-picker / .sk-scrim / .sk-anchor.
+  Copy that CSS block and the .sk-picker markup; the page around it can stay as-is.
+
+  How it would plug into ui/lab.js
+  --------------------------------
+  slotSel (around line 831) builds a native <select> for each bay/mount. Replace
+  that <select> with a small button that still shows the current part (or
+  "— empty —"), styled like today's select. Clicking it opens this picker,
+  anchored to the button — or as a bottom sheet when the viewport is too short
+  (a landscape phone has only ~70px under the bay row). Fit writes arr[k] and
+  calls labRerender(), the same as the select's onchange. Tap outside or Escape
+  cancels. Preview stays inside the picker (the delta line); the rest of the
+  Lab does not need to re-render until Fit.
+
+  Size of the change: a new ui/slot-picker.css (or a block in play.html) plus
+  a small opener in lab.js. slotSel itself is ~13 lines today; swapping it and
+  adding open/position/preview is on the order of 80–120 lines in lab.js.
+  Hull editor, ship preview, stats table, presets, knobs and the sim are
+  untouched. The same component can later open from any other screen that
+  has a part slot.
+
+  Made-up in this mock: the locked Sensor Mk II tile and "Unlocks in chapter 3".
+  Every other cost, note and preview number is from rules/world_v0.4.yaml and
+  the real Blob A stats (cost 47, sensor range 4, signature 1). The slot being
+  tapped already holds stealth; the preview is a swap to Sensor.
+-->
+<style>
+/* —— mock stage (not part of the component) —— */
+:root{
+  --bg:#040812; --panel:#0c1830; --panel2:#08111f; --line:#1f3552;
+  --text:#e7ecf6; --muted:#8f9cba; --accent:#7fd8f0; --good:#2fe0b0;
+  --bad:#ff7a7a; --warn:#d9a441;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  height:100%;overflow:hidden}
+.mock{position:relative;transform-origin:top left;overflow:hidden}
+.mock-desk{width:1360px;height:900px}
+.mock-land{width:844px;height:390px;display:none}
+.mock img{display:block;width:100%;height:100%;pointer-events:none;user-select:none}
+.mock-badge{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:8;
+  background:#1a1406;border:1px solid #4a3a12;color:#e9cf8f;
+  font-size:11px;letter-spacing:.04em;padding:3px 10px;border-radius:999px;
+  white-space:nowrap;pointer-events:none;
+}
+.mock-badge em{color:#fff3c8;font-style:normal}
+@media (orientation: landscape) and (max-height: 540px){
+  .mock-desk{display:none}
+  .mock-land{display:block}
+}
+
+/* ============================================================
+   DROP-IN COMPONENT  .sk-picker
+   Colours, type and radius match play.html, so it sits on the
+   existing Lab (or any later screen) without a restyle.
+   ============================================================ */
+
+.sk-scrim{
+  position:absolute;inset:0;z-index:4;
+  background:rgba(4,8,18,.45);
+}
+.sk-anchor{
+  position:absolute;z-index:5;pointer-events:none;
+  border:2px solid var(--accent);border-radius:8px;
+  box-shadow:0 0 0 2px rgba(127,216,240,.28),0 0 16px rgba(127,216,240,.4);
+}
+.mock-desk .sk-anchor{left:490px;top:282px;width:86px;height:34px}
+.mock-land .sk-anchor{left:301px;top:282px;width:52px;height:34px}
+
+.sk-picker{
+  position:absolute;z-index:6;
+  width:324px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 10px 8px;
+  box-shadow:0 16px 40px rgba(0,0,0,.55),0 0 0 1px rgba(127,216,240,.14);
+  color:var(--text);
+  font:13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+.sk-picker--pop{
+  left:348px;top:322px;
+}
+.sk-picker--pop:before{
+  content:"";position:absolute;top:-6px;left:185px;
+  width:11px;height:11px;background:var(--panel);
+  border-left:1px solid var(--line);border-top:1px solid var(--line);
+  transform:rotate(45deg);
+}
+
+.sk-picker-h{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin:0 0 8px;padding:0 2px;
+}
+.sk-picker-h .k{
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:650;
+}
+.sk-picker-h .v{font-size:12px;color:var(--text)}
+
+.sk-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:0 0 8px}
+.sk-tab{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:6px 2px 5px;border-radius:8px;border:1px solid transparent;
+  color:var(--muted);background:transparent;
+  font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:650;
+}
+.sk-tab .ic{
+  width:24px;height:24px;border-radius:6px;background:var(--panel2);
+  display:grid;place-items:center;
+}
+.sk-tab .ic svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sk-tab.on{
+  color:var(--accent);background:#143047;border-color:var(--accent);
+  box-shadow:0 0 10px rgba(127,216,240,.25);
+}
+
+.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.sk-tile{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  aspect-ratio:auto;height:84px;min-height:0;
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:6px 6px 18px;
+}
+.sk-tile .ic{
+  width:38px;height:38px;border-radius:10px;background:#10253f;
+  display:grid;place-items:center;
+}
+.sk-tile .ic svg{width:24px;height:24px;stroke:#5cc8ff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.sk-tile[data-part="comms"] .ic svg{stroke:#58d6a0}
+.sk-tile .cost{
+  position:absolute;right:6px;bottom:4px;
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--warn);
+}
+.sk-tile.on{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(127,216,240,.35),0 0 14px rgba(127,216,240,.18);
+  background:#102c42;
+}
+.sk-tile.lock{opacity:.42;filter:grayscale(.2)}
+.sk-tile .pad{
+  position:absolute;top:5px;left:5px;font-size:11px;line-height:1;
+  background:#1a1010;border-radius:4px;padding:1px 3px;
+}
+
+.sk-why{
+  margin:5px 0 0;text-align:right;font-size:11px;color:#ffb3b3;
+}
+.sk-why .made{
+  display:inline-block;margin-left:5px;padding:1px 6px;border-radius:999px;
+  background:#2a2140;color:#d6c3ff;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+}
+
+.sk-delta{
+  margin:8px 0 0;padding:6px 8px;border-radius:8px;
+  background:#0b2a24;border:1px solid #1d5c4c;
+  font-size:12px;color:#bff5e3;line-height:1.35;
+  display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline;
+}
+.sk-delta .up{color:var(--good);font-weight:700}
+.sk-delta .down{color:var(--bad);font-weight:700}
+.sk-delta b{color:#fff;font-weight:650}
+.sk-delta span{white-space:nowrap}
+
+.sk-foot{
+  display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;
+  gap:1px 8px;align-items:center;
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+}
+.sk-foot .pn{font-weight:700;font-size:14px;grid-column:1;grid-row:1}
+.sk-foot .one{color:var(--muted);font-size:12px;grid-column:1;grid-row:2}
+.sk-actions{grid-column:2;grid-row:1/span 2;display:flex;align-items:center;gap:6px}
+.sk-info{
+  width:32px;height:32px;border-radius:8px;
+  border:1px solid var(--line);background:var(--panel);color:var(--accent);
+  font-size:14px;display:grid;place-items:center;cursor:pointer;padding:0;
+}
+.sk-fit{
+  border:1px solid var(--accent);background:var(--panel);color:var(--accent);
+  border-radius:8px;padding:6px 14px;min-height:32px;
+  font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;
+  box-shadow:inset 0 0 0 1px rgba(127,216,240,.15);
+}
+.sk-how-toggle{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.sk-how{
+  display:none;margin-top:8px;padding:7px 9px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line);
+  font-size:12px;color:#c8d3e8;
+}
+.sk-how b{display:block;margin-bottom:3px;color:var(--text);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+.sk-how ul{margin:0;padding-left:17px}
+.sk-how li{margin:2px 0}
+.sk-how-toggle:checked ~ .sk-how{display:block}
+.sk-how-toggle:checked ~ .sk-foot .sk-info,
+.sk-info:hover{border-color:var(--accent);background:#143047}
+.sk-cancel{margin:6px 2px 0;color:var(--muted);font-size:11px;text-align:right}
+
+/* Bottom sheet: used when the Lab viewport is too short for a pop-over
+   (a landscape phone has the slot row near the bottom of the screen). */
+.sk-picker--sheet{
+  left:10px;right:10px;top:auto;bottom:8px;width:auto;
+  max-height:calc(100% - 16px);
+  border-radius:14px 14px 10px 10px;
+  padding:6px 10px 8px;
+  box-shadow:0 -12px 36px rgba(0,0,0,.55),0 0 0 1px rgba(127,216,240,.14);
+}
+.sk-picker--sheet:before{display:none}
+.sk-handle{
+  display:none;width:36px;height:4px;border-radius:999px;background:#3a5070;
+  margin:2px auto 6px;
+}
+.sk-picker--sheet .sk-handle{display:block}
+.sk-picker--sheet .sk-tabs{margin:0 0 6px}
+.sk-picker--sheet .sk-tab{padding:4px 2px 3px;font-size:9px}
+.sk-picker--sheet .sk-tab .ic{width:22px;height:22px}
+.sk-picker--sheet .sk-tab .ic svg{width:13px;height:13px}
+.sk-picker--sheet .sk-grid{gap:5px}
+.sk-picker--sheet .sk-tile{aspect-ratio:auto;height:68px;padding:4px 4px 16px;border-radius:9px}
+.sk-picker--sheet .sk-tile .ic{width:32px;height:32px;border-radius:8px}
+.sk-picker--sheet .sk-tile .ic svg{width:20px;height:20px}
+.sk-picker--sheet .sk-tile .cost{font-size:11px;right:5px;bottom:3px}
+.sk-picker--sheet .sk-why{margin:3px 0 0;font-size:10px}
+.sk-picker--sheet .sk-delta{margin:6px 0 0;padding:5px 7px;font-size:11.5px}
+.sk-picker--sheet .sk-foot{margin-top:6px;padding-top:6px}
+.sk-picker--sheet .sk-foot .pn{font-size:13px}
+.sk-picker--sheet .sk-foot .one{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-picker--sheet .sk-info{width:30px;height:30px}
+.sk-picker--sheet .sk-fit{padding:5px 12px;min-height:30px;font-size:12px}
+.sk-picker--sheet .sk-cancel{margin:4px 2px 0;font-size:10.5px}
+.sk-picker--sheet .sk-how{font-size:11.5px;padding:6px 8px;margin-top:6px}
+
+/* Landscape sheet: two columns, so tiles stay compact and more of the Lab stays visible. */
+.sk-picker--sheet{
+  display:grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0,1fr);
+  grid-template-rows: auto auto auto auto auto;
+  column-gap:14px;
+  align-items:start;
+}
+.sk-picker--sheet .sk-handle{grid-column:1/-1;margin:2px auto 4px}
+.sk-picker--sheet .sk-picker-h{grid-column:1/-1;margin:0 0 6px}
+.sk-picker--sheet .sk-tabs{grid-column:1;margin:0 0 6px}
+.sk-picker--sheet .sk-grid{grid-column:1}
+.sk-picker--sheet .sk-why{grid-column:1}
+.sk-picker--sheet .sk-side{
+  grid-column:2;grid-row:3 / span 3;
+  align-self:stretch;
+  display:flex;flex-direction:column;justify-content:center;
+  min-width:0;padding:2px 0 0;
+}
+.sk-picker--sheet .sk-tile{height:72px}
+.sk-picker--sheet .sk-delta{margin:0 0 8px}
+.sk-picker--sheet .sk-foot{margin-top:0;padding-top:8px}
+.sk-picker--sheet .sk-cancel{text-align:left}
+
+@media (orientation: landscape) and (max-height: 540px){
+  .mock-badge{display:none} /* header is already cramped; the Mk II tile is labelled */
+}
+.sk-picker--sheet .sk-cancel{text-align:right;margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- DESKTOP: real Lab at 1360×900, pop-over anchored to Bay 2 (stealth) -->
+<div class="mock mock-desk" data-frame="desk">
+  <img src="lab-bg-desk.png" alt="The current Ship Lab, Ship A and Ship B">
+  <div class="mock-badge">Static mock-up — drop-in picker on the real Lab. <em>Mk II is made up.</em></div>
+  <div class="sk-scrim" aria-hidden="true"></div>
+  <div class="sk-anchor" title="Tapped slot: Bay 2, stealth"></div>
+
+  <!-- ===== DROP-IN COMPONENT (desktop pop-over) ===== -->
+  <div class="sk-picker sk-picker--pop" role="dialog" aria-label="Choose an interior part">
+    <div class="sk-picker-h">
+      <span class="k">Interior slot</span>
+      <span class="v">Replacing Stealth plating</span>
+    </div>
+    <div class="sk-tabs" role="tablist" aria-label="Part groups">
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2c2.8 3.6 4 6.6 4 10a4 4 0 0 1-8 0c0-3.4 1.2-6.4 4-10z"/><path d="M9 17l-2.2 4M15 17l2.2 4M12 16.5V21"/></svg></span>
+        Propulsion
+      </div>
+      <div class="sk-tab on" role="tab" aria-selected="true">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        Sensors
+      </div>
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"/><path d="M4 20 20 4"/></svg></span>
+        Stealth
+      </div>
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5h8v2M9 13h6"/></svg></span>
+        Utility
+      </div>
+    </div>
+    <div class="sk-grid">
+      <div class="sk-tile on" data-part="sensor" title="Sensor">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="sk-tile" data-part="comms" title="Comms">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21V10"/><circle cx="12" cy="7" r="2.4"/><path d="M16.2 9.2a4.2 4.2 0 0 1 0 5.6M19 7a7 7 0 0 1 0 10M7.8 9.2a4.2 4.2 0 0 0 0 5.6M5 7a7 7 0 0 0 0 10"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="sk-tile lock" data-part="sensor-mk2" title="Sensor Mk II — made up">
+        <span class="pad" aria-hidden="true">🔒</span>
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">8</span>
+      </div>
+    </div>
+    <div class="sk-why">Unlocks in chapter 3 <span class="made">made-up</span></div>
+    <div class="sk-side">
+    <div class="sk-delta"><span><b>Range</b> 4 <span class="up">→ 6</span></span><span><b>Sig</b> 1 <span class="down">→ 2</span></span><span><b>Cost</b> 47 <span class="down">→ 52</span></span></div>
+    <input type="checkbox" id="sk-how-desk" class="sk-how-toggle">
+    <div class="sk-foot">
+      <div class="pn">Sensor</div>
+      <div class="one">Adds 2 to this ship’s sensor range</div>
+      <div class="sk-actions">
+        <label class="sk-info" for="sk-how-desk" title="How it works">ⓘ</label>
+        <span class="sk-fit">Fit</span>
+      </div>
+    </div>
+    <div class="sk-how">
+      <b>How it works</b>
+      <ul>
+        <li>Adds 2 to this ship’s sensor range. Blob A already has a sensor (range 4), so fitting this in place of Stealth plating takes it to 6.</li>
+        <li>Sits at layer 4: shields, armour and weapons on the exterior are hit before it.</li>
+        <li>Costs 5. Stealth plating is free, so the ship’s cost goes from 47 to 52.</li>
+        <li>Losing one stealth part raises signature from 1 to 2 (one stealth left; the floor is still 1).</li>
+      </ul>
+    </div>
+    <div class="sk-cancel">Tap outside to cancel</div>
+    </div>
+  </div>
+</div>
+
+<!-- LANDSCAPE PHONE: real Lab at 844×390, bottom sheet — no room for a pop-over -->
+<div class="mock mock-land" data-frame="land">
+  <img src="lab-bg-land.png" alt="The current Ship Lab on a landscape phone">
+  <div class="mock-badge">Static mock-up · bottom sheet. <em>Mk II is made up.</em></div>
+  <div class="sk-scrim" aria-hidden="true"></div>
+  <div class="sk-anchor" title="Tapped slot: Bay 2, stealth"></div>
+
+  <!-- ===== DROP-IN COMPONENT (landscape bottom sheet) ===== -->
+  <div class="sk-picker sk-picker--sheet" role="dialog" aria-label="Choose an interior part">
+    <div class="sk-handle" aria-hidden="true"></div>
+    <div class="sk-picker-h">
+      <span class="k">Interior slot</span>
+      <span class="v">Replacing Stealth plating</span>
+    </div>
+    <div class="sk-tabs" role="tablist" aria-label="Part groups">
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2c2.8 3.6 4 6.6 4 10a4 4 0 0 1-8 0c0-3.4 1.2-6.4 4-10z"/><path d="M9 17l-2.2 4M15 17l2.2 4M12 16.5V21"/></svg></span>
+        Propulsion
+      </div>
+      <div class="sk-tab on" role="tab" aria-selected="true">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        Sensors
+      </div>
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"/><path d="M4 20 20 4"/></svg></span>
+        Stealth
+      </div>
+      <div class="sk-tab" role="tab" aria-selected="false">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5h8v2M9 13h6"/></svg></span>
+        Utility
+      </div>
+    </div>
+    <div class="sk-grid">
+      <div class="sk-tile on" data-part="sensor" title="Sensor">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="sk-tile" data-part="comms" title="Comms">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21V10"/><circle cx="12" cy="7" r="2.4"/><path d="M16.2 9.2a4.2 4.2 0 0 1 0 5.6M19 7a7 7 0 0 1 0 10M7.8 9.2a4.2 4.2 0 0 0 0 5.6M5 7a7 7 0 0 0 0 10"/></svg></span>
+        <span class="cost">5</span>
+      </div>
+      <div class="sk-tile lock" data-part="sensor-mk2" title="Sensor Mk II — made up">
+        <span class="pad" aria-hidden="true">🔒</span>
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 13a9 9 0 0 1 18 0"/><path d="M6.5 14.5a5.5 5.5 0 0 1 11 0"/><circle cx="12" cy="16.5" r="1.6"/><path d="M12 3v5"/></svg></span>
+        <span class="cost">8</span>
+      </div>
+    </div>
+    <div class="sk-why">Unlocks in chapter 3 <span class="made">made-up</span></div>
+    <div class="sk-side">
+    <div class="sk-delta"><span><b>Range</b> 4 <span class="up">→ 6</span></span><span><b>Sig</b> 1 <span class="down">→ 2</span></span><span><b>Cost</b> 47 <span class="down">→ 52</span></span></div>
+    <input type="checkbox" id="sk-how-land" class="sk-how-toggle">
+    <div class="sk-foot">
+      <div class="pn">Sensor</div>
+      <div class="one">Adds 2 to this ship’s sensor range</div>
+      <div class="sk-actions">
+        <label class="sk-info" for="sk-how-land" title="How it works">ⓘ</label>
+        <span class="sk-fit">Fit</span>
+      </div>
+    </div>
+    <div class="sk-how">
+      <b>How it works</b>
+      <ul>
+        <li>Adds 2 to this ship’s sensor range. Blob A already has a sensor (range 4), so fitting this in place of Stealth plating takes it to 6.</li>
+        <li>Sits at layer 4: shields, armour and weapons on the exterior are hit before it.</li>
+        <li>Costs 5. Stealth plating is free, so the ship’s cost goes from 47 to 52.</li>
+        <li>Losing one stealth part raises signature from 1 to 2 (one stealth left; the floor is still 1).</li>
+      </ul>
+    </div>
+    <div class="sk-cancel">Tap outside to cancel</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Scale the mock frame to the window when the viewport is not the capture size.
+   At 1360×900 or 844×390 this is a no-op, so the Playwright shots stay 1:1. */
+function fitMock(){
+  const land = matchMedia('(orientation: landscape) and (max-height: 540px)').matches;
+  const el = document.querySelector(land ? '.mock-land' : '.mock-desk');
+  const other = document.querySelector(land ? '.mock-desk' : '.mock-land');
+  other.style.display = 'none';
+  el.style.display = 'block';
+  const k = Math.min(innerWidth / el.offsetWidth, innerHeight / el.offsetHeight);
+  el.style.transform = 'scale(' + k + ')';
+}
+addEventListener('resize', fitMock);
+fitMock();
+</script>
+</body>
+</html>
