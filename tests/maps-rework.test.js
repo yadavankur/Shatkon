@@ -107,14 +107,15 @@ test('a Comet or a courier on the beacon neither scores it nor contests it', () 
   assert.ok(g.players[0].score >= 1, 'the courier did not block the score');
 });
 
-test('a ship on its own drive is not offered a move the engine would refuse (fleet may not move)', () => {
+test('a ship on its own drive needs no thrust: an empty tank does not stop it, and it is offered only what the engine allows', () => {
   const g = battle({ p1: [flag('F', [-8, 8]), comet('C', [-6, 0])], p2: [flag('E', [0, -9])] });
-  const id = ship(g, 'C').id;
+  const c = ship(g, 'C'), id = c.id;
+  c.thrust = 0;
   assert.equal(E.shipStatus(g, id).moveLeft, 8);
-  g.players[0].canMove = false;
-  assert.equal(E.shipStatus(g, id).moveLeft, 0);
-  assert.equal(E.reach(g, id).length, 0);
-  assert.ok(!E.attempt(g, { type: 'move', ship: id, path: [0] }).ok);
+  assert.equal(E.shipStatus(g, id).thrust, null, 'it has no tank to show');
+  assert.ok(E.reach(g, id).length > 0);
+  assert.ok(E.reach(g, id).every((r) => r.path.length <= 8));
+  assert.ok(E.attempt(g, { type: 'move', ship: id, path: [0] }).ok);
 });
 
 // ---------- the sleeper mine ----------
@@ -143,6 +144,7 @@ test('a sleeper mine wrecks two segments and a shield does not help: a two-hex b
 
 test('a sleeper mine against the end of a three-hex ship takes the two ends and spares the core', () => {
   let g = battle({ p1: [flag('F', [-8, 8]), line3('L', [-3, 0])], p2: [flag('E', [0, -9])], extra2: [sleeper([0, 0])], tweak: noDrift });
+  ship(g, 'L').thrust = 9;   // as if it had banked thrust on earlier turns
   g = E.apply(g, { type: 'move', ship: ship(g, 'L').id, path: [0] });
   const l = g.ships.find((s) => s.name === 'L');
   assert.deepEqual(l.segs.map((sg) => sg.wrecked), [true, false, true]);
@@ -153,6 +155,7 @@ test('a sleeper mine against the end of a three-hex ship takes the two ends and 
 test('a sleeper mine takes exactly two segments off a seven-hex ship', () => {
   const big = { name: 'Big', at: [-4, 0], hull: [{ at: [0, 0], bays: ['core', 'sensor'] }].concat(H.DIRS.map((d) => ({ at: d, bays: ['engine', 'coupling'], mounts: ['shield', 'armour'] }))) };
   let g = battle({ p1: [flag('F', [-8, 8]), big], p2: [flag('E', [0, -9])], extra2: [sleeper([-1, 0])], tweak: noDrift });
+  ship(g, 'Big').thrust = 7;   // 6 engines for 7 segments: it banks a turn before its first hex
   g = E.apply(g, { type: 'move', ship: ship(g, 'Big').id, path: [0] });
   const b = g.ships.find((s) => s.name === 'Big');
   assert.equal(b.segs.filter((sg) => sg.wrecked).length, 2);

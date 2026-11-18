@@ -70,7 +70,7 @@ test('missiles fly through a wrecked segment, as beams do, and hit the next live
     { at: [0, -1], bays: ['core', 'engine', 'sensor'], mounts: ['armour', 'armour'] }] };
   const world = shippedFiles().world; world.munitions.missile.wrecks_segment = false;   // the plain-hits rule, so the hit count shows
   let { game: g, problems } = battle({ world, radius: 8, p1: [carrier], p2: [target] });
-  assert.deepEqual(problems, []);
+  assert.deepEqual(problems.filter((x) => !/nothing to move it/.test(x)), []);   // the carrier is a gun platform with no engine: fine here
   const t = ship(g, '2a');
   t.segs[0].wrecked = true; for (const p of t.segs[0].parts) p.hp = 0;   // the nearer segment is already wrecked
   g = apply(g, { type: 'launch', ship: '1a', kind: 'missile', start: [0, 4], target: null, route: [2, 2, 2, 2, 2, 2] });
@@ -86,7 +86,7 @@ test('...and under the world file\'s wreck rule the missile wrecks that live seg
     { at: [0, 0], bays: ['engine', 'coupling'], mounts: ['armour'] },
     { at: [0, -1], bays: ['core', 'engine', 'sensor'], mounts: ['armour', 'armour'] }] };
   let { game: g, problems } = battle({ radius: 8, p1: [carrier], p2: [target] });
-  assert.deepEqual(problems, []);
+  assert.deepEqual(problems.filter((x) => !/nothing to move it/.test(x)), []);
   assert.equal(g.rules.munitions.missile.wrecks_segment, true, 'the shipped rule');
   const t = ship(g, '2a');
   t.segs[0].wrecked = true; for (const p of t.segs[0].parts) p.hp = 0;

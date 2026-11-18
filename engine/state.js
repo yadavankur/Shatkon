@@ -55,7 +55,8 @@ export function workingParts(state, ship) {
   return out;
 }
 // A ship built with engines that has none working (destroyed or switched off) is dead in the
-// water: it can't move. (A ship designed with no engines at all is carried by the fleet as before.)
+// water: it can't move. (Every ship needs an engine or its own drive to be built; a ship with no
+// engine part at all is not "dead in the water", it simply has no thrust.)
 export function deadInWater(state, ship) {
   let had = false;
   for (const sg of ship.segs) for (const p of sg.parts) if (state.rules.parts[p.t] && num(state.rules.parts[p.t].thrust) > 0) {
@@ -151,14 +152,14 @@ export function newGame(rules, seed = 1) {
     events: [], history: [], pending: [], pre: '', lastTurn: null,
   };
   rules.fleets.forEach((fl, p) => {
-    state.players.push({ name: fl.name, cp: 0, cpBank: 0, thrust: 0, thrustBank: 0, canMove: false, moved: {}, vis: [], seen: {}, intel: {}, feed: [], readSeq: 0, turnSeq: 0, score: 0 });
+    state.players.push({ name: fl.name, cp: 0, cpBank: 0, moved: {}, vis: [], seen: {}, intel: {}, feed: [], readSeq: 0, turnSeq: 0, score: 0 });
     fl.ships.forEach((sh, i) => {
       const dep = fl.deployment.find((d) => d.ship === sh.name);
       if (!dep) return;
       state.ships.push({
         id: (p + 1) + String.fromCharCode(97 + i), owner: p, name: sh.name, flagship: !!sh.flagship, pos: dep.at.slice(),
         segs: sh.segs.map((s) => ({ off: s.off.slice(), wrecked: false, parts: s.parts.map((t) => ({ t, hp: rules.parts[t].hp })) })),
-        load: { ...sh.load }, dead: false, flares: [], used: {}, pd: 0,
+        load: { ...sh.load }, dead: false, flares: [], used: {}, pd: 0, thrust: 0,   // thrust: this ship's own, banked between turns
       });
     });
     for (const d of fl.deployment) if (d.munition) state.objs.push(makeObj(state, d.munition, p, d.at, dirToward(d.at, [0, 0])));

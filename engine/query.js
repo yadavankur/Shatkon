@@ -4,14 +4,13 @@
 import { key, add, step, dist, line, sightLine, turnToward, dirToward } from './hex.js';
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
-import { moveCap, beamHits, beamHitsAt, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
+import { movesLeft, shipWeight, beamHits, beamHitsAt, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
   const p = current(state), pl = state.players[p], ship = shipById(state, shipId);
-  if (!ship || ship.owner !== p || !pl.canMove || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
-  const drive = hasOwnDrive(state, ship), n = ship.segs.length;
-  const max = drive ? ownMove(state, ship) - (pl.moved[ship.id] || 0) : Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n));
+  if (!ship || ship.owner !== p || pl.cp < state.rules.cost.move || deadInWater(state, ship)) return [];
+  const max = movesLeft(state, ship);
   if (max <= 0) return [];
   const g = geom(state.rules), occ = occupancy(state), vis = new Set(pl.vis);
   // things the player knows would blow up under the ship: their own mines, and enemy objects in view
@@ -201,9 +200,9 @@ export function shipStatus(state, shipId) {
   const beams = parts.filter((x) => num(x.c.range) && num(x.c.hits)), launchers = parts.filter((x) => x.c.launches);
   const ready = (list) => list.filter((x) => !ship.used[x.si + '.' + x.pi]).length;
   return {
-    // (a ship on its own drive still needs the fleet to be allowed to move, as doMove and reach do)
-    moveLeft: !pl.canMove || deadInWater(state, ship) ? 0 : hasOwnDrive(state, ship) ? Math.max(0, ownMove(state, ship) - (pl.moved[ship.id] || 0)) : Math.max(0, Math.min(moveCap(state, p) - (pl.moved[ship.id] || 0), Math.floor(pl.thrust / n))),
-    costPerHex: hasOwnDrive(state, ship) ? 0 : n,
+    moveLeft: movesLeft(state, ship),
+    costPerHex: hasOwnDrive(state, ship) ? 0 : shipWeight(state, ship),
+    thrust: hasOwnDrive(state, ship) ? null : ship.thrust || 0,   // this ship's own thrust (null: it flies on its own drive)
     burnLeft: burnLeft(state, ship),   // afterburner turns left (null: no afterburner)
     beams: beams.length, beamsReady: ready(beams),
     launchers: launchers.length, launchersReady: ready(launchers),

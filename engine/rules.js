@@ -52,7 +52,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     magazineExplodes: num(dmg.magazine_explodes, 0),
     cost: {},
     seg: { max: num(seg.max_per_ship, 7), cost: num(seg.cost, 3), bays: num(seg.bays, 3), mounts: num(seg.mounts, 3), couplings: seg.couplings_required !== false, symmetric: seg.symmetric_hulls !== false },
-    move: { needsAverage: num(mv.needs_average_of, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2), minMove: mv.min_move || 0 },
+    move: { exteriorPerWeight: num(mv.exterior_per_weight, 0), capBonus: num(mv.max_above_average, 1), bankTurns: num(mv.bank_turns, 2), minMove: mv.min_move || 0 },
     det: {
       smallSig: num(det.small_object_signature, 1), lightsUp: num(det.detonation_lights_up, 4), shownSensor: num(det.shown_enemy_sensor, 4),
       flare: { fire: num(fl.fire_beam, 0), beamHit: num(fl.beam_hit, 3), launch: num(fl.launch, 2), pd: num(fl.point_defence_shot, 2), scan: num(fl.scan, 2) },
@@ -110,7 +110,7 @@ export function buildRules(world, mapFile, fleetsFile) {
     for (const sh of listOf(src.ships)) {
       const label = `${name} / ${sh.name || '(unnamed ship)'}`;
       const ship = { name: String(sh.name || ''), flagship: sh.flagship === true, segs: [], load: {}, cost: 0, ...(sh.reserve === true ? { reserve: true } : {}), ...(typeof sh.ai === 'string' ? { ai: sh.ai } : {}) };   // ai: this ship's own personality when the computer flies it
-      let couplings = 0, cores = 0, holds = 0, launchers = 0;
+      let couplings = 0, cores = 0, holds = 0, launchers = 0, drives = 0;
       for (const hx of listOf(sh.hull)) {
         if (!Array.isArray(hx.at)) { problems.push(`${label}: a hull entry has no "at".`); continue; }
         const bays = listOf(hx.bays), mounts = listOf(hx.mounts);
@@ -124,6 +124,7 @@ export function buildRules(world, mapFile, fleetsFile) {
           list.push(pn); ship.cost += p.cost;
           if (p.couples) couplings++;
           if (p.required) cores++;
+          if (num(p.thrust, 0) > 0 || num(p.own_move, 0) > 0) drives++;
           if (p.launches) launchers++;
           holds += num(p.holds, 0);
         }
@@ -139,6 +140,7 @@ export function buildRules(world, mapFile, fleetsFile) {
       // hulls must mirror or turn onto themselves (a hull welded together in play is taken as it comes)
       if (rules.seg.symmetric && !joined && !symmetry(ship.segs.map((s) => s.off))) problems.push(`${label}: the hull is lopsided. A hull has to be symmetrical: move or add a segment so one half mirrors the other.`);
       if (joined ? cores < 1 : cores !== 1) problems.push(`${label}: needs exactly one core; it has ${cores}.`);
+      if (!drives) problems.push(`${label}: has nothing to move it. Every ship needs at least one engine (or a sprint drive or afterburner).`);
       if (!joined && rules.seg.couplings && couplings < n - 1) problems.push(`${label}: ${n} segments need ${n - 1} couplings; it has ${couplings}.`);
       let loaded = 0;
       for (const [kind, count] of Object.entries(isObj(sh.load) ? sh.load : {})) {

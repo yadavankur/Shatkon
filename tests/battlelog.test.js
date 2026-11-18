@@ -82,7 +82,7 @@ test('battle log: replaying a whole game against the computer is exact, and drif
   // change one action: the replay notices
   const bad = structuredClone(log), t = bad.replay.turns.find((x) => x.actions.some((a) => a[0] === 'm'));
   t.actions[t.actions.findIndex((a) => a[0] === 'm')] = 'e';
-  assert.throws(() => replayLog(bad), /drift|did not end|not allowed|unknown|cannot/);
+  assert.throws(() => replayLog(bad), /drift|did not end|not allowed|unknown|cannot|not yours/);
 });
 
 test('battle log: a story chapter that changes the rules mid-battle still replays exactly', () => {

@@ -1155,8 +1155,6 @@ function ledger(l) {
     y = game.rules,
     cpIn = y.cp.perTurn,
     cpBank = Math.min(P.cpBank, y.cp.bankCap),
-    thIn = l.income,
-    thBank = Math.min(P.thrustBank, thIn * y.move.bankTurns),
     rows = [
       ['+' + cpIn, 'command points: new this turn (' + cpIn + ' every turn)'],
       cpBank ? ['+' + cpBank, 'command points: banked from your last turn (max ' + y.cp.bankCap + ')'] : null
@@ -1169,17 +1167,16 @@ function ledger(l) {
     if (nm[k]) rows.push(['\u2212' + y.cost[ty[k]], nm[k] + (k === 'd' ? '' : ' with ' + id)]);
   }
   rows.push(['= ' + l.cp, 'command points left']);
-  let th = [['+' + thIn, 'thrust: 1 from each of your ' + thIn + ' working engines']];
-  if (thBank) th.push(['+' + thBank, 'thrust: banked (max ' + thIn * y.move.bankTurns + ')']);
-  for (let [id, n] of Object.entries(P.moved || {})) {
-    let s = game.ships.find((z) => z.id === id);
-    if (s && n)
-      th.push([
-        '\u2212' + n * s.segs.length,
-        id + ' moved ' + plural(n, 'hex') + ' \u00D7 ' + s.segs.length + ' segments'
-      ]);
+  // thrust is per ship: each ship's own engines fill its own tank
+  let th = [];
+  for (let x of l.ships.filter((z) => z.mine && z.thrustNow != null && !game.ships.find((g) => g.id === z.id && g.dead))) {
+    let n = (P.moved || {})[x.id] || 0;
+    th.push([
+      '= ' + x.thrustNow,
+      x.id + ' thrust left: +' + x.thrust + ' a turn from its engines, banks up to ' + x.bankCap + ', ' + x.weight + ' a hex' +
+        (n ? '; moved ' + plural(n, 'hex') + ' (\u2212' + n * x.weight + ')' : '')
+    ]);
   }
-  th.push(['= ' + l.thrust, 'thrust left']);
   let mineV = E.view(game, turnOf()).ships.filter((s) => s.mine && s.scan);
   for (let s of mineV) {
     let si = s.scan,
@@ -1304,6 +1301,7 @@ function shipCard(x, v) {
     const st = x.mine && myTurn() ? E.shipStatus(game, x.id) : null;
     if (st) {
       lines.push(st.moveLeft > 0 ? 'Can move ' + plural(st.moveLeft, 'more hex') + ' this turn (' + st.costPerHex + ' thrust per hex).' : 'Cannot move further this turn.');
+      if (st.thrust != null) lines.push('Thrust ' + st.thrust + ': +' + x.thrust + ' a turn from its own engines, banks up to ' + x.bankCap + (st.thrust < st.costPerHex && x.thrust ? ' (saving up for its next hex)' : '') + '.');
       const w = [];
       if (st.beams) w.push(st.beamsReady + ' of ' + st.beams + ' lasers ready');
       if (st.launchers) w.push(st.launchersReady ? 'launcher ready' : 'launcher already used this turn');
@@ -1374,13 +1372,14 @@ function cpPips(cp, perTurn, spendNext) {
   return h('span', { class: 'meter cp', role: 'img', 'aria-label': plural(cp, 'command point'), title: plural(cp, 'command point') + ' (each order costs 1; unspent points carry over)' },
     h('span', { class: 'pipsrow' }, out, cp > 12 ? h('b', null, '+' + (cp - 12)) : null), lbl('Points ' + cp));
 }
-// thrust: one block per point of thrust (as long as it needs to be), the part a previewed move would spend lit green
-function thrustBar(thrust, spend) {
+// thrust: one block per point of the selected ship's own thrust (as long as it needs to be), the part a
+// previewed move would spend lit green. Thrust is per ship, so the bar belongs to the ship you picked.
+function thrustBar(thrust, spend, who, perHex) {
   const many = thrust > 24, kids = [];
   if (many) kids.push(h('span', { class: 'tbar' }, h('span', { style: 'width:' + Math.round((100 * Math.max(0, thrust - spend)) / thrust) + '%' }), spend ? h('span', { class: 'spend', style: 'width:' + Math.round((100 * spend) / thrust) + '%' }) : null));
   else for (let i = 0; i < thrust; i++) kids.push(h('i', { class: i >= thrust - spend ? 'spend' : null }));
-  return h('span', { class: 'meter th', role: 'img', 'aria-label': 'Thrust ' + thrust + (spend ? ', this move spends ' + spend : ''), title: 'Thrust ' + thrust + ': moving costs 1 per segment per hex' },
-    h('span', { class: 'pipsrow' }, ico('flame', 14), h('span', { class: 'blocks' }, kids)), lbl('Thrust ' + thrust + (spend ? ' −' + spend : '')));
+  return h('span', { class: 'meter th', role: 'img', 'aria-label': who + ' thrust ' + thrust + (spend ? ', this move spends ' + spend : ''), title: who + ': thrust ' + thrust + '. Its own engines fill it; moving costs ' + perHex + ' a hex (1 per segment)' },
+    h('span', { class: 'pipsrow' }, ico('flame', 14), h('span', { class: 'blocks' }, kids)), lbl(who + ' thrust ' + thrust + (spend ? ' −' + spend : '')));
 }
 // hull: one block per segment, filled by what is left of that segment's parts (unknown for an unscanned enemy segment)
 function hullBlocks(x, R) {
@@ -1539,13 +1538,15 @@ export function render() {
     : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1);
   // what a previewed move would spend: a point, and thrust (1 per segment per hex)
   const pvShip = pending && pending.type === 'move' ? v.ships.find((x) => x.id === pending.ship) : null;
-  const thSpend = pvShip && pvShip.mine ? Math.min(v.thrust, pending.path.length * (E.shipStatus(game, pvShip.id) || { costPerHex: pvShip.segs.length }).costPerHex) : 0;
+  // thrust is per ship: the bar shows the ship being moved, or the one you selected
+  const thShip = pvShip && pvShip.mine ? pvShip : sel ? v.ships.find((x) => x.id === sel && x.mine) || null : null;
+  const thSpend = thShip && thShip === pvShip ? Math.min(thShip.thrustNow || 0, pending.path.length * thShip.weight) : 0;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit),
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
         game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
-      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending), thrustBar(v.thrust, thSpend)) : null,
+      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending), thShip && thShip.thrustNow != null ? thrustBar(thShip.thrustNow, thSpend, shipName(thShip), thShip.weight) : null) : null,
       mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null),
     v.objective ? h('div', { class: 'line' }, h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '')) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,

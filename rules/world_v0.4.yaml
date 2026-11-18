@@ -5,7 +5,7 @@
 #   - Slots have no position or direction. A segment simply has
 #     3 bays (inner hexagons) and 3 mounts (corner diamonds).
 #   - Hits destroy a random part, outer layers first.
-#   - The whole fleet shares one pool of thrust. No dice on movement.
+#   - Each ship moves on its own engines' thrust. No dice on movement.
 #   - Stealth has a floor: a ship's hull signature never drops below segments / 3 (rounded up).
 #
 #  The engine reads the NUMBERS on each part, not its name. A new part
@@ -78,21 +78,27 @@ segments:
 
 
 # ------------------------------------------------------------
-# 4. MOVEMENT  (one pool of thrust for the whole fleet)
+# 4. MOVEMENT  (each ship moves on its own engines)
 # ------------------------------------------------------------
-#  At the start of your turn every working engine in your fleet adds 1 thrust.
+#  At the start of your turn every working engine gives ITS OWN ship 1 thrust.
 #  Moving a ship 1 hex costs 1 thrust per segment of that ship.
-#  You choose which ships move and how far. Unspent thrust is banked.
+#  You choose which ships move and how far. Each ship banks its own unspent thrust.
+#  Every ship needs an engine (or a sprint drive or afterburner) to be built. A ship whose
+#  engines are all shot out is dead in the water.
+#  (Agreed 18 Nov 2026; replaces the old shared fleet pool. See docs/proposals/thrust-and-tow.md.)
 movement:
-  needs_average_of: 0         # 0 = a weak fleet may still move one ship at a time.
-                              # Set to 1 to make a fleet with less than 1 thrust per segment
-                              # sit still until it has banked enough.
-  max_above_average: 1        # no ship may move further in a turn than the fleet average
-                              # (engines / segments, rounded down) plus this
-  bank_turns: 2               # most thrust you can carry over, counted in turns of engine output
+  max_above_average: 1        # no ship may move further in a turn than its own engines / its
+                              # segments (rounded down) plus this
+  bank_turns: 2               # most thrust a ship can carry over, counted in turns of its engines'
+                              # output, but never less than one hex's cost (its segments), so a big
+                              # ship with few engines saves up and moves 1 hex every few turns
+  # exterior_per_weight: 6    # optional, off: every this-many working exterior parts weigh as much
+                              # as 1 segment, in cost per hex and in the speed limit (strip the
+                              # armour to go faster). Off unless set
   examples:
-    - "two 2-segment ships, 3 engines: 3 thrust a turn. One ship moves 1 hex (2 thrust) and 1 is banked; next turn both can move"
-    - "two 2-segment ships, 9 engines: 9 thrust. Each ship moves 2 hexes (8 thrust), 1 banked. A ship may move up to 3"
+    - "a 2-segment ship with 3 engines: 3 thrust a turn. It moves 1 hex (2 thrust) and banks 1; next turn it has 4 and may move 2"
+    - "a 2-segment ship with 4 engines: 4 thrust. It may move up to 4 / 2 + 1 = 3 hexes a turn, with banked thrust"
+    - "a 3-segment ship with 1 engine: 1, 2, 3 thrust. It moves 1 hex every 3 turns"
 
 
 # ------------------------------------------------------------
@@ -173,7 +179,7 @@ bay_parts:
     layer: 6
     cost: 0
   engine:
-    note: "adds 1 thrust to the fleet pool every turn"
+    note: "gives this ship 1 thrust every turn; moving costs 1 thrust per segment per hex"
     thrust: 1
     layer: 5
     cost: 6
@@ -203,8 +209,8 @@ bay_parts:
     layer: 4
     cost: 5
   sprint_drive:
-    note: "a courier's drive: the ship moves up to 5 hexes a turn on its own, taking nothing from the fleet's thrust. Nimble (lasers only hit it from 3 hexes or closer) and fragile; when it dies the flash lights up every ship within 3 hexes, and the ship that shot it"
-    own_move: 5               # hexes a turn, outside the fleet's thrust pool and move limit
+    note: "a courier's drive: the ship moves up to 5 hexes a turn on its own, needing no thrust. Nimble (lasers only hit it from 3 hexes or closer) and fragile; when it dies the flash lights up every ship within 3 hexes, and the ship that shot it"
+    own_move: 5               # hexes a turn, needing no thrust and outside the move limit
     evades_beyond: 3          # a beam from further away than this misses
     death_flash: 3            # ships this close are revealed to everyone when it is destroyed
     holds_objective: false    # too small and fast to hold ground: it neither scores a beacon nor contests one
@@ -212,7 +218,7 @@ bay_parts:
     cost: 8
   afterburner:
     note: "a Comet's drive: a throwaway scout. 8 hexes a turn on its own for 3 turns, then it is burnt out and crawls 1. While it burns it lights up every enemy ship it flies within 2 hexes of, and itself. Lasers only hit it from 2 hexes or closer; when it dies every ship within 5 hexes is lit up, and the ship that shot it. At most 2 a fleet"
-    own_move: 8               # hexes a turn, outside the fleet's thrust pool and move limit
+    own_move: 8               # hexes a turn, needing no thrust and outside the move limit
     burn_turns: 3             # turns on which it moves at own_move; after that it is burnt out
     burnt_move: 1             # hexes a turn once burnt out (still on its own drive)
     reveals_on_pass: 2        # while it burns: after each hex, enemy ships this close are lit up for everyone
@@ -436,8 +442,6 @@ ai:
 # - Cutting a wrecked segment loose to shed its weight
 # - Tractor (large ship swallows a small one)
 # - Tow: one ship drags a crippled ship (engines shot out) along with it
-# - Thrust per ship instead of one fleet pool: a ship's own engines move it, weighed against its
-#   segments and exterior parts (Ankur 18 Nov: the shared pool was a quick fix; proposal pending)
 # - Tunnel / wormhole devices
 # - Distortion stealth (appear bigger or smaller than you are)
 # - Space rivers, gravity wells, warped hexes, sphere / doughnut boards

@@ -6,7 +6,7 @@ import { current, footprint, workingParts, hullPct } from './state.js';
 import { sensorOf, signatureOf, linkRange, flareOf, whySeen, eyes, sigBreak, netMoved, motionSig, contactsFor } from './detect.js';
 import { scanInfo, scanRadii } from './scan.js';
 import { cellsOf } from './state.js';
-import { thrustIncome, fleetSegs, moveCap } from './actions.js';
+import { thrustIncome, moveCap, bankCap, shipWeight, hasOwnDrive } from './actions.js';
 
 // What player p knows about the other side, as one comparable string: the enemy ships and
 // munitions in sight (where, what is wrecked, what scans told them), ghosts, fuzzy contacts,
@@ -52,7 +52,12 @@ export function view(state, who) {
       flare: open ? flareOf(state, s) : null,
       why: mine ? null : whySeen(state, p, s),
       link: open ? linkRange(state, s) : null,
-      thrust: open ? workingParts(state, s).reduce((n, x) => n + (x.c.thrust || 0), 0) : null,
+      thrust: open ? workingParts(state, s).reduce((n, x) => n + (x.c.thrust || 0), 0) : null,   // working engines: thrust it gains a turn
+      // its own thrust: what it has now, the most it can bank, what a hex costs, its speed limit (null: own drive)
+      thrustNow: open && !hasOwnDrive(state, s) ? s.thrust || 0 : null,
+      bankCap: open && !hasOwnDrive(state, s) ? bankCap(state, s) : null,
+      weight: open ? shipWeight(state, s) : null,
+      moveCap: open && !hasOwnDrive(state, s) ? moveCap(state, s) : null,
       moved: open ? state.players[s.owner].moved[s.id] || 0 : null,
       used: open ? { ...s.used } : null,
       // detection tier for enemies: 2 = located, 3 = full readout (from a fresh scan)
@@ -75,7 +80,7 @@ export function view(state, who) {
     round: state.round, phase: state.phase, winner: state.winner, toMove: current(state), me: all ? 'all' : p,
     players: state.players.map((x) => x.name),
     board: { radius: rules.board.radius }, terrain: rules.terrain, zones: rules.zones,
-    cp: pl.cp, thrust: pl.thrust, canMove: pl.canMove, income: thrustIncome(state, p), segments: fleetSegs(state, p), moveCap: moveCap(state, p),
+    cp: pl.cp, income: thrustIncome(state, p),   // thrust is per ship now: see each ship's thrustNow
     ships, objs, ghosts, feed: pl.feed.slice(),
     contacts: all ? [] : contactsFor(state, p, vis),   // fuzzy contacts: "something is roughly here"
     news: pl.feed.filter((e) => e.n >= pl.readSeq && e.n < pl.turnSeq),   // what happened since this player's last turn

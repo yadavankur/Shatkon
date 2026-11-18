@@ -11,6 +11,16 @@ import { s as svgEl, partLooks } from './board.js';
 import { drawShip, shipDefs } from './ships.js';
 import { drawFrigate, frigateDefs } from './frigate.js';
 import { $, h, rules, game, store, say, reduceMotion, newGame, plural, wholeMap, render, setRules } from './play.js';
+
+// The Lab's "Thrust / speed" line. Thrust is per ship: only this ship's engines move it.
+function speedText(st) {
+  if (st.ownMove) return 'own drive: ' + plural(st.ownMove, 'hex') + ' a turn, no thrust needed';
+  if (!st.thrust) return "\u26A0 no engine: this ship can't move";
+  const per = st.weight, cost = per + ' thrust a hex';
+  if (st.thrust < per) return st.thrust + ' thrust a turn, ' + cost + ' \u2192 saves up and moves 1 hex every ' + Math.ceil(per / st.thrust) + ' turns';
+  const avg = Math.round((st.thrust / per) * 100) / 100;
+  return st.thrust + ' thrust a turn, ' + cost + ' \u2192 about ' + plural(avg, 'hex') + ' a turn, up to ' + st.speed;
+}
 const { hex } = E;
 
 let labDocs = null;     // the parsed rule files { world, map, fleets }
@@ -359,7 +369,9 @@ function labStats(des) {
     problems: fleetProblems.map((p) => p.replace(/^player_1 \/ [^:]*: /, '').replace(/^player_1: /, '')),
     segments: st.segments,
     thrust: st.thrust,
-    speed: E.moveCap(e, 0),
+    speed: E.moveCap(e, s),
+    weight: E.shipWeight(e, s),
+    ownMove: E.hasOwnDrive(e, s) ? E.ownMove(e, s) : 0,
     sensor: E.sensorOf(e, s),
     sig: E.sigBreak(e, s),
     parts,
@@ -986,7 +998,7 @@ function labDesigner(side) {
         ['Cost', st.cost + ' of ' + st.budget + (st.cost > st.budget ? ' \u26A0 over budget' : '')],
         ['Segments', st.segments + ' (max ' + rules.seg.max + ')'],
         ['Shape', shapeText(des.hull.map((g) => g.at))],
-        ['Thrust / speed', st.thrust + ' thrust \u2192 up to ' + plural(st.speed, 'hex') + ' a turn on its own'],
+        ['Thrust / speed', speedText(st)],
         ['Sensor range', plural(st.sensor, 'hex')],
         ['Signature', sigTxt],
         [

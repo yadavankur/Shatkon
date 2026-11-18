@@ -4,7 +4,7 @@
 import { Illegal, no, current, emit } from './state.js';
 import { refreshSight } from './detect.js';
 import { checkWin } from './damage.js';
-import { doMove, doFire, doLaunch, doScan, doDetonate, thrustIncome, fleetSegs } from './actions.js';
+import { doMove, doFire, doLaunch, doScan, doDetonate, thrustIncome, shipIncome, bankCap } from './actions.js';
 import { runFlight } from './flight.js';
 import { scoreObjective, markObjective, limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
@@ -14,9 +14,8 @@ import { afterAction, onTurnStart, checkLocked, doJoin } from './script.js';
 export function startTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
   pl.cp = Math.min(pl.cpBank, R.cp.bankCap) + R.cp.perTurn;
-  const income = thrustIncome(state, p), segs = fleetSegs(state, p);
-  pl.thrust = Math.min(pl.thrustBank, income * R.move.bankTurns) + income;
-  pl.canMove = segs > 0 && pl.thrust >= segs * R.move.needsAverage;
+  // each ship: what it banked (up to its bank cap) plus 1 thrust from each of its working engines
+  for (const s of state.ships) if (s.owner === p && !s.dead) s.thrust = Math.min(s.thrust || 0, bankCap(state, s)) + shipIncome(state, s);
   pl.moved = {};
   for (const s of state.ships) if (s.owner === p) { s.used = {}; s.turnStart = s.pos.slice(); }
   pl.turnSeq = state.seq;       // events before this happened while the player was away
@@ -39,7 +38,6 @@ function closeTurn(state, rec) {
 function endTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
   pl.cpBank = Math.min(pl.cp, R.cp.bankCap);
-  pl.thrustBank = pl.thrust;
   pl.readSeq = state.seq;       // everything up to here the player has watched happen
   const rec = { round: state.round, player: p, actions: state.pending.slice(), pre: state.pre };
   markObjective(state, p);

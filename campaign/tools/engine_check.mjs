@@ -135,7 +135,7 @@ function play(rules, seed, chId) {
       if (!r.ok) r = E.attempt(g, { type: 'end' });
     }
     if (!SLOPPY && seat === 0 && r.ok && ownGoal(g, r.state, act)) { if (TRACE === seed) console.log(`   (stand-in skips ${JSON.stringify(act)}: own goal)`); r = safeAlternative(g, seat); }
-    else if (TRACE === seed && seat === 0 && act.type === 'end') console.log(`   (stand-in ends turn with cp ${g.players[0].cp}, thrust ${g.players[0].thrust})`);
+    else if (TRACE === seed && seat === 0 && act.type === 'end') console.log(`   (stand-in ends turn with cp ${g.players[0].cp}, thrust ${g.ships.filter((s) => s.owner === 0 && !s.dead).map((s) => s.name + " " + (s.thrust || 0)).join(", ")})`);
     g = r.state;
     if (TRACE !== null && seed === TRACE) traceStep(g, seat);
     for (const e of g.events) {

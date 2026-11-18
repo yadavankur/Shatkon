@@ -51,44 +51,78 @@ test('hex maths: distance, lines and turning', () => {
   assert.equal(hex.disc([0, 0], 2).length, 19);
 });
 
-test('movement: three engines for four segments can move one ship now, or both after banking', () => {
+// Thrust is per ship: each ship's own engines fill its own tank, and it moves on that alone.
+const thr = (g, id) => view(g, 0).ships.find((x) => x.id === id);
+const mine = (g) => { g = end(g); while (g.order[g.turn] !== 0) g = end(g); return g; };   // end turns until it is player 1's again
+
+test('movement: each ship moves on its own engines; a 1-engine 2-segment ship saves up for its hex', () => {
   const two = (name, at, engines, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core'].concat(Array(Math.min(2, engines)).fill('engine')) }, { at: [1, 0], bays: ['coupling'].concat(Array(Math.max(0, engines - 2)).fill('engine')) }] });
-  const fleets = { p1: [two('A', [0, 5], 2, true), two('B', [0, 7], 1, false)], p2: [scout('X', [0, -8])] };
-  let { game: g, problems } = battle(fleets);
+  let { game: g, problems } = battle({ p1: [two('A', [0, 5], 2, true), two('B', [0, 7], 1, false)], p2: [scout('X', [0, -8])] });
   assert.deepEqual(problems, []);
-  let v = view(g, 0);
-  assert.deepEqual([v.income, v.segments, v.thrust, v.canMove, v.moveCap], [3, 4, 3, true, 1]);
+  assert.deepEqual([thr(g, '1a').thrustNow, thr(g, '1a').moveCap, thr(g, '1b').thrustNow, thr(g, '1b').moveCap], [2, 2, 1, 1]);
+  assert.equal(view(g, 0).income, 3, 'the fleet total is still reported');
   g = apply(g, { type: 'move', ship: '1a', path: [0] });
-  assert.equal(view(g, 0).thrust, 1);
-  assert.equal(attempt(g, { type: 'move', ship: '1b', path: [0] }).why, 'not enough thrust');
-  g = end(end(end(g)));
-  assert.equal(view(g, 0).thrust, 4, '1 banked + 3 new: now both ships can move');
-  // the optional rule: no movement at all until the fleet has a full hex per segment banked
-  const strict = structuredClone(shippedFiles().world); strict.movement.needs_average_of = 1;
-  let s = battle({ ...fleets, world: strict }).game;
-  assert.equal(view(s, 0).canMove, false);
-  assert.equal(attempt(s, { type: 'move', ship: '1a', path: [0] }).ok, false);
-  s = end(end(end(s)));
-  assert.equal(view(s, 0).canMove, true);
+  assert.equal(thr(g, '1a').thrustNow, 0, 'A paid 2 for its 2 segments');
+  assert.equal(attempt(g, { type: 'move', ship: '1b', path: [0] }).why, 'not enough thrust: this ship is saving up for its next hex');
+  assert.equal(reach(g, '1b').length, 0, 'B is offered no move');
+  g = mine(g);
+  assert.equal(thr(g, '1b').thrustNow, 2, "B banked its 1 and got 1 more: it can move now, A's spare engines never helped it");
+  assert.equal(thr(g, '1a').thrustNow, 2);
+  assert.ok(attempt(g, { type: 'move', ship: '1b', path: [0] }).ok);
 });
 
-test('movement: thrust is shared, so one ship can take more than its share', () => {
+test('movement: a ship may move at most (its engines / its segments, rounded down) + 1 hexes a turn', () => {
   const two = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'engine'] }, { at: [1, 0], bays: ['coupling', 'engine', 'engine'] }] });
-  let { game: g, problems } = battle({ p1: [two('A', [0, 5], true), two('B', [0, 7], false)], p2: [scout('X', [0, -8])] });
+  const lone = (name, at) => ({ name, at, flagship: false, hull: [{ at: [0, 0], bays: ['core', 'engine'] }, { at: [1, 0], bays: ['coupling', 'engine'] }] });
+  let { game: g, problems } = battle({ p1: [two('A', [0, 5], true), lone('B', [0, 7])], p2: [scout('X', [0, -8])] });
   assert.deepEqual(problems, []);
-  const v = view(g, 0);
-  assert.deepEqual([v.income, v.segments, v.moveCap], [8, 4, 3], '8 engines / 4 segments = 2, so a ship may move up to 3');
+  assert.deepEqual([thr(g, '1a').moveCap, thr(g, '1b').moveCap], [3, 2], '4 engines / 2 segments = 2, + 1; 2 / 2 = 1, + 1');
+  assert.equal(attempt(g, { type: 'move', ship: '1a', path: [0, 0] }).ok, true, 'A has 4 thrust: 2 hexes now');
+  assert.match(attempt(g, { type: 'move', ship: '1b', path: [0, 0] }).why, /not enough thrust/, 'B has 2 thrust: 1 hex');
+  g = mine(g);                 // nobody moved: A banks 4 (+4 = 8), B banks 2 (+2 = 4)
+  assert.deepEqual([thr(g, '1a').thrustNow, thr(g, '1b').thrustNow], [8, 4]);
+  assert.equal(attempt(g, { type: 'move', ship: '1a', path: [0, 0, 0, 0] }).why, 'a ship can move at most 3 hexes a turn', 'banked thrust does not lift the speed limit');
   g = apply(g, { type: 'move', ship: '1a', path: [0, 0, 0] });
-  assert.equal(view(g, 0).thrust, 2);
-  g = apply(g, { type: 'move', ship: '1b', path: [0] });
-  assert.equal(view(g, 0).thrust, 0);
-  assert.equal(attempt(g, { type: 'move', ship: '1b', path: [0] }).why, 'not enough thrust');
-  g = end(end(end(g)));
-  assert.equal(view(g, 0).thrust, 8, 'nothing was left to bank');
+  assert.equal(thr(g, '1a').thrustNow, 2);
+  g = apply(g, { type: 'move', ship: '1b', path: [0, 0] });
+  assert.equal(thr(g, '1b').thrustNow, 0);
+});
+
+test('movement: a ship banks up to 2 turns of its engines, but never less than one hex', () => {
+  const crawler = { name: 'C', at: [0, 5], flagship: true, hull: [{ at: [0, 0], bays: ['core', 'engine'] }, { at: [1, 0], bays: ['coupling'] }, { at: [-1, 0], bays: ['coupling'] }] };
+  const quick = { name: 'Q', at: [4, 5], flagship: false, hull: [{ at: [0, 0], bays: ['core', 'engine', 'engine'] }] };
+  let { game: g, problems } = battle({ p1: [crawler, quick], p2: [scout('X', [0, -8])] });
+  assert.deepEqual(problems, []);
+  const seen = [];
+  for (let turn = 1; turn <= 4; turn++) {
+    seen.push([thr(g, '1a').thrustNow, thr(g, '1a').bankCap, reach(g, '1a').length > 0, thr(g, '1b').thrustNow]);
+    if (turn < 3) g = mine(g);
+    else if (turn === 3) { g = apply(g, { type: 'move', ship: '1a', path: [0] }); g = mine(g); }
+  }
+  // the 3-segment, 1-engine crawler: 1, 2, 3 thrust (its bank cap is 3, one hex's cost), moves on turn 3, then starts again
+  // the 1-segment, 2-engine skiff never moves: 2, then 2 + 2 = 4, then capped at 4 banked + 2 = 6
+  assert.deepEqual(seen, [[1, 3, false, 2], [2, 3, false, 4], [3, 3, true, 6], [1, 3, false, 6]]);
+});
+
+test('building: a ship with nothing to move it is refused; a sprint drive or afterburner is enough', () => {
+  const p2 = [scout('X', [0, -8])];
+  assert.ok(battle({ p1: [pod('Brick', [0, 5], ['core', 'sensor'], [], { flagship: true })], p2 }).problems.some((x) => /nothing to move it/.test(x)));
+  assert.deepEqual(battle({ p1: [pod('Courier', [0, 5], ['core', 'sprint_drive'], [], { flagship: true })], p2 }).problems, []);
+  assert.deepEqual(battle({ p1: [pod('Comet', [0, 5], ['core', 'afterburner'], [], { flagship: true })], p2 }).problems, []);
+  assert.deepEqual(battle({ p1: [scout('Skiff', [0, 5])], p2 }).problems, []);
+});
+
+test('movement: the optional exterior weight (off by default) makes armoured ships pay more per hex', () => {
+  const tank = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'engine'], mounts: ['armour', 'armour', 'armour'] }] });
+  assert.deepEqual([thr(battle({ p1: [tank('T', [0, 5], true)], p2: [scout('X', [0, -8])] }).game, '1a').weight], [1], 'off: weight = segments');
+  const w = structuredClone(shippedFiles().world); w.movement.exterior_per_weight = 3; w.turns = { ...w.turns, first: 'player_1' };
+  const g = battle({ world: w, p1: [tank('T', [0, 5], true)], p2: [scout('X', [0, -8])] }).game;
+  assert.deepEqual([thr(g, '1a').weight, thr(g, '1a').moveCap], [2, 2], '3 plates weigh 1 segment: 2 engines / weight 2 = 1, + 1');
+  assert.equal(shipStatus(g, '1a').costPerHex, 2);
 });
 
 test('movement is refused off the board, through asteroids and through known ships', () => {
-  let { game: g } = battle({ radius: 5, terrain: [{ type: 'asteroid', at: [1, 4], size: 1 }], p1: [scout('A', [0, 4]), { ...scout('B', [-1, 4]), flagship: false }], p2: [scout('X', [0, -4])] });
+  let { game: g } = battle({ radius: 5, terrain: [{ type: 'asteroid', at: [1, 4], size: 1 }], p1: [pod('A', [0, 4], ['core', 'engine', 'engine'], ['laser'], { flagship: true }), { ...scout('B', [-1, 4]), flagship: false }], p2: [scout('X', [0, -4])] });
   assert.equal(attempt(g, { type: 'move', ship: '1a', path: [0] }).why, 'an asteroid is in the way');
   assert.equal(attempt(g, { type: 'move', ship: '1a', path: [3] }).why, 'another ship is in the way');
   assert.equal(attempt(g, { type: 'move', ship: '1a', path: [5, 5] }).why, 'that would leave the board');
@@ -265,7 +299,7 @@ test('running into an unseen ship stops the move and reveals both', () => {
   g = apply(g, { type: 'move', ship: '1a', path: [2, 2] });
   assert.deepEqual(ship(g, '1a').pos, [0, 1]);
   assert.equal(visibleTo(g, 0).has('2a'), true);
-  assert.equal(view(g, 0).thrust, 2 - 1, 'only the hex actually moved is paid for');
+  assert.equal(thr(g, '1a').thrustNow, 2 - 1, 'only the hex actually moved is paid for');
 });
 
 test('destroying the flagship wins the game', () => {
@@ -429,7 +463,7 @@ test('losing a magazine reports how many munitions went with it', () => {
     p1: [pod('Hauler', [0, 3], ['core', 'magazine', 'magazine'], ['launcher'], { load: { missile: 5 } })],
     p2: [scout('Picket', [0, -3])],
   });
-  assert.deepEqual(problems, []);
+  assert.deepEqual(problems.filter((x) => !/nothing to move it/.test(x)), []);   // a gun platform with no engine: not a legal build, fine for this test
   const g = structuredClone(game);
   g.rules = game.rules;
   g.events = [];
@@ -525,7 +559,7 @@ test('with beams_pass_own_munitions on, lasers pass your own missiles but not yo
       p1: [pod('Gun', [0, 5], ['core', 'magazine', 'sensor'], ['laser', 'launcher'], { load: { missile: 1 } })],
       p2: [pod('Target', [0, 1], ['core', 'engine', 'engine'], ['armour'])],
       extra1: withMine ? [{ mine: [0, 3] }] : [] });
-    assert.deepEqual(problems, []);
+    assert.deepEqual(problems.filter((x) => !/nothing to move it/.test(x)), []);   // a gun platform with no engine is fine for this test
     let g = game;
     if (!withMine) g = apply(g, { type: 'launch', ship: g.ships[0].id, kind: 'missile', start: [0, 4], route: [3, 3, 3] });
     const blocker = withMine ? [0, 3] : [0, 4];

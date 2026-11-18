@@ -13,7 +13,7 @@ import { add, key, dist, step } from './hex.js';
 import { Illegal, no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater } from './state.js';
 import { visibleTo, refreshSight } from './detect.js';
 import { applyHits, removeObj, strikeEngines } from './damage.js';
-import { doMove, doFire, doLaunch } from './actions.js';
+import { doMove, doFire, doLaunch, shipIncome } from './actions.js';
 import { reach, beamTargets, aimLaunch } from './query.js';
 import { buildRules } from './rules.js';
 import { fnv, stable } from './codec.js';
@@ -342,6 +342,7 @@ export function spawn(state, group) {
     const id = (p + 1) + String.fromCharCode(97 + idx);
     const ship = { id: byIdFree(state, id) ? id : nextId(state, p), owner: p, name, flagship: !!def.flagship, pos: at.slice(), segs,
       load: { ...def.load }, dead: false, flares: [], used: {}, pd: 0, turnStart: at.slice() };
+    ship.thrust = current(state) === p ? shipIncome(state, ship) : 0;   // arriving on its own side's turn: this turn's thrust
     state.ships.push(ship);
     placed.push(ship.id);
   }
@@ -394,6 +395,7 @@ export function join(state, a, b, kind, scripted) {
   const add2 = b.segs.map((sg) => ({ ...sg, off: [b.pos[0] + sg.off[0] - a.pos[0], b.pos[1] + sg.off[1] - a.pos[1]] }));
   a.segs = a.segs.concat(add2);
   for (const [kd, n] of Object.entries(b.load)) a.load[kd] = (a.load[kd] || 0) + n;
+  a.thrust = (a.thrust || 0) + (b.thrust || 0);   // the joined ship keeps both ships' saved thrust
   a.seams = (a.seams || []).concat({ kind, with: b.name, cells: add2.map((sg) => sg.off.slice()) });
   takeOff(state, b);
   const flag = (kind === 'weave' ? 'grafted:' : 'docked:') + [a.name, b.name].sort().join('+');
@@ -412,11 +414,12 @@ export function doJoin(state, a) {
   join(state, s1, s2, a.type === 'graft' ? 'weave' : 'dock', false);
 }
 
-// Script-flown ships act on a budget of their own: the player's command points and thrust are put back.
+// Script-flown ships act on a budget of their own: the player's command points and every ship's own
+// thrust are put back afterwards. (The ship still keeps to its own speed limit, moveCap.)
 function free(state, p, fn) {
-  const pl = state.players[p], save = { cp: pl.cp, thrust: pl.thrust, canMove: pl.canMove };
-  pl.cp = 99; pl.thrust = 999; pl.canMove = true;
-  try { return fn(); } finally { pl.cp = save.cp; pl.thrust = save.thrust; pl.canMove = save.canMove; }
+  const pl = state.players[p], cp = pl.cp, ships = state.ships.filter((s) => s.owner === p), thrust = ships.map((s) => s.thrust);
+  pl.cp = 99; for (const s of ships) s.thrust = 999;
+  try { return fn(); } finally { pl.cp = cp; ships.forEach((s, i) => { s.thrust = thrust[i]; }); }
 }
 
 // Move a ship as close as it can get to a hex (its position) this turn.

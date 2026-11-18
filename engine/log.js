@@ -16,7 +16,7 @@ import { begin, apply } from './turn.js';
 import { startScript } from './script.js';
 import { hashState, parseAction } from './codec.js';
 import { visibleTo } from './detect.js';
-import { thrustIncome } from './actions.js';
+import { bankCap } from './actions.js';
 
 export const LOG_FORMAT = 'shatkon-battle-log';
 
@@ -59,6 +59,8 @@ export function sideNames(state, seat) {
 
 const at = (c) => (c ? '[' + c[0] + ', ' + c[1] + ']' : '?');
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+// Thrust is per ship; the log shows a side's total over its ships on engines.
+const fleetThrust = (state, p) => state.ships.filter((x) => x.owner === p && !x.dead).reduce((n, x) => n + (x.thrust || 0), 0);
 
 function namer(state) {
   const names = {};
@@ -171,7 +173,7 @@ export function battleLog(state, opts = {}) {
         const pl = prev.players[t.player], mine = full || t.player === viewer;
         cur = { i: ti, round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: [] };
         if (full) { cur.pre = t.pre; cur.rng = prev.rng; }
-        if (mine) { cur.cp = { start: pl.cp }; cur.thrust = { start: pl.thrust }; }
+        if (mine) { cur.cp = { start: pl.cp }; cur.thrust = { start: fleetThrust(prev, t.player) }; }
         moved0 = new Map(prev.ships.filter((x) => x.owner === t.player && !x.dead).map((x) => [x.id, x.pos.join(',')]));
         log.turns.push(cur);
       }
@@ -180,9 +182,9 @@ export function battleLog(state, opts = {}) {
       const rec = mineTurn ? { text, say: actionWords(prev, s, text, nm), events: evs } : { events: evs };
       if (text === 'e' && mineTurn) {
         const pl = prev.players[t.player];
-        const income = thrustIncome(prev, t.player);
         cur.cp.left = pl.cp; cur.cp.wasted = Math.max(0, pl.cp - R.cp.bankCap);
-        cur.thrust.left = pl.thrust; cur.thrust.wasted = Math.max(0, pl.thrust - income * R.move.bankTurns);
+        cur.thrust.left = fleetThrust(prev, t.player);
+        cur.thrust.wasted = prev.ships.filter((x) => x.owner === t.player && !x.dead).reduce((n, x) => n + Math.max(0, (x.thrust || 0) - bankCap(prev, x)), 0);
       }
       if (text === 'e' || s.phase === 'over') {
         if (full) {
@@ -333,7 +335,7 @@ export function analyse(log) {
   }
   if (!tips) lines.push('- Nothing obvious: no thrown-away points, no ships left in view after moving, no wasted missiles.');
   for (const t of log.turns) {
-    const head = 'Round ' + t.round + ' \u2014 ' + side(t.player) + (t.cp && t.cp.left != null ? ' (command points ' + t.cp.start + ' \u2192 ' + t.cp.left + ' left, thrust ' + t.thrust.start + ' \u2192 ' + t.thrust.left + ')' : '');
+    const head = 'Round ' + t.round + ' \u2014 ' + side(t.player) + (t.cp && t.cp.left != null ? ' (command points ' + t.cp.start + ' \u2192 ' + t.cp.left + ' left, thrust on all ships ' + t.thrust.start + ' \u2192 ' + t.thrust.left + ')' : '');
     recap.push(head);
     if (!(t.actions || []).length) recap.push('  (nothing you could see)');
     for (const a of t.actions || []) {

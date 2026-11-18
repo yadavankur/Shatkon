@@ -21,10 +21,23 @@ function pay(state, p, what) {
   return () => { pl.cp -= cost; };
 }
 
-// ---- thrust: one pool for the whole fleet ----
-export const thrustIncome = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p).reduce((n, s) => n + sumAttr(state, s, 'thrust'), 0);
+// ---- thrust: each ship moves on its own engines ----
+// Every working engine gives its own ship `thrust` (1) a turn. Moving 1 hex costs the ship's weight
+// in thrust: 1 per segment, plus 1 for every movement.exterior_per_weight exterior parts if that
+// optional setting is on (off unless the world file sets it).
+export const shipIncome = (state, ship) => (ship.dead ? 0 : sumAttr(state, ship, 'thrust'));
+export function shipWeight(state, ship) {
+  const per = state.rules.move.exteriorPerWeight;
+  if (!per) return ship.segs.length;
+  return ship.segs.length + Math.floor(workingParts(state, ship).filter((x) => x.c.slot === 'mount').length / per);
+}
+// Most thrust a ship carries over: bank_turns of its engines' output, but never less than one hex's
+// cost, so a big ship with few engines can always save up for a hex.
+export const bankCap = (state, ship) => Math.max(shipIncome(state, ship) * state.rules.move.bankTurns, shipWeight(state, ship));
+// The fleet's total engine output (the battle log and movement.min_move use it).
+export const thrustIncome = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p).reduce((n, s) => n + shipIncome(state, s), 0);
 // own_move (a sprint drive): the ship moves that many hexes a turn by itself. It takes nothing from
-// the fleet's thrust pool and does not count in the fleet's weight.
+// any thrust and needs no engine.
 // burn_turns (an afterburner): the drive gives its own_move for that many turns on which the ship
 // moved, then it is burnt out and the ship moves burnt_move hexes a turn (1 unless the part says).
 export const hasOwnDrive = (state, ship) => workingParts(state, ship).some((x) => num(x.c.own_move) > 0);
@@ -42,10 +55,17 @@ export function ownMove(state, ship) {
 }
 // How many burn turns a ship has left (null for a ship with no afterburner).
 export const burnLeft = (state, ship) => { const b = burnPart(state, ship); return b ? Math.max(0, b.c.burn_turns - burnsUsed(state, ship)) : null; };
-export const fleetSegs = (state, p) => state.ships.filter((s) => !s.dead && s.owner === p && !hasOwnDrive(state, s)).reduce((n, s) => n + s.segs.length, 0);
-export function moveCap(state, p) {
-  const segs = fleetSegs(state, p);
-  return segs ? Math.floor(thrustIncome(state, p) / segs) + state.rules.move.capBonus : 0;
+// How far a ship on engines may move in a turn: (its engines / its weight, rounded down) + max_above_average.
+export function moveCap(state, ship) {
+  const w = shipWeight(state, ship);
+  return w ? Math.floor(shipIncome(state, ship) / w) + state.rules.move.capBonus : 0;
+}
+// How many more hexes a ship can move this turn (0 when it cannot), for doMove, reach and the screens.
+export function movesLeft(state, ship) {
+  const done = state.players[ship.owner].moved[ship.id] || 0;
+  if (deadInWater(state, ship)) return 0;
+  if (hasOwnDrive(state, ship)) return Math.max(0, ownMove(state, ship) - done);
+  return Math.max(0, Math.min(moveCap(state, ship) - done, Math.floor((ship.thrust || 0) / shipWeight(state, ship))));
 }
 
 // Does this small object go off when this ship touches it?
@@ -58,15 +78,14 @@ function touches(state, o, ship) {
 
 export function doMove(state, a) {
   const p = current(state), pl = state.players[p], ship = ownShip(state, a.ship, p), spend = pay(state, p, 'move');
-  if (!pl.canMove) no('the fleet does not have enough thrust banked to move this turn');
   if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
-  const drive = hasOwnDrive(state, ship), n = drive ? 0 : ship.segs.length, cap = drive ? ownMove(state, ship) : moveCap(state, p), done = pl.moved[ship.id] || 0;
+  const drive = hasOwnDrive(state, ship), n = drive ? 0 : shipWeight(state, ship), cap = drive ? ownMove(state, ship) : moveCap(state, ship), done = pl.moved[ship.id] || 0;
   // reveals_on_pass: a scout under afterburner lights up enemy ships it flies past, and itself
   const passN = drive && !burntOut(state, ship) ? sumAttr(state, ship, 'reveals_on_pass') : 0, passed = [];
   if (done + path.length > cap) no('a ship can move at most ' + cap + ' hexes a turn');
-  if (path.length * n > pl.thrust) no('not enough thrust');
+  if (path.length * n > (ship.thrust || 0)) no(ship.thrust >= n ? 'not enough thrust for that far' : 'not enough thrust: this ship is saving up for its next hex');
   // refuse paths through things the player knows about
   const g = geom(state.rules), occ = occupancy(state), vis = new Set(pl.vis);
   let pos = ship.pos;
@@ -111,7 +130,7 @@ export function doMove(state, a) {
     refreshSight(state);
     if (boom || ship.dead) break;
   }
-  pl.thrust -= taken * n;
+  if (n) ship.thrust = (ship.thrust || 0) - taken * n;
   if (taken && !done && !ship.dead) {
     const b = burnPart(state, ship);
     if (b) { ship.burn = (ship.burn || 0) + 1; if (ship.burn === b.c.burn_turns) emit(state, { t: 'burnt_out', ship: ship.id, move: Math.max(0, num(b.c.burnt_move, 1)) }, [p]); }

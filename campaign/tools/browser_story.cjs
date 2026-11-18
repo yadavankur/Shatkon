@@ -15,7 +15,7 @@
 const { chromium } = require('playwright');
 const SHOTS = process.env.SHOTS || '/tmp';
 async function open(file, vp, {fresh=true, help=false, seat=null}={}) {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});   // CHROME=/usr/bin/google-chrome to use an installed Chrome
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: vp.width<500?2:1, hasTouch: vp.width<500 });
   const page = await ctx.newPage();
   await page.addInitScript(() => { try { sessionStorage.setItem('shatkon.upright', '1'); } catch (e) {} });   // an upright phone viewport: skip the 'turn your phone' card

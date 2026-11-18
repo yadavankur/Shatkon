@@ -23,7 +23,7 @@ export * as hex from './hex.js';
 // and simulate the rules. They read the state; only apply() changes the game.
 export { sigBreak, signatureOf, sensorOf, eyes, detectRange, passiveRange, sees, visibleTo, contactsFor, netMoved, motionSig, refreshSight, addFlare } from './detect.js';
 export { scanInfo } from './scan.js';
-export { moveCap } from './actions.js';
+export { moveCap, movesLeft, shipWeight, bankCap, hasOwnDrive, ownMove } from './actions.js';
 export { holders } from './objective.js';
 export { hullPct, num, footprint, workingParts, sumAttr, gap, firstSeat } from './state.js';
 export { fnv, seededRandom } from './codec.js';
