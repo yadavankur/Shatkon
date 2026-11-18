@@ -6,7 +6,7 @@
   <div class="hero-in">
     <h1 class="logo"><span class="sr">SHATKON</span><svg class="heromark" id="heroMark" viewBox="-118 -118 236 236" aria-hidden="true"></svg><svg class="wordmark" id="heroWord" aria-hidden="true"></svg></h1>
     <div class="hindi"><b lang="hi">षट्कोण</b> · shatkon · <i>hexagon</i> · the field manual · rules v0.4</div>
-    <p class="sub">A turn-based game of <b>hidden fleets on a hex sea</b>. Build ships from hexagonal segments, share one thrust pool across your whole fleet, hunt by sensor and signature, and sink the enemy <b>flagship</b> before they find yours.</p>
+    <p class="sub">A turn-based game of <b>hidden fleets on a hex sea</b>. Build ships from hexagonal segments, move each ship on its own engines, hunt by sensor and signature, and sink the enemy <b>flagship</b> before they find yours.</p>
     <div class="pills"><span>⬡ hex board</span><span>🛰️ fog of war</span><span>🧩 modular ships</span><span>🚀 missiles · drones · mines</span><span>📖 story campaign</span></div>
     <div class="cta"><a class="btn" href="#quick">How a turn plays →</a><a class="btn ghost" href="#combat">Watch a fight</a><a class="btn ghost" href="#story">The story</a><a class="btn ghost" href="#geometry">The geometry</a></div>
     <nav class="toc" id="toc" aria-label="Table of contents"></nav>
@@ -178,7 +178,7 @@
 
   <div class="grid g3" style="margin:24px 0">
     <div class="card" style="--c:var(--cyan)"><h3>🔭 Seeing</h3><p><b>Sensor range</b> = 2 from the core + 2 per working sensor. <b>Signature</b> = number of segments − 1 per working stealth part, never below ⌈segments ÷ 3⌉. A big ship is easy to spot.</p></div>
-    <div class="card" style="--c:var(--lime)"><h3>🚀 Moving</h3><p>Each working engine adds <b>1 thrust</b> to a <b>pool shared by the whole fleet</b>. Moving a ship 1 hex costs 1 thrust <b>per segment</b> of that ship, so big hulls are slow.</p></div>
+    <div class="card" style="--c:var(--lime)"><h3>🚀 Moving</h3><p>Each working engine gives <b>its own ship 1 thrust</b> a turn. Moving a ship 1 hex costs 1 thrust <b>per segment</b> of that ship, so a big hull needs plenty of engines or it crawls.</p></div>
     <div class="card" style="--c:var(--neon)"><h3>⚔️ Fighting</h3><p>Lasers fire instantly in a straight line. Launchers fire missiles and drones stored in magazines (3 per magazine). Point defence shoots down incoming munitions. Shields and armour soak hits.</p></div>
   </div>
 
@@ -202,8 +202,8 @@
   <h3 style="margin-top:30px">Design rules of thumb</h3>
   <div class="grid g3">
     <div class="card"><h4>Fleet budget</h4><p>A skirmish fleet costs at most <b id="budget">200</b> points, counting segments, parts and loaded munitions. Each fleet needs exactly <b>one flagship</b>.</p></div>
-    <div class="card"><h4>Speed vs bulk</h4><p>The pool is shared. A 7-segment flagship eats 7 thrust per hex, so a small engine-heavy ship can carry the pool for the fleet while the big one crawls.</p></div>
-    <div class="card"><h4>Thrust limits</h4><p>Each turn the fleet must average at least <code>needs_average_of</code> (0) hexes, and no ship may go more than <code>max_above_average</code> (1) above the average. Thrust can be banked for <code>bank_turns</code> (2) turns.</p></div>
+    <div class="card"><h4>Speed vs bulk</h4><p>Thrust is per ship. A 7-segment flagship pays 7 thrust per hex from its own engines: give it about one engine per segment, or it saves up and moves a hex every few turns.</p></div>
+    <div class="card"><h4>Thrust limits</h4><p>No ship may move more than its own engines ÷ segments (rounded down) + <code>max_above_average</code> (1) hexes a turn. A ship banks up to <code>bank_turns</code> (2) turns of its engines' thrust, but always enough for one hex. Every ship needs an engine (or a sprint drive or afterburner).</p></div>
   </div>
   <div class="callout" style="margin-top:16px"><b>Examples from the rules file:</b> <span id="moveEx"></span></div>
 </section>
@@ -252,7 +252,7 @@
       <p style="margin-top:10px">Scanning flares the ship by 2. <b>Comms:</b> two ships are linked when they're within the longer of their two link ranges (core 4, comms part 12). Links chain into a network, and any ship can fire at or lock onto whatever its network sees.</p>
       <p class="src">engine/scan.js › scanSteps · world › comms</p></div>
     <div class="card" style="--c:var(--lime)"><h3>🚀 Movement and thrust</h3>
-      <p>One pool for the whole fleet: 1 thrust per working engine, plus whatever is banked. Moving costs 1 thrust per segment per hex. Asteroids block, and a move refuses paths through things you know about. If you bump into something you couldn't see, both are revealed and the move stops there.</p>
+      <p>Each ship has its own thrust: 1 per working engine on that ship, plus what it banked. Moving costs 1 thrust per segment per hex. A ship whose engines are all shot out is dead in the water. Asteroids block, and a move refuses paths through things you know about. If you bump into something you couldn't see, both are revealed and the move stops there.</p>
       <p class="src">engine/actions.js › thrust, move</p></div>
     <div class="card" style="--c:var(--neon)"><h3>🔴 Lasers</h3>
       <p><b><span id="lzHits">2</span> hits</b> out to range <b>8</b>, losing 1 hit every 4 hexes (2 hits at 1–4, 1 hit at 5–8). The beam is instant and straight. It needs a clear line (asteroids block it) and stops at the <b>first thing it meets</b>, even something the shooter couldn't see. Each weapon fires once a turn. Anyone who can see the shooter sees the beam, and a hit flares the shooter by 3.</p>

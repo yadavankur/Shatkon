@@ -138,7 +138,7 @@ const GUIDES = [
     - { <span class="k">mine</span>: [<span class="n">2</span>, <span class="n">1</span>] }
 <span class="k">player_2</span>: { <span class="k">copy_of</span>: player_1, <span class="k">mirror_ships</span>: true, <span class="k">mirror_deployment</span>: true }</pre>
 <h4>Checklist (what <code>engine/rules.js</code> rejects)</h4><ul class="check"><li>1–7 segments, all joined, no two on the same hex.</li><li>Exactly one core per ship (grafted campaign hulls may carry several).</li><li>At most 3 bay parts and 3 mount parts per segment, each in the right kind of slot.</li><li>Couplings ≥ segments − 1.</li><li>Munitions ≤ 3 × magazines, and a launcher if you carry any.</li><li>Exactly one flagship per fleet, and total cost within the budget.</li><li>Deploy inside your own home zone. Mines can go up to 6 rows into no man's land.</li></ul>
-<h4>Design tips</h4><p>Protect the core with layers. Two stealth parts make a 3-segment ship hard to see (signature floor 1). One shared thrust pool means a fat flagship slows the whole fleet. Use the builder above and the Lab's Monte-Carlo series to test.</p>`],
+<h4>Design tips</h4><p>Protect the core with layers. Two stealth parts make a 3-segment ship hard to see (signature floor 1). Thrust is per ship, so a fat flagship needs its own engines: about one per segment. Use the builder above and the Lab's Monte-Carlo series to test.</p>`],
   ['📖', 'Designing a campaign chapter', `<p>Chapters live in <code>campaign/chapters/</code>, hulls in <code>campaign/ships.yaml</code> (<code>id@chapter</code>, newest earlier version as fallback), and the chapter graph in <code>campaign/campaign.yaml</code>.</p>
 <pre><span class="k">chapter</span>:
   <span class="k">id</span>: ch1
@@ -197,7 +197,7 @@ const GLOSS = [
   ['Core', 'The ship\'s brain: sensor 2, link 4, layer 6. Lose it and the ship dies.'],
   ['Layer', 'Damage order inside a segment, from 1 (shield) to 6 (core). The lowest working layer takes the hit.'],
   ['Command point (CP)', '3 per turn, bank up to 6. Every order costs 1.'],
-  ['Thrust pool', 'Fleet-wide movement budget: 1 per working engine. 1 hex costs 1 per segment.'],
+  ['Thrust', "Each ship's own movement budget: 1 per working engine on it. 1 hex costs 1 per segment."],
   ['Signature', 'How visible a ship is: segments − stealth (floor ⌈n/3⌉), plus flare, plus 1 after a big move, −2 in a nebula.'],
   ['Flare', 'A temporary signature spike from firing (+3 when the beam hits), launching (+2), point defence (+2) or scanning (+2).'],
   ['Fuzzy contact', 'A red circle of radius 2: something is near here, but you don\'t know exactly where.'],

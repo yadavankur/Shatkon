@@ -1,8 +1,16 @@
-# Status (updated 2026-11-17 by gamedev)
+# Status (updated 2026-11-18 by maps)
 
 The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
 
 
+
+## Latest (18 Nov, maps): thrust per ship is in (approved by Ankur; tow not built)
+Rules from `docs/proposals/thrust-and-tow.md`: each engine gives its own ship 1 thrust a turn; a hex costs 1 thrust per segment; speed limit floor(engines / segments) + 1; a ship banks up to 2 turns of its own engines, never less than one hex; the fleet pool, `canMove` and `needs_average_of` are gone; a ship with no engine, sprint drive or afterburner is refused (Lab and hull check; no shipped ship needed an exemption). Sprint drive / afterburner unchanged. `movement.exterior_per_weight` is built but off.
+- **Player sees:** the thrust bar shows the selected ship's own thrust (hidden with no ship selected); the ship card and the ledger are per ship; the Lab says "3 thrust a turn, 3 thrust a hex → about 1 hex a turn, up to 2" or "saves up and moves 1 hex every N turns" or "no engine: can't move".
+- **Refits:** Minefield Dowser is now a 4-hex diamond with 3 engines and still 5 sensors (sensor 12, needed to see sleeper and proximity mines): 0.33 → 0.75 hexes a turn. Missile Alley boats: second sensor back to an engine (0.5 → 1).
+- **Story:** ch1 disarm fallback also fires once the Seed's laser is gone (was stalling to round 9); ch2 Seeds stand off 2 not 3. engine_check rounds before → after: ch1 6.0 → 6.0, ch2 8 → 10 (no fallbacks), ch3 8.8 → 8.3, ch4a 6.4 → 8.8 (gift always from the round-6 backup), ch5 6 → 6; all win. browser_story (headless Chrome) wins ch1–ch4a, no console errors (ch4a still doesn't open ch5: the known save bug).
+- **Sims:** stock normal v normal ×100: rounds 9.4 → 8.0, P1 46% → 52%. Boards (P1 wins /80): First Light 35 → 44, Minefield 31 → 23, Cat & Mouse 36 → 44, Dogleg 39 → 36, King's Guard 29 → 40 (first mover 28 → 14), Pawn Storm 34 → 32, Beacon Hill 39 → 51, Missile Alley 20 → 16 (4 without the refit), Fog Bank 38 → 44, Gambit 45 → 37. 174 tests pass.
+- **Watch out:** `campaign/tools/browser_story.cjs` can no longer open the story map on its own (the `#seat select` mode picker went with the landing page); it was run with a local patch that opens `play.html?mode=story`. sw.js cache is v2.
 
 ## Latest (17 Nov, gamedev chat): story cutscenes fit a phone held sideways (branch `cutscene-landscape`, PR to main)
 From Ankur: cutscenes look clean in portrait but worse in landscape, and the game is played in landscape. In landscape the dialogue box covered the bottom half of the centre ship art and hid its label ("SEED").

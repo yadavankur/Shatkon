@@ -1,7 +1,9 @@
 # Proposal: thrust per ship, and tow
 
-Status: **waiting for Ankur's approval. Nothing here is built.** No game code or rules were changed for this
-write-up. The test runs below used a throwaway copy of the repo that was then thrown away.
+Status: **Task 1 approved by Ankur and built by maps on 18 Nov 2026** (thrust per ship, the bank floor, the
+build rule; exterior weight is in as a switch that is off). **Tow (Task 2) is not built**: it is an idea on
+[BACKLOG.md](../../BACKLOG.md). The numbers below are from the write-up's throwaway patch; the results of the
+real build are in [handoff/STATUS.md](../../handoff/STATUS.md).
 
 ## Summary
 

@@ -9,7 +9,7 @@ A ship is a hull of hexes with parts in it. What kind of ship it is comes from w
 | Kind | What it leaves out | What that buys | Status |
 |---|---|---|---|
 | **Proximity mine** (`naval_mine`) | core and engine | Room for a big charge and almost no signature (-8). It goes off when an enemy segment comes within 1 hex. The segment that trips it is wrecked (a working shield takes the blow instead) and every other segment within 1 hex takes 4 hits: two or three segments in all. Only an active scan finds it. Cost 12, 4 a side. | In the engine, tested |
-| **Courier** (`sprint_drive` part; the `dart` design) | weapons, armour, fleet engines | Moves 5 hexes a turn on its own drive, outside the fleet's thrust pool (a missile does 6). Sees 4 hexes and can scan. A laser only hits it from 3 hexes or closer, and one hit there kills it. When it dies, every ship within 3 hexes is lit up for everyone, and so is the ship that shot it. Cost 16. | In the engine, tested |
+| **Courier** (`sprint_drive` part; the `dart` design) | weapons, armour, fleet engines | Moves 5 hexes a turn on its own drive, needing no thrust (a missile does 6). Sees 4 hexes and can scan. A laser only hits it from 3 hexes or closer, and one hit there kills it. When it dies, every ship within 3 hexes is lit up for everyone, and so is the ship that shot it. Cost 16. | In the engine, tested |
 | **King** (the `king` design) | every weapon | A flagship that is all armour, shields and point defence. The fleet has to guard it. No new rule needed. | Design only |
 | **Contact mine** (`mine`) | | Unchanged: 4 hits on touch. The story chapters use it, so it was left alone. | As before |
 

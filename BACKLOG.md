@@ -14,7 +14,7 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ## In progress
 
-- **Thrust per ship.** Each ship's own engines move that ship, instead of one shared fleet thrust pool. A ship can still bank thrust for two turns and always has enough for one hex. Being built now from the agreed rules. Owner: engine (maps helping). Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md)
+- Nothing right now.
 
 ---
 
@@ -28,11 +28,11 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 ## Ideas & features (not started)
 
 - **Tow.** A ship with a coupling could drag a crippled ship (engines shot out) along with it, paying thrust for both. Idea only — do not build this yet. Owner: engine, when Ankur says so. Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md), [rules/world_v0.4.yaml](rules/world_v0.4.yaml) (section 13)
-- **Exterior parts add weight.** Optional switch so shields, armour and guns slow a ship down; stripping them would make it faster. Leave it off for now (a test of it made the first mover too strong). Owner: Ankur decides, then engine. Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md)
+- **Exterior parts add weight.** Shields, armour and guns would slow a ship down; stripping them would make it faster. The switch is built but off: set `movement.exterior_per_weight` (for example 6) in the world file to turn it on. A test of it made the first mover too strong. Owner: Ankur decides. Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md)
 - **Missile hits and extra core hit points.** Replace a missile's "wrecks the segment outright" with a fixed hit count, and give the core more hit points so it usually survives one shot. Options: missile 4 hits with core 3 hp (preferred by maps), or missile 7 hits with core 6 hp. Ankur has not decided. Owner: Ankur decides, then engine. Source: discussed 18 Nov 2026; current rule is `wrecks_segment: true` in [rules/world_v0.4.yaml](rules/world_v0.4.yaml)
 - **Part upgrades, Mk I / II / III.** Stronger versions of parts, unlocked over the campaign (for example engine Mk II = 1.5 thrust). Owner: Ankur decides, then engine / story. Source: [rules/world_v0.4.yaml](rules/world_v0.4.yaml) (section 13)
 - **Lab slot picker.** Replace the native part dropdowns with a pop-over: group tabs, part tiles, a live "what this changes" line, and Fit. The mock-up is ready; nothing goes into the real Lab until Ankur approves it. Owner: maps, after Ankur approves. Source: [mockups/slot-picker.html](mockups/slot-picker.html)
-- **King's Guard may favour the second mover.** Check whether the lean is still there (last figure: the second mover won 31 of 60, or 67 of 120) and whether the board needs a tweak. Owner: maps. Source: [docs/design/first-mover.md](docs/design/first-mover.md), [handoff/STATUS.md](handoff/STATUS.md)
+- **King's Guard may favour the second mover.** It is stronger since thrust per ship (18 Nov): the side that moves first won only 14 of 80 bot games (28 of 80 before; earlier figure 31 of 60 for the second mover). Check whether the board needs a tweak. Owner: maps. Source: [docs/design/first-mover.md](docs/design/first-mover.md), [handoff/STATUS.md](handoff/STATUS.md)
 - **Upright-phone layout.** An upright phone currently gets a "turn your phone" card, with "Play upright anyway" as a way out. A proper portrait layout for the play screen is still to do. Owner: controls. Source: [handoff/STATUS.md](handoff/STATUS.md), [play.html](play.html)
 - **Turn summary.** Show a short recap of the other side's turn on the play screen when it comes back to you. The full recap already lives in the battle log, in the menu. Owner: controls. Source: [engine/log.js](engine/log.js)
 - **Story chapter 1 as the default start.** For a new player, open chapter 1 of the story instead of leaving them on the landing page. This is step 8 of the phone-controls plan; Ankur signed off the earlier steps by playing them. Owner: controls, after Ankur says go. Source: [handoff/STATUS.md](handoff/STATUS.md)
@@ -50,11 +50,13 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 - **A flagship with all its guns shot off sits in view.** Teaching it to run only produced draws, so it was left. Owner: engine. Source: [handoff/to-gamedev.md](handoff/to-gamedev.md)
 - **Parked world ideas** (from section 13 of the world file; not started). Ships that rotate; a destroyed coupling breaking the ship in two, or twins that split on purpose; cutting a wrecked segment loose to shed its weight; tractor (a large ship swallows a small one); tunnel / wormhole devices; distortion stealth (appear bigger or smaller than you are); space rivers, gravity wells, warped hexes, sphere or doughnut boards; campaign branching, unlocks, salvage collectors, raw materials between battles, and a planet-sized final boss. Owner: Ankur decides. Source: [rules/world_v0.4.yaml](rules/world_v0.4.yaml) (section 13)
 - **Other board-game ideas, not built.** A minelayer order; promotion (a small ship that reaches the enemy home calls in a reserve); ko / no-repeat positions to stop the one-hex camp; scoring for hexes your sensors cover. Owner: Ankur decides. Source: [docs/design/ships-and-boards.md](docs/design/ships-and-boards.md)
+- **Ashfall (ch4a) runs longer.** The Sparrow is slower under thrust per ship, so the gift now always comes from its round-6 backup and the graft lands in rounds 8–10 (the whole chapter went from 6.4 to 8.8 rounds). Still wins every time. Owner: maps / story. Source: [handoff/STATUS.md](handoff/STATUS.md)
 
 ---
 
 ## Tech / tidy-up
 
+- **browser_story.cjs can't open the story map.** It still picks story mode from `#seat select`, which went with the landing page; open `play.html?mode=story` instead. Owner: maps / controls. Source: [handoff/STATUS.md](handoff/STATUS.md)
 - **Delete old remote branches.** `balance-and-ai`, `maps-rework`, `maps-rework-engine` and `variety-study` are fully merged and still on GitHub. Waiting for Ankur's yes before deleting them. Owner: Ankur decides. Source: [handoff/STATUS.md](handoff/STATUS.md)
 - **Stale "Needs a new rule" comments** on four board files (Minefield `scan_resist`, Beacon Hill `holds_objective`, Fog Bank sleeper drift, The Gambit emitter). Those rules are in the engine now; the comments still say they are missing. Owner: maps. Source: [rules/boards/02_minefield.yaml](rules/boards/02_minefield.yaml), [rules/boards/07_beacon_hill.yaml](rules/boards/07_beacon_hill.yaml), [rules/boards/09_fog_bank.yaml](rules/boards/09_fog_bank.yaml), [rules/boards/10_gambit.yaml](rules/boards/10_gambit.yaml)
 - **Handoff ownership table is out of date.** It has no row for the controls work, and it still names old branches (`campaign-engine`, `campaign-vN`). Owner: Ankur decides how it should read, then whoever updates [handoff/README.md](handoff/README.md). Source: [handoff/STATUS.md](handoff/STATUS.md)
@@ -68,6 +70,7 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ## Done recently
 
+- **Thrust per ship** (18 Nov, maps). Each ship's own engines move that ship; the shared fleet pool is gone. A ship with no engine (or sprint drive / afterburner) can't be built. The Minefield Dowser and the Missile Alley boats got more engines. Source: [docs/proposals/thrust-and-tow.md](docs/proposals/thrust-and-tow.md), [handoff/STATUS.md](handoff/STATUS.md)
 - **Phone-first controls (steps 1–7)** merged: the camera stays still, landscape compact layout, phase banner, targeting confirms, ship card, and installable app. Source: [handoff/STATUS.md](handoff/STATUS.md)
 - **Double-tap zoom no longer lags.** The board glides on the phone's GPU and redraws once at the end.
 - **Landing page, minimal HUD, and on-board rule previews** (laser reach, danger rings, the round strip).

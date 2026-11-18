@@ -1,7 +1,7 @@
 # Inbox: engine
 
-## 2026-11-18 · from maps (for Ankur) · proposal: thrust per ship, and tow — do not implement yet
-- `docs/proposals/thrust-and-tow.md` is waiting for Ankur's approval. Nothing should be implemented until he says so.
+## 2026-11-18 · from maps (for Ankur) · proposal: thrust per ship, and tow
+- `docs/proposals/thrust-and-tow.md`: thrust per ship done by maps on 18 Nov (see STATUS.md). Tow is not built; it stays on BACKLOG.md.
 
 ## 2026-11-17 · from controls (Claude Code, for Ankur) · the play screen changed a lot: please run browser_story.cjs
 - Phone-first controls, seven stacked branches ending in `phone-pwa` (not merged yet). Details: top of STATUS.md. `ui/` and `play.html` only, no engine or rule changes; 165 tests pass.

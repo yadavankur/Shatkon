@@ -10,7 +10,7 @@
 1. Each player has a fleet. Lose your flagship and you lose. *(Checked: `damage.js` `checkWin`. A fleet with no flagship loses when every ship is dead.)*
 2. Ships start hidden in their own home rows (3 rows deep on the skirmish map).
 3. On your turn you get 3 command points. Each order costs one: move a ship, fire one laser, launch, scan, or detonate a drone.
-4. Your fleet shares one pool of thrust. Moving a ship one hex costs 1 thrust per segment of that ship.
+4. *(Changed 18 Nov 2026.)* Each ship moves on its own engines: 1 thrust per working engine a turn, banked up to 2 turns (never less than one hex). Moving a ship one hex costs 1 thrust per segment of that ship. Until 18 Nov the whole fleet shared one pool; see `docs/proposals/thrust-and-tow.md`.
 5. You only see an enemy that is close enough to your sensors, or that has just fired, launched or scanned.
 6. A laser hits harder up close (3 hits out to 4 hexes, 2 out to 8), and one more if the ship moved first this turn.
 7. Missiles fly in a phase after both players have moved. One that gets through wrecks the segment it strikes, unless a working shield takes the blow.
@@ -56,9 +56,9 @@
 
 | Rule | Value | Status |
 |---|---|---|
-| Each working engine adds 1 thrust to the fleet pool each turn | | Checked (`thrustIncome`) |
+| Each working engine adds 1 thrust to its own ship each turn (was: the fleet pool, until 18 Nov 2026) | | Checked (`shipIncome`) |
 | Moving 1 hex costs 1 thrust per segment | | Checked (`doMove`) |
-| A weak fleet may still move one ship (`needs_average_of: 0`) | | Checked |
+| ~~A weak fleet may still move one ship (`needs_average_of: 0`)~~ Retired 18 Nov 2026 with the fleet pool; a ship banks at least one hex's thrust instead | | Checked |
 | No ship moves further than engines ÷ segments (rounded down) + 1 in a turn | | Checked (`moveCap`). With the stock fleet that is 1 hex a turn per ship |
 | Thrust carried over | at most 2 turns of engine output | Checked |
 | A move stops when the ship bumps into something it could not see; both are lit up | | Checked |
