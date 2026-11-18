@@ -41,7 +41,7 @@ export function buildRules(world, mapFile, fleetsFile) {
   const rules = {
     name: (w.meta && w.meta.name) || 'game',
     version: String((w.meta && w.meta.version) || ''),
-    cp: { perTurn: num(cp.per_turn, 3), bankCap: num(cp.bank_cap, 6) },
+    cp: { perTurn: num(cp.per_turn, 3), bankCap: num(cp.bank_cap, 6), secondBonus: num(cp.second_player_round_1_bonus, 0) },
     ticks: Math.max(1, num((t.flight_phase || {}).ticks, 6)),
     turnLimit: num(t.turn_limit, 30),
     // optional rules for simulations (tools/variants.mjs); all off unless the world file sets them

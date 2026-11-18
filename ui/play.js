@@ -3,7 +3,6 @@
 
 import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
-import { beamHits } from '../engine/actions.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -896,7 +895,7 @@ function compass(a, b) {
   return ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
 }
 
-// What the Fire button says: the hit numbers come from the rules (laser: 3 out to 4 hexes, 2 out to 8),
+// What the Fire button says: the hit numbers come from the rules (laser: 3 out to 4 hexes, 2 out to 8, 1 at 9),
 // and the attack-run bonus is spelled out while this ship could still earn it.
 function fireHelp(id) {
   const f = E.beamField(game, id), R = game.rules;
@@ -1075,17 +1074,23 @@ function selectShip(id, v) {
 // How much of each edge of the board the floating controls cover, in screen pixels.
 function insets() {
   const st = $('#stage'), w = st ? st.clientWidth : 0, h = st ? st.clientHeight : 0, wide = w >= 760, open = !!(sel || look);
-  if (isCompact()) return { t: 8, b: 8, l: (($('#lower') || {}).offsetWidth || 0) + 16, r: (($('#rail') || {}).offsetWidth || 0) + 16 };
+  if (isCompact()) return { t: 8, b: railH() + 8, l: (($('#lower') || {}).offsetWidth || 0) + 16, r: 8 };   // the orders are a row along the bottom
   const sheet = !wide && open ? Math.min(h * 0.46, ($('#ctx') && !$('#ctx').hidden && $('#ctx').offsetHeight) || 190) + 8 : 0;
   return { t: 58, b: 62 + sheet, l: 0, r: wide && open ? 336 : wide ? 0 : 0 };
 }
 function fitWidth() {
   const R = game.rules.board.radius, box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = box.clientHeight;
   if (!(bh > 0)) return W * (2 * R + 1) + 16;      // the board is hidden (Lab tab)
-  const free = isCompact() ? bh - 10 : Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear (compact: they sit beside the board)
+  const free = isCompact() ? bh - 10 - railH() : Math.max(bh * 0.5, bh - 120);        // leave the turn bar and the hint clear (compact: the order row along the bottom)
   return Math.max(W * (2 * R + 1) + 16, ((S * (3 * R + 2) + 16) * bw) / free);
 }
-export function wholeMap() { cam.x = 0; cam.y = 0; cam.w = fitWidth(); zoomShip = null; }
+// compact: the height of the order row along the bottom (at least a button's, so the board doesn't jump when it fills)
+function railH() { const r = $('#rail'); return isCompact() ? Math.max(58, (r && r.offsetHeight) || 0) : 0; }
+export function wholeMap() {
+  cam.x = 0; cam.w = fitWidth(); zoomShip = null;
+  const box = $('#wrap'), bw = Math.max(1, (box && box.clientWidth) || 1);
+  cam.y = isCompact() ? ((cam.w / bw) * (railH() + 8 - 8)) / 2 : 0;     // centred in the space above the order row
+}
 function frame(cells, minHexes, after) {       // bring a set of hexes into view, with a short glide (only ever on a player's gesture)
   const box = $('#wrap'), bw = Math.max(1, box.clientWidth), bh = Math.max(1, box.clientHeight);
   if (!cells.length) { wholeMap(); if (after) after(); return; }
@@ -1348,7 +1353,7 @@ const ICONS = {
   hit: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 1v5M12 18v5M1 12h5M18 12h5',
   flame: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
   sensor: 'M5 19a10 10 0 0 1 0-14M19 5a10 10 0 0 1 0 14M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M12 11v2',
-  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', x: 'M6 6l12 12M18 6L6 18',
 };
 const FILLED = { laser: 1 };
 function ico(name, size = 20) {
@@ -1370,16 +1375,7 @@ function cpPips(cp, perTurn, spendNext) {
   for (let i = 0; i < Math.min(cp, 12); i++) out.push(h('i', { class: 'dia' + (spendNext && i === cp - 1 ? ' next' : '') }));
   for (let i = 0; i < Math.max(0, perTurn - cp); i++) out.push(h('i', { class: 'dia used' }));
   return h('span', { class: 'meter cp', role: 'img', 'aria-label': plural(cp, 'command point'), title: plural(cp, 'command point') + ' (each order costs 1; unspent points carry over)' },
-    h('span', { class: 'pipsrow' }, out, cp > 12 ? h('b', null, '+' + (cp - 12)) : null), lbl('Points ' + cp));
-}
-// thrust: one block per point of the selected ship's own thrust (as long as it needs to be), the part a
-// previewed move would spend lit green. Thrust is per ship, so the bar belongs to the ship you picked.
-function thrustBar(thrust, spend, who, perHex) {
-  const many = thrust > 24, kids = [];
-  if (many) kids.push(h('span', { class: 'tbar' }, h('span', { style: 'width:' + Math.round((100 * Math.max(0, thrust - spend)) / thrust) + '%' }), spend ? h('span', { class: 'spend', style: 'width:' + Math.round((100 * spend) / thrust) + '%' }) : null));
-  else for (let i = 0; i < thrust; i++) kids.push(h('i', { class: i >= thrust - spend ? 'spend' : null }));
-  return h('span', { class: 'meter th', role: 'img', 'aria-label': who + ' thrust ' + thrust + (spend ? ', this move spends ' + spend : ''), title: who + ': thrust ' + thrust + '. Its own engines fill it; moving costs ' + perHex + ' a hex (1 per segment)' },
-    h('span', { class: 'pipsrow' }, ico('flame', 14), h('span', { class: 'blocks' }, kids)), lbl(who + ' thrust ' + thrust + (spend ? ' −' + spend : '')));
+    h('span', { class: 'pipsrow' }, out, cp > 12 ? h('b', null, '+' + (cp - 12)) : null), lbl(plural(cp, 'move')));
 }
 // hull: one block per segment, filled by what is left of that segment's parts (unknown for an unscanned enemy segment)
 function hullBlocks(x, R) {
@@ -1397,17 +1393,6 @@ function shipStrip(x, v) {
   const R = game.rules, out = [hullBlocks(x, R)], row = [];
   const badge = (icon, text, cls, label, title) => row.push(h('span', { class: 'sbadge ' + cls, title, role: 'img', 'aria-label': title }, ico(icon, 15), text != null ? h('b', null, text) : null, label ? lbl(label) : null));
   if (x.mine || seat === 'all') {
-    if (x.signature != null) badge('eye', x.signature, 'sig', 'seen', 'Signature ' + x.signature + ': an enemy with sensor ' + v.shownSensor + ' spots this ship from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex'));
-    const st = canCommand(x, v) ? E.shipStatus(game, x.id) : null;
-    if (st) {
-      const dm = E.dangerMap(game, typeof who() === 'number' ? who() : turnOf()), worst = (cells) => Math.max(0, ...cells.map((c) => dm.get(hex.key(c)) || 0));
-      const here = worst(x.cells);
-      if (here) badge('hit', '−' + here, 'danger', 'if hit', 'In enemy reach: a visible enemy could step closer and hit this ship for up to ' + here + ' next turn');
-      if (pending && pending.type === 'move' && pending.ship === x.id) {
-        const to = pending.path.reduce((c, d) => hex.step(c, d), x.pos), there = worst(x.cells.map((c) => [c[0] - x.pos[0] + to[0], c[1] - x.pos[1] + to[1]]));
-        badge('move', there ? '−' + there : '0', there ? 'danger' : 'safe', 'there', there ? 'After this move: an enemy could hit it for up to ' + there : 'After this move: out of enemy reach');
-      }
-    }
     const sb = x.sigBreak;
     if (sb && sb.flare) badge('flame', '+' + sb.flare, 'warn', 'lit up', 'Lit up +' + sb.flare + ' (fired, launched or scanned): easier to see for now');
     if (sb && sb.motion > 0) badge('flame', '+' + sb.motion, 'warn', 'wake', 'Engine wake +' + sb.motion + ' from a big move');
@@ -1424,13 +1409,6 @@ function ibtn({ icon, label, sub, on, pressed, pips, pipCls, badge, lock, title,
     h('span', { class: 'ibic' }, ico(icon, 22), lock ? h('span', { class: 'lockb' }, ico('lock', 11)) : null, badge != null ? h('b', { class: 'cnt' }, badge) : null),
     pips ? h('span', { class: 'ibpips' + (pipCls ? ' ' + pipCls : '') }, pips.map((full) => h('i', { class: full ? 'on' : null }))) : null,
     lbl(label, 'name'), sub ? h('small', { class: 'tl' }, sub) : null);
-}
-// a laser's hits close up and at full range, for this ship right now (the move-first bonus included)
-function laserHits(shipId) {
-  const ship = game.ships.find((z) => z.id === shipId);
-  let near = 0, far = 0;
-  for (const w of E.workingParts(game, ship)) if (E.num(w.c.range) && E.num(w.c.hits)) { near = Math.max(near, beamHits(game, ship, w.c, 1)); far = Math.max(far, beamHits(game, ship, w.c, E.num(w.c.range))); }
-  return { near, far };
 }
 function codeBox(label, text, button) {
   const ta = h('textarea', { readonly: true, 'aria-label': label }, text);
@@ -1484,6 +1462,7 @@ export function render() {
   const compact = isCompact();
   document.body.classList.toggle('compact', compact);
   document.body.classList.toggle('nolabels', !labelsOn);
+  document.body.classList.toggle('info-open', compact && detailsOpen);
   if (compact !== wasCompact) { wasCompact = compact; cam.w = 0; }      // the board has a new size: start from the whole map
   // compact: the header is hidden, so the mode picker, sound, help and the Play/Lab tabs live at the top of the menu
   const dh = $('#drawerhdr'), hr = $('.hdr-r'), hl = $('.hdr-l');
@@ -1536,18 +1515,15 @@ export function render() {
   const nextFirst = R.firstPlayer === 'fixed' ? game.order[0] : game.order[game.order.length - 1];
   const title = game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
     : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1);
-  // what a previewed move would spend: a point, and thrust (1 per segment per hex)
-  const pvShip = pending && pending.type === 'move' ? v.ships.find((x) => x.id === pending.ship) : null;
-  // thrust is per ship: the bar shows the ship being moved, or the one you selected
-  const thShip = pvShip && pvShip.mine ? pvShip : sel ? v.ships.find((x) => x.id === sel && x.mine) || null : null;
-  const thSpend = thShip && thShip === pvShip ? Math.min(thShip.thrustNow || 0, pending.path.length * thShip.weight) : 0;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit),
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
         game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
-      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending), thShip && thShip.thrustNow != null ? thrustBar(thShip.thrustNow, thSpend, shipName(thShip), thShip.weight) : null) : null,
-      mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null),
+      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending)) : null,
+      mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null,
+      compact ? h('button', { class: 'infobtn' + (detailsOpen ? ' open' : ''), 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Close details' : 'More: the turn, your ship, the rules', title: detailsOpen ? 'Close' : 'More',
+        onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'x' : 'plus', 20)) : null),
     v.objective ? h('div', { class: 'line' }, h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '')) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
     mine ? ledger(v) : null]);
@@ -1578,8 +1554,8 @@ export function render() {
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
-    h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
-    document.fullscreenEnabled ? h('button', { 'aria-label': 'Full screen', title: 'Full screen', 'aria-pressed': String(!!document.fullscreenElement), onclick: toggleFull }, '\u2922') : null]);
+    compact && !(cam.max && cam.w < cam.max * 0.98) ? null : h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
+    document.fullscreenEnabled && !(installed() && !document.fullscreenElement) ? h('button', { 'aria-label': 'Full screen', title: 'Full screen', 'aria-pressed': String(!!document.fullscreenElement), onclick: toggleFull }, '\u2922') : null]);
   // labels under the icons: on by default; the Aa button keeps its own caption so it can always be found
   if (compact) camEl.appendChild(h('a', { class: 'camhome', href: 'index.html', 'aria-label': 'Home', title: 'Home' }, '\u2302'));
   camEl.appendChild(h('span', { class: 'aawrap' }, h('button', { class: 'aa', 'aria-pressed': String(labelsOn), 'aria-label': labelsOn ? 'Hide labels' : 'Show labels', title: labelsOn ? 'Hide labels' : 'Show labels', onclick: () => setLabels(!labelsOn) }, 'Aa'), h('span', { class: 'aacap' }, 'Labels')));
@@ -1604,12 +1580,12 @@ export function render() {
     const launchWhy = (kind) => !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     const ammoPips = (kind) => Array.from({ length: Math.min(8, st.ammo[kind] || 0) }, () => st.launchersReady > 0);
-    const targets = new Set(shots.map((x) => x.target)).size, lh = st.beams ? laserHits(sel) : null;
+    const targets = new Set(shots.map((x) => x.target)).size;
     const scanLocked = !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan);
     fill(tools, [
       btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0),
       // the laser's damage close up and far away is the point: closer hits harder
-      st.beams ? btn('fire', 'laser', 'Laser', !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no points' : '\u2212' + lh.near + ' near \u00b7 \u2212' + lh.far + ' far', st.beamsReady && v.cp >= R.cost.fire,
+      st.beams ? btn('fire', 'laser', 'Laser', !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no moves' : targets ? plural(targets, 'target') : 'show reach', st.beamsReady && v.cp >= R.cost.fire,
         { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : 'show where the lasers reach' }) : null,
       has('missile') ? btn('missile', 'missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), { pips: ammoPips('missile'), pipCls: 'amber' }) : null,
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
@@ -1660,7 +1636,7 @@ export function render() {
     // the cut corner: tap it for every number and every part (an overlay over the board)
     const tab = h('button', { class: 'chamfer', 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Hide ship details' : 'Show all ship details', title: detailsOpen ? 'Hide details' : 'All details',
       onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'minus' : 'plus', 11));
-    fill(ctx, [tab, h('div', { class: 'ctx-head' },
+    fill(ctx, [compact ? null : tab, h('div', { class: 'ctx-head' },
         h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
         closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } detailsOpen = false; say(''); })),
       shipStrip(shown, v),

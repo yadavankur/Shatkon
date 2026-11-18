@@ -4,6 +4,18 @@ The project's to-do list is now [BACKLOG.md](../BACKLOG.md).
 
 
 
+## Latest (18 Nov night, gamedev chat): phone HUD drawer, laser band 3, turn-order check (branch `hud-drawer`)
+- **Laser: range 8 → 9**, so it reads 3 / 2 / 1 hits (1–4, 5–8, 9). The world file and the help text are updated. Board check (`--both --games 20`), player 1's fleet out of 40, laser 8 → 9: First Light 17→20, Minefield 11→12, Cat and Mouse 24→21, Dogleg 16→14, King's Guard 20→24, Pawn Storm 8→22, Beacon Hill 25→23, **Missile Alley 8→4** (already outside 10–30), Fog Bank 27→23, Gambit 18→23. The ch4A guide check 12b now accepts step 2 ("Graft") at the gift beat, because the run-up changed and Tern is already in place.
+- **New engine option (off):** `turns.command_points.second_player_round_1_bonus` gives the side that moves second extra points on its first turn; meant for `first_player: fixed`. First-mover wins over all 10 boards (400 games each): alternate 205, fixed 168 (of 360; one board unfinished), fixed + 1 point 198. Moving first is worth little; **undecided, awaiting Ankur**. Pawn Storm's player 1 fleet falls to 1–5 of 40 under a fixed order.
+- **Phone HUD:**
+  - **Left side:** a slim strip (round ring, turn-order dashes, moves as diamonds, the selected ship's hull). A pulsing + opens it into a drawer over the board: the turn in words, "Why these points?", the ship's full card, the hint. The minimap stays out of the drawer.
+  - **Bottom:** the orders are one row of icon buttons along the bottom (the board is fitted above them: `insets()`/`fitWidth()` count the row's height).
+  - **Removed:** the thrust bar, the laser button's near/far text (it says the target count), and the "seen" / "if hit" badges (visibility is in the ship card; danger stays on the move markers).
+  - **Points:** they read as "moves".
+  - **Text:** nothing on the game screen can be selected.
+  - **Buttons:** the fullscreen button hides in the installed app; "whole map" shows only when zoomed in.
+- Checked: 174 tests, `campaign/tools/check.mjs` all pass, headless Chrome 844x390, no console errors.
+
 ## Latest (18 Nov, gamedev chat): Lab part picker (branch `lab-picker`)
 - The six slot dropdowns in the Lab are now one segment drawn as the game draws it (3 interior hexes, 3 exterior corner diamonds; core in gold). Tapping a slot opens a drawer from the far side: tabs by group, part tiles (icon, name, cost), and a dock showing what changes before you Fit.
 - **Everything is read from the rules:** parts from `bay_parts` / `mount_parts`; tabs from a new optional `group:` field (added to every part in `rules/world_v0.4.yaml`: propulsion, sensors, stealth, utility, defence, weapons; a part without one is guessed from what it does, or goes under "Other"); stat changes from `labStats` on a copy of the design; "can't fit" reasons are the new problems `buildRules` reports for that copy. The note shows as one line; tapping it shows the full text.

@@ -14,6 +14,8 @@ import { afterAction, onTurnStart, checkLocked, doJoin } from './script.js';
 export function startTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
   pl.cp = Math.min(pl.cpBank, R.cp.bankCap) + R.cp.perTurn;
+  // with a fixed order, the side that moves second may get extra points on its first turn (turns.command_points.second_player_round_1_bonus)
+  if (state.round === 1 && R.cp.secondBonus && p === state.order[state.order.length - 1]) pl.cp += R.cp.secondBonus;
   // each ship: what it banked (up to its bank cap) plus 1 thrust from each of its working engines
   for (const s of state.ships) if (s.owner === p && !s.dead) s.thrust = Math.min(s.thrust || 0, bankCap(state, s)) + shipIncome(state, s);
   pl.moved = {};

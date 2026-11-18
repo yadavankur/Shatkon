@@ -132,7 +132,8 @@ const r1 = rulesFor('ch1');
   let atGift = null;
   const { g: gt } = play(r4, 1, (p, gg) => { if (!atGift && beat(gg, 'gift')) atGift = E.guideView(gg, 0); return false; });
   const gc = events(gt, 'guide_clear').filter((e) => e.id === 'gift');
-  check('12b', 'ch4A: gift guide for Tern, step 1 "Bring Tern here"; the tow clears it', !!atGift && atGift.shipName === 'tern' && atGift.label === 'Bring Tern here' && beat(gt, 'tow') && gc.length === 1 && gc[0].why === 'clear', `why ${gc.map((e) => e.why)}`);
+  check('12b', 'ch4A: gift guide for Tern, step 1 "Bring Tern here"; the tow clears it', !!atGift && atGift.shipName === 'tern' && ['Bring Tern here', 'Graft'].includes(atGift.label) &&   // step 1 is skipped when Tern is already in place (laser range 9 changed the run-up)
+     beat(gt, 'tow') && gc.length === 1 && gc[0].why === 'clear', `step "${atGift && atGift.label}", why ${gc.map((e) => e.why)}`);
   let gg2 = null, seed12 = 0;
   for (let sd = 1; sd <= 40 && !gg2; sd++) {
     const { g: x } = play(r4, sd, null, (gg, seat) => { if (seat !== 0 || !gg.script.unlocked.graft) return null; const k = ship(gg, 'kestrel'), t = ship(gg, 'tern'); return k && t && E.gap(k, t) === 1 ? { type: 'graft', ship: k.id, with: t.id } : null; });

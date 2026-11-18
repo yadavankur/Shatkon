@@ -274,8 +274,8 @@ mount_parts:
   laser:
     group: weapons
     note: "instant, straight line, needs a clear line to a target the ship's network can see"
-    hits: 3                   # combat v2 (was 2): 3 hits out to 4 hexes, 2 hits from 5 to 8
-    range: 8
+    hits: 3                   # 3 hits out to 4 hexes, 2 from 5 to 8, 1 at 9 (18 Nov 2026: range 8 -> 9 for a third band)
+    range: 9
     loses_1_hit_every: 4
     layer: 3
     cost: 10
