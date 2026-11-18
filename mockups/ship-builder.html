@@ -1,0 +1,151 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shatkon · Ship builder mock-up</title>
+<style>
+:root{--bg:#040812;--panel:#0c1830;--panel2:#08111f;--line:#1f3552;--text:#e7ecf6;--muted:#8f9cba;--accent:#7fd8f0;--good:#2fe0b0;--bad:#ff7a7a;--warn:#d9a441;--p1:#ff8bd8;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.note{background:#1a1406;border-bottom:1px solid #4a3a12;color:#e9cf8f;padding:8px 16px;font-size:13px}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+header b{letter-spacing:.12em}.tab{padding:6px 14px;border:1px solid var(--line);border-radius:8px;color:var(--muted)}.tab.on{background:var(--panel);color:var(--text)}
+main{display:grid;grid-template-columns:300px 1fr 380px;gap:14px;padding:14px;max-width:1400px;margin:auto}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+.preview{display:flex;justify-content:center;padding:10px 0}
+.stats{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:14px}
+.stats span{color:var(--muted)}.stats b{font-family:var(--mono);text-align:right}
+.up{color:var(--good)}.down{color:var(--bad)}
+.delta{margin-top:12px;padding:8px 10px;border-radius:8px;background:#0b2a24;border:1px solid #1d5c4c;font-size:13px;color:#bff5e3}
+.segs{display:flex;gap:6px;margin-bottom:14px}.seg{padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:13px;color:var(--muted)}.seg.on{border-color:var(--accent);color:var(--text);background:var(--panel)}
+.zone{margin-bottom:16px}.zone h3{margin:0 0 4px;font-size:15px}.zone p{margin:0 0 10px;color:var(--muted);font-size:13px}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:var(--panel);border:1px solid var(--line);min-height:56px}
+.slot.sel{outline:2px solid var(--accent)}
+.slot small{display:block;color:var(--muted);font-size:11px}
+.slot.empty{border-style:dashed;color:var(--muted);justify-content:center}
+.ic{width:30px;height:30px;flex:none;border-radius:8px;display:grid;place-items:center;background:#11253f}
+.ic svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.budget{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+.bar{height:6px;border-radius:3px;background:#13233a;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;width:62%;background:var(--accent)}
+.picker .gtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.gt{padding:6px 10px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--muted)}.gt.on{background:var(--accent);color:#04121c;border-color:var(--accent);font-weight:600}
+.ghint{color:var(--muted);font-size:13px;margin:-4px 0 12px}
+.pc{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--panel)}
+.pc.cur{border-color:var(--good)}
+.pc.off{opacity:.45}
+.pc .top{display:flex;gap:10px;align-items:center}
+.pc .nm{font-weight:600}.pc .one{color:var(--muted);font-size:13px}
+.pc .cost{margin-left:auto;font-family:var(--mono);color:var(--warn);font-size:13px;text-align:right;white-space:nowrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;background:#13233a;color:#bcd0ec;font-family:var(--mono)}
+.chip.mk{background:#2a2140;color:#d6c3ff}.chip.lock{background:#2a1a1a;color:#ffb3b3}
+.how{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:#c8d3e8}
+.how ul{margin:6px 0 0;padding-left:18px}.how li{margin:3px 0}
+.why{font-size:12px;color:var(--bad);margin-top:6px}
+.tag{font-size:11px;color:var(--good);font-weight:600;letter-spacing:.06em}
+.btn{display:block;width:100%;margin-top:10px;padding:9px;border-radius:8px;border:0;background:var(--good);color:#04121c;font-weight:700;font-size:14px}
+@media (max-width:1100px){main{grid-template-columns:1fr 1fr}.picker{grid-column:1/-1}}
+@media (max-width:700px){main{grid-template-columns:1fr}}
+</style></head><body>
+<div class="note">Design mock-up only: nothing on this page works. Numbers are real values from the rules file; "Mk II" and the locked card show how upgrade levels could look later.</div>
+<header><b>SHATKON</b><span class="tab">Play</span><span class="tab on">Ship builder</span></header>
+<main>
+
+<!-- LEFT: the ship and what it adds up to -->
+<section class="card">
+  <h2>Ship A · Kestrel</h2>
+  <div class="preview">
+    <svg viewBox="-60 -70 120 140" width="170" height="200">
+      <polygon points="0,-58 50,-29 50,29 0,58 -50,29 -50,-29" fill="#0f2035" stroke="#2d6f84" stroke-width="2"/>
+      <path d="M0,-40 L18,-10 L18,26 L8,36 L-8,36 L-18,26 L-18,-10 Z" fill="#c9d3dd" stroke="#6b7c8c" stroke-width="2"/>
+      <path d="M0,-34 L10,-14 L-10,-14 Z" fill="#2fb8a0"/>
+      <rect x="-7" y="-8" width="14" height="18" rx="4" fill="#7fd8f0"/>
+      <rect x="-8" y="36" width="16" height="10" rx="2" fill="#39475a"/>
+      <ellipse cx="0" cy="54" rx="6" ry="9" fill="#7fd8f0" opacity=".6"/>
+    </svg>
+  </div>
+  <h2>What this ship adds up to</h2>
+  <div class="stats">
+    <span>Thrust</span><b>+1 <span class="up">▲</span></b>
+    <span>Sensor range</span><b>2</b>
+    <span>Signature (how visible)</span><b>4 <span class="down">▲</span></b>
+    <span>Missiles carried</span><b>0</b>
+    <span>Laser hits</span><b>0</b>
+    <span>Toughness (hp)</span><b>1</b>
+    <span>Segments</span><b>1</b>
+  </div>
+  <div class="budget"><span>Cost</span><b style="font-family:var(--mono);color:var(--text)">10 / 16</b></div>
+  <div class="bar"><i></i></div>
+  <div class="delta">Last change: <b>Decoy emitter</b> fitted. Signature 1 → 4, so enemy missiles that see it will chase this ship.</div>
+</section>
+
+<!-- MIDDLE: the slots -->
+<section class="card">
+  <div class="segs"><span class="seg on">Segment 1 · front</span><span class="seg">+ Add segment</span></div>
+
+  <div class="zone">
+    <h3>Interior</h3>
+    <p>Big, heavy systems inside the hull. Hit last, so they last longer.</p>
+    <div class="slots">
+      <div class="slot"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="9"/></svg></span><div>Core<small>The ship's brain</small></div></div>
+      <div class="slot sel"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v10M7 8l5 5 5-5"/><path d="M5 21h14"/></svg></span><div>Decoy emitter<small>Stealth</small></div></div>
+      <div class="slot empty">+ Add interior part</div>
+    </div>
+  </div>
+
+  <div class="zone">
+    <h3>Exterior</h3>
+    <p>Bolted onto the hull: armour, shields and weapons. Hit first.</p>
+    <div class="slots">
+      <div class="slot empty">+ Add exterior part</div>
+      <div class="slot empty">+ Add exterior part</div>
+      <div class="slot empty">+ Add exterior part</div>
+    </div>
+  </div>
+
+  <div class="zone">
+    <h3>Ammunition</h3>
+    <p>Missiles need a magazine inside and a launcher outside.</p>
+    <div class="slots"><div class="slot" style="grid-column:span 3;color:var(--muted)">No magazine fitted, so this ship carries no missiles.</div></div>
+  </div>
+</section>
+
+<!-- RIGHT: the part picker, open for interior slot 2 -->
+<section class="card picker">
+  <h2>Choose an interior part · slot 2</h2>
+  <div class="gtabs"><span class="gt">Propulsion</span><span class="gt">Sensors</span><span class="gt on">Stealth</span><span class="gt">Utility</span></div>
+  <div class="ghint">Stealth parts make the ship harder to see, or fool what does see it.</div>
+
+  <div class="pc">
+    <div class="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 12s4-6 9-6 9 6 9 6-4 6-9 6-9-6-9-6z"/><path d="M4 20 20 4"/></svg></span>
+      <div><div class="nm">Stealth plating</div><div class="one">Signature −1 while it works</div></div><div class="cost">free</div></div>
+    <div class="chips"><span class="chip">signature −1</span><span class="chip">layer 4</span></div>
+  </div>
+
+  <div class="pc">
+    <div class="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2 5 5 1-4 4 1 6-4-3-4 3 1-6-4-4 5-1z"/></svg></span>
+      <div><div class="nm">Flare mask</div><div class="one">Smaller flash when this ship fires or launches</div></div><div class="cost">5</div></div>
+    <div class="chips"><span class="chip">flare −1</span><span class="chip">layer 4</span></div>
+  </div>
+
+  <div class="pc cur">
+    <div class="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v10M7 8l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+      <div><div class="tag">FITTED</div><div class="nm">Decoy emitter</div><div class="one">Looks 3 segments bigger and pulls missiles onto itself</div></div><div class="cost">4</div></div>
+    <div class="chips"><span class="chip">signature +3</span><span class="chip">lures missiles</span><span class="chip">layer 4</span><span class="chip mk">Mk I</span></div>
+    <div class="how"><b>How it works</b>
+      <ul>
+        <li>While it works, enemy sensors see this ship as 3 segments bigger, so it is spotted from further away.</li>
+        <li>Any enemy missile whose seeker can see this ship drops its target and turns on it instead.</li>
+        <li>Sits at layer 4: shields, armour and weapons are hit before it.</li>
+        <li>Best on a cheap ship flying ahead of your flagship.</li>
+      </ul>
+    </div>
+    <button class="btn">Keep this part</button>
+  </div>
+
+  <div class="pc off">
+    <div class="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v10M7 8l5 5 5-5"/><path d="M5 21h14"/></svg></span>
+      <div><div class="nm">Decoy emitter Mk II</div><div class="one">Looks 5 segments bigger</div></div><div class="cost">7</div></div>
+    <div class="chips"><span class="chip">signature +5</span><span class="chip lock">locked</span></div>
+    <div class="why">Unlocks after story chapter 3.</div>
+  </div>
+</section>
+</main></body></html>

@@ -434,6 +434,9 @@ ai:
 # - Upgrade levels for parts (engine mk2 = 1.5 thrust, and so on)
 # - Cutting a wrecked segment loose to shed its weight
 # - Tractor (large ship swallows a small one)
+# - Tow: one ship drags a crippled ship (engines shot out) along with it
+# - Thrust per ship instead of one fleet pool: a ship's own engines move it, weighed against its
+#   segments and exterior parts (Ankur 18 Nov: the shared pool was a quick fix; proposal pending)
 # - Tunnel / wormhole devices
 # - Distortion stealth (appear bigger or smaller than you are)
 # - Space rivers, gravity wells, warped hexes, sphere / doughnut boards
