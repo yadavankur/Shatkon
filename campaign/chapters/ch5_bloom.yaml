@@ -12,8 +12,8 @@
 #   - Seam wakes when Kestrel fires at the Bloom (needs 8 hexes) or comes within 6:
 #     about 5-7 hexes of closing, ~3 rounds for a 6-segment ship. Fallback round 5.
 #   - After the seam, Kestrel is forced toward the Bloom each turn (the engine's move_toward:
-#     the reachable spot closest to it, paid from the player's thrust; Kestrel is 6 thrust a
-#     hex so ~1-2 hexes a turn). li_moves: Halcyon within 2 hexes of Kestrel, at least a turn
+#     the reachable spot closest to it, within Kestrel's own speed limit; script moves do not spend
+#     its thrust. Kestrel is 6 thrust a hex on 7 engines, so ~1-2 hexes a turn). li_moves: Halcyon within 2 hexes of Kestrel, at least a turn
 #     after the seam (Halcyon starts 4 away, cap 2 hexes a turn), or 2 rounds after the seam
 #     (round 7 at the latest). PR #2 sims: seam r5 (fallback), li_moves and cliff r6.
 #   - The Bloom soaks 7 hits a round with shields and stops 3 missiles a round.
@@ -34,7 +34,7 @@ chapter:
       - { ship: kestrel, at: [-3, 7] }   # cells [-3,6] [-2,6] [-4,7] [-3,7] [-4,8] [-3,8]
       - { ship: halcyon, at: [2, 6] }    # cells [2,6] [3,6] [2,7]: 4 hexes from Kestrel's nearest cell
       - { ship: sparrow, at: [-6, 6] }
-  # Fleet thrust 11 for 10 segments: average 1, up to 2 hexes a turn. Kestrel costs 6 a hex.
+  # Thrust per ship: Kestrel 7 engines for 6 segments (6 a hex, about 1.2 hexes a turn, up to 2).
 
   enemy:
     ships: []                            # the Bloom (hull bloom@ch5, flagship) arrives in round 2

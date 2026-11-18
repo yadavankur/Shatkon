@@ -144,9 +144,11 @@ chapter:
       when: { all: [ kite_disarmed, { not: wren_disarmed } ] }
       do:
         - ai: { ship: seed, profile: disarm_w }
+    # Also at once if the Seed's own laser is gone (Kestrel shot it off): nothing could disarm
+    # the escorts then, and the battle would stall until round 9 (thrust per ship, 18 Nov 2026).
     - id: disarm_fallback
       fallback_for: weapons_gone
-      when: { all: [ { round: 9 }, { not: weapons_gone } ] }
+      when: { all: [ { any: [ { round: 9 }, { part_lost: { ship: seed, part: laser } } ] }, { not: weapons_gone } ] }
       do:
         - disable: { ship: wren, parts: [laser] }
         - disable: { ship: kite, parts: [laser] }

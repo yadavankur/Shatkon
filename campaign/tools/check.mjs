@@ -99,8 +99,9 @@ for (const node of campaign.nodes) {
     log(`    ${fl.name === 'player_1' ? 'P' : 'W'} ${s.name.padEnd(8)} segs ${st.segments}  thrust ${st.thrust}  sensor ${st.sensor}  signature ${st.signature}  link ${st.link}  hull hp ${hp}  lasers ${count('laser')}  shields ${count('shield')}  PD ${count('point_defence')}  load ${JSON.stringify(s.load)}${s.flagship ? '  FLAGSHIP' : ''}`);
   }
   for (const [i, fl] of rules.fleets.entries()) {
-    const th = fl.ships.reduce((n, s) => n + shipStats(rules, s).thrust, 0), sg = fl.ships.reduce((n, s) => n + s.segs.length, 0);
-    log(`    ${i ? 'Weave' : 'Human'} fleet: thrust ${th} for ${sg} segments -> move cap ${Math.floor(th / sg) + 1} hexes a turn`);
+    // thrust is per ship: each ship's engines / its segments, and its own speed limit (+ max_above_average)
+    const speeds = fl.ships.map((s) => { const st = shipStats(rules, s); return st.thrust ? `${s.name} ${Math.round((100 * st.thrust) / st.segments) / 100} (cap ${Math.floor(st.thrust / st.segments) + rules.move.capBonus})` : `${s.name} own drive or none`; });
+    log(`    ${i ? 'Weave' : 'Human'} fleet, hexes a turn per ship: ${speeds.join(', ')}`);
   }
 
   // start distances and sight ranges (engine formulas, start of the game)

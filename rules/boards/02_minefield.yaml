@@ -18,6 +18,10 @@
 #  the mines are the wall. The one clean lane hugs the south-west edge of the board; a test checks
 #  it (no mine on it, no proximity or sleeper mine within 1 hex of it, and every other way through
 #  is mined).
+#  Thrust per ship (maps, 18 Nov 2026): on its own single engine the 3-hex Dowser crawled a hex
+#  every 3 turns. It is now a 4-hex diamond with 3 engines and still all 5 sensors (sensor 12),
+#  so it keeps its job and makes 3 hexes every 4 turns. Fewer sensors would have cost the job:
+#  sensor 10 never sees a sleeper mine (signature -10), sensor 8 sees no proximity mine either.
 #
 #  Needs a new rule to play as designed: sleeper mines should not show on an ordinary scan from far
 #  away (scan_resist), so the minesweeper is the main way to find them. Today a scan still finds
@@ -65,11 +69,12 @@ player_1:
         - { at: [-1, 0], bays: [engine, engine, coupling], mounts: [laser, shield] }
         - { at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }
         - { at: [1, -1], bays: [engine, engine, coupling], mounts: [laser, armour] }
-    - name: "Dowser"                # NEW dowser: minesweeper, sensor 12 (sees a sleeper mine from 2 hexes, a proximity mine from 4)
+    - name: "Dowser"                # minesweeper, sensor 12 (sees a sleeper mine from 2 hexes, a proximity mine from 4); 3 engines for 4 segments
       hull:
-        - { at: [-1, 0], bays: [coupling, sensor, sensor], mounts: [shield] }
+        - { at: [-1, 0], bays: [coupling, sensor, engine], mounts: [shield] }
         - { at: [0, 0], bays: [core, sensor, sensor], mounts: [laser, armour] }
-        - { at: [1, 0], bays: [coupling, sensor, engine], mounts: [armour] }
+        - { at: [0, -1], bays: [coupling, sensor, engine], mounts: [armour] }
+        - { at: [1, -1], bays: [coupling, sensor, engine] }
     - name: "Mallet"                # gunboat
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield] }

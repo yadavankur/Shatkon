@@ -12,9 +12,9 @@
 #
 #  Key numbers (see CHECKS.md):
 #   - Start: seed_a in the north-west, 7 rows from the west belt (row 1); seed_b in the top of
-#     the east lane, 4 rows (the Seeds share one thrust pool: they take turns moving).
-#   - Seeds: 4 engines for 4 segments, one thrust pool: 2 hexes a turn between them (about 1
-#     each); a Seed dead in the water takes its engines out of the pool.
+#     the east lane, 4 rows.
+#   - Seeds: 2 engines for 2 segments each, on their own thrust (thrust per ship, 18 Nov 2026):
+#     1 hex a turn each, up to 2 with banked thrust.
 #   - A lane is 2-4 hexes wide and its whole row 1 is mined (3 charges per lane), so a Seed
 #     that comes south past the mass must touch a charge. A move stops on the charge.
 #   - The Seeds close to 3 hexes of Kestrel; no lane hex north of the belt is that close, so
@@ -25,7 +25,7 @@
 #     5-hit mine blast, which follows strikes: engines), per Seed, so both always end dead in
 #     the water.
 #   - Kestrel sees a Seed at 6 (sensor 4 + signature 2); the belts are 7-8 hexes from its start.
-#     Fleet thrust 4 + 1 for 4 segments: Kestrel (3 a hex) makes 1-2 hexes a turn.
+#     Kestrel: 4 engines for 3 segments (3 thrust a hex) makes 1-2 hexes a turn; Sparrow 1.
 # ============================================================
 
 chapter:
@@ -52,7 +52,7 @@ chapter:
       - { mine: [5, 1] }
       - { mine: [6, 1] }
       - { mine: [7, 1] }
-  # Fleet thrust 4 + 1 = 5 for 4 segments: average 1, up to 2 hexes a turn. Kestrel costs 3 a hex.
+  # Thrust per ship: Kestrel 4 a turn, 3 a hex (about 1.3 hexes a turn, up to 2); Sparrow 1 a turn, 1 a hex.
 
   enemy:
     ships: [seed_a, seed_b]            # hulls seed_a@ch2 (flagship), seed_b@ch2
@@ -63,9 +63,11 @@ chapter:
 
   ai_profiles:
     # Competent: hunt Kestrel (the biggest gun) by the shortest way round the mass and close to
-    # 3 hexes - shielded hulls win at 2-hit range - missiles inside 5. They never scan: they
-    # have not met mines.
-    hunter: { level: normal, stance: hunt, stand_off: 3, scans: false, launch_range: 5 }
+    # 2 hexes - missiles inside 5. They never scan: they have not met mines.
+    # (stand_off was 3 until thrust per ship, 18 Nov 2026: a Kestrel parked by the east belt let
+    # seed_b hold 3 hexes off, north of the charges, until the round-9 fallback. At 2 every
+    # Seed comes through: engine_check 10 of 10 with no fallback.)
+    hunter: { level: normal, stance: hunt, stand_off: 2, scans: false, launch_range: 5 }
 
   script:
     - id: rails

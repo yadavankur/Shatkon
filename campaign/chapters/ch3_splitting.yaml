@@ -30,8 +30,8 @@ chapter:
     deployment:
       - { ship: kestrel, at: [-4, 8] }   # cells [-4,7] [-3,7] [-5,8] [-4,8], tucked under the cluster
       - { ship: sparrow, at: [-1, 7] }
-  # Fleet thrust 5 for 5 segments: average 1, up to 2 hexes a turn. Kestrel costs 4 a hex.
-  # After li arrives: 11 thrust for 10 segments.
+  # Thrust per ship: Kestrel 4 engines for 4 segments (1 hex a turn, up to 2 banked); Sparrow 1 for 1.
+  # Li's wing: Halcyon 3 for 3, Tern 3 for 2 (1.5 a turn).
 
   enemy:
     ships: [twin]                      # hull twin@ch3 (flagship)

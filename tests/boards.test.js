@@ -46,7 +46,7 @@ test('a sleeper mine: the Dowser (sensor 12) sees it from 2 hexes, a gunboat nex
   const g = E.start(pinned('02_minefield').rules, 3);
   const mine = g.objs.find((o) => o.kind === 'sleeper_mine' && o.pos[0] === 2 && o.pos[1] === -4);
   const dowser = g.ships.find((s) => s.name === 'Dowser'), mallet = g.ships.find((s) => s.name === 'Mallet');
-  dowser.pos = [-1, -4];                                         // nearest segment [0, -4], 2 hexes from the mine
+  dowser.pos = [4, -3];                                          // nearest segment [3, -3], 2 hexes from the mine (and out of the nebula)
   assert.ok(E.visibleTo(g, 0).has(mine.id), 'the Dowser sees it');
   dowser.pos = [5, 6]; mallet.pos = [3, -4];                     // the gunboat right next to it
   assert.ok(!E.visibleTo(g, 0).has(mine.id), 'the gunboat does not');

@@ -32,7 +32,7 @@ chapter:
       - { ship: tern,    at: [0, 6] }    # cells [0,6] [1,6]: one hex clear of Kestrel
       - { ship: sparrow, at: [-6, 6] }
       - { ship: halcyon, at: [-7, 7] }   # cells [-7,7] [-6,7] [-7,8]
-  # Fleet thrust 11 for 10 segments: average 1, up to 2 hexes a turn.
+  # Thrust per ship: Kestrel 4 for 4, Sparrow 1 for 1, Halcyon 3 for 3, Tern 3 for 2: about 1 hex a turn each, up to 2.
   # Docking clamps are available (ch3 reward) but cost 1 command point per extra core.
 
   enemy:

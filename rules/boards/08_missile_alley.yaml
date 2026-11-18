@@ -18,6 +18,9 @@
 #  Retune (maps, 2026-11-16, after the computer stopped replaying one game: 3 of 40): the missile
 #  boats trade an engine for a second sensor so they can see a target before its lasers reach
 #  them, and the escorts' second laser became armour (they still carry two point defences).
+#  Thrust per ship (maps, 18 Nov 2026): the boats got their second engine back in place of the
+#  second sensor. On one engine a 2-hex boat moved a hex every other turn and the missile side
+#  won 4 of 80 computer games (20 of 80 before the rule change); with two it is 16 of 80.
 # ============================================================
 
 board:
@@ -87,20 +90,20 @@ player_1:
         - { at: [-1, 0], bays: [engine, magazine, coupling], mounts: [launcher] }
         - { at: [-1, 1], bays: [engine, engine, coupling], mounts: [armour] }
         - { at: [0, 1], bays: [engine, engine, coupling] }
-    - name: "Quiver"                # missile boat (two sensors: a spotter that shoots)
+    - name: "Quiver"                # missile boat
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, sensor, magazine], mounts: [launcher] }
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
     - name: "Sling"                # missile boat
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, sensor, magazine], mounts: [launcher] }
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
     - name: "Sheaf"                # missile boat
       load: { missile: 3 }
       hull:
-        - { at: [0, 0], bays: [core, sensor, magazine], mounts: [launcher] }
+        - { at: [0, 0], bays: [core, engine, magazine], mounts: [launcher] }
         - { at: [1, 0], bays: [coupling, engine, sensor], mounts: [launcher, armour] }
   deployment:
     - { ship: "Arsenal", at: [-4, 9] }

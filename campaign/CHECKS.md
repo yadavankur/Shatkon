@@ -275,8 +275,8 @@ guide-ui {"vp":"phone","steps":[{"step":1,"label":"Close to 4 hexes","overlay":1
     P wren     segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 6  lasers 1  shields 0  PD 0  load {}
     P kite     segs 2  thrust 3  sensor 4  signature 2  link 4  hull hp 15  lasers 1  shields 0  PD 0  load {}
     W seed     segs 2  thrust 2  sensor 4  signature 2  link 4  hull hp 10  lasers 1  shields 3  PD 0  load {"missile":2}  FLAGSHIP
-    Human fleet: thrust 9 for 7 segments -> move cap 2 hexes a turn
-    Weave fleet: thrust 2 for 2 segments -> move cap 2 hexes a turn
+    Human fleet, hexes a turn per ship: kestrel 1.33 (cap 2), finch 1 (cap 2), wren 1 (cap 2), kite 1.5 (cap 2)
+    Weave fleet, hexes a turn per ship: seed 1 (cap 2)
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     seed - kestrel: 12 / 7 / 8
     seed - finch: 10 / 5 / 6
@@ -314,8 +314,8 @@ guide-ui {"vp":"phone","steps":[{"step":1,"label":"Close to 4 hexes","overlay":1
     P sparrow  segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 8  lasers 1  shields 0  PD 0  load {}
     W seed_a   segs 2  thrust 2  sensor 4  signature 2  link 4  hull hp 12  lasers 1  shields 2  PD 0  load {"missile":2}  FLAGSHIP
     W seed_b   segs 2  thrust 2  sensor 4  signature 2  link 4  hull hp 12  lasers 1  shields 2  PD 0  load {"missile":1}
-    Human fleet: thrust 5 for 4 segments -> move cap 2 hexes a turn
-    Weave fleet: thrust 4 for 4 segments -> move cap 2 hexes a turn
+    Human fleet, hexes a turn per ship: kestrel 1.33 (cap 2), sparrow 1 (cap 2)
+    Weave fleet, hexes a turn per ship: seed_a 1 (cap 2), seed_b 1 (cap 2)
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     seed_a - kestrel: 9 / 7 / 6
     seed_a - sparrow: 11 / 5 / 6
@@ -354,8 +354,8 @@ guide-ui {"vp":"phone","steps":[{"step":1,"label":"Close to 4 hexes","overlay":1
     P kestrel  segs 4  thrust 4  sensor 6  signature 4  link 4  hull hp 25  lasers 2  shields 4  PD 0  load {"missile":4}  FLAGSHIP
     P sparrow  segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 6  lasers 1  shields 1  PD 0  load {}
     W twin     segs 6  thrust 6  sensor 6  signature 5  link 4  hull hp 35  lasers 3  shields 6  PD 2  load {"missile":3}  FLAGSHIP
-    Human fleet: thrust 5 for 5 segments -> move cap 2 hexes a turn
-    Weave fleet: thrust 6 for 6 segments -> move cap 2 hexes a turn
+    Human fleet, hexes a turn per ship: kestrel 1 (cap 2), sparrow 1 (cap 2)
+    Weave fleet, hexes a turn per ship: twin 1 (cap 2)
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     twin - kestrel: 13 / 10 / 11
     twin - sparrow: 13 / 7 / 9
@@ -401,8 +401,8 @@ guide-ui {"vp":"phone","steps":[{"step":1,"label":"Close to 4 hexes","overlay":1
     W husk_1   segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 4  lasers 1  shields 0  PD 0  load {}  FLAGSHIP
     W husk_2   segs 2  thrust 2  sensor 4  signature 1  link 4  hull hp 8  lasers 0  shields 0  PD 0  load {}
     W husk_3   segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 5  lasers 0  shields 0  PD 0  load {}
-    Human fleet: thrust 11 for 10 segments -> move cap 2 hexes a turn
-    Weave fleet: thrust 4 for 4 segments -> move cap 2 hexes a turn
+    Human fleet, hexes a turn per ship: kestrel 1 (cap 2), sparrow 1 (cap 2), halcyon 1 (cap 2), tern 1.5 (cap 2)
+    Weave fleet, hexes a turn per ship: husk_1 1 (cap 2), husk_2 1 (cap 2), husk_3 1 (cap 2)
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     husk_1 - kestrel: 9 / 8 / 7
     husk_1 - sparrow: 9 / 5 / 5
@@ -453,8 +453,8 @@ guide-ui {"vp":"phone","steps":[{"step":1,"label":"Close to 4 hexes","overlay":1
     P halcyon  segs 3  thrust 3  sensor 4  signature 3  link 12  hull hp 18  lasers 2  shields 3  PD 0  load {"missile":2,"seeker_drone":1}
     P sparrow  segs 1  thrust 1  sensor 4  signature 1  link 4  hull hp 6  lasers 1  shields 1  PD 0  load {}
     W bloom    segs 7  thrust 6  sensor 8  signature 5  link 4  hull hp 41  lasers 3  shields 7  PD 3  load {"missile":6}  FLAGSHIP
-    Human fleet: thrust 11 for 10 segments -> move cap 2 hexes a turn
-    Weave fleet: thrust 6 for 7 segments -> move cap 1 hexes a turn
+    Human fleet, hexes a turn per ship: kestrel 1.17 (cap 2), halcyon 1 (cap 2), sparrow 1 (cap 2)
+    Weave fleet, hexes a turn per ship: bloom 0.86 (cap 1)
   start: gap / W sees P at / P sees W at (exact; fuzzy +3)
     bloom - kestrel: 13 / 11 / 11
     bloom - halcyon: 13 / 8 / 7
