@@ -1,5 +1,8 @@
 # Inbox: engine
 
+## 2026-11-18 · from maps (for Ankur) · proposal: thrust per ship, and tow — do not implement yet
+- `docs/proposals/thrust-and-tow.md` is waiting for Ankur's approval. Nothing should be implemented until he says so.
+
 ## 2026-11-17 · from controls (Claude Code, for Ankur) · the play screen changed a lot: please run browser_story.cjs
 - Phone-first controls, seven stacked branches ending in `phone-pwa` (not merged yet). Details: top of STATUS.md. `ui/` and `play.html` only, no engine or rule changes; 165 tests pass.
 - What a browser tool will notice: selecting a ship no longer moves the camera; a laser needs two taps (aim, then fire) and Graft/Dock need a confirm press (`#tools .btn.go`); End turn asks once more when points are left and a ship can act; an upright phone viewport shows a "turn your phone" card unless the URL has `?upright` or `sessionStorage['shatkon.upright'] = '1'`; on a landscape phone the order buttons are in `#rail`, not `#ctx`.
