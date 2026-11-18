@@ -411,10 +411,8 @@ body.compact #ctx{position:relative;top:auto;right:auto}
 #ctx .more .card{border:0;background:transparent;padding:0;margin:6px 0 0}
 #ctx .more .card h2{display:none}
 #ctx.open{z-index:7}
-body.compact #ctx.open{position:fixed;left:var(--sl);top:var(--st);bottom:var(--sb);width:min(400px,50vw);max-height:none;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.7);background:#0c1326;overflow:hidden;display:flex;flex-direction:column}
-body.compact #ctx.open .more{flex:1 1 auto;min-height:0;overflow:auto}
 #ctx.open .more{max-height:60vh;overflow:auto}
-body.compact #ctx.open .more{max-height:none}
+
 /* order buttons: icon, pips or a count, label underneath */
 .btn.ib{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:6px 4px 5px;min-width:0}
 .ibic{position:relative;line-height:0}
@@ -511,6 +509,45 @@ body.nolabels .btn.ib{padding:9px 4px}
 .pk-fullbox p{margin:0;font-size:13.5px;color:#dbe3f2}
 .pk-fullbox .pk-fit{align-self:flex-end;height:44px}
 @media (max-width:600px){.pk-drawer{width:100vw;border-radius:0}}
+/* Phone: a slim info strip on the left (the + opens it into a drawer over the board), the orders in one
+   row along the bottom, nothing selectable (a long press would open the phone's copy menu) */
+#stage,#lower,#hudtop,#rail{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.infobtn{position:absolute;right:6px;top:6px;width:40px;height:40px;border-radius:50%;border:0;background:var(--accent);color:var(--bg);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;animation:infopulse 2.6s ease-in-out infinite}
+.infobtn .ico{stroke-width:3}
+.infobtn.open{animation:none;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+@keyframes infopulse{0%,70%,100%{box-shadow:0 0 0 0 rgba(127,216,240,0)}35%{box-shadow:0 0 0 6px rgba(127,216,240,.28)}}
+@media (prefers-reduced-motion:reduce){.infobtn{animation:none}}
+body.compact #turnbar{position:relative;padding-right:52px}
+body.compact:not(.info-open) .steps{gap:3px;flex-wrap:nowrap}
+body.compact:not(.info-open) .stepsep{display:none}
+body.compact:not(.info-open) .stepchip{font-size:0;line-height:0;padding:0;border:0;width:10px;height:4px;border-radius:2px;background:var(--line);opacity:.8}
+body.compact:not(.info-open) .stepchip.s0{background:var(--p0);opacity:.45}body.compact:not(.info-open) .stepchip.s1{background:var(--p1);opacity:.45}
+body.compact:not(.info-open) .stepchip.fly{background:#ff9d4d;opacity:.6}body.compact:not(.info-open) .stepchip.next{opacity:.3}
+body.compact:not(.info-open) .stepchip.now{width:22px;height:5px;opacity:1;background:var(--me,var(--text))}
+body.compact:not(.info-open) #ctx .srow,body.compact:not(.info-open) #ctx .more{display:none}
+body.compact:not(.info-open) #ctx{padding:5px 8px}
+body.compact:not(.info-open) #hint{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:none;padding:4px 8px}
+/* the drawer: the left column grows over the board, on a solid panel */
+body.compact.info-open #stage::before{content:'';position:absolute;z-index:8;left:0;top:0;bottom:0;width:calc(var(--sl) + min(440px,58vw) + 8px);background:rgba(9,15,30,.97);box-shadow:8px 0 40px rgba(0,0,0,.6)}
+body.compact.info-open #hudtop{z-index:9;width:min(440px,58vw)}
+body.compact.info-open #lower{z-index:9;width:min(440px,58vw);overflow:auto}
+body.compact.info-open #mini{display:none}
+body.compact.info-open #lower{justify-content:flex-start}
+body.compact.info-open #ctx,body.compact.info-open #dock{flex:none;overflow:visible}
+body.compact.info-open .ledger{display:block}
+body.compact.info-open #turnbar,body.compact.info-open #ctx,body.compact.info-open #hint{background:transparent;border-color:transparent;box-shadow:none}
+/* the orders: one row along the bottom, right of the left column */
+body.compact #rail{left:calc(var(--sl) + var(--col) + 10px);right:var(--sr);width:auto;flex-direction:row;align-items:flex-end;justify-content:flex-end;max-height:none;gap:8px}
+body.compact #tools{display:flex;flex-direction:row;flex-wrap:nowrap;gap:6px;align-items:flex-end}
+body.compact #tools .btn.ib{width:62px;min-height:52px;padding:4px 2px 3px;flex:none}
+body.compact #tools .btn:not(.ib){min-width:84px;min-height:52px;flex:none}
+body.compact.nolabels #tools .btn.ib{width:52px;min-height:48px}
+body.compact #turnbtns{gap:6px;align-items:flex-end}
+body.compact #turnbtns .btn.ib{flex:none;width:62px;min-height:52px;padding:4px 2px 3px}
+body.compact #turnbtns .btn.ib.endb{width:84px}
+body.compact .ib .tl.name{font-size:11.5px}
+body.compact .ib small.tl{font-size:9.5px}
+body.compact.info-open #rail{display:none}
 /* a phone held upright: ask for it to be turned (the upright layout still works: "Play upright anyway") */
 #rotate{display:none;position:fixed;inset:0;z-index:80;background:rgba(4,7,15,.97);align-items:center;justify-content:center;padding:20px;text-align:center}
 #rotate .card{max-width:340px}
@@ -561,7 +598,7 @@ body.nolabels .btn.ib{padding:9px 4px}
       <li><b>Your ships:</b> a ship with a <b>white rim</b> round its hexes is yours to command. Tap it and its panel opens with its orders (move, fire, launch, scan) and its key numbers. A ship without the rim can't take orders right now, so tapping it opens nothing. The view only moves when you move it: drag to pan, pinch or use the mouse wheel to zoom, <b>double-tap one of your ships</b> to zoom in on it and double-tap it again to zoom back out. &#9974; shows the whole board.</li>
       <li><b>Moving:</b> tap your ship, tap a green marker to preview, then tap it again. Each ship has its own <b>thrust</b>: its engines add 1 each a turn, and a hex costs 1 per segment, so a big ship with few engines saves up for a turn or two. Pick a ship to see its thrust bar. A <b>red ring</b> on a marker means an enemy you can see could shoot your ship there on its next turn; the ship panel says how hard ("In enemy reach &minus;3").</li>
       <li><b>Fog of war:</b> you only see what your ships can detect. Big ships are easier to spot, stealth parts and the purple nebula hide you, and firing or launching makes you flare up. A "?" marks where an enemy was last seen.</li>
-      <li><b>Lasers</b> hit instantly in a straight line: <b>3 hits up to 4 hexes, 2 hits up to 8</b>, and <b>+1</b> if the ship moved at least 1 hex earlier in the turn. Asteroids and your own ships block them. Press <b>Fire</b> and the board shows your reach in red, with the hits a shot does on every hex. <b>Missiles</b> don't move when you launch them: at the end of each round, after both players have had their turn, <b>missiles fly</b> (6 hexes a round). Enemy missiles you can see are drawn with a red dashed line to where they are heading. Point defence can stop one missile a round.</li>
+      <li><b>Lasers</b> hit instantly in a straight line: <b>3 hits up to 4 hexes, 2 hits up to 8, 1 hit at 9</b>, and <b>+1</b> if the ship moved at least 1 hex earlier in the turn. Asteroids and your own ships block them. Press <b>Fire</b> and the board shows your reach in red, with the hits a shot does on every hex. <b>Missiles</b> don't move when you launch them: at the end of each round, after both players have had their turn, <b>missiles fly</b> (6 hexes a round). Enemy missiles you can see are drawn with a red dashed line to where they are heading. Point defence can stop one missile a round.</li>
       <li><b>Detection tiers:</b> a red fuzzy circle means <i>something</i> is somewhere inside it (any hex in the circle is equally likely, and the circle doesn't move while the target sits still, so looking again tells you nothing new); &#9670; means you know exactly where a ship is; &#9635; means a fresh scan shows every part and its hull.</li>
       <li><b>Scan</b> (1 point, once per ship per turn): <b>a ship can only scan on a turn it has moved</b> (at least 1 hex away from where it started the turn; moving there and back doesn't count). The further forward the ship is, the stronger the scan: near your home edge it sees 2 hexes clearly and 4 faintly, in mid-field 4 / 7, and from the centre line onwards 6 / 10. Before sending it you see both rings and how much further forward the next tier is. Everything in the green ring is fully revealed, hidden mines included; the amber ring only picks up faint contacts. Scanning lights your ship up.</li>
       <li><b>Stealth &amp; signature</b> work like engines and thrust: a ship's signature starts at its size (1 per segment) and each <i>working</i> stealth part takes 1 off, down to a floor of segments&nbsp;&divide;&nbsp;3 (rounded up). Firing, launching or scanning adds a flare. You're spotted when an enemy is within <i>their sensor range + your signature</i>, so the flagship (7 segments, 4 stealth = 3) is seen from 7 hexes instead of 11. Stealth parts are free; lose one to damage and you lose its &minus;1.</li>
