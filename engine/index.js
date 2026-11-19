@@ -13,7 +13,7 @@ import { startScript } from './script.js';
 export { buildRules, shipStats } from './rules.js';
 export { apply, attempt } from './turn.js';
 export { view, knowledge, undoSafe } from './view.js';
-export { reach, beamTargets, launchOptions, shipStatus, forecast, aimLaunch, beamField, dangerMap, incoming } from './query.js';
+export { reach, beamTargets, beamStop, launchOptions, shipStatus, forecast, aimLaunch, beamField, dangerMap, incoming } from './query.js';
 export { turnCode, readTurnCode, applyTurnCode, exportGame, importGame } from './sync.js';
 export { hashState, actionText, parseAction } from './codec.js';
 export { Illegal } from './state.js';

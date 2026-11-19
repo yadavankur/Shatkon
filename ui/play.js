@@ -5,6 +5,8 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
+import { battleSettings, settingsForm, injectSettingsCss } from './settings.js';
+import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
 
@@ -56,6 +58,7 @@ let pendingFx = null;             // animations held back until the curtain lift
 let ledgerOpen = false, sfxOn = true, actx = null;
 let shipStyle = 'hull', haveModels = false;   // how ships are drawn: 'hull' (ui/ships.js), 'schematic' (parts and slots) or 'model' (art, where a ship has some)
 let drawerOpen = false, drawerSeen = '', detailsOpen = false;
+let postShown = null;             // the battle report (ui/postgame.js) was closed for this finished game
 // play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
 const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
 const KEYS = (k) => k + (BOARD ? '.board.' + BOARD : '');   // each board keeps its own saves
@@ -734,13 +737,15 @@ function aiStep() {
 }
 
 export function newGame() {
-  game = E.start(rules, (Date.now() % 2147483647) | 0);
+  // the battle settings (asked before the game): fixed turn order, or swap the first move every round
+  const bs = battleSettings(), fixed = bs.turns !== 'swap';
+  game = E.start({ ...rules, firstPlayer: fixed ? 'fixed' : 'alternate' }, (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
-  // who moves in round 1 is picked from the game's seed (turns.first); after that it swaps every round
-  const first = turnOf(), swaps = ' The first move swaps every round.';
+  // who moves in round 1 is picked from the game's seed (turns.first); with a fixed order it stays that way
+  const first = turnOf(), swaps = fixed ? ' The same side moves first every round.' : ' The first move swaps every round.';
   say(seat === 'cpu'
     ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. ' +
       (first === 0 ? 'You move first this game.' + swaps + ' Tap one of your ships to begin.' : 'The enemy moves first this game.' + swaps + ' Watch where it goes.')
@@ -748,6 +753,27 @@ export function newGame() {
   save(); render();
   setTimeout(() => toast(seat === 'cpu' ? (first === 0 ? 'You move first' : 'The enemy moves first') : 'Player ' + (first + 1) + ' moves first', 'p' + first), 300);
 }
+
+// Battle settings before a skirmish starts (ui/settings.js): the same sheet as the landing page's.
+// start() runs when the player presses Start battle.
+export function askSetup(start, title) {
+  injectSettingsCss();
+  const old = document.getElementById('bsheet'); if (old) old.remove();
+  const close = () => back.remove();
+  const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
+  const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, 'Battle settings'), settingsForm(),
+      h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
+  document.body.appendChild(back);
+}
+
+// Who plays (the Lab's "Play these designs" picks it): 'cpu' (with level), 'pass' (same phone) or 'all' (open board).
+export function setPlayMode(m, level) {
+  seat = m === 'pass' || m === 'all' ? m : 'cpu';
+  if (seat === 'cpu') { aiLevel = level === 'easy' ? 'easy' : 'normal'; store.set('shatkon.ai', aiLevel); }
+  store.set('shatkon.seat', String(seat));
+}
+export { askSetup as battleSetup };
 
 // A story chapter (from ui/campaign.js): always against the computer.
 export function startStoryGame(chRules, title) {
@@ -822,6 +848,17 @@ function act(action, quiet, byAI) {
   }
   save(); render();
 }
+
+// ---------- friendly fire (battle setting "Warn me") ----------
+// Before a laser shot that would stop on one of your own mines, missiles or drones, trace the beam and ask.
+function ffWarn(a) {
+  if (battleSettings().ff !== 'warn' || a.type !== 'fire') return null;
+  const st = E.beamStop(game, a), me = game.ships.find((x) => x.id === a.ship);
+  return st && st.obj && me && st.owner === me.owner ? { at: st.at, kind: st.kind, path: st.path } : null;
+}
+const bare = (a) => { if (!a || !a.warn) return a; const { warn, ...rest } = a; return rest; };
+const sameAction = (a, b) => JSON.stringify(bare(a)) === JSON.stringify(bare(b));
+const warnText = (w) => 'Careful: your own ' + nice(w.kind) + ' at ' + at(w.at) + ' is in the line of fire. This shot would hit it, not the target. Press \u201cFire anyway\u201d to shoot, or Cancel.';
 
 // ---------- words ----------
 const at = (c) => '[' + c[0] + ', ' + c[1] + ']';
@@ -993,9 +1030,13 @@ function tap(c, v, opts, viaChip, t) {
     return render();
   }
   if (o && o.action && (o.action.type === 'fire' || o.action.type === 'detonate')) {      // things that cannot be taken back: first tap aims, second tap does it
-    if (pending && JSON.stringify(pending) === JSON.stringify(o.action)) return act(pending);
+    if (pending && sameAction(pending, o.action)) {
+      if (pending.warn) { say(warnText(pending.warn)); return render(); }   // a warned shot needs the button
+      return act(bare(pending));
+    }
     pending = o.action;
-    say(o.action.type === 'fire' ? 'Aimed: the laser will do ' + plural(o.hits, 'hit') + ' here. Tap the target again or press Fire. A shot cannot be taken back.'
+    if (o.action.type === 'fire') pending = { ...o.action, warn: ffWarn(o.action) };
+    say(pending.warn ? warnText(pending.warn) : o.action.type === 'fire' ? 'Aimed: the laser will do ' + plural(o.hits, 'hit') + ' here. Tap the target again or press Fire. A shot cannot be taken back.'
       : 'Tap the drone again or press Detonate to blow it up. It cannot be taken back.');
     return render();
   }
@@ -1450,6 +1491,25 @@ function copyLog() {
   else show();
 }
 let logBox = null, shareCode = null;   // shareCode: a new two-phone game's code, shown in the menu until it is closed
+// The battle report at the end of a skirmish: three swipe cards (ui/postgame.js), shown once per finished game.
+const gameKey = () => game.seed + ':' + game.round + ':' + game.winner;
+const sideName = (k) => seat === 'cpu' ? (k === 0 ? 'You' : 'Computer') : isCodes() ? (k === seat ? 'You' : 'Opponent') : 'Player ' + (k + 1);
+function showReport() {
+  const old = document.getElementById('postgame');
+  if (postShown === gameKey() || game.rules.campaign) { if (old) old.remove(); return; }
+  if (old) return;
+  const close = () => { postShown = gameKey(); render(); };
+  let box;
+  try {
+    box = postGameCards(game, { seat: seat === 'cpu' ? 0 : typeof seat === 'number' ? seat : null, sideName,
+      title: seat === 'cpu' ? (game.winner === 0 ? 'Victory' : 'Defeat') : null,
+      onClose: close, onAgain: () => { postShown = gameKey(); askSetup(newGame); render(); }, onSave: downloadLog,
+      onShow: (at) => { postShown = gameKey(); const from = { x: cam.x, y: cam.y, w: cam.w }; cam.w = Math.min(cam.w, fitWidth() * 0.6); cam.x = X(at); cam.y = Y(at); render(); camTween(from); } });
+  } catch (e) { console.error(e); postShown = gameKey(); return; }
+  box.id = 'postgame';
+  document.body.appendChild(box);
+}
+
 const logButtons = () => [
   h('button', { class: 'btn', onclick: downloadLog, title: 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
   h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log')];
@@ -1462,6 +1522,7 @@ function pasteBox(label, button, onText) {
 // ---------- render ----------
 export function render() {
   renders++;
+  if (!game || game.phase !== 'over' || game.rules.campaign) { const pg = document.getElementById('postgame'); if (pg) pg.remove(); }
   // one compact game-mode picker
   const compact = isCompact();
   document.body.classList.toggle('compact', compact);
@@ -1523,7 +1584,7 @@ export function render() {
       roundRing(v.round, R.turnLimit),
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
-        game.phase === 'play' && v.round < R.turnLimit ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
+        game.phase === 'play' && v.round < R.turnLimit && R.firstPlayer !== 'fixed' ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
       mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending)) : null,
       mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null,
       compact ? h('button', { class: 'infobtn' + (detailsOpen ? ' open' : ''), 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Close details' : 'More: the turn, your ship, the rules', title: detailsOpen ? 'Close' : 'More',
@@ -1569,7 +1630,7 @@ export function render() {
   const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
   const tools = h('div', { id: 'tools' });
   if (mine && pending) {
-    fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + munName(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
+    fill(tools, [h('button', { class: 'btn go' + (pending.warn ? ' warnfire' : ''), onclick: () => act(bare(pending)) }, pending.warn ? 'Fire anyway' : ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + munName(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
@@ -1632,8 +1693,9 @@ export function render() {
       ctx.className = 'who' + (v.winner === 'draw' ? turn : v.winner);
       fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
         h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
-        h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => newGame() }, 'Play again'), logButtons())]);
+        h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => askSetup(newGame) }, 'Play again'), h('button', { class: 'btn', onclick: () => { postShown = null; render(); } }, 'Battle report'), logButtons())]);
     }
+    showReport();
   } else if (shown) {
     const own = shown.id === sel && !look;
     ctx.hidden = false;
@@ -1702,7 +1764,7 @@ export function render() {
     h('p', { class: 'muted' }, 'A white rim round a ship\u2019s hexes marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
   if (v.feed.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, v.feed.slice(-12).reverse().map((e) => h('li', null, 'Round ' + e.r + ': ' + describe(e))))));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
-    h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; newGame(); } } }, 'New game'),
+    h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; askSetup(newGame); render(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
     h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Home'),
     h('a', { class: 'btn', href: 'docs/', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Field manual'),

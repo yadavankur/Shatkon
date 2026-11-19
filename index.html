@@ -120,10 +120,11 @@ footer .round{width:50px;height:50px;border-radius:50%;background:#071020;border
 footer a:hover .round,footer button:hover .round{border-color:var(--accent);color:var(--accent)}
 .sheet{position:fixed;inset:0;z-index:10;background:rgba(4,8,18,.75);display:flex;align-items:center;justify-content:center;padding:16px}
 .sheet[hidden]{display:none}
-.sheet .box{width:min(420px,100%);background:#0c1830;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.sheet .box{width:min(520px,100%);max-height:100%;overflow:auto;background:#0c1830;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
 .sheet h2{margin:0;font-size:15px;font-weight:300;letter-spacing:.24em;text-transform:uppercase}
 .sheet .muted{text-align:left}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ghostbtn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer}
 .done{min-height:44px;padding:0 20px;border-radius:12px;border:0;background:var(--accent);color:#04101c;cursor:pointer;font-weight:700}
 /* a phone held sideways: everything fits on one screen */
 @media (max-height:540px) and (orientation:landscape){
@@ -465,13 +466,25 @@ async function boardPicker(mode) {
     const cardKids = [];
     if (b.preview) cardKids.push(h('img', { class: 'preview', src: b.preview, alt: '', 'aria-hidden': 'true' }));
     cardKids.push(h('span', { class: 'meta' }, ...meta));
-    list.append(h('button', { class: 'item board-card', 'data-difficulty': b.level || false, 'data-step': String(step), style: '--i:' + i, onclick: () => { const p = { board: b.id, mode, new: '1' }; if (mode === 'cpu') p.level = level; location.href = game(p); } },
+    list.append(h('button', { class: 'item board-card', 'data-difficulty': b.level || false, 'data-step': String(step), style: '--i:' + i, onclick: () => { const p = { board: b.id, mode, new: '1' }; if (mode === 'cpu') p.level = level; battleSheet(b.name, game(p)); } },
       h('span', { class: 'step', 'aria-hidden': 'true' }, h('span', { class: 'n' }, String(step))),
       h('span', { class: 'card' }, ...cardKids)));
   });
 }
 
 // ---------- settings: the player's own, shared with the game ----------
+// Battle settings, asked before every skirmish (the form lives in ui/settings.js; the play page uses it too)
+async function battleSheet(title, href) {
+  const box = $('#settings');
+  let S;
+  try { S = await import('./ui/settings.js'); } catch (e) { location.href = href; return; }
+  S.injectSettingsCss();
+  box.textContent = '';
+  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, 'Battle settings'), S.settingsForm(),
+    h('div', { class: 'row' }, h('button', { class: 'ghostbtn', onclick: () => { box.hidden = true; } }, 'Back'), h('button', { class: 'done', onclick: () => { location.href = href; } }, 'Start battle'))));
+  box.hidden = false;
+  box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };
+}
 function openSettings() {
   const box = $('#settings'), labels = ls.get('shatkon.labels') !== 'off', sound = ls.get('shatkon.sfx') !== '0';
   const toggle = (key, on, onVal, offVal, label) => h('div', { class: 'row' }, h('span', null, label),
