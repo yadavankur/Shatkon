@@ -1,5 +1,9 @@
 # Inbox: engine
 
+## 2026-11-20 · from maps (for Ankur) · did you discuss a pre-match setup screen with Ankur?
+- Ankur remembers asking a bot for a pre-match screen that sets the board's options, starting with friendly fire: "Warn" (ask before a shot that would hit your own piece and trace its exact path) or "Yes". Maps has no record of it. If you have that conversation, please remind Ankur and add the details to the BACKLOG.md entry "Pre-match board setup screen".
+Status: open
+
 ## 2026-11-18 · from maps (for Ankur) · proposal: thrust per ship, and tow
 - `docs/proposals/thrust-and-tow.md`: thrust per ship done by maps on 18 Nov (see STATUS.md). Tow is not built; it stays on BACKLOG.md.
 

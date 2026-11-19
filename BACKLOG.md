@@ -27,10 +27,10 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ## Ideas & features (not started)
 
-- **Post-game "what went wrong" screen.** Turn a loss into a lesson: after the battle, show ships ended in enemy sight, mines that never fired, own mines/missiles you shot, and one tip for next time. Ankur has ideas to share first. Owner: maps, after Ankur's input. Source: chat 19 Nov (Fog Bank loss analysis)
+- **Post-game "what went wrong" screen.** Turn a loss into a lesson: after a loss, show ships ended in enemy sight, mines that never fired, own mines/missiles you shot, and the board's advice (Ankur 20 Nov: board advice is shown here after a loss, not at the start of a battle). Ankur has ideas to share first. Owner: maps, after Ankur's input. Source: chat 19-20 Nov (Fog Bank loss analysis)
 - **Core deflection ("black box" core).** A hit on the core goes to the most damaged neighbouring segment with working parts; the core only takes damage when nothing can absorb it. Tested on a copy (not in the game): fights +22% (11.8 to 14.4 rounds), core kills 1,931 to 226 of 800 games, and Fog Bank (55% to 14%), Pawn Storm (55% to 23%) and Cat and Mouse swing to the big hull. Open: adopt?, 1-segment boats, softer missile spill. Owner: Ankur decides. Source: /workspace/shatkon-deflect-test (maps' box copy), chat 19 Nov
 - **Board rules announced at start.** Each challenge board could have its own rule shown in a banner when it starts (e.g. Fog Bank thick fog, sensors -1). Ideas only, none picked. Owner: Ankur decides. Source: chat 19 Nov
-- **Fog Bank fixes from a real loss.** Show the board's tip in-game when the battle starts; warn before a shot that would hit your own mine or missile; consider moving Fog Bank to Medium (computer plays the defence better than a new player). Owner: Ankur decides, then maps/engine. Source: chat 19 Nov
+- **Pre-match board setup screen, with a friendly-fire option.** Before a match, a screen asks for the board's settings. First question: friendly fire, options "Warn" or "Yes". Warn = before a shot that would hit your own ship, mine or missile, ask "do you really want to do this?" and trace the exact path of the shot on the board; Yes = fire as today. Other settings may join later. Ankur says this was first discussed with another bot (not maps; not found in maps' chat, Grok Bot or App Builder): whichever bot has the original request, please remind Ankur and add its details here. Owner: maps/engine, after Ankur confirms the details. Source: chat 20 Nov
 - **Brighter look for the rest of the game.** The board menu got a living hex background on 19 Nov; carry the look to other screens if Ankur likes it. Owner: maps, after Ankur's yes. Source: chat 19 Nov
 - **Lab: core auto-placed in the centre segment**, movable but never removed or doubled. Owner: with the Lab picker design. Source: chat 18 Nov
 - **Level 2 scan** (campaign upgrade). Today a scan's rings are fixed by board position and barely use the ship's sensors, so it rarely beats passive sight. Idea: tie the scan to sensors (clear ring = sensor range, faint = double), maybe as the Mk II sensor. Discussion only; Ankur decides. Owner: maps. Source: chat 18 Nov, [engine/scan.js](engine/scan.js)
@@ -95,13 +95,7 @@ Player 1 is the human in vs-computer mode (every board file, `boards.html`, and 
 
 Beacon Hill is written as a mirror but the south / player-1 seat won 69%; some of that ease may be a seat or computer quirk. A person may find The Minefield easier than 33%, and Fog Bank harder than 59%, because the computer is weak at mines and at using Comets.
 
-**Unapproved suggestions** (to space the ladder; do not apply until Ankur says so):
-
-1. Fog Bank: remove one of its three sleeper mines, so it sits more clearly in Medium.
-2. Pawn Storm: remove the laser from Leviathan's core segment (`core+sensor+magazine+laser`, no shield), so the pawns have a slightly clearer Easy step above the 50% group.
-3. The Gambit: add a second point_defence to Patron, so the lure plan is more forgiving and this board sits above First Light and King's Guard.
-4. The Dogleg: cut Hive's seeker drones from 4 to 3, so the canyon plays blinder and sits in the harder half of Medium.
-5. Missile Alley: remove the point_defence from Buckler's core segment (the escort still has point defence on the second segment), so a focused salvo is more likely to land and the board is less of a wall, still Hard.
+**Ladder spacing: rejected by Ankur (20 Nov).** Five ship tweaks were suggested to space the ladder (one fewer Fog Bank sleeper mine, Leviathan, Patron, Hive, Buckler). Ankur said no: boards stay as they are, and Fog Bank stays Easy; losing is a learning opportunity, handled by the post-game screen.
 
 If core deflection is turned on later, this ladder does not hold (Fog Bank and Pawn Storm fall sharply; The Minefield eases a little) and should be ranked again.
 
