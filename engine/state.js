@@ -75,6 +75,14 @@ export function isProtected(state, ship) {
   const until = sc.protect[k];
   return until === 'end' || !sc.fired[until];
 }
+// Missiles: the Nuke (id "missile") and any munition with family: missile (basic, advanced).
+export const isMissile = (rules, kind) => kind === 'missile' || ((rules.munitions || {})[kind] || {}).family === 'missile';
+// The missile kinds a ship has loaded, strongest first (a segment-wrecker, then by hits); weakest first with weakest: true.
+export function missileKinds(rules, load, weakest = false) {
+  const m = rules.munitions || {}, power = (k) => (m[k].wrecks_segment === true ? 100 : 0) + num(m[k].hits);
+  const ks = Object.keys(load || {}).filter((k) => load[k] > 0 && m[k] && isMissile(rules, k)).sort((a, b) => power(b) - power(a) || (a < b ? -1 : 1));
+  return weakest ? ks.reverse() : ks;
+}
 export const sumAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => n + num(x.c[attr]), 0);
 export const maxAttr = (state, ship, attr) => workingParts(state, ship).reduce((n, x) => Math.max(n, num(x.c[attr])), 0);
 

@@ -82,11 +82,14 @@ function rnd(seed) { let t = seed | 0; return () => { t = (t + 0x6d2b79f5) | 0; 
 // A colour and a letter for every part, worked out from what the part does.
 export function partLooks(rules) {
   const out = {}, used = new Set();
+  let coreLetter = null;
   for (const [name, c] of Object.entries(rules.parts)) {
     const color = c.required ? '#f4f6fb' : c.thrust ? '#ff9d4d' : c.adds_range ? '#5cc8ff' : c.hides || c.flare_reduction ? '#b98cf5' : c.holds ? '#d3bd84'
       : c.couples ? '#7b8397' : c.link_range ? '#58d6a0' : c.recharges || c.stops_per_round || c.hp > 1 ? '#f5d142' : c.hits || c.launches ? '#ff6b6b' : '#9aa5c0';
     let letter = '?';
-    for (const ch of name.toUpperCase().replace(/[^A-Z]/g, '')) if (!used.has(ch)) { letter = ch; break; }
+    if (c.required && coreLetter) letter = coreLetter;   // core variants (steel, carbon) read as the core and take no letter of their own
+    else for (const ch of name.toUpperCase().replace(/[^A-Z]/g, '')) if (!used.has(ch)) { letter = ch; break; }
+    if (c.required && !coreLetter) coreLetter = letter;
     used.add(letter);
     out[name] = { color, letter, recharges: !!c.recharges };
   }

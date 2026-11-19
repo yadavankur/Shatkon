@@ -826,6 +826,10 @@ function act(action, quiet, byAI) {
 // ---------- words ----------
 const at = (c) => '[' + c[0] + ', ' + c[1] + ']';
 const nice = (k) => String(k).replace(/_/g, ' ');
+// a munition's display name (its `label:` in the rules: the id "missile" reads "Nuke")
+const munName = (k) => (((game && game.rules.munitions) || {})[k] || {}).label || nice(k);
+// a launch order mode: any missile kind (basic, advanced, Nuke) or the seeker drone
+const isLaunchKind = (k) => k === 'seeker_drone' || (!!game && !!game.rules.munitions[k] && E.isMissile(game.rules, k));
 export const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : /x$/.test(w) ? 'es' : 's');
 function whyText(w) {
   if (!w) return '';
@@ -884,7 +888,7 @@ function describe(e) {
 function forecastText(f, kind) {
   if (!f) return '';
   const when = f.rounds <= 1 ? 'at the end of this round, when missiles fly' : 'in ' + f.rounds + ' rounds';
-  if (f.ends === 'hit') return 'On this path the ' + nice(kind) + ' reaches ' + f.hit + ' ' + when + ', if nothing moves.';
+  if (f.ends === 'hit') return 'On this path the ' + munName(kind).toLowerCase() + ' reaches ' + f.hit + ' ' + when + ', if nothing moves.';
   if (f.ends === 'edge') return 'On this path it flies off the board ' + when + ' unless its seeker finds something within ' + game.rules.munitions[kind].seeker_range + ' hexes.';
   if (f.ends === 'asteroid') return 'On this path it hits an asteroid.';
   return 'On this path it runs out of fuel after ' + plural(f.path.length, 'hex') + ' unless its seeker finds something.';
@@ -937,7 +941,7 @@ function options(v) {
     const k = hex.key(t.at);
     if (!map.has(k) || map.get(k).hits < t.hits) map.set(k, { action: { type: 'fire', ship: sel, seg: t.seg, part: t.part, at: t.at }, mark: 'target', hits: t.hits, label: '\u2212' + t.hits });
   }
-  if (mode === 'missile' || mode === 'seeker_drone') {
+  if (isLaunchKind(mode)) {
     const lo = E.launchOptions(game, sel), me = v.ships.find((x) => x.id === sel);
     if (lo && me && lo.kinds.includes(mode)) {
       const outward = (st) => { let best = me.cells[0]; for (const c of me.cells) if (hex.dist(c, st) < hex.dist(best, st)) best = c; return [hex.dirToward(best, st)]; };
@@ -1002,7 +1006,7 @@ function tap(c, v, opts, viaChip, t) {
     return render();
   }
   // missiles and drones can be aimed at any hex: they fly the straight line toward it
-  if (!o && (mode === 'missile' || mode === 'seeker_drone') && sel && myTurn() && !v.ships.some((x) => x.mine && x.cells.some((y) => hex.same(y, c)))) {
+  if (!o && isLaunchKind(mode) && sel && myTurn() && !v.ships.some((x) => x.mine && x.cells.some((y) => hex.same(y, c)))) {
     const aimed = E.aimLaunch(game, sel, mode, c);
     if (aimed) {
       pending = aimed;
@@ -1050,7 +1054,7 @@ function guideTap(c, v, gv) {
     selectShip(gs.id, v);
     if (gv.reticle.kind === 'fire') { mode = 'fire'; say('Fire mode for ' + gs.id + ': tap the red target to shoot.'); }
     else {
-      const kind = ['missile', 'seeker_drone'].find((k) => E.aimLaunch(game, gs.id, k, c));
+      const kind = [...E.missileKinds(game.rules, Object.fromEntries(Object.keys(game.rules.munitions).map((k) => [k, 1]))), 'seeker_drone'].find((k) => E.aimLaunch(game, gs.id, k, c));
       if (kind) { mode = kind; pending = E.aimLaunch(game, gs.id, kind, c); say('Aimed at the marked target. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.'); }
     }
     render(); return true;
@@ -1565,7 +1569,7 @@ export function render() {
   const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
   const tools = h('div', { id: 'tools' });
   if (mine && pending) {
-    fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + nice(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
+    fill(tools, [h('button', { class: 'btn go', onclick: () => act(pending) }, ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + munName(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
@@ -1574,9 +1578,9 @@ export function render() {
       seeker_drone: 'Tap any hex to send the drone straight toward it. It then wanders and reports what it sees.', scan: 'Scan preview shown. Press Scan now.', detonate: 'Tap one of your drones, then tap it again to blow it up.' };
     // story chapters can forbid some orders for a ship ("guns cold"): grey those buttons out with the reason
     const lim = v.story ? (v.story.limits || {})[me.name] : null;
-    const barred = (m) => !!lim && lim.actions.includes({ move: 'move', fire: 'fire', missile: 'launch', seeker_drone: 'launch', scan: 'scan' }[m]);
+    const barred = (m) => !!lim && lim.actions.includes(isLaunchKind(m) ? 'launch' : { move: 'move', fire: 'fire', scan: 'scan' }[m]);
     const btn = (m, icon, label, sub, on, extra = {}) => ibtn({ icon, label, sub: barred(m) ? (lim.reason ? lim.reason.slice(0, 22) : 'locked') : sub, on: on && !barred(m), pressed: mode === m && on && !barred(m),
-      title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m]); render(); }, ...extra });
+      title: barred(m) ? (lim.reason || 'not allowed right now') : null, onclick: () => { mode = m; pending = null; say(help[m] || help.missile); render(); }, ...extra });
     const launchWhy = (kind) => !st.launchers ? 'no launcher' : !(st.ammo[kind] > 0) ? 'none left' : !st.launchersReady ? 'launcher used' : st.ammo[kind] + ' left';
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     const ammoPips = (kind) => Array.from({ length: Math.min(8, st.ammo[kind] || 0) }, () => st.launchersReady > 0);
@@ -1587,7 +1591,8 @@ export function render() {
       // the laser's damage close up and far away is the point: closer hits harder
       st.beams ? btn('fire', 'laser', 'Laser', !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no moves' : targets ? plural(targets, 'target') : 'show reach', st.beamsReady && v.cp >= R.cost.fire,
         { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : 'show where the lasers reach' }) : null,
-      has('missile') ? btn('missile', 'missile', 'Missile', launchWhy('missile'), !!lo && lo.kinds.includes('missile'), { pips: ammoPips('missile'), pipCls: 'amber' }) : null,
+      // one button per missile kind the ship carries, weakest first (basic, advanced, Nuke)
+      ...E.missileKinds(game.rules, Object.fromEntries(Object.keys(st.ammo).map((k) => [k, 1])), true).filter(has).map((k) => btn(k, 'missile', munName(k), launchWhy(k), !!lo && lo.kinds.includes(k), { pips: ammoPips(k), pipCls: 'amber' })),
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
       ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',

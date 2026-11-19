@@ -25,6 +25,16 @@ const { hex } = E;
 
 let labDocs = null;     // the parsed rule files { world, map, fleets }
 export function setLabDocs(docs) { labDocs = docs; }
+// Any of the core types (core, steel_core, carbon_core): the part with required: true.
+const isCorePart = (n) => !!n && !!rules && !!rules.parts && !!(rules.parts[n] || {}).required;
+// A part's or munition's display name: its `label:` in the rule file, else its id made readable.
+const partLabel = (n) => ((rules && rules.parts && rules.parts[n]) || {}).label || String(n).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+const munLabel = (k) => ((rules && rules.munitions && rules.munitions[k]) || {}).label || String(k).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+// The missile kinds in the rules, weakest first (basic, advanced, then the Nuke).
+const labMissileKinds = () => Object.keys((rules && rules.munitions) || {}).filter((k) => E.isMissile(rules, k)).sort((a, b) => {
+  const m = rules.munitions, pw = (k) => (m[k].wrecks_segment === true ? 100 : 0) + (m[k].hits || 0);
+  return pw(a) - pw(b);
+});
 
 
 const LAB = {
@@ -429,10 +439,11 @@ function labAct(state, seat, pol, opt) {
   if (shots.length) return { type: 'fire', ship: s.id, seg: shots[0].seg, part: shots[0].part, at: shots[0].at };
   if (opt.missiles) {
     let lo = E.launchOptions(state, s.id);
-    if (lo && lo.kinds.includes('missile') && lo.locks.length) {
+    let mk = lo ? E.missileKinds(state.rules, Object.fromEntries(lo.kinds.map((k) => [k, 1])))[0] : null;   // strongest loaded missile
+    if (lo && mk && lo.locks.length) {
       let t = state.ships.find((x) => x.id === lo.locks[0]),
         st = lo.starts.slice().sort((p, q) => E.gap({ pos: p }, t) - E.gap({ pos: q }, t))[0];
-      return { type: 'launch', ship: s.id, kind: 'missile', start: st, target: lo.locks[0], route: [] };
+      return { type: 'launch', ship: s.id, kind: mk, start: st, target: lo.locks[0], route: [] };
     }
   }
   return { type: 'end' };
@@ -523,7 +534,7 @@ function labBattle(A, Bd, o, seed, record) {
         st[vs].byCause[c].shield += sh;
         st[vs].byCause[c].armour += ar;
         st[vs].byCause[c].system += sy;
-        if (/missile/.test(c) && c === 'missile') st[at].mHits++;
+        if (rules.munitions[c] && E.isMissile(rules, c)) st[at].mHits++;
         if (record)
           line.push(
             vs.toUpperCase() +
@@ -741,14 +752,14 @@ const PICK_ICONS = {
   x: 'M6 6l12 12M18 6L6 18', check: 'M5 12.5l4.5 4.5L19 7', plus: 'M12 5v14M5 12h14', ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8'
 };
 function pickIcon(name, size = 22) {
-  const d = PICK_ICONS[name];
+  const d = PICK_ICONS[name] || (isCorePart(name) ? PICK_ICONS.core : null);
   if (!d) {   // a part with no drawn icon: its coloured letter, as on the hull editor
     const lk = partLooks(rules)[name] || { color: '#8f9cba', letter: '?' };
     return h('span', { class: 'pk-letter', style: 'background:' + lk.color + ';width:' + size + 'px;height:' + size + 'px', 'aria-hidden': 'true' }, lk.letter);
   }
   return svgEl('svg', { class: 'pk-i', width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: name === 'laser' ? 'currentColor' : 'none', stroke: name === 'laser' ? 'none' : 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svgEl('path', { d }));
 }
-const pretty = (p) => (p ? p.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Empty');
+const pretty = (p) => (p ? partLabel(p) : 'Empty');
 // a part's tab: its `group:` in the rule file, else a guess from what it does
 function partGroup(c) {
   if (c.group) return c.group;
@@ -782,7 +793,7 @@ function labSlotHex(side, des, si) {
   const BAYP = [[-21, -11], [21, -11], [0, 25]], MOUNTP = [[0, -64], [55.4, 32], [-55.4, 32]];
   const btn = (kind, k, [x, y]) => {
     const p = seg[kind][k], on = P && P.side === side && P.seg === si && P.kind === kind && P.k === k, bay = kind === 'bays', sz = bay ? 42 : 38;
-    return h('button', { class: 'pk-slot ' + (bay ? 'bay' : 'mount') + (p ? '' : ' empty') + (p === 'core' ? ' core' : '') + (on ? ' on' : ''),
+    return h('button', { class: 'pk-slot ' + (bay ? 'bay' : 'mount') + (p ? '' : ' empty') + (isCorePart(p) ? ' core' : '') + (on ? ' on' : ''),
       style: 'left:' + (c + x - sz / 2) + 'px;top:' + (c + y - sz / 2) + 'px',
       'aria-label': (bay ? 'Interior' : 'Exterior') + ' slot ' + (k + 1) + ': ' + (p ? pretty(p) : 'empty'),
       onclick: () => { LAB.pick = { side, seg: si, kind, k, tab: null, prev: p || null, more: false }; labRerender(); } },
@@ -805,14 +816,17 @@ function labPicker() {
     h('aside', { class: 'pk-drawer ' + (P.side === 'a' ? 'right' : 'left'), role: 'dialog', 'aria-label': 'Choose a part' }, kids));
   const shipLbl = 'Ship ' + P.side.toUpperCase() + ' · Segment ' + (P.seg + 1);
   // the core: never removed or doubled; it can only move to another segment
-  if (cur === 'core') {
-    return box([head(shipLbl, 'Core · fixed'), h('div', { class: 'pk-core' }, h('div', { class: 'pk-coreic' }, pickIcon('core', 40)),
-      h('b', null, 'The core can’t be removed'), h('span', null, 'Every ship has exactly one. It sits deepest (layer ' + ((R.core || {}).layer || 6) + '): when it goes, the ship goes.'),
+  if (isCorePart(cur)) {
+    const kinds = Object.keys(labDocs.world.bay_parts || {}).filter((n) => isCorePart(n));
+    return box([head(shipLbl, partLabel(cur) + ' · can’t be removed'), h('div', { class: 'pk-core' }, h('div', { class: 'pk-coreic' }, pickIcon('core', 40)),
+      h('b', null, 'The core can’t be removed'), h('span', null, 'Every ship has exactly one, of any kind. It sits deepest (layer ' + ((R[cur] || {}).layer || 6) + '): when it goes, the ship goes.'),
+      kinds.length > 1 ? h('div', { class: 'pk-move' }, h('span', null, 'Core type'), h('div', { class: 'pk-chips' }, kinds.map((n) => h('button', { class: n === cur ? 'on' : null, 'aria-pressed': String(n === cur), title: (R[n].note || ''),
+        onclick: () => { if (n === cur) return; seg.bays[P.k] = n; labRerender(); } }, partLabel(n) + ' · ' + (R[n].hp || 1) + ' HP · cost ' + R[n].cost)))) : null,
       des.hull.length > 1 ? h('div', { class: 'pk-move' }, h('span', null, 'Move it to segment'), h('div', { class: 'pk-chips' }, des.hull.map((g, i) => h('button', { class: i === P.seg ? 'on' : null, 'aria-pressed': String(i === P.seg),
-        onclick: () => { if (i === P.seg) return; const to = g.bays, j = to.indexOf('') >= 0 ? to.indexOf('') : 0; seg.bays[P.k] = to[j] === 'core' ? '' : to[j] || ''; to[j] = 'core'; LAB.pick = null; labRerender(); } }, String(i + 1))))) : null)]);
+        onclick: () => { if (i === P.seg) return; const to = g.bays, j = to.indexOf('') >= 0 ? to.indexOf('') : 0; seg.bays[P.k] = isCorePart(to[j]) ? '' : to[j] || ''; to[j] = cur; LAB.pick = null; labRerender(); } }, String(i + 1))))) : null)]);
   }
-  const hasCore = des.hull.some((g) => g.bays.includes('core'));
-  const names = Object.keys(world || {}).filter((n) => n !== 'core' || !hasCore).filter((n) => R[n]);
+  const hasCore = des.hull.some((g) => g.bays.some(isCorePart));
+  const names = Object.keys(world || {}).filter((n) => !isCorePart(n) || !hasCore).filter((n) => R[n]);
   const tabs = PICK_TABS[P.kind].filter(([g]) => names.some((n) => partGroup(R[n]) === g));
   const others = names.filter((n) => !PICK_TABS[P.kind].some(([g]) => g === partGroup(R[n])));
   if (others.length) tabs.push(['other', 'Other', others[0]]);
@@ -1097,21 +1111,24 @@ function labDesigner(side) {
             },
             'Remove segment'
           ),
-          h(
-            'label',
-            { class: 'lab-chk' },
-            'Missiles ',
-            h('input', {
-              type: 'number',
-              min: 0,
-              max: 20,
-              value: des.load.missile || 0,
-              style: 'width:3.5em',
-              onchange: (ev) => {
-                des.load.missile = Math.max(0, Number(ev.target.value) || 0);
-                return labRerender();
-              }
-            })
+          ...labMissileKinds().map((k) =>
+            h(
+              'label',
+              { class: 'lab-chk' },
+              munLabel(k) + ' ',
+              h('input', {
+                type: 'number',
+                min: 0,
+                max: 20,
+                value: des.load[k] || 0,
+                style: 'width:3.5em',
+                'aria-label': munLabel(k) + ' carried',
+                onchange: (ev) => {
+                  des.load[k] = Math.max(0, Number(ev.target.value) || 0);
+                  return labRerender();
+                }
+              })
+            )
           )
         )
       )
@@ -1162,7 +1179,7 @@ function labDesigner(side) {
             : 'no lasers') +
             '; ' +
             (st.launchers
-              ? st.launchers + ' launcher, ' + (st.load.missile || 0) + ' of ' + st.magazine + ' missiles'
+              ? st.launchers + ' launcher, ' + labMissileKinds().reduce((n, k) => n + (st.load[k] || 0), 0) + ' of ' + st.magazine + ' missiles' + (labMissileKinds().some((k) => st.load[k]) ? ' (' + labMissileKinds().filter((k) => st.load[k]).map((k) => st.load[k] + ' ' + munLabel(k).toLowerCase()).join(', ') + ')' : '')
               : 'no launcher')
         ],
         [

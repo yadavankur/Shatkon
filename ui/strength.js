@@ -1,10 +1,10 @@
-// EXPERIMENTAL: the Strength check drawer for lab-strength.html (a special build of the Lab).
+// The Strength check drawer in the Ship Lab (play.html#lab).
 // Tap a segment in the Lab, then "Strength check": a drawer shows how many shots of each weapon it takes
 // to strip and finish that segment, and lets you fire single shots at it. All damage is done by the
-// game's own engine/damage.js; the test missiles and cores come from ui/strength-model.js only.
+// game's own engine/damage.js, with the real missiles and cores from rules/world_v0.4.yaml.
 
 import { labAPI } from './lab.js';
-import { STRENGTH_LAB, strengthGame, strengthTable, fire, nextRound, segState, laserHits, segHasCore } from './strength-model.js';
+import { STRENGTH_LAB, missileInfo, coreInfo, coreIdOf, strengthGame, strengthTable, fire, nextRound, segState, laserHits, segHasCore } from './strength-model.js';
 
 const LAB = labAPI.LAB;
 const S = { side: 'a', si: 0, core: 'basic', coreOnly: false, sim: null, log: [], flash: new Set(), world: null, open: false };
@@ -32,6 +32,10 @@ async function loadWorld() {
 
 const design = () => LAB[S.side];
 const opts = () => ({ core: S.core, coreOnly: S.coreOnly });
+function fittedCore() {
+  for (const g of design().hull) for (const p of g.bays || []) { const id = coreIdOf(S.world, p); if (id) return id; }
+  return 'basic';
+}
 function reset() {
   S.sim = strengthGame(S.world, design(), opts());
   S.log = [];
@@ -151,6 +155,7 @@ async function openDrawer() {
   if (!design()) return;
   S.si = Math.max(0, Math.min(LAB.sel[S.side] || 0, design().hull.length - 1));
   try { await loadWorld(); } catch (e) { alert('Strength check: ' + e.message); return; }
+  S.fitted = S.core = fittedCore();
   reset();
   S.open = true;
   drawer.classList.add('on'); veil.classList.add('on'); drawer.setAttribute('aria-hidden', 'false');
@@ -197,9 +202,9 @@ function renderDrawer() {
   const des = design(), sim = S.sim, rules = sim.rules, ship = sim.ship, sg = ship.segs[S.si];
   const hasCore = segHasCore(rules, sg);
   const coreSeg = ship.segs.findIndex((g) => segHasCore(rules, g));
-  const coreDef = STRENGTH_LAB.cores.find((c) => c.id === S.core);
+  const coreDef = coreInfo(S.world, S.core);
   const head = el('div', { class: 'sx-head' },
-    el('h2', null, 'Strength check'), el('span', { class: 'tag' }, 'Test values'),
+    el('h2', null, 'Strength check'), el('span', { class: 'tag' }, 'Lab'),
     el('span', { class: 'who' }, (des.name || 'Ship') + ' \u00b7 ' + segLabel()),
     el('button', { type: 'button', class: 'sx-x', 'aria-label': 'Close', onclick: closeDrawer }, '\u00d7'));
   const hp = hpLine(sim, S.si);
@@ -208,7 +213,8 @@ function renderDrawer() {
     hp.shields ? el('span', { class: 'sh' }, ' \u00b7 ' + hp.shields + ', not counted in HP') : null);
   const optsRow = el('div', { class: 'sx-opts' },
     hasCore
-      ? el('span', null, el('span', { class: 'lbl' }, 'Core (test) '), chips(S.core, STRENGTH_LAB.cores.map((c) => [c.id, c.label.replace(' core', '') + ' ' + c.hp + ' HP']), setOpt((v) => (S.core = v))))
+      ? el('span', null, el('span', { class: 'lbl' }, 'Try core '), chips(S.core, STRENGTH_LAB.cores.map((c) => coreInfo(S.world, c.id)).map((c) => [c.id, c.label.replace(/ core$/i, '') + ' ' + c.hp + ' HP']), setOpt((v) => (S.core = v))),
+        S.core !== S.fitted ? el('span', { class: 'nocore' }, ' (what-if: the design has ' + coreInfo(S.world, S.fitted).label.toLowerCase() + '; fit it in the core slot to keep it)') : null)
       : el('span', { class: 'nocore' }, 'No core in this segment' + (coreSeg >= 0 ? ' (the ship\u2019s core is in segment ' + (coreSeg + 1) + ', ' + coreDef.label.toLowerCase() + ', ' + coreDef.hp + ' HP)' : '')),
     el('label', { class: 'sx-chk' }, el('input', { type: 'checkbox', checked: !S.coreOnly, onchange: (e) => setOpt((v) => (S.coreOnly = v))(!e.target.checked) }), 'Ship is lost when only engines and core are left (game rule)'));
 
@@ -226,14 +232,14 @@ function renderDrawer() {
     el('b', null, hasCore ? 'Core dies: ' : 'Out: '), hasCore ? 'the core reaches 0 HP and the ship is lost. ' : 'the segment is wrecked: once its parts are gone, the next hit wrecks it (or the ship is lost first, see the notes). ',
     'Counts are shots fired at this segment in one round, the same shots as the buttons on the right; a missile shot down still counts. \u201c\u2014\u201d: the ship was lost before that point. A range (2\u20133) means it depends on which part takes the hit: within a layer the part is picked at random (24 tries each).');
   const assume = el('p', { class: 'sx-assume' },
-    'Test values, not in battles: laser ' + [1, 5, 9].map((d) => laserHits(rules, d)).join(' / ') + ' hits near / mid / far; basic missile 3 hits, advanced 4 hits, nuke wrecks the segment outright like today\u2019s missile (a working shield takes the blow: shield down, 3 hits); point defence can shoot any missile down; cores basic 1, steel 3, carbon crystal 6 HP. Hits go to the lowest layer first (shield 1, armour 2, weapons and point defence 3, bays 4\u20135, core 6).');
+    'From the rule file: laser ' + [1, 5, 9].map((d) => laserHits(rules, d)).join(' / ') + ' hits near / mid / far; ' + STRENGTH_LAB.missiles.map((m) => missileInfo(S.world, m.id)).map((m) => m.label.toLowerCase() + (m.wrecks ? ' wrecks the segment outright (a working shield takes the blow: shield down, ' + m.hits + ' hits)' : ' ' + m.hits + ' hits')).join(', ') + '; point defence can shoot any missile down; ' + STRENGTH_LAB.cores.map((c) => coreInfo(S.world, c.id)).map((c) => c.label.toLowerCase() + ' ' + c.hp + ' HP').join(', ') + '. Hits go to the lowest layer first (shield 1, armour 2, weapons and point defence 3, bays 4\u20135, core 6).');
   const left = el('section', { class: 'sx-card' }, el('h3', null, 'How many shots'), table, explain, assume);
 
   // simulator
   const st = segState(sim, S.si), over = st.wrecked || st.shipLost;
   const fireBtns = el('div', { class: 'sx-fire' },
     STRENGTH_LAB.lasers.map((l) => el('button', { type: 'button', class: 'laser', disabled: over, onclick: () => shoot({ ...l, kind: 'laser' }) }, l.label.replace('Laser, ', 'Laser '), el('small', null, plural(laserHits(rules, l.dist), 'hit')))),
-    STRENGTH_LAB.missiles.map((m) => el('button', { type: 'button', class: 'missile', disabled: over, onclick: () => shoot({ ...m, kind: 'missile' }) }, m.label, el('small', null, m.wrecks ? 'wrecks segment' : m.hits + ' hits'))));
+    STRENGTH_LAB.missiles.map((x) => missileInfo(S.world, x.id)).map((m) => el('button', { type: 'button', class: 'missile', disabled: over, onclick: () => shoot({ ...m, kind: 'missile' }) }, m.label, el('small', null, m.wrecks ? 'wrecks segment' : m.hits + ' hits'))));
   const pdLeft = Math.max(0, t.pd - (ship.pd || 0));
   const ctl = el('div', { class: 'sx-ctl' },
     el('span', { class: 'rnd' }, 'Round ' + sim.game.round + ' \u00b7 ' + plural(S.shots, 'shot') + ' fired'),
@@ -261,8 +267,8 @@ function renderDrawer() {
 }
 
 function missileText(id) {
-  const m = STRENGTH_LAB.missiles.find((x) => x.id === id);
-  return m.wrecks ? 'wrecks the segment (today\u2019s missile); vs a shield: ' + m.hits + ' hits' : m.hits + ' hits';
+  const m = missileInfo(S.world, id);
+  return m.wrecks ? 'wrecks the segment; vs a working shield: ' + m.hits + ' hits' : m.hits + ' hits';
 }
 
 function E_hull(sim) {

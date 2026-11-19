@@ -1,54 +1,54 @@
-// EXPERIMENTAL: the Strength check (lab-strength.html only). Nothing in the real game reads this file.
-// It asks the game's own damage code (engine/damage.js applyHits and explode) how much punishment one
-// segment of a Lab design takes, with three test missiles and three test cores that do not exist in the
-// shipped rules. The world file is copied and changed here, in memory, for this page only.
+// The Strength check (Lab): how much punishment one segment of a Lab design takes. It asks the game's own
+// damage code (engine/damage.js applyHits and explode), with the real parts from rules/world_v0.4.yaml:
+// three missiles (missile_basic, missile_advanced, and missile = the Nuke) and three cores (core,
+// steel_core, carbon_core). Nothing here changes the rules; opts.core only swaps the core in a copy of the design.
 
 import { buildRules, start } from '../engine/index.js';
 import { beamHitsAt } from '../engine/actions.js';
 import { applyHits, explode } from '../engine/damage.js';
 import { makeObj, segHex, num } from '../engine/state.js';
 
-// Assumed values (19-20 Nov 2026 chat with Ankur). Test values only; not balance decisions.
 export const STRENGTH_LAB = {
-  experimental: true,
   lasers: [
     { id: 'near', label: 'Laser, near', band: '1\u20134 hexes', dist: 1 },
     { id: 'mid', label: 'Laser, mid', band: '5\u20138 hexes', dist: 5 },
     { id: 'far', label: 'Laser, far', band: '9 hexes', dist: 9 }
   ],
-  missiles: [
-    { id: 'basic', label: 'Basic missile', hits: 3 },
-    { id: 'advanced', label: 'Advanced missile', hits: 4 },
-    { id: 'nuke', label: 'Nuke', hits: 3, wrecks: true }   // today's missile: wrecks the segment outright; vs a working shield, 3 hits
-  ],
-  cores: [
-    { id: 'basic', label: 'Basic core', hp: 1 },
-    { id: 'steel', label: 'Steel core', hp: 3 },
-    { id: 'carbon', label: 'Carbon crystal core', hp: 6 }
-  ]
+  // ids in the rule file; labels, hits and wrecks_segment are read from it (see missileInfo)
+  missiles: [{ id: 'basic', kind: 'missile_basic' }, { id: 'advanced', kind: 'missile_advanced' }, { id: 'nuke', kind: 'missile' }],
+  cores: [{ id: 'basic', part: 'core' }, { id: 'steel', part: 'steel_core' }, { id: 'carbon', part: 'carbon_core' }]
 };
-export const missileKind = (id) => 'test_missile_' + id;
+export const missileKind = (id) => (STRENGTH_LAB.missiles.find((m) => m.id === id) || {}).kind || id;
+const title = (n) => String(n).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+// label, hits and whether it wrecks the segment, from the world file
+export function missileInfo(world, id) {
+  const m = STRENGTH_LAB.missiles.find((x) => x.id === id), mu = world.munitions[m.kind] || {};
+  return { ...m, label: mu.label || title(m.kind), hits: num(mu.hits), wrecks: mu.wrecks_segment === true };
+}
+export function coreInfo(world, id) {
+  const c = STRENGTH_LAB.cores.find((x) => x.id === id) || STRENGTH_LAB.cores[0], p = world.bay_parts[c.part] || {};
+  return { ...c, label: p.label || title(c.part), hp: num(p.hp, 1), cost: num(p.cost) };
+}
+export const coreIdOf = (world, part) => (STRENGTH_LAB.cores.find((c) => c.part === part) || {}).id || null;
 
-// The shipped world with this page's test pieces added. opts.core: core id. The nuke keeps the shipped
-// missile's rule: it wrecks the segment outright (a working shield takes the blow instead: 3 hits).
+// The world as the game uses it. opts.coreOnly: only losing the core kills the ship (switches off
+// "only engines and core left"), a what-if for this page only.
 export function strengthWorld(world, opts = {}) {
-  const w = structuredClone(world), core = STRENGTH_LAB.cores.find((c) => c.id === opts.core) || STRENGTH_LAB.cores[0];
-  w.bay_parts.core = { ...w.bay_parts.core, hp: core.hp };
-  const base = w.munitions.missile;
-  for (const m of STRENGTH_LAB.missiles)
-    w.munitions[missileKind(m.id)] = { ...base, hits: m.hits, wrecks_segment: !!m.wrecks };
-  // opts.coreOnly: only losing the core kills the ship (switches off "only engines and core left")
+  const w = structuredClone(world);
   if (opts.coreOnly) w.damage = { ...w.damage, ship_dead_when: ['core_destroyed'] };
   w.turns = { ...(w.turns || {}), first: 'player_1' };
   return w;
 }
 
-const cleanHull = (des) => des.hull.map((s) => ({ at: s.at.slice(), bays: (s.bays || []).filter(Boolean), mounts: (s.mounts || []).filter(Boolean) }));
+// opts.core: try the design with this core type instead of the one fitted
+const cleanHull = (world, des, core) => des.hull.map((s) => ({ at: s.at.slice(),
+  bays: (s.bays || []).filter(Boolean).map((p) => (core && (world.bay_parts[p] || {}).required ? coreInfo(world, core).part : p)),
+  mounts: (s.mounts || []).filter(Boolean) }));
 
 // A sandbox with the design as player 1's only ship and a far-away dummy as player 2 (the shooter).
 export function strengthGame(world, des, opts = {}) {
   const w = strengthWorld(world, opts);
-  const target = { name: 'Target', flagship: true, hull: cleanHull(des) };
+  const target = { name: 'Target', flagship: true, hull: cleanHull(world, des, opts.core) };
   const dummy = { name: 'Shooter', flagship: true, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser'] }] };
   const fleets = { budget: 1e9, player_1: { ships: [target], deployment: [{ ship: 'Target', at: [0, 0] }] }, player_2: { ships: [dummy], deployment: [{ ship: 'Shooter', at: [0, -9] }] } };
   const built = buildRules(w, { map: { board: { shape: 'hexagon', radius: 11 }, terrain: [] } }, fleets);
@@ -68,7 +68,7 @@ export function fire(sim, si, weapon) {
   if (ship.dead) return { events: [], over: true };
   if (weapon.kind === 'laser') applyHits(game, ship, si, laserHits(rules, weapon.dist), 'laser');
   else {
-    const kind = missileKind(weapon.id), o = makeObj(game, kind, 1, segHex(ship, si), 0);
+    const o = makeObj(game, missileKind(weapon.id), 1, segHex(ship, si), 0);
     game.objs.push(o);
     explode(game, o, { ship, seg: si });
   }
@@ -114,7 +114,7 @@ export function strengthTable(world, des, si, opts = {}) {
   const pd = probe.ship.segs.reduce((n, g) => n + g.parts.reduce((k, p) => k + num(rules.parts[p.t].stops_per_round), 0), 0);
   const weapons = [
     ...STRENGTH_LAB.lasers.map((l) => ({ ...l, kind: 'laser', hits: laserHits(rules, l.dist) })),
-    ...STRENGTH_LAB.missiles.map((m) => ({ ...m, kind: 'missile' }))
+    ...STRENGTH_LAB.missiles.map((m) => ({ ...missileInfo(world, m.id), kind: 'missile' }))
   ];
   for (const wpn of weapons) {
     const strip = [], finish = [], why = new Set();
@@ -131,6 +131,7 @@ export function strengthTable(world, des, si, opts = {}) {
       if (st.why) why.add(st.why);
     }
     const notes = [];
+    if (wpn.wrecks) notes.push('wrecks the segment outright');
     if (shield) notes.push(wpn.wrecks ? 'a working shield takes the blow: no wreck, shield down, ' + wpn.hits + ' hits' : 'shield soaks the first hit');
     if (wpn.kind === 'missile' && pd) notes.push('point defence shoots down the first ' + (pd > 1 ? pd + ' missiles' : 'missile') + ' of the round');
     if (wpn.kind === 'missile') notes.push('splash: 1 hit to each touching segment');

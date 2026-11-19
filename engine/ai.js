@@ -140,7 +140,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   const decoysNear = (path, t) => decoys.some((d) => d.id !== t.id && path.some((c) => minDist([c], d.cells) <= seekR));
   // one missile is enough for a decoy: is one of mine already on its way to it?
   const decoyClaimed = (t) => v.objs.some((o) => o.mine && o.target === t.id);
-  const missilesLeft = mine.reduce((n, m) => n + ((m.load || {}).missile || 0), 0);
+  const missileLoad = (ld) => Object.keys(ld || {}).reduce((n, k) => n + (E.isMissile(R, k) ? ld[k] || 0 : 0), 0);
+  const missilesLeft = mine.reduce((n, m) => n + missileLoad(m.load), 0);
   // What a beam would stop on before it got to its target: a mine or a missile on the line that this
   // side knows about (its own, or an enemy one in sight). The rules stop a beam on the first thing it
   // meets, so a fleet firing across its own minefield used to sweep it (see doFire for the exceptions).
@@ -178,7 +179,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
         const o = v.objs.find((o) => o.id === t.target);
         // shoot down missiles that are close to my ships
         const near = o ? minDist([o.pos], mine.flatMap((m) => m.cells)) : 99;
-        score = o && o.kind === 'missile' && near <= 6 ? 25
+        score = o && E.isMissile(R, o.kind) && near <= 6 ? 25
           // shoots_mines: N = a mine it can see within N hexes of one of its ships is worth a shot (it is in the way)
           : o && isMine(o.kind) && typeof T.shoots_mines === 'number' && near <= T.shoots_mines ? 12
           : 2;
@@ -206,7 +207,9 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
   // 2. Launch a locked missile at a visible ship within sensible range
   for (const s of capHit ? [] : mine) {
     const lo = E.launchOptions(state, s.id);
-    if (!lo || !lo.kinds.includes('missile') || !lo.locks.length) continue;
+    // the strongest missile it has loaded (the Nuke first, then advanced, then basic)
+    const mk = lo ? E.missileKinds(R, Object.fromEntries(lo.kinds.map((k) => [k, 1]))).find((k) => lo.kinds.includes(k)) : null;
+    if (!lo || !mk || !lo.locks.length) continue;
     const targets = lo.locks
       .map(shipById)
       .filter(Boolean)
@@ -233,7 +236,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       for (const { t } of targets) {
         if (T.minds_decoys === true && isDecoy(t) && decoyClaimed(t)) continue;
         for (const st of lo.starts) {
-          const act = { type: 'launch', ship: s.id, kind: 'missile', start: st, target: t.id, route: [] };
+          const act = { type: 'launch', ship: s.id, kind: mk, start: st, target: t.id, route: [] };
           const fc = E.forecast(state, act);
           if (!fc || fc.ends !== 'hit' || fc.hit !== t.id) continue;
           // missile_flight_rounds: N = it only launches when the missile gets there within N flight
@@ -253,7 +256,7 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     const t = targets[0].t;
     let start = lo.starts[0];
     for (const st of lo.starts) if (minDist([st], t.cells) < minDist([start], t.cells)) start = st;
-    const act = { type: 'launch', ship: s.id, kind: 'missile', start, target: t.id, route: [] };
+    const act = { type: 'launch', ship: s.id, kind: mk, start, target: t.id, route: [] };
     if (easy && rnd() < 0.5) continue; // easy: hesitates
     return act;
   }
@@ -290,9 +293,10 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
     for (const s of mine) {
       const pr = prof(s);
       if (!pr.blind_fire) continue;
-      const have = (s.load || {}).missile || 0;
+      const have = missileLoad(s.load);
       if (have <= (pr.blind_fire_keeps ?? 1)) continue;
-      const m = R.munitions.missile;
+      const bk = E.missileKinds(R, s.load, true)[0];   // a blind shot uses its weakest missile
+      const m = bk && R.munitions[bk];
       if (!m) continue;
       const reachHex = m.speed * (m.fuel || 1);
       const spots = (v.contacts || []).filter((c) => c.kind === 'ship').map((c) => c.at).concat(v.ghosts.filter((g) => g.kind === 'ship').map((g) => g.pos));
@@ -303,8 +307,8 @@ export function computerMove(state, seat, level = 'normal', opts = {}) {
       const aim = spots.filter((c) => minDist(s.cells, [c]) <= reachHex).sort((a, b) => minDist(s.cells, [a]) - minDist(s.cells, [b]))[0];
       if (!aim) continue;
       // one blind shot per target area per round: don't empty the magazine at the same guess
-      if (v.objs.some((o) => o.mine && o.kind === 'missile' && !o.target && minDist([o.pos], s.cells) <= 2)) continue;
-      const act = E.aimLaunch(state, s.id, 'missile', aim);
+      if (v.objs.some((o) => o.mine && E.isMissile(R, o.kind) && !o.target && minDist([o.pos], s.cells) <= 2)) continue;
+      const act = E.aimLaunch(state, s.id, bk, aim);
       if (act && E.attempt(state, act).ok) return act;
     }
   }

@@ -172,7 +172,8 @@ damage:
 # ------------------------------------------------------------
 bay_parts:
   core:
-    note: "the ship's brain; every ship needs exactly one"
+    label: "Basic core"
+    note: "the ship's brain; every ship needs exactly one core (this one, a steel core or a carbon crystal core). 1 hit destroys it"
     required: true
     sensor_range: 2
     link_range: 4
@@ -250,6 +251,25 @@ bay_parts:
     couples: true
     layer: 4
     cost: 0
+  # Core variants (20 Nov 2026): tougher cores. Each one IS the core (required: true): a ship carries
+  # exactly one of core, steel_core or carbon_core. Same sensor and link range; only hp and cost differ.
+  steel_core:
+    note: "a steel-cased core: the ship's brain, but it takes 3 hits to destroy. Every ship needs exactly one core of any kind"
+    required: true
+    hp: 3
+    sensor_range: 2
+    link_range: 4
+    layer: 6
+    cost: 6
+  carbon_core:
+    label: "Carbon crystal core"
+    note: "a carbon crystal core: the toughest brain, 6 hits to destroy. Every ship needs exactly one core of any kind"
+    required: true
+    hp: 6
+    sensor_range: 2
+    link_range: 4
+    layer: 6
+    cost: 14
 
 
 # ------------------------------------------------------------
@@ -297,7 +317,36 @@ mount_parts:
 # 10. MUNITIONS  (real pieces on the board)
 # ------------------------------------------------------------
 munitions:
+  # Three missiles (20 Nov 2026). `missile` is the Nuke: the same id and rules as before, so every board,
+  # fleet, story chapter and save behaves as it did. family: missile tells the computer player and the
+  # play screen that missile_basic and missile_advanced are missiles too (launched, aimed, shot down the same way).
+  missile_basic:
+    label: "Basic missile"
+    family: missile
+    speed: 6
+    fuel: 3
+    turn_rate: 1
+    hits: 3                   # 3 hits to the segment it strikes, lowest layer first (no instant wreck)
+    wrecks_segment: false
+    blast_radius: 1
+    seeker_range: 2
+    cost: 4
+
+  missile_advanced:
+    label: "Advanced missile"
+    family: missile
+    speed: 6
+    fuel: 3
+    turn_rate: 1
+    hits: 4                   # 4 hits to the segment it strikes (no instant wreck)
+    wrecks_segment: false
+    blast_radius: 1
+    seeker_range: 2
+    cost: 6
+
   missile:
+    label: "Nuke"
+    family: missile
     speed: 6                  # hexes per round
     fuel: 3                   # rounds before it burns out
     turn_rate: 1              # 60-degree turns allowed per tick

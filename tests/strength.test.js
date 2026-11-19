@@ -1,22 +1,21 @@
-// EXPERIMENTAL Strength check (lab-strength.html): the shot counts come from the engine's own damage code.
+// The Lab's Strength check (ui/strength-model.js): shot counts come from the engine's own damage code,
+// with the real missiles (missile_basic, missile_advanced, missile = Nuke) and cores from the world file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shippedFiles } from './helpers.js';
-import { strengthTable, strengthGame, strengthWorld, fire, nextRound, segState } from '../ui/strength-model.js';
+import { strengthTable, strengthGame, strengthWorld, fire, nextRound, segState, missileInfo, coreInfo } from '../ui/strength-model.js';
 
 const { world } = shippedFiles();
 const one = (bays, mounts) => ({ hull: [{ at: [0, 0], bays, mounts }] });
 const row = (t, id) => t.rows.find((r) => r.id === id);
 
-test('strength lab leaves the shipped world alone', () => {
+test('strength check reads the real missiles and cores, and leaves the world alone', () => {
   const before = JSON.stringify(world);
-  const w = strengthWorld(world, { core: 'carbon' });
-  assert.equal(w.bay_parts.core.hp, 6);
-  assert.equal(w.munitions.test_missile_nuke.wrecks_segment, true);
-  assert.equal(w.munitions.test_missile_advanced.hits, 4);
-  assert.equal(w.munitions.test_missile_advanced.wrecks_segment, false);
+  strengthWorld(world, { coreOnly: true });
   assert.equal(JSON.stringify(world), before);
-  assert.equal(world.bay_parts.core.hp, undefined);
+  assert.deepEqual(['basic', 'advanced', 'nuke'].map((id) => [missileInfo(world, id).hits, missileInfo(world, id).wrecks]), [[3, false], [4, false], [3, true]]);
+  assert.equal(missileInfo(world, 'nuke').label, 'Nuke');
+  assert.deepEqual(['basic', 'steel', 'carbon'].map((id) => coreInfo(world, id).hp), [1, 3, 6]);
 });
 
 test('a bare one-hex boat: lasers by range, missiles by core strength', () => {
@@ -31,8 +30,11 @@ test('a bare one-hex boat: lasers by range, missiles by core strength', () => {
   assert.equal(row(carbon, 'near').finish.text, '3');  // 3 + 6 = 9 hp
   assert.equal(row(carbon, 'far').finish.text, '9');
   assert.equal(row(carbon, 'advanced').finish.text, '3');   // 4 + 4 + 4 hits for 9 hp
-  assert.equal(row(carbon, 'nuke').finish.text, '1');       // the nuke wrecks the segment whatever the core
+  assert.equal(row(carbon, 'nuke').finish.text, '1');       // the Nuke wrecks the segment whatever the core
   assert.match(row(carbon, 'nuke').result, /core destroyed/);
+  // the same boat built with a carbon core in the design (no what-if) gives the same table
+  const fitted = strengthTable(world, one(['carbon_core', 'sensor', 'magazine'], ['laser']), 0, { coreOnly: true });
+  assert.deepEqual(fitted.rows.map((r) => r.finish.text), carbon.rows.map((r) => r.finish.text));
 });
 
 test('shield soaks a hit, point defence eats the first missile of a round, next round reloads', () => {
@@ -44,7 +46,7 @@ test('shield soaks a hit, point defence eats the first missile of a round, next 
   fire(sim, 0, { kind: 'missile', id: 'basic' });       // gets through: the shield takes the first of 3 hits
   assert.equal(sim.ship.segs[0].parts.find((p) => p.t === 'shield').hp, 0);
   assert.equal(segState(sim, 0).shipLost, false);
-  // a nuke against a working shield: no wreck, the shield goes down and the segment takes 3 hits
+  // a Nuke against a working shield: no wreck, the shield goes down and the segment takes 3 hits
   const sim2 = strengthGame(world, des, { core: 'steel', coreOnly: true });
   sim2.ship.pd = 1;                                       // point defence already used this round
   fire(sim2, 0, { kind: 'missile', id: 'nuke' });
@@ -82,14 +84,14 @@ test('Blob A segment 1: one near laser never wrecks it; two do, leaving the ship
   for (let seed = 1; seed <= 30; seed++) {
     const sim = strengthGame(world, blobA, { seed });
     fire(sim, 0, { kind: 'laser', dist: 1 });
-    const st = segState(sim, 0);
-    assert.equal(st.wrecked, false, 'seed ' + seed);
     const sg = sim.ship.segs[0];
+    assert.equal(segState(sim, 0).wrecked, false, 'seed ' + seed);
     assert.equal(sg.parts.find((p) => p.t === 'armour').hp, 0);   // 3 hits: armour 2, then one bay part
     assert.equal(sg.parts.reduce((n, p) => n + Math.max(0, p.hp), 0), 2);
     fire(sim, 0, { kind: 'laser', dist: 1 });                      // 2 parts left + a wrecking hit
     assert.equal(segState(sim, 0).wrecked, true);
     assert.equal(segState(sim, 0).why, 'segment wrecked');
-    assert.equal(segState(sim, 0).shipLost, false);
+    const left = sim.ship.segs.flatMap((g) => (g.wrecked ? [] : g.parts)).reduce((n, p) => n + Math.max(0, p.hp), 0);
+    assert.equal(Math.round((100 * left) / 12), 58);               // the 58% hull Ankur saw: two shots, not one
   }
 });
