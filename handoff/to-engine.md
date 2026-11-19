@@ -1,5 +1,79 @@
 # Inbox: engine
 
+## 2026-11-20 · from maps · missile tiers and core variants (branch `missile-tiers`, PR to main, not merged)
+Ankur asked for real progression parts. Battles that don't use the new parts are unchanged: `tools/boards.mjs --games 6 --events` gives byte-identical output on main and on the branch.
+
+**New rule content (`rules/world_v0.4.yaml`)**
+- `munitions.missile` is now the **Nuke**. Same id and numbers as before (`wrecks_segment: true`, 3 hits when a working shield takes the blow, cost 8), plus `label: "Nuke"` and `family: missile`. Every board, fleet, story chapter and save that says `missile` behaves exactly as it did.
+- `munitions.missile_basic`: `label: "Basic missile"`, `family: missile`, 3 hits, `wrecks_segment: false`, cost 4. Otherwise the same as the missile (speed 6, fuel 3, turn_rate 1, blast_radius 1, seeker_range 2).
+- `munitions.missile_advanced`: `label: "Advanced missile"`, `family: missile`, 4 hits, `wrecks_segment: false`, cost 6.
+- `bay_parts.steel_core` (hp 3, cost 6) and `bay_parts.carbon_core` (`label: "Carbon crystal core"`, hp 6, cost 14). Both have `required: true`, layer 6 and the same sensor and link range as `core`. `core` gains `label: "Basic core"`; its hp and cost are unchanged.
+  - The new cores sit at the end of `bay_parts`, so the hull editor's part letters don't shift.
+- New optional keys:
+  - `label:` (parts and munitions): the display name. The UI falls back to the id.
+  - `family: missile` (munitions): marks a munition as a missile for the computer player and the play screen.
+
+**Engine**
+- `engine/rules.js`: no change. Its "exactly one core" check already counts `required: true` parts, so any core type works, and two cores of any kinds is still a problem.
+- `engine/state.js`, exported through `engine/index.js`:
+  - `isMissile(rules, kind)`: true for `missile` or `family: missile`.
+  - `missileKinds(rules, load, weakest)`: the loaded missile kinds, strongest first (segment-wreckers first, then by hits), or weakest first.
+- `engine/ai.js`:
+  - A locked launch uses the strongest missile the ship has loaded. A blind shot uses its weakest.
+  - Missile checks (`o.kind === 'missile'`, missiles left, blind-fire guard) go through `isMissile`.
+  - With only `missile` loaded, every choice is the same as before.
+- Damage, flight and point defence needed no change; they already read `hits`, `wrecks_segment` and friends from the munition.
+
+**UI**
+- `ui/play.js`: one launch button per missile kind the ship carries, weakest first, labelled from the rule file ("Nuke" for `missile`). Launch modes go through `isLaunchKind()` instead of `=== 'missile'`.
+- `ui/board.js` `partLooks`: core variants share the core's letter and colour.
+- `ui/lab.js`: a load input per missile kind; core handling generalised (`isCorePart` = `required`); a core-type picker in the fixed core slot. Details in the picker section below.
+- `ui/strength.js` and `ui/strength-model.js`: the Strength check drawer (already on main) now reads the real parts. "Try core" defaults to the core fitted in the design and can try another as a what-if, without changing the design.
+- `docs/index.html` (Field Manual): munitions table rows for basic, advanced and Nuke; core variants in the parts table (and its embedded data snapshot); the explorer's core count accepts any core type.
+
+**Tests**
+- `tests/missile-tiers.test.js`:
+  - the world file's three missiles and three cores;
+  - `isMissile` and `missileKinds` ordering;
+  - exactly one core with variants (steel only OK, carbon only OK, core + steel fails, two variants fail, none fails);
+  - steel takes 3 and carbon 6 core hits before the ship is lost;
+  - basic and advanced deal hits while the Nuke wrecks;
+  - the computer launches `missile_basic` and `missile_advanced`.
+- `tests/strength.test.js`: rewritten for the real parts, plus the Blob A segment 1 "one-shot" case (one near laser never wrecks it; two do, leaving 58% hull).
+- Totals: 187 tests and `campaign/tools/check.mjs` pass.
+
+**Please review**
+1. The `family: missile` / `isMissile` approach, compared with a dedicated flag or a list in the rules.
+2. AI launch choice (strongest when locked, weakest when firing blind). Nothing tunes it yet, e.g. by target size or point defence.
+3. Costs (basic 4, advanced 6, Nuke 8; steel core 6, carbon core 14) are first guesses, unbalanced.
+4. `missileKinds` strength order: a segment-wrecker counts above any number of hits.
+5. The play screen with a ship carrying 2–3 missile kinds: on a phone the bottom icon row gets one button per kind.
+
+**Open questions (for Ankur)**
+- Should story chapters and campaign rewards unlock tiers (`rewards.capabilities` lists `missile` today)? Nothing unlocks basic, advanced or the new cores yet.
+- Should boards or default fleets start using them?
+- Should the computer pick a missile per target?
+
+**For Claude: picker design review** (Lab part picker, PR #41)
+- What changed in the picker:
+  - The fixed core slot's panel now shows a **Core type** chip row under "The core can't be removed". Each chip shows its label, HP and cost; tapping one swaps the core in place.
+  - "Move it to segment" moves whatever core type is fitted.
+  - The core icon is used for every core type.
+  - The slot gets the `.core` style for any core type.
+  - Core types are hidden from the part grid while the ship has a core.
+  - Part names come from `label:` when there is one ("Carbon crystal core").
+  - Missiles are not picker parts; they are ship loads. The Lab's ship card now has one number input per missile kind (Basic missile, Advanced missile, Nuke) instead of one "Missiles" input.
+- Stopgaps:
+  - The core chips reuse `.pk-chips` and `.pk-move` from the move-segment row, with no tier styling.
+  - The per-kind missile inputs are plain number boxes, three in a row.
+  - Core variants have no icon of their own, and no preview of the stat change before swapping (the regular picker's preview dock isn't used for core swaps).
+- Questions for Claude:
+  1. How should the picker show tiers and upgrades? A tier ladder (basic → advanced → top) with the current tier highlighted, or separate tiles?
+  2. Locked tiers in the campaign: show them greyed with "unlocks in chapter N", or hide them?
+  3. Choosing the core type in the fixed core slot: is a chip row inside the "can't be removed" panel right, or should the core slot open a normal picker limited to core types (with the stat-change preview)?
+  4. Missiles as loads: should the picker gain a "Magazine" view to choose the load, rather than inputs on the ship card?
+Status: open
+
 ## 2026-11-20 · from maps (for Ankur) · did you discuss a pre-match setup screen with Ankur?
 - Ankur remembers asking a bot for a pre-match screen that sets the board's options, starting with friendly fire: "Warn" (ask before a shot that would hit your own piece and trace its exact path) or "Yes". Maps has no record of it. If you have that conversation, please remind Ankur and add the details to the BACKLOG.md entry "Pre-match board setup screen".
 Status: open

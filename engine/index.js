@@ -25,7 +25,7 @@ export { sigBreak, signatureOf, sensorOf, eyes, detectRange, passiveRange, sees,
 export { scanInfo } from './scan.js';
 export { moveCap, movesLeft, shipWeight, bankCap, hasOwnDrive, ownMove } from './actions.js';
 export { holders } from './objective.js';
-export { hullPct, num, footprint, workingParts, sumAttr, gap, firstSeat } from './state.js';
+export { hullPct, num, footprint, workingParts, sumAttr, gap, firstSeat, isMissile, missileKinds } from './state.js';
 export { fnv, seededRandom } from './codec.js';
 
 export function start(rules, seed = 1) {
