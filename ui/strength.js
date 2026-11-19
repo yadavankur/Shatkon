@@ -7,7 +7,7 @@ import { labAPI } from './lab.js';
 import { STRENGTH_LAB, strengthGame, strengthTable, fire, nextRound, segState, laserHits, segHasCore } from './strength-model.js';
 
 const LAB = labAPI.LAB;
-const S = { side: 'a', si: 0, core: 'basic', todayRule: false, coreOnly: false, sim: null, log: [], flash: new Set(), world: null, open: false };
+const S = { side: 'a', si: 0, core: 'basic', coreOnly: false, sim: null, log: [], flash: new Set(), world: null, open: false };
 
 const el = (tag, attrs, ...kids) => {
   const e = document.createElement(tag);
@@ -31,7 +31,7 @@ async function loadWorld() {
 }
 
 const design = () => LAB[S.side];
-const opts = () => ({ core: S.core, todayRule: S.todayRule, coreOnly: S.coreOnly });
+const opts = () => ({ core: S.core, coreOnly: S.coreOnly });
 function reset() {
   S.sim = strengthGame(S.world, design(), opts());
   S.log = [];
@@ -172,7 +172,6 @@ function renderDrawer() {
     el('button', { type: 'button', class: 'sx-x', 'aria-label': 'Close', onclick: closeDrawer }, '\u00d7'));
   const optsRow = el('div', { class: 'sx-opts' },
     el('span', null, el('span', { class: 'lbl' }, 'Core '), chips(S.core, STRENGTH_LAB.cores.map((c) => [c.id, c.label.replace(' core', '') + ' ' + c.hp + ' HP']), setOpt((v) => (S.core = v)))),
-    el('span', null, el('span', { class: 'lbl' }, 'Missiles '), chips(S.todayRule ? 'today' : 'test', [['test', 'Deal hits (test)'], ['today', 'Wreck segment (today)']], setOpt((v) => (S.todayRule = v === 'today')))),
     el('label', { class: 'sx-chk' }, el('input', { type: 'checkbox', checked: !S.coreOnly, onchange: (e) => setOpt((v) => (S.coreOnly = v))(!e.target.checked) }), 'Ship is lost when only engines and core are left (game rule)'));
 
   // table
@@ -180,20 +179,20 @@ function renderDrawer() {
   const table = el('table', { class: 'sx-t' },
     el('tr', null, el('th', null, 'Weapon'), el('th', null, hasCore ? 'Shots to strip to the core' : 'Shots to strip'), el('th', null, hasCore ? 'Shots to kill the core' : 'Shots to wreck'), el('th', null, 'Ends with / notes')),
     t.rows.map((r) => el('tr', { class: r.kind },
-      el('td', { class: 'w' }, el('b', null, r.label), el('small', null, r.kind === 'laser' ? r.band + ', ' + r.hits + (r.hits === 1 ? ' hit' : ' hits') : S.todayRule ? 'wrecks the segment; vs a shield: ' + STRENGTH_LAB.missiles.find((m) => m.id === r.id).hits + ' hits' : STRENGTH_LAB.missiles.find((m) => m.id === r.id).hits + ' hits')),
+      el('td', { class: 'w' }, el('b', null, r.label), el('small', null, r.kind === 'laser' ? r.band + ', ' + r.hits + (r.hits === 1 ? ' hit' : ' hits') : missileText(r.id))),
       el('td', { class: 'n' }, r.strip.text),
       el('td', { class: 'n' }, r.finish.text),
       el('td', { class: 'nt' }, [r.result, ...r.notes].filter(Boolean).join('; ')))));
   const assume = el('p', { class: 'sx-assume' },
     'All shots in one round (a focused volley); shots that hit nothing count. \u201c\u2014\u201d: the ship was lost first. A range (2\u20133) means it depends on which part takes the hit: within a layer the part is picked at random (24 tries each). ',
-    'Assumed test values: laser ' + [1, 5, 9].map((d) => laserHits(rules, d)).join(' / ') + ' hits near / mid / far; missiles basic 3, advanced 4, nuke 7 hits; cores basic 1, steel 3, carbon crystal 6 HP. Hits go to the lowest layer first (shield 1, armour 2, weapons and point defence 3, bays 4\u20135, core 6). Not in the real game.');
+    'Assumed test values: laser ' + [1, 5, 9].map((d) => laserHits(rules, d)).join(' / ') + ' hits near / mid / far; missiles basic 3 hits, advanced 4 hits, nuke wrecks the segment outright as today\u2019s missile does (a working shield takes the blow: shield down, 3 hits); point defence can shoot any of them down; cores basic 1, steel 3, carbon crystal 6 HP. Hits go to the lowest layer first (shield 1, armour 2, weapons and point defence 3, bays 4\u20135, core 6). Not in the real game.');
   const left = el('section', { class: 'sx-card' }, el('h3', null, 'How many shots'), table, assume);
 
   // simulator
   const st = segState(sim, S.si), over = st.wrecked || st.shipLost;
   const fireBtns = el('div', { class: 'sx-fire' },
     STRENGTH_LAB.lasers.map((l) => el('button', { type: 'button', class: 'laser', disabled: over, onclick: () => shoot({ ...l, kind: 'laser' }) }, l.label.replace('Laser, ', 'Laser '), el('small', null, laserHits(rules, l.dist) + (laserHits(rules, l.dist) === 1 ? ' hit' : ' hits')))),
-    STRENGTH_LAB.missiles.map((m) => el('button', { type: 'button', class: 'missile', disabled: over, onclick: () => shoot({ ...m, kind: 'missile' }) }, m.label, el('small', null, S.todayRule ? 'wrecks' : m.hits + ' hits'))));
+    STRENGTH_LAB.missiles.map((m) => el('button', { type: 'button', class: 'missile', disabled: over, onclick: () => shoot({ ...m, kind: 'missile' }) }, m.label, el('small', null, m.wrecks ? 'wrecks segment' : m.hits + ' hits'))));
   const pdLeft = Math.max(0, t.pd - (ship.pd || 0));
   const ctl = el('div', { class: 'sx-ctl' },
     el('span', { class: 'rnd' }, 'Round ' + sim.game.round),
@@ -216,6 +215,11 @@ function renderDrawer() {
   drawer.replaceChildren(head, el('div', { class: 'sx-scroll' }, optsRow, el('div', { class: 'sx-body' }, left, right)));
 }
 
+function missileText(id) {
+  const m = STRENGTH_LAB.missiles.find((x) => x.id === id);
+  return m.wrecks ? 'wrecks the segment (today\u2019s missile); vs a shield: ' + m.hits + ' hits' : m.hits + ' hits';
+}
+
 function E_hull(sim) {
   let left = 0, full = 0;
   for (const g of sim.ship.segs) for (const p of g.parts) { const c = sim.rules.parts[p.t]; if (c.recharges) continue; full += c.hp; left += g.wrecked ? 0 : Math.max(0, p.hp); }
@@ -225,7 +229,7 @@ function E_hull(sim) {
 function shoot(w) {
   const sim = S.sim, before = sim.ship.segs[S.si].parts.map((p) => p.hp);
   const { events } = fire(sim, S.si, w);
-  const name = w.kind === 'laser' ? w.label.replace('Laser, ', 'Laser ') + ' (' + laserHits(sim.rules, w.dist) + (laserHits(sim.rules, w.dist) === 1 ? ' hit)' : ' hits)') : w.label + (S.todayRule ? ' (wrecks)' : ' (' + w.hits + ' hits)');
+  const name = w.kind === 'laser' ? w.label.replace('Laser, ', 'Laser ') + ' (' + laserHits(sim.rules, w.dist) + (laserHits(sim.rules, w.dist) === 1 ? ' hit)' : ' hits)') : w.label + (w.wrecks ? ' (wrecks the segment)' : ' (' + w.hits + ' hits)');
   const bits = [];
   for (const e of events) {
     if (e.t === 'stopped' && e.ship === sim.ship.id) bits.push('point defence shot it down, no damage');

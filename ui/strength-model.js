@@ -19,7 +19,7 @@ export const STRENGTH_LAB = {
   missiles: [
     { id: 'basic', label: 'Basic missile', hits: 3 },
     { id: 'advanced', label: 'Advanced missile', hits: 4 },
-    { id: 'nuke', label: 'Nuke', hits: 7 }
+    { id: 'nuke', label: 'Nuke', hits: 3, wrecks: true }   // today's missile: wrecks the segment outright; vs a working shield, 3 hits
   ],
   cores: [
     { id: 'basic', label: 'Basic core', hp: 1 },
@@ -29,14 +29,14 @@ export const STRENGTH_LAB = {
 };
 export const missileKind = (id) => 'test_missile_' + id;
 
-// The shipped world with this page's test pieces added. opts.core: core id; opts.todayRule: missiles
-// wreck the segment outright as the shipped missile does (a working shield takes the blow instead).
+// The shipped world with this page's test pieces added. opts.core: core id. The nuke keeps the shipped
+// missile's rule: it wrecks the segment outright (a working shield takes the blow instead: 3 hits).
 export function strengthWorld(world, opts = {}) {
   const w = structuredClone(world), core = STRENGTH_LAB.cores.find((c) => c.id === opts.core) || STRENGTH_LAB.cores[0];
   w.bay_parts.core = { ...w.bay_parts.core, hp: core.hp };
   const base = w.munitions.missile;
   for (const m of STRENGTH_LAB.missiles)
-    w.munitions[missileKind(m.id)] = { ...base, hits: m.hits, wrecks_segment: !!opts.todayRule };
+    w.munitions[missileKind(m.id)] = { ...base, hits: m.hits, wrecks_segment: !!m.wrecks };
   // opts.coreOnly: only losing the core kills the ship (switches off "only engines and core left")
   if (opts.coreOnly) w.damage = { ...w.damage, ship_dead_when: ['core_destroyed'] };
   w.turns = { ...(w.turns || {}), first: 'player_1' };
@@ -131,9 +131,9 @@ export function strengthTable(world, des, si, opts = {}) {
       if (st.why) why.add(st.why);
     }
     const notes = [];
-    if (shield) notes.push(wpn.kind === 'missile' && opts.todayRule ? 'shield takes the first missile\u2019s blow (no wreck), then is down' : 'shield soaks the first hit');
+    if (shield) notes.push(wpn.wrecks ? 'a working shield takes the blow: no wreck, shield down, ' + wpn.hits + ' hits' : 'shield soaks the first hit');
     if (wpn.kind === 'missile' && pd) notes.push('point defence shoots down the first ' + (pd > 1 ? pd + ' missiles' : 'missile') + ' of the round');
-    if (wpn.kind === 'missile' && !opts.todayRule) notes.push('splash: 1 hit to each touching segment');
+    if (wpn.kind === 'missile') notes.push('splash: 1 hit to each touching segment');
     rows.push({ id: wpn.id, kind: wpn.kind, label: wpn.label, band: wpn.band, hits: wpn.hits, strip: range(strip), finish: range(finish), result: [...why].join(' / '), notes });
   }
   return { core, shield, pd, rows };
