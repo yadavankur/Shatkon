@@ -695,7 +695,8 @@ function labRender() {
       'div',
       { class: 'lab-intro card' },
       h('b', null, 'Ship Lab'),
-      " \u2014 design two ships, see who spots whom from how far, and fight them using the game's own rules. Every number here is computed by the same engine as Play."
+      " \u2014 design two ships, see who spots whom from how far, and fight them using the game's own rules. Every number here is computed by the same engine as Play.",
+      document.documentElement.dataset.strength ? null : h('a', { href: 'lab-strength.html#lab', class: 'lab-strength-link', style: 'margin-left:6px;font-size:13px;color:var(--accent)' }, 'Strength test (experimental) \u2192')
     ),
     h('div', { class: 'lab-grid' }, labDesigner('a'), labDesigner('b')),
     labDetectPanel(),

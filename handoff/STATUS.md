@@ -1,3 +1,6 @@
+## Latest (20 Nov, maps): experimental Lab strength check (`lab-strength.html`)
+- A copy of play.html with `ui/strength.js`: tap a segment, then **Strength check** (bottom right) opens a drawer. A table shows shots per weapon to strip a segment and to kill its core. A simulator fires single shots through `engine/damage.js` `applyHits` and `explode`, including shield soak, point defence and splash, with next round and reset. Test missiles (3 / 4 / 7 hits) and cores (1 / 3 / 6 HP) live only in `ui/strength-model.js`, so `rules/world_v0.4.yaml` and real battles are unchanged. The real Lab only gains a link. Test: `tests/strength.test.js`. `sw.js` cache is `shatkon-offline-v6`.
+
 ## Latest (19 Nov, maps): board picker scrolls; living hex field
 - The vs-computer board list now scrolls (cards had been wrapping into columns off to the side). The mountain photo on that screen is replaced by a dark hex field with an occasional neon pulse along the lines. Menu only. `sw.js` cache is `shatkon-offline-v5`.
 
