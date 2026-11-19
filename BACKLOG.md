@@ -14,7 +14,7 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ## In progress
 
-- **Strength check (experimental Lab build).** [lab-strength.html](https://yadavankur.github.io/Shatkon/lab-strength.html) is a copy of the Lab: tap a segment, then **Strength check** opens a drawer with shots needed per weapon and a hit-by-hit simulator. Test values only, not in the real game: laser 3 / 2 / 1 hits (near / mid / far), missiles basic 3 hits and advanced 4 hits (no instant wreck), nuke wrecks the segment outright like today's missile (a working shield takes the blow: shield down, 3 hits; point defence can shoot any of them down), cores basic 1, steel 3, carbon crystal 6 HP. Data in `ui/strength-model.js`; the world file is unchanged. Waiting for Ankur to try it and settle missile and core strength. Owner: maps. Source: chat 20 Nov
+- **Strength check in the Lab (test values).** In the real [Lab](https://yadavankur.github.io/Shatkon/play.html#lab) (the old lab-strength.html link forwards there): tap a segment, then **Strength check** opens a drawer with the segment's HP, shots needed per weapon and a one-shot-per-press simulator that says why it ended. Battle rules are untouched. Test values only, not in the real game: laser 3 / 2 / 1 hits (near / mid / far), missiles basic 3 hits and advanced 4 hits (no instant wreck), nuke wrecks the segment outright like today's missile (a working shield takes the blow: shield down, 3 hits; point defence can shoot any of them down), cores basic 1, steel 3, carbon crystal 6 HP. Data in `ui/strength-model.js`; the world file is unchanged. Waiting for Ankur to try it and settle missile and core strength. Owner: maps. Source: chat 20 Nov
 
 ---
 

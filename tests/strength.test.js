@@ -59,3 +59,37 @@ test('shield soaks a hit, point defence eats the first missile of a round, next 
   nextRound(sim);
   assert.equal(sim.ship.segs[0].parts.find((p) => p.t === 'shield').hp, 1);
 });
+
+// Blob A, segment 1 (no core): engine, stealth, coupling + armour = 5 HP. Ankur's "wrecked in one hit".
+const blobA = { hull: [
+  { at: [-1, 0], bays: ['engine', 'stealth', 'coupling'], mounts: ['armour'] },
+  { at: [0, 0], bays: ['core', 'engine', 'coupling'] },
+  { at: [1, 0], bays: ['sensor', 'engine', 'stealth'], mounts: ['laser'] }
+] };
+
+test('a segment without a core: the core choice does not change it, and the table says 2 near lasers', () => {
+  const tables = ['basic', 'steel', 'carbon'].map((core) => strengthTable(world, blobA, 0, { core }));
+  for (const t of tables) {
+    assert.equal(t.core, false);
+    assert.equal(row(t, 'near').strip.text, '2');
+    assert.equal(row(t, 'near').finish.text, '2');
+    assert.equal(row(t, 'near').result, 'segment wrecked');
+  }
+  assert.deepEqual(tables[0].rows.map((r) => r.finish.text), tables[2].rows.map((r) => r.finish.text));
+});
+
+test('Blob A segment 1: one near laser never wrecks it; two do, leaving the ship at 58% hull', () => {
+  for (let seed = 1; seed <= 30; seed++) {
+    const sim = strengthGame(world, blobA, { seed });
+    fire(sim, 0, { kind: 'laser', dist: 1 });
+    const st = segState(sim, 0);
+    assert.equal(st.wrecked, false, 'seed ' + seed);
+    const sg = sim.ship.segs[0];
+    assert.equal(sg.parts.find((p) => p.t === 'armour').hp, 0);   // 3 hits: armour 2, then one bay part
+    assert.equal(sg.parts.reduce((n, p) => n + Math.max(0, p.hp), 0), 2);
+    fire(sim, 0, { kind: 'laser', dist: 1 });                      // 2 parts left + a wrecking hit
+    assert.equal(segState(sim, 0).wrecked, true);
+    assert.equal(segState(sim, 0).why, 'segment wrecked');
+    assert.equal(segState(sim, 0).shipLost, false);
+  }
+});

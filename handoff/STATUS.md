@@ -1,3 +1,6 @@
+## Latest (20 Nov, maps): Strength check moved into the real Lab
+- `play.html` now loads `ui/strength.js`; `lab-strength.html` forwards to `play.html#lab`. The drawer shows segment HP (now/max, per part, shield apart), hides the core choice on segments without a core, labels the columns "strip all parts" / "until it's out" (or "until the core dies"), numbers each shot and each hit, and says why it ended (wrecked, core destroyed, or only engines and core left). Test missiles and cores stay in `ui/strength-model.js` only. `sw.js` cache is `shatkon-offline-v7`.
+
 ## Latest (20 Nov, maps): experimental Lab strength check (`lab-strength.html`)
 - A copy of play.html with `ui/strength.js`: tap a segment, then **Strength check** (bottom right) opens a drawer. A table shows shots per weapon to strip a segment and to kill its core. A simulator fires single shots through `engine/damage.js` `applyHits` and `explode`, including shield soak, point defence and splash, with next round and reset. Test missiles (basic 3 hits, advanced 4 hits, nuke wrecks the segment like today's missile) and cores (1 / 3 / 6 HP) live only in `ui/strength-model.js`, so `rules/world_v0.4.yaml` and real battles are unchanged. The real Lab only gains a link. Test: `tests/strength.test.js`. `sw.js` cache is `shatkon-offline-v6`.
 
