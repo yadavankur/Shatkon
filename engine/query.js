@@ -65,6 +65,29 @@ export function beamTargets(state, shipId) {
   return out;
 }
 
+// What a laser shot would stop on, without firing it (the play screen's friendly-fire warning).
+// Mirrors doFire's walk along the beam: the first ship segment or object it meets, by the same rules
+// (wrecked segments and nimble ships are skipped, objects that beams pass are ignored). Only the
+// shooter's own objects are reported by the caller, so nothing hidden is given away.
+export function beamStop(state, a) {
+  const ship = shipById(state, a.ship);
+  if (!ship || !Array.isArray(a.at)) return null;
+  const p = ship.owner, src = segHex(ship, a.seg), g = geom(state.rules);
+  const cells = sightLine(src, a.at, (c) => g.blockSight.has(key(c)));
+  if (!cells) return null;
+  const occ = occupancy(state), R = state.rules;
+  const target = state.ships.find((s) => !s.dead && s.owner !== p && cellsOf(s).some((c) => c[0] === a.at[0] && c[1] === a.at[1]))
+    || state.objs.find((o) => o.pos[0] === a.at[0] && o.pos[1] === a.at[1]);
+  for (let i = 1; i < cells.length; i++) {
+    const o = occ.get(key(cells[i]));
+    if (o && o.ship !== ship && !o.ship.segs[o.seg].wrecked && !(i > (maxAttr(state, o.ship, 'evades_beyond') || Infinity))) return { ship: o.ship.id, owner: o.ship.owner, at: cells[i], path: cells.slice(0, i + 1) };
+    const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && R.beamsPassOwnMunitions && num(R.munitions[x.kind].speed) > 0)
+      && !(R.beamsPassMines && !num(R.munitions[x.kind].speed)) && !(R.munitions[x.kind].beams_pass === true && x !== target));
+    if (ob) return { obj: ob.id, kind: ob.kind, owner: ob.owner, at: cells[i], path: cells.slice(0, i + 1) };
+  }
+  return null;
+}
+
 // ---------- what the board shows to explain the rules while you play ----------
 // All three use only what the current player can see: hidden ships never block or show.
 

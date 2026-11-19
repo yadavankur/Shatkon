@@ -10,7 +10,8 @@ import { computerMove } from '../engine/ai.js';
 import { s as svgEl, partLooks } from './board.js';
 import { drawShip, shipDefs } from './ships.js';
 import { drawFrigate, frigateDefs } from './frigate.js';
-import { $, h, rules, game, store, say, reduceMotion, newGame, plural, wholeMap, render, setRules } from './play.js';
+import { $, h, rules, game, store, say, reduceMotion, newGame, plural, wholeMap, render, setRules, setPlayMode, battleSetup } from './play.js';
+import { randomMap, newSeed, RANDOM_RADIUS } from './randommap.js';
 
 // The Lab's "Thrust / speed" line. Thrust is per ship: only this ship's engines move it.
 function speedText(st) {
@@ -49,7 +50,7 @@ const LAB = {
   simOut: null,
   mcOut: null,
   whatOut: null,
-  play: { p1: ['A'], p2: ['B'], sandbox: false },
+  play: { p1: ['A'], p2: ['B'], sandbox: false, map: 'skirmish', seed: newSeed(), who: 'cpu', level: 'normal' },
   busy: false
 };
 
@@ -2195,9 +2196,17 @@ function labPlayPanel() {
     h(
       'p',
       { class: 'muted' },
-      'Start a real game on the Skirmish map with these fleets (using the current rules knobs). Ships are placed in each home zone automatically. Mode (vs computer, pass and play\u2026) is whatever is chosen in Play.'
+      'Start a real game with these fleets (using the current rules knobs). Ships are placed in each home zone automatically. Turn order and friendly fire are asked when you press Start.'
     ),
     h('div', { class: 'lab-two' }, pick('p1'), pick('p2')),
+    labSeg('Map', [['skirmish', 'Skirmish (radius ' + (((labDocs.map || {}).map || {}).board || {}).radius + ')'], ['random', 'Random (radius ' + RANDOM_RADIUS + ')']], pl.map, (v) => { pl.map = v; labRerender(); }),
+    pl.map === 'random'
+      ? h('div', { class: 'lab-row' }, h('span', { class: 'muted' }, 'Seed '),
+          h('input', { type: 'number', class: 'lab-seed', value: pl.seed, min: 1, 'aria-label': 'Map seed', onchange: (ev) => { pl.seed = Math.max(1, Number(ev.target.value) | 0); labRerender(); } }),
+          h('button', { class: 'btn', onclick: () => { pl.seed = newSeed(); labRerender(); } }, 'New map'),
+          h('span', { class: 'muted' }, ' Terrain is mirrored through the centre, so both sides get the same board. The same seed gives the same map.'))
+      : null,
+    labSeg('Opponent', [['cpu:easy', 'Computer (easy)'], ['cpu:normal', 'Computer (normal)'], ['pass', 'Same phone'], ['all', 'Open board']], pl.who === 'cpu' ? 'cpu:' + pl.level : pl.who, (v) => { const [w, l] = v.split(':'); pl.who = w; if (l) pl.level = l; labRerender(); }),
     h(
       'label',
       { class: 'lab-chk' },
@@ -2234,17 +2243,26 @@ function labPlayPanel() {
   );
 }
 
+// a small segmented choice row for the play panel
+function labSeg(label, opts, cur, on) {
+  return h('div', { class: 'lab-row lab-seg' }, h('b', null, label),
+    h('div', { class: 'lab-segbtns', role: 'group', 'aria-label': label },
+      opts.map(([v, n]) => h('button', { type: 'button', class: 'btn' + (v === cur ? ' primary' : ''), 'aria-pressed': String(v === cur), onclick: () => on(v) }, n))));
+}
+
 function labPlayRules(cfg, knobs) {
   cfg = cfg || {
     p1: LAB.play.p1,
     p2: LAB.play.p2,
     sandbox: LAB.play.sandbox,
+    map: LAB.play.map,
+    seed: LAB.play.seed,
     designs: Object.fromEntries(labDesignChoices().map(([id, , d]) => [id, labClean(d)]))
   };
   let p1 = cfg.p1.map((id) => cfg.designs[id]).filter(Boolean),
     p2 = cfg.p2.map((id) => cfg.designs[id]).filter(Boolean);
   return labRules(p1, p2, {
-    map: structuredClone(labDocs.map),
+    map: cfg.map === 'random' ? randomMap(labDocs.map, cfg.seed) : structuredClone(labDocs.map),
     sandbox: cfg.sandbox,
     knobs: knobs != null ? knobs : LAB.knobs
   });
@@ -2255,15 +2273,21 @@ function labStartPlay() {
     p1: LAB.play.p1,
     p2: LAB.play.p2,
     sandbox: LAB.play.sandbox,
+    map: LAB.play.map,
+    seed: LAB.play.seed,
     designs: Object.fromEntries(labDesignChoices().map(([id, , d]) => [id, labClean(d)]))
   };
-  store.set('shatkon.labPlay', JSON.stringify(cfg));
-  store.set('shatkon.labKnobs', JSON.stringify(LAB.knobs));
-  labApplyPlayRules();
-  newGame();
-  labCamStale = true;
-  location.hash = '#play';
-  labRoute();
+  // the battle settings (turn order, friendly fire) are asked first, as before any skirmish
+  battleSetup(() => {
+    store.set('shatkon.labPlay', JSON.stringify(cfg));
+    store.set('shatkon.labKnobs', JSON.stringify(LAB.knobs));
+    setPlayMode(LAB.play.who, LAB.play.level);
+    labApplyPlayRules();
+    newGame();
+    labCamStale = true;
+    location.hash = '#play';
+    labRoute();
+  }, cfg.map === 'random' ? 'Random map ' + cfg.seed : 'Skirmish');
 }
 
 // Play's rules = standard files + applied knobs (+ Lab fleets if chosen)

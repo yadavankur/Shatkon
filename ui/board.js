@@ -562,6 +562,12 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
         pg.appendChild(s('line', { x1: f1(X(src)), y1: f1(Y(src)), x2: f1(cx), y2: f1(cy), stroke: '#ffffff', 'stroke-width': 0.8, 'stroke-dasharray': '3 2.5', 'stroke-linecap': 'round', class: 'flow' }));
       }
       pg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(r), fill: red, 'fill-opacity': 0.18, stroke: '#ffffff', 'stroke-width': 1.4 }));
+      if (pending.warn && pending.warn.path) {    // friendly fire: the beam's real path, and your own thing it would hit
+        const w = pending.warn, amber = '#ffb347';
+        pg.appendChild(s('polyline', { points: w.path.map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' '), fill: 'none', stroke: amber, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+        pg.appendChild(s('circle', { cx: f1(X(w.at)), cy: f1(Y(w.at)), r: f1(S * 0.95), fill: amber, 'fill-opacity': 0.25, stroke: amber, 'stroke-width': 2.2, class: 'ffwarn' }));
+        pg.appendChild(s('text', { x: f1(X(w.at)), y: f1(Y(w.at) - S * 1.25), 'text-anchor': 'middle', 'font-size': f1(S * 0.8), 'font-weight': 700, fill: amber }, '!'));
+      }
       pg.appendChild(s('path', { d: `M${f1(cx - r * 1.45)},${f1(cy)}H${f1(cx - r * 0.45)}M${f1(cx + r * 0.45)},${f1(cy)}H${f1(cx + r * 1.45)}M${f1(cx)},${f1(cy - r * 1.45)}V${f1(cy - r * 0.45)}M${f1(cx)},${f1(cy + r * 0.45)}V${f1(cy + r * 1.45)}`, stroke: '#ffffff', 'stroke-width': 1.2, 'stroke-linecap': 'round' }));
       svg.appendChild(pg);
     }

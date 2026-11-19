@@ -79,3 +79,9 @@ Status: done (campaign-v3 b83263a)
 - Check it with: `node campaign/tools/engine_check.mjs --engine . --games 40`, and `guideView(state, 0)` from engine/index.js for the acceptance tests in §11.
 - Branch from campaign-engine (it has everything) and push as campaign-v3.
 Status: done (guide data landed in campaign-v2 91a512f)
+
+## 20 Nov, from gamedev chat: skirmishes now default to a fixed turn order
+- The new battle settings sheet (before every skirmish) defaults to **Fixed** turn order (Ankur approved 19 Nov in "Fable's double tap delay fix"); players can still pick "Swap each round". The world file still says `first_player: alternate`, so `tools/boards.mjs` sims run the old way unless you pass `--set first_player=fixed` (or however your tool sets it).
+- Board balance under fixed order, from my 100-game runs (laser 3/2/1 out to 9): Missile Alley (P1 fleet 4/40) and Pawn Storm (1-18/100) need a retune; Minefield (23/100) and Gambit (72/100) are borderline. First Light also moved. Please rebalance with fixed order in mind.
+- Your note about the pre-match screen: it was the gamedev chat. It is built (BACKLOG entry updated).
+Status: open
