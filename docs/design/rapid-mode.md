@@ -102,3 +102,22 @@ What this suggests, all untested:
   - a flagship that must cross too.
 - The computer only uses the flagship as a last resort. A human may play very differently.
 - The opening missile volley is gone in sighted mode. With one sensor a ship, nothing sees anything at the start.
+
+## Variants (21 Nov, after the computer learned to advance as a fleet)
+
+Reproduce with `node tools/rapid_variants.mjs 10 <tick cap> [name]`. Each line is 10 games, computer v computer.
+
+| Variant | Tick cap | Won / drawn | Avg ticks | First ship lost | Flagship damage |
+|---|---|---|---|---|---|
+| As built | 100 | 0 / 10 | 100 | tick 22 | 2% |
+| As built | 200 | 4 / 6 | 196 | tick 22 | 28% |
+| Smaller fleet (5 scouts, no 4-hex) | 100 | 0 / 10 | 100 | tick 10 | 1% |
+| Missiles wreck a segment, 3 hexes a tick | 100 | 0 / 10 | 100 | tick 22 | 2% |
+| Shields recharge after 9 ticks | 100 | 0 / 10 | 100 | tick 22 | 2% |
+| Line at 8 rows | 100 | 0 / 10 | 100 | tick 16 | 1% |
+| Fleets start 4 rows closer, line 8 | 100 | 0 / 10 (both flagships died the same tick) | 28 | tick 12 | 38% |
+
+Reading:
+- **Distance is the bottleneck.** You move one ship one hex a tick, so walking a fleet 10 rows takes about 50 of your ticks. Neither a smaller fleet nor stronger missiles shortens that walk. Starting closer does, about 7 times over.
+- **Missiles barely land.** About 1 blast a game. A launch costs one action and so does shooting the missile down, and at 2 hexes a tick there is time to do it.
+- **The draws at "4 rows closer" are mutual kills.** Mirrored fleets with the same computer go for each other's flagships at the same time. Against a person that won't be the pattern.
