@@ -277,16 +277,26 @@ export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
 function advance(s, state, p, mine, enemies, moves, level, rnd) {
   if (!moves.length) return null;
   if (level === 'easy') return moves[Math.floor(rnd() * moves.length)];
-  // push a spearhead of scouts: the most forward scout goes, as long as it stays within 3 rows of the
-  // middle of the scout line; the big ships come up now and then; nothing walks into guns it can see
+  // advance as a fleet, not one scout at a time: the scouts lead (the most forward one goes, but no more
+  // than 3 rows ahead of the middle of the scout line); the escorts follow about 2 rows behind the scouts,
+  // or lead once fewer than 3 scouts are left; the flagship follows 2 rows behind its escorts.
+  // Moving into guns it can see counts against a move.
   const progOf = (x) => Math.max(...cellsOf(x).map((c) => rowsForward(s, p, c)));
-  const scoutProg = mine.filter((x) => x.segs.length === 1).map(progOf).sort((a, b) => a - b);
+  const scouts = mine.filter((x) => x.segs.length === 1), escorts = mine.filter((x) => x.segs.length > 1 && !x.flagship);
+  const scoutProg = scouts.map(progOf).sort((a, b) => a - b);
   const mid = scoutProg.length ? scoutProg[Math.floor(scoutProg.length / 2)] : 0;
+  const escProg = escorts.map(progOf);
+  const front = scouts.length >= 3 ? mid - 2 : (escProg.length ? Math.max(...escProg) + 1 : 99);
+  const escMin = escProg.length ? Math.min(...escProg) : 99;
   let best = null, bv = -Infinity;
   for (const a of moves) {
-    const x = shipById(s, a.ship), prog = progOf(x), small = x.segs.length === 1;
+    const x = shipById(s, a.ship), prog = progOf(x);
     const danger = enemies.filter((e) => gap(e, x) <= 10).length;
-    const v = (small ? prog - 4 * Math.max(0, prog - (mid + 3)) : mid - 6 - prog * 0.5) - danger * 3 - (x.flagship ? 20 : 0) + rnd() * 2;
+    let v;
+    if (x.segs.length === 1) v = scouts.length >= 3 ? prog - 4 * Math.max(0, prog - (mid + 3)) : front - prog;
+    else if (!x.flagship) v = front - prog + (scouts.length >= 3 ? 0 : 2);
+    else v = escMin - 2 - prog - 1;
+    v += -danger * 3 + rnd() * 2;
     if (v > bv) { bv = v; best = a; }
   }
   return best;
