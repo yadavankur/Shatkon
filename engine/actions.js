@@ -6,6 +6,7 @@ import { no, num, geom, current, shipById, objById, segHex, footprint, workingPa
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
+import { dirAllowed, scanAllowed } from './rapidrules.js';
 
 const foe = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
 
@@ -64,6 +65,7 @@ export function moveCap(state, ship) {
 export function movesLeft(state, ship) {
   const done = state.players[ship.owner].moved[ship.id] || 0;
   if (deadInWater(state, ship)) return 0;
+  if (state.rules.rapid) return Math.max(0, 1 - done);   // rapid mode: every move is one hex, no thrust
   if (hasOwnDrive(state, ship)) return Math.max(0, ownMove(state, ship) - done);
   return Math.max(0, Math.min(moveCap(state, ship) - done, Math.floor((ship.thrust || 0) / shipWeight(state, ship))));
 }
@@ -81,7 +83,10 @@ export function doMove(state, a) {
   if (deadInWater(state, ship)) no('its engines are gone: it is dead in the water');
   const path = a.path;
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
-  const drive = hasOwnDrive(state, ship), n = drive ? 0 : shipWeight(state, ship), cap = drive ? ownMove(state, ship) : moveCap(state, ship), done = pl.moved[ship.id] || 0;
+  const rapid = !!state.rules.rapid;
+  // rapid mode: one hex, no thrust, and forward only until one of your ships is past the line
+  const drive = !rapid && hasOwnDrive(state, ship), n = drive || rapid ? 0 : shipWeight(state, ship), cap = rapid ? 1 : drive ? ownMove(state, ship) : moveCap(state, ship), done = pl.moved[ship.id] || 0;
+  if (rapid && path.length === 1 && !dirAllowed(state, ship, path[0])) no('forward only: no ship may turn back or sideways until one of yours is past the line');
   // reveals_on_pass: a scout under afterburner lights up enemy ships it flies past, and itself
   const passN = drive && !burntOut(state, ship) ? sumAttr(state, ship, 'reveals_on_pass') : 0, passed = [];
   if (done + path.length > cap) no('a ship can move at most ' + cap + ' hexes a turn');
@@ -198,7 +203,9 @@ export function doFire(state, a) {
   emit(state, { t: 'fire', ship: ship.id, at: a.at.slice(), hits, from: src.slice(), end }, [p]);
   // anyone who can see the shooter sees the beam
   state.players.forEach((_, q) => { if (q !== p && visibleTo(state, q).has(ship.id)) emit(state, { t: 'enemy_fire', ship: ship.id, from: src.slice(), end, hits }, [q]); });
-  if (hitShip && hits > 0) {
+  // rapid mode: both sides' shots in a tick land together, so a ship that is shot this tick still fires
+  if (hitShip && hits > 0 && state.deferHits) state.deferHits.push({ ship: hitShip.id, seg: hitSeg, hits, cause: part.t, by: ship.id });
+  else if (hitShip && hits > 0) {
     applyHits(state, hitShip, hitSeg, hits, part.t);
     // death_flash: the ship that shot it down is caught in the flash too
     if (hitShip.dead && hitShip.segs.some((g) => g.parts.some((x) => num(state.rules.parts[x.t].death_flash)))) state.lit[ship.id] = state.round + 1;
@@ -227,6 +234,8 @@ export function doLaunch(state, a) {
   if (route.length > num(m.speed) * num(m.fuel, 1)) no('that route is longer than its fuel allows');
   const tr = num(m.turn_rate, 1);
   for (let i = 1; i < route.length; i++) if (Math.abs(turnDiff(route[i - 1], route[i])) > tr) no('that route turns too sharply');
+  // rapid mode, sighted launches (battle setting): a launch must lock onto an enemy ship the fleet can see
+  if (state.rules.rapid && state.rules.rapid.launch === 'sighted' && !a.target) no('sighted launches only: lock it onto an enemy ship your fleet can see');
   let target = null;
   if (a.target) {
     const t = shipById(state, a.target);
@@ -257,7 +266,8 @@ export function doScan(state, a) {
   const p = current(state), pl = state.players[p], spend = pay(state, p, 'scan');
   const sh = ownShip(state, a.ship, p);
   if (sh.used.scan) no('this ship has already scanned this turn');
-  if (netMoved(state, sh) < 1) no('move this ship first: a ship can only scan on a turn it has moved');
+  if (state.rules.rapid) { if (!scanAllowed(state, sh)) no(state.rules.rapid.scan === 'past_line' ? 'only a ship past the line can scan' : 'no scans until one of your ships is past the line'); }
+  else if (netMoved(state, sh) < 1) no('move this ship first: a ship can only scan on a turn it has moved');
   const [r1, r2] = scanRadii(state, sh);
   spend();
   sh.used.scan = 1;
@@ -270,7 +280,7 @@ export function doScan(state, a) {
     const resist = t.segs ? 0 : num(state.rules.munitions[t.kind].scan_resist);
     if (resist && d > resist) continue;
     if (d <= r1) {
-      pl.revealed[t.id] = state.round + 1;
+      pl.revealed[t.id] = state.round + (state.rules.rapid ? state.rules.rapid.scale : 1);   // rapid mode: a round is ~3 ticks
       found++;
       if (t.segs) {
         const intel = (pl.intel[t.id] = pl.intel[t.id] || {});

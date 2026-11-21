@@ -5,6 +5,7 @@ import { key, add, step, dist, line, sightLine, turnToward, dirToward } from './
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
 import { movesLeft, shipWeight, beamHits, beamHitsAt, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
+import { dirAllowed, scanAllowed } from './rapidrules.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
@@ -36,7 +37,9 @@ export function reach(state, shipId) {
     edge = next;
   }
   seen.delete(key(ship.pos));
-  return [...seen].map(([k, path]) => ({ at: k.split(',').map(Number), path }));
+  const out = [...seen].map(([k, path]) => ({ at: k.split(',').map(Number), path }));
+  // rapid mode: forward only until one of this side's ships is past the line
+  return state.rules.rapid ? out.filter((x) => dirAllowed(state, ship, x.path[0])) : out;
 }
 
 // Every shot available to a ship right now: which weapon, which hex, how many hits.
@@ -229,7 +232,7 @@ export function shipStatus(state, shipId) {
     burnLeft: burnLeft(state, ship),   // afterburner turns left (null: no afterburner)
     beams: beams.length, beamsReady: ready(beams),
     launchers: launchers.length, launchersReady: ready(launchers),
-    scanReady: !ship.used.scan && pl.cp >= state.rules.cost.scan && netMoved(state, ship) >= 1,
+    scanReady: !ship.used.scan && pl.cp >= state.rules.cost.scan && (state.rules.rapid ? scanAllowed(state, ship) : netMoved(state, ship) >= 1),
     scanMoved: netMoved(state, ship),
     ammo: { ...ship.load },
   };

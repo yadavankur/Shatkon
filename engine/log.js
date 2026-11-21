@@ -153,6 +153,12 @@ export function battleLog(state, opts = {}) {
     replayable: false, note: null, turns: [], setup: [],
   };
   const turns = turnsOf(state);
+  if (R.rapid) {   // rapid mode (engine/rapid.js): ticks are not replayed yet, so the log lists each side's action per tick
+    log.note = 'Rapid mode: this log lists both sides\u2019 actions tick by tick. Rapid games cannot be replayed yet, so hits and sightings are not written out.';
+    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
+    log.summary = analyse(log).text;
+    return log;
+  }
   if (state.seed == null) {
     log.note = 'This game has no seed, so it cannot be replayed; only the list of actions is shown. It was started before battle logs existed (15 Nov 2026), or on the old beta page before beta became the main game (16 Nov 2026), and its save was carried over.';
     log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));

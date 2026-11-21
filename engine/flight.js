@@ -162,7 +162,8 @@ export function runFlight(state) {
   }
   for (const s of state.ships) {
     if (s.dead) continue;
-    s.pd = 0;
+    // point defence reloads every round; in rapid mode a round is `scale` ticks (one tick per flight)
+    if (!state.rules.rapid || state.round % state.rules.rapid.scale === 0) s.pd = 0;
     for (const sg of s.segs) if (!sg.wrecked) for (const part of sg.parts) {
       const c = state.rules.parts[part.t];
       // shields come back after `recharge_every` rounds (default 1), and not at all in a round they were hit if `recharge_if_unhit`

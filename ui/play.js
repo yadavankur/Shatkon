@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions } from './settings.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
@@ -62,6 +62,8 @@ let postShown = null;             // the battle report (ui/postgame.js) was clos
 // play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
 const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
 const KEYS = (k) => k + (BOARD ? '.board.' + BOARD : '');   // each board keeps its own saves
+let boardRapid = null;            // the board file's rapid: section, when this board is played in rapid mode
+const isRapidGame = () => !!(game && game.rules.rapid);
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 // The old /beta/ page kept its saves under shatkon.beta.*. Beta is now the main game: once, copy those saves
 // across to the main names where the main game has nothing of its own yet (the beta copies are left alone).
@@ -87,12 +89,15 @@ async function loadRules() {
   const named = fleets && parsed[fleets.map];
   let map = named && named.map ? named : docs.find((d) => d && d.map);
   if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
-    const r = await fetch('rules/boards/' + BOARD + '.yaml?t=' + Date.now());
-    if (!r.ok) throw new Error('could not read rules/boards/' + BOARD + '.yaml');
+    // rapid-mode boards live in rules/rapid/ (kept out of rules/boards/, which the board checks and sims walk)
+    const file = (/^rapid_/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';
+    const r = await fetch(file + '?t=' + Date.now());
+    if (!r.ok) throw new Error('could not read ' + file);
     const b = YAML.parse(await r.text());
     world = structuredClone(world);
     for (const [k, v] of Object.entries((b.board || {}).rules || {})) { const ks = k.split('.'); let o = world; for (const x of ks.slice(0, -1)) o = o[x] = o[x] ?? {}; o[ks.at(-1)] = v; }
     map = fleets = b;
+    boardRapid = b.rapid && typeof b.rapid === 'object' ? b.rapid : null;   // a rapid-mode board (engine/rapid.js)
     if (b.board && b.board.name) document.title = b.board.name + ' · Shatkon';
   }
   const built = E.buildRules(world, map, fleets);
@@ -130,7 +135,8 @@ export function say(text, err) { hint = text; hintErr = !!err; }
 // Once a game is over everything is shown.
 const who = () => (game && game.phase === 'over' && (seat === 'cpu' || seat === 'pass') ? 'all' : seat === 'all' ? 'all' : seat === 'pass' ? turnOf() : seat === 'cpu' ? 0 : seat);
 const turnOf = () => game.order[game.turn];
-const myTurn = () => game && game.phase === 'play' && (seat === 'all' || seat === 'pass' || (seat === 'cpu' ? turnOf() === 0 : turnOf() === seat));
+const myTurn = () => game && game.phase === 'play' && (seat === 'all' || seat === 'pass' || (seat === 'cpu' ? turnOf() === 0 : turnOf() === seat))
+  && !(game.rules.rapid && RT.phase !== 'choose' && RT.phase !== 'auto');   // rapid mode: only while the clock runs
 const isCodes = () => seat === 0 || seat === 1;
 const aiTurn = () => seat === 'cpu' && game && game.phase === 'play' && turnOf() === 1;
 // A ship the player can give orders to right now. Story chapters fly some ships themselves
@@ -737,6 +743,7 @@ function aiStep() {
 }
 
 export function newGame() {
+  if (boardRapid) return newRapidGame();
   // the battle settings (asked before the game): fixed turn order, or swap the first move every round
   const bs = battleSettings(), fixed = bs.turns !== 'swap';
   game = E.start({ ...rules, firstPlayer: fixed ? 'fixed' : 'alternate' }, (Date.now() % 2147483647) | 0);
@@ -762,7 +769,7 @@ export function askSetup(start, title) {
   const close = () => back.remove();
   const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
   const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
-    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, 'Battle settings'), settingsForm(),
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, !!boardRapid),
       h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
   document.body.appendChild(back);
 }
@@ -789,6 +796,7 @@ export function startStoryGame(chRules, title) {
 }
 
 function act(action, quiet, byAI) {
+  if (isRapidGame()) return rapidAct(action, quiet, false);
   const p = turnOf(), prev = game;
   endArmed = false;
   const viewer = seat === 'cpu' ? 0 : p;      // the computer's view must never reach the hint
@@ -1012,6 +1020,7 @@ function zoomOnShip(ship) {
 }
 
 function tap(c, v, opts, viaChip, t) {
+  if (isRapidGame() && game.phase === 'play' && RT.phase !== 'choose') return;   // rapid mode: watching, or the game is choosing for you
   let o = opts.get(hex.key(c));
   endArmed = false;
   const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
@@ -1579,19 +1588,24 @@ export function render() {
   const stepNames = game.order.map(seatName).concat('Missiles fly');
   const nextFirst = R.firstPlayer === 'fixed' ? game.order[0] : game.order[game.order.length - 1];
   const title = game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
+    : R.rapid ? ({ choose: 'Your move', auto: 'Out of time', watch: 'Watch' }[RT.phase] || 'Both sides act\u2026')
     : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1);
+  const rapidChips = R.rapid && game.phase === 'play' ? [0, 1].map((k) => { const free = E.unlocked(game, k), past = E.shipsPast(game, k).length;
+    return h('span', { class: 'stepchip s' + k + (free ? ' now' : ''), title: (k === 0 ? 'You' : 'Enemy') + ': ' + (free ? 'free to stop, turn back, pass and scan' + (past ? ' (' + plural(past, 'ship') + ' past the line)' : '') : 'forward only until a ship is on or past the line') },
+      (k === 0 ? 'You' : 'Enemy') + (free ? ': free' : ': forward')); }) : null;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit),
+      R.rapid ? h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps' }, rapidChips)) :
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
         game.phase === 'play' && v.round < R.turnLimit && R.firstPlayer !== 'fixed' ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
-      mine ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending)) : null,
-      mine && v.cp === 1 ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null,
+      mine && !R.rapid ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending)) : null,
+      mine && v.cp === 1 && !R.rapid ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null,
       compact ? h('button', { class: 'infobtn' + (detailsOpen ? ' open' : ''), 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Close details' : 'More: the turn, your ship, the rules', title: detailsOpen ? 'Close' : 'More',
         onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'x' : 'plus', 20)) : null),
     v.objective ? h('div', { class: 'line' }, h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '')) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
-    mine ? ledger(v) : null]);
+    mine && !R.rapid ? ledger(v) : null]);
   if (compact) { const ht = $('#hudtop'); if (ht) document.body.style.setProperty('--hudh', Math.ceil(ht.getBoundingClientRect().bottom - ($('#stage').getBoundingClientRect().top || 0) + 2) + 'px'); }
 
   // board: it fills the screen. Ships you can command wear a halo; the rest of yours are marked as busy.
@@ -1615,7 +1629,7 @@ export function render() {
   const danger = mine && sel && mode === 'move' && !hid ? E.dangerMap(game, eyes) : null;
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView }));
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines() }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
@@ -1716,7 +1730,12 @@ export function render() {
   const rail = $('#rail');
   if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
-  if (mine && !hid) fill(tb, [
+  if (mine && !hid && R.rapid) {
+    const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
+    fill(tb, [h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
+      onclick: () => rapidAct({ type: 'pass' }) },
+      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Pass'), h('small', { class: 'tl' }, ok ? 'do nothing this tick' : 'once past the line'))]);
+  } else if (mine && !hid) fill(tb, [
     undoStack.length ? ibtn({ icon: 'undo', label: 'Undo', sub: 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'), on: true, title: 'Undo (Ctrl+Z)', onclick: undo, cls: 'undo' }) : null,
     // Ending a turn in which nothing was done, while a ship could act, asks in a pop-up (two separate
     // buttons, so a double tap can't skip a turn). Ending with points left after doing something asks once
@@ -1786,9 +1805,189 @@ export function render() {
   drawer.hidden = !drawerOpen || hid;
   const mb = $('#menubtn');
   if (mb) { mb.classList.toggle('dot', !!newsKey && newsKey !== drawerSeen); mb.setAttribute('aria-expanded', String(drawerOpen)); }
+  rapidEnsure();
   // the computer moves after the animations have had time to play
   if (aiTurn() && !aiTimer) aiTimer = setTimeout(aiStep, Math.max(1000, fxBusyUntil - performance.now() + 400));
 }
+
+// ---------- rapid mode (rules/boards/rapid_skirmish.yaml, engine/rapid.js) ----------
+// Both sides pick one action a tick and they resolve together. The screen runs a clock:
+//   watch  : what both sides just did plays out; the controls sleep (battle setting "Time to watch")
+//   choose : the bar shrinks; pick one action (battle setting "Time to act")
+//   auto   : out of time. A chosen laser, missile or scan fires on its own after a 1.5 s red Cancel
+//            button; with nothing chosen the game picks a ship and moves it forward (or passes, once free)
+// The computer picks its action the moment you pick yours, from its own view of the board.
+const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0 };
+function rapidClear() {
+  clearTimeout(RT.timer); RT.timer = 0;
+  const c = document.getElementById('rapidcancel'); if (c) c.remove();
+  document.body.classList.remove('rapid-auto');
+}
+function rapidReset() { rapidClear(); RT.phase = 'idle'; rapidBar(); }
+// Each side's line across the board: a ship on the far side of it (or on it) frees its fleet.
+function rapidLines() {
+  if (!isRapidGame()) return null;
+  const R = game.rules, L = R.rapid.line, B = R.board.radius;
+  return [0, 1].map((k) => {
+    const hs = E.homeSign(game, k);
+    return { row: hs > 0 ? B - L + 0.5 : -(B - L) - 0.5, side: k, col: k === 0 ? '#7fd8f0' : '#ff8bd8', label: k === 0 ? 'your line' : 'enemy line' };
+  });
+}
+function newRapidGame() {
+  rapidReset();
+  seat = 'cpu'; store.set('shatkon.seat', 'cpu');
+  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions() }), (Date.now() % 2147483647) | 0);
+  game.started = new Date().toISOString(); stampFrom = 0;
+  looks = partLooks(game.rules);
+  sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
+  undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
+  const r = game.rules.rapid;
+  say('Rapid mode: you and the computer each pick ONE action a tick, and both happen at once. Moves are one hex, forward only, until one of your ships is on or past your line (dashed). '
+    + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you.');
+  save(); render();
+  setTimeout(() => toast('Rapid mode', 'p0', r.timer + ' s a tick · forward until you cross the line'), 300);
+}
+// Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
+function rapidEnsure() {
+  if (!isRapidGame() || game.phase !== 'play') { if (RT.phase !== 'idle') rapidReset(); else rapidBar(); return; }
+  if (RT.phase === 'idle') { RT.phase = 'starting'; setTimeout(rapidChoose, 50); }
+  rapidBar();
+}
+function rapidWatch(ms) {
+  rapidClear();
+  if (ms <= 0) return rapidChoose();
+  RT.phase = 'watch'; RT.start = performance.now(); RT.end = RT.start + ms;
+  RT.timer = setTimeout(rapidChoose, ms);
+  rapidBar();
+}
+function rapidChoose() {
+  if (!isRapidGame() || game.phase !== 'play') return rapidReset();
+  rapidClear();
+  RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + game.rules.rapid.timer * 1000;
+  RT.timer = setTimeout(rapidTimeout, game.rules.rapid.timer * 1000);
+  yourTurnPing();
+  render();
+}
+// Out of time.
+function rapidTimeout() {
+  if (!isRapidGame() || RT.phase !== 'choose' || game.phase !== 'play') return;
+  // the rules card or the menu is open: the clock starts again rather than acting behind it
+  if ((document.getElementById('help') && !document.getElementById('help').hidden) || drawerOpen || document.getElementById('bsheet')) return rapidChoose();
+  const R = game.rules.rapid;
+  if (pending && pending.type === 'move') return rapidAct(pending, true, true);   // chosen, just not confirmed
+  let a = null;
+  if (pending && ['fire', 'launch', 'scan', 'detonate'].includes(pending.type)) a = bare(pending);
+  else if (sel && mode === 'fire') a = E.autoFire(game, 0, sel, R.autofire);
+  else if (sel && isLaunchKind(mode)) a = E.autoLaunch(game, 0, sel, mode, R.autofire);
+  if (a && !E.rapidRefusal(game, 0, a)) return rapidAutoAsk(a);
+  rapidForced();
+}
+// A chosen laser, missile or scan goes by itself unless Cancel is pressed within 1.5 s.
+function rapidAutoAsk(a) {
+  rapidClear();
+  RT.phase = 'auto'; RT.start = performance.now(); RT.end = RT.start + 1500;
+  pending = a; sel = a.ship || sel; mode = a.type === 'launch' ? a.kind : a.type === 'fire' ? 'fire' : mode;
+  document.body.classList.add('rapid-auto');
+  say('Out of time: ' + ({ fire: 'your laser fires', launch: 'your ' + munName(a.kind).toLowerCase() + ' launches', scan: 'your scan goes', detonate: 'your drone goes off' }[a.type]) + ' by itself. Cancel to stop it.');
+  document.body.appendChild(h('button', { id: 'rapidcancel', class: 'rapidcancel', onclick: () => { rapidClear(); pending = null; rapidForced(); } }, 'Cancel', h('small', null, 'auto ' + (a.type === 'launch' ? 'launch' : a.type))));
+  RT.timer = setTimeout(() => { const c = document.getElementById('rapidcancel'); if (c) c.remove(); rapidAct(a, true, true); }, 1500);
+  render();
+}
+// Nothing chosen: pass once free; otherwise spin through the ships that can go forward, pick one and move it.
+function rapidForced() {
+  rapidClear();
+  if (!isRapidGame() || game.phase !== 'play') return;
+  if (E.passAllowed(game, 0) && E.unlocked(game, 0)) { say('Out of time: you passed.'); return rapidAct({ type: 'pass' }, true, true); }
+  const moves = E.forcedMoves(game, 0);
+  if (!moves.length) return rapidAct({ type: 'pass' }, true, true);
+  RT.phase = 'auto'; RT.start = performance.now(); RT.end = RT.start + 1600;
+  document.body.classList.add('rapid-auto');
+  const pick = moves[Math.floor(Math.random() * moves.length)], ids = [...new Set(moves.map((m) => m.ship))];
+  let i = 0;
+  const steps = Math.min(10, 4 + ids.length);
+  say('Out of time: the game picks one of your ships and moves it forward.');
+  const spin = () => {
+    if (!isRapidGame() || RT.phase !== 'auto') return;
+    if (i < steps) { sel = ids[(i * 7 + steps) % ids.length]; mode = 'move'; pending = null; i++; render(); RT.timer = setTimeout(spin, 110); return; }
+    sel = pick.ship; mode = 'move'; pending = pick; render();
+    RT.timer = setTimeout(() => rapidAct(pick, true, true), 500);
+  };
+  spin();
+}
+// One tick: your action and the computer's, together.
+function rapidAct(action, quiet, auto) {
+  if (!isRapidGame() || game.phase !== 'play') return;
+  if (!auto && RT.phase !== 'choose') { say('Watch first: the controls wake up when the bar at the top refills.'); return render(); }
+  const a = !action || action.type === 'end' ? { type: 'pass' } : bare(action);
+  const why = E.rapidRefusal(game, 0, a);
+  if (why) {
+    say('Not allowed: ' + why + '.', true);
+    if (auto) rapidForced();          // an automatic choice went stale: fall back to the forced move
+    return render();
+  }
+  rapidClear(); RT.phase = 'busy';
+  let ai = { type: 'pass' };
+  try {
+    ai = E.rapidAI(game, 1, aiLevel) || ai;
+    if (E.rapidRefusal(game, 1, ai)) ai = E.forcedMoves(game, 1)[0] || { type: 'pass' };
+    if (E.rapidRefusal(game, 1, ai)) ai = { type: 'pass' };
+  } catch (err) { console.warn('AI error', err); ai = { type: 'pass' }; }
+  game = E.rapidTick(game, [a, ai]);
+  pending = null; endArmed = false; undoStack = []; mode = 'move';
+  if (sel && !game.ships.some((x) => x.id === sel && !x.dead)) sel = null;
+  sfxFor(a, game.events, 0);
+  const ran = playFx(game.events, 0, game.flight, false);
+  report = makeReport(game.events, 0);
+  const news = game.events.filter((e) => e.seenBy.includes(0) && e.t !== 'lost').map(describe).filter((x) => x && x !== 'game_over');
+  say((a.type === 'pass' ? 'You passed. ' : '') + (news.join(' ') || 'Nothing you could see happened.'));
+  save();
+  if (game.phase === 'over') {
+    rapidReset();
+    setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : game.winner === 0 ? 'Victory!' : 'Defeat', 'over'), 600);
+    return render();
+  }
+  const w = game.rules.rapid.watch * 1000;
+  rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
+  render();
+}
+// The clock: a bar across the top of the screen. Teal while you choose (red in the last 5 s), grey while you watch.
+function rapidBar() {
+  let bar = document.getElementById('rapidbar');
+  if (!isRapidGame() || game.phase !== 'play' || RT.phase === 'idle') { if (bar) bar.hidden = true; cancelAnimationFrame(RT.raf); RT.raf = 0; return; }
+  if (!bar) {
+    if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
+    bar = h('div', { id: 'rapidbar', role: 'timer', 'aria-live': 'off' }, h('i'), h('span'));
+    document.body.appendChild(bar);
+  }
+  bar.hidden = false;
+  if (!RT.raf) RT.raf = requestAnimationFrame(rapidFrame);
+}
+function rapidFrame() {
+  RT.raf = 0;
+  const bar = document.getElementById('rapidbar');
+  if (!bar || !isRapidGame() || RT.phase === 'idle') return;
+  const now = performance.now(), left = Math.max(0, RT.end - now), frac = RT.end > RT.start ? left / (RT.end - RT.start) : 0;
+  const fillEl = bar.firstChild, text = bar.lastChild;
+  bar.className = RT.phase + (RT.phase === 'choose' && left < 5000 ? ' low' : '');
+  // watching: the bar fills back up; choosing: it shrinks
+  fillEl.style.width = (RT.phase === 'watch' ? 100 * (1 - frac) : RT.phase === 'busy' || RT.phase === 'starting' ? 0 : 100 * frac).toFixed(2) + '%';
+  text.textContent = RT.phase === 'choose' ? 'Tick ' + game.round + ' · ' + Math.ceil(left / 1000) + ' s'
+    : RT.phase === 'watch' ? 'Watch · tick ' + game.round : RT.phase === 'auto' ? 'Out of time' : '';
+  RT.raf = requestAnimationFrame(rapidFrame);
+}
+const RAPID_CSS = `
+#rapidbar{position:fixed;left:0;right:0;top:0;height:7px;z-index:60;background:rgba(10,20,36,.75);pointer-events:none}
+#rapidbar i{display:block;height:100%;width:0;background:#7fd8f0;box-shadow:0 0 10px rgba(127,216,240,.7);margin:0 auto}
+#rapidbar.watch i{background:#8f9cba;box-shadow:none}
+#rapidbar.low i{background:#ff5a6e;box-shadow:0 0 12px rgba(255,90,110,.8)}
+#rapidbar.auto i{background:#ff5a6e}
+#rapidbar span{position:absolute;top:8px;left:50%;transform:translateX(-50%);font:600 11px system-ui,sans-serif;color:#c6d0e4;background:rgba(4,10,20,.7);padding:1px 8px;border-radius:0 0 6px 6px;white-space:nowrap}
+#rapidbar span:empty{display:none}
+.rapidcancel{position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:70;min-width:150px;min-height:56px;border:0;border-radius:14px;background:#e0283f;color:#fff;font:700 20px system-ui,sans-serif;box-shadow:0 6px 24px rgba(224,40,63,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.rapidcancel small{font-size:11px;font-weight:600;opacity:.85}
+body.rapid-auto #rail,body.rapid-auto #ctx,body.rapid-auto #dock,body.rapid-auto #turnbtns{pointer-events:none;opacity:.6}
+.endb.off{opacity:.45}
+`;
 
 function initExtras() {
   let hp = $('#help'),
