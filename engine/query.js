@@ -5,7 +5,7 @@ import { key, add, step, dist, line, sightLine, turnToward, dirToward } from './
 import { deadInWater, geom, current, shipById, objById, segHex, footprint, workingParts, occupancy, num, cellsOf, nearestCell, maxAttr } from './state.js';
 import { networkSees, netMoved } from './detect.js';
 import { movesLeft, shipWeight, beamHits, beamHitsAt, knownTo, ownMove, hasOwnDrive, burnLeft } from './actions.js';
-import { dirAllowed, scanAllowed } from './rapidrules.js';
+import { dirAllowed, scanAllowed, shootRange, isMoving } from './rapidrules.js';
 
 // Every hex the ship's centre can reach this turn, with the path to get there.
 export function reach(state, shipId) {
@@ -56,6 +56,7 @@ export function beamTargets(state, shipId) {
       if (t.segs && t.segs[i].wrecked) return;
       const d = dist(src, c);
       if (d < 1 || d > w.c.range) return;
+      if (shootRange(state) && isMoving(state, t) && d > shootRange(state)) return;   // rapid mode: missiles only up close
       const cells = sightLine(src, c, (h) => g.blockSight.has(key(h)));
       if (!cells) return;
       // never offer a shot whose beam would hit one of your own ships first

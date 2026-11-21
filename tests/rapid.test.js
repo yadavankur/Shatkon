@@ -169,3 +169,41 @@ test('a rapid battle log replays the game tick by tick: hits and sightings are i
   assert.ok(evs.some((e) => e.t === 'sighted'));
   assert.ok(log.replay && log.replay.rapid && log.replay.rapid.length === g.rapid.ticks.length);
 });
+
+test('missiles: shot down only up close, and close-in debris hits and lights up the shooter', () => {
+  const ship = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'armour', 'launcher'] }], load: { missile_basic: 0 } });
+  let g = small([ship('A', [0, 6], true)], [ship('B', [0, -12], true)], { stride: 'off' });
+  const a = g.ships.find((s) => s.owner === 0);
+  // an enemy missile flying at A, 5 hexes off, then 2 hexes off
+  const put = (st, at) => { const s2 = structuredClone({ ...st, rules: undefined }); s2.rules = st.rules;
+    s2.objs.push({ id: 'o9', kind: 'missile_basic', owner: 1, pos: at, fuel: 9, target: a.id, route: [] }); return s2; };
+  let far = put(g, [0, 1]);
+  assert.ok(!E.beamTargets(far, a.id).some((t) => t.target === 'o9'), 'no shot at a missile 5 hexes off');
+  let near = put(g, [0, 4]);
+  const shot = E.beamTargets(near, a.id).find((t) => t.target === 'o9');
+  assert.ok(shot, 'a shot at a missile 2 hexes off');
+  near = E.rapidTick(near, [{ type: 'fire', ship: a.id, seg: shot.seg, part: shot.part, at: shot.at }, E.forcedMoves(near, 1)[0]]);
+  assert.ok(near.events.some((e) => e.t === 'debris'));
+  assert.ok(near.events.some((e) => e.t === 'damage' && e.ship === a.id && e.cause === 'debris'));
+  assert.ok(E.view(near, 1).ships.some((x) => x.id === a.id), 'the enemy sees the shooter');
+});
+
+test('formation: a ship that fires lets a friend within 2 hexes move in the same tick; attack run is last tick', () => {
+  const scout = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'shield', 'armour'] }] });
+  let g = small([scout('A', [0, 2], true), scout('W', [2, 2]), scout('Far', [-6, 6])], [scout('B', [0, -2], true)], { stride: 'off', scan: 'always' });
+  const A = g.ships.find((s) => s.name === 'A'), W = g.ships.find((s) => s.name === 'W'), Far = g.ships.find((s) => s.name === 'Far');
+  const shot = E.autoFire(g, 0, A.id);
+  assert.ok(shot);
+  const wings = E.wingMoves(g, 0, A.id);
+  assert.ok(wings.some((m) => m.ship === W.id) && !wings.some((m) => m.ship === Far.id));
+  const wing = wings.find((m) => m.ship === W.id);
+  assert.match(E.rapidRefusal(g, 0, { ...shot, wing: { type: 'move', ship: Far.id, path: [2] } }), /wingman/);
+  const before = W.pos.join();
+  g = E.rapidTick(g, [{ ...shot, wing }, two(g)]);
+  assert.notEqual(g.ships.find((s) => s.id === W.id).pos.join(), before);
+  assert.match(g.rapid.ticks[0].acts[0], /\+m/);
+  assert.equal(g.rapid.movedLast[W.id], 1);
+  // the log replays the wingman move
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true);
+});

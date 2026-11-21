@@ -10,6 +10,7 @@
 import { key, dist } from './hex.js';
 import { geom, footprint, cellsOf, workingParts, sumAttr, maxAttr, gap, num, emit, thing } from './state.js';
 import { fnv, seededRandom } from './codec.js';
+import { pastLine } from './rapidrules.js';
 
 export function sensorOf(state, ship) {
   let s = 0;
@@ -17,6 +18,8 @@ export function sensorOf(state, ship) {
   const g = geom(state.rules);
   let pen = 0;
   for (const h of footprint(ship)) { const z = g.haze.get(key(h)); if (z) pen = Math.max(pen, num(z.sensor_penalty)); }
+  // rapid mode: a ship past the line watches the enemy's side closely (setting forward_eyes, +2 by default)
+  if (state.rules.rapid && state.rapid && num(state.rules.rapid.forwardEyes) && pastLine(state, ship)) s += num(state.rules.rapid.forwardEyes);
   return Math.max(0, s - pen);
 }
 
