@@ -310,13 +310,16 @@ export function analyse(log) {
   // missiles and drones: what became of each one launched
   const launched = new Map();
   for (const { e, round, player } of allEv) {
-    if (e.t === 'launch') launched.set(e.obj, { obj: e.obj, kind: e.kind, round, player, ship: e.ship, fate: 'still flying when the log ends', hurt: 0 });
+    // whose missile: the launching ship's owner (a rapid-mode tick holds both sides' events under one turn)
+    const owner = e.ship ? ownerOf(e.ship) : null;
+    if (e.t === 'launch') launched.set(e.obj, { obj: e.obj, kind: e.kind, round, player: owner ?? player, ship: e.ship, fate: 'still flying when the log ends', hurt: 0 });
   }
   for (const t of log.turns) for (const a of t.actions || []) {
     const evs = a.events || [];
     evs.forEach((e, i) => {
       const m = e.obj && launched.get(e.obj);
       if (e.t === 'obj_lost' && m) m.fate = 'wasted: it ' + e.why + ' (round ' + t.round + ')';
+      if (e.t === 'obj_destroyed' && m) m.fate = 'wasted: shot down or caught in a blast (round ' + t.round + ')';
       if (e.t === 'blast' && m) {
         let hurt = 0;
         for (let j = i + 1; j < evs.length && evs[j].t !== 'blast'; j++) if (evs[j].t === 'damage' && ownerOf(evs[j].ship) !== m.player) hurt += evs[j].hits;

@@ -210,7 +210,7 @@ export function doFire(state, a) {
     // death_flash: the ship that shot it down is caught in the flash too
     if (hitShip.dead && hitShip.segs.some((g) => g.parts.some((x) => num(state.rules.parts[x.t].death_flash)))) state.lit[ship.id] = state.round + 1;
   }
-  else if (hitObj && hits > 0) { removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, at: hitObj.pos.slice() }, state.players.map((_, i) => i)); }
+  else if (hitObj && hits > 0) { removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, obj: hitObj.id, at: hitObj.pos.slice() }, state.players.map((_, i) => i)); }
 }
 
 export function doLaunch(state, a) {

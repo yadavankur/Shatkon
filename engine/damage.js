@@ -130,7 +130,7 @@ export function explode(state, obj, struck) {
     }
   }
   if (r > 0) for (const o of state.objs.slice()) {
-    if (objById(state, o.id) && dist(center, o.pos) <= r) { removeObj(state, o); emit(state, { t: 'obj_destroyed', kind: o.kind, at: o.pos.slice() }, everyone); }
+    if (objById(state, o.id) && dist(center, o.pos) <= r) { removeObj(state, o); emit(state, { t: 'obj_destroyed', kind: o.kind, obj: o.id, at: o.pos.slice() }, everyone); }
   }
 }
 

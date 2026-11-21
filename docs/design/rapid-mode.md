@@ -131,4 +131,5 @@ Reading:
 - **"The laser controls died after I crossed the line."** His log was from before logs could be replayed, so the exact cause can't be proven. Rebuilding the game from its actions (positions match; damage dice differ) showed his ships did have targets on most ticks after the crossing, and the engine accepted those shots.
 - **Found and fixed:** tapping a target a second time never fired, in every game mode. A friendly-fire check left an empty `warn` note on the aimed shot, so the second tap never matched it. Only the Fire button worked. Under a 15 s clock that looks like dead controls.
 - Also likely: lasers sit right under shields and armour, so two 2-hit shots strip a scout's laser. The ship card shows it, but it's easy to miss in a rush.
+- **His battle report was empty** (0 shots, 0 damage, a "quiet battle") for the same reason: the old rapid log held no events. Fixed by the replay. Missiles in the report are credited to the launching ship's owner, and missiles shot down count as wasted.
 - Logs are now replayable, so the next time something like this happens the log will show exactly why.

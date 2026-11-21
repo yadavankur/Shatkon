@@ -2,6 +2,7 @@
 - Rapid mode is renamed **Rapid Opus** (`rules/rapid/rapid_opus.yaml`, Play → Rapid Opus); a Grok-built rapid mode may sit beside it for comparison, so keep `rapid_<name>` boards in `rules/rapid/`.
 - **Opening** (Ankur after his first game): until the first laser shot or launch, ships move up to 2 hexes, a 10 s clock, no watch wait, and those ticks don't count towards the limit. Settings: Opening clock, Opening moves.
 - **Rapid battle logs replay** from the seed tick by tick (`rapidLog`, `replayLog`).
+- **Battle report for rapid games** was empty (no events in the log); it now comes from the replay. Missiles are credited to the launching ship's owner, and a missile shot down by a laser counts as wasted instead of "still flying" (all modes; `obj_destroyed` events now name the object).
 - **Fix for every mode:** a second tap on an aimed target never fired (the friendly-fire `warn: null` key made `sameAction` fail); `bare()` in ui/play.js now strips it.
 
 ## 21 Nov, gamedev chat: rapid mode, experimental (branch `rapid-mode`)
