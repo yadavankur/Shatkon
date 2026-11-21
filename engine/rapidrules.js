@@ -54,7 +54,8 @@ export function unlocked(state, p) {
   return state.rules.rapid.unlock === 'permanent' && !!(state.rapid && state.rapid.ever && state.rapid.ever[p]);
 }
 
-// The opening: from the start until the first laser shot or missile launch (either side).
+// The opening: from the start until the first sighting (either side has a contact on the other) or the
+// first laser shot or missile launch, whichever comes first (setting openEnd 'shot': only the shot).
 export const inOpening = (state) => !!(state.rapid && state.rapid.opening);
 
 // How many hexes a move may go this tick: 2 during the opening (setting stride 'opening', the default),
