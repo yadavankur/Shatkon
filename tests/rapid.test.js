@@ -207,3 +207,36 @@ test('formation: a ship that fires lets a friend within 2 hexes move in the same
   const log = E.battleLog(g, { seat: 'cpu' });
   assert.equal(log.replayable, true);
 });
+
+test('going silent: a scout on or past the line can become a scanner buoy or a mine as it moves', () => {
+  const scout = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'shield', 'armour'] }] });
+  let g = small([scout('Flag', [0, 12], true), scout('S', [3, 1])], [scout('E', [3, -6], true)], { stride: 'off' });
+  const S = g.ships.find((x) => x.name === 'S');
+  assert.match(E.rapidRefusal(g, 0, { type: 'move', ship: g.ships.find((x) => x.name === 'Flag').id, path: [2], convert: 'mine' }), /go silent/);
+  const mv = { type: 'move', ship: S.id, path: [2], convert: 'scanner' };   // [3,1] -> [3,0]: onto the line
+  assert.equal(E.rapidRefusal(g, 0, mv), null);
+  g = E.rapidTick(g, [mv, two(g)]);
+  const gone = g.ships.find((x) => x.id === S.id);
+  assert.ok(gone.dead && gone.converted === 'scanner');
+  const buoy = g.objs.find((o) => o.kind === 'scan_buoy' && o.owner === 0);
+  assert.deepEqual(buoy.pos, [3, 0]);
+  assert.equal(g.rapid.ticks[0].acts[0], E.tickText(mv));
+  // the buoy reads out the enemy flagship within 4 hexes (it is 6 off here, so a rough contact)... move it closer
+  let h = g;
+  for (let i = 0; i < 3 && h.phase === 'play'; i++) h = E.rapidTick(h, [E.forcedMoves(h, 0)[0] || { type: 'pass' }, { type: 'move', ship: h.ships.find((x) => x.owner === 1).id, path: [5] }]);
+  const ev = h.ships.find((x) => x.owner === 1);
+  assert.ok(E.view(h, 0).ships.some((x) => x.id === ev.id && x.tier === 3), 'buoy gives a full readout');
+  // the log replays it
+  assert.equal(E.battleLog(h, { seat: 'cpu' }).replayable, true);
+});
+
+test('shields come back in rapid mode even with no missiles in the air (3 ticks unhit)', () => {
+  const ship = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'shield', 'armour'] }] });
+  let g = small([ship('A', [0, 2], true)], [ship('B', [0, -1], true)], { stride: 'off', scan: 'always', wingman: 'off' });
+  const a = g.ships.find((s) => s.owner === 0), b = g.ships.find((s) => s.owner === 1);
+  g = E.rapidTick(g, [E.autoFire(g, 0, a.id), { type: 'pass' }].map((x, i) => i === 1 ? two(g) : x));
+  const shieldOf = (st) => st.ships.find((s) => s.id === b.id).segs[0].parts.find((q) => q.t === 'shield').hp;
+  assert.equal(shieldOf(g), 0);
+  for (let i = 0; i < 4; i++) g = E.rapidTick(g, [{ type: 'pass' }, { type: 'pass' }].map((x, k) => (E.passAllowed(g, k) ? x : E.forcedMoves(g, k)[0])));
+  assert.equal(shieldOf(g), 1);
+});

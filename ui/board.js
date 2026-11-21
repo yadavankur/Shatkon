@@ -108,7 +108,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -319,7 +319,32 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     tags.push([lx, ly, tw]);
     g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: quiet ? '#6b7592' : c0, 'stroke-width': f1(1 / px), 'stroke-dasharray': quiet ? f1(3 / px) + ' ' + f1(2 / px) : null }));
     g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: quiet ? '#9aa5c0' : c0 }, label));
+    // What its parts say, where they are known (your own ships, or an enemy you have read out with a scan):
+    // a yellow ring on each segment whose shield is up; on an enemy, a red T on each segment with a working
+    // laser (the turrets to shoot at), or once it has none, a red E on each segment with a working engine.
+    const live = (ps, t) => !!ps && ps.some((q) => q.t === t && q.hp > 0);
+    x.cells.forEach((c, j) => {
+      const sg = x.segs[j];
+      if (sg && !sg.wrecked && live(sg.parts, 'shield')) g.appendChild(s('path', { d: hexPath(X(c), Y(c), S * 0.96), fill: 'none', stroke: '#ffd84a', 'stroke-width': 1.1, 'stroke-opacity': 0.85, 'pointer-events': 'none' }));
+    });
+    if (!x.mine && x.segs.some((sg) => sg.parts)) {
+      const turret = x.segs.map((sg) => !sg.wrecked && live(sg.parts, 'laser'));
+      const letter = turret.some(Boolean) ? 'T' : 'E';
+      x.cells.forEach((c, j) => {
+        const sg = x.segs[j];
+        if (!sg || sg.wrecked || !(letter === 'T' ? turret[j] : live(sg.parts, 'engine'))) return;
+        const tx = X(c) - S * 0.5, ty = Y(c) - S * 0.42;
+        g.appendChild(s('circle', { cx: f1(tx), cy: f1(ty), r: f1(Math.max(S * 0.22, 6 / px)), fill: '#2a0710', stroke: '#ff4d5e', 'stroke-width': f1(1 / px), 'pointer-events': 'none' }));
+        g.appendChild(s('text', { x: f1(tx), y: f1(ty + 0.5 / px), 'font-size': fs(10), 'font-weight': 800, fill: '#ff6a78', 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'pointer-events': 'none' }, letter));
+      });
+    }
     svg.appendChild(g);
+  }
+  // rapid mode: the ships flying in formation with the selected one (friends within 2 hexes, chained) get a purple ring
+  if (formation && formation.size > 1) {
+    const fg = s('g', { 'pointer-events': 'none' });
+    for (const x of v.ships) if (formation.has(x.id)) for (const c of x.cells) fg.appendChild(s('path', { d: hexPath(X(c), Y(c), S * 1.02), fill: 'none', stroke: '#b57bff', 'stroke-width': 1.3, 'stroke-opacity': 0.9 }));
+    svg.appendChild(fg);
   }
 
   // missiles, drones and mines
@@ -327,7 +352,15 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind] || { speed: 1 }, c0 = col(o.owner), fade = o.seen ? null : 0.4;
     if (o.last && !hex.same(o.last, o.pos)) svg.appendChild(s('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(cx), y2: f1(cy), stroke: c0, 'stroke-width': 1, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
     const ink = '#050a14', neon = o.owner === 1 ? TEAM[1].neon : TEAM[0].neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
-    if (!m.speed && m.drift) {
+    if (o.kind === 'scan_buoy') {
+      // rapid mode, scanner buoy: a small dish with two sweeping rings (a one-hex ship that went silent)
+      const bg = s('g', { opacity: fade });
+      bg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 6, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.5, 'stroke-dasharray': '2 1.5', class: 'rotor' }));
+      bg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.2, fill: ink, stroke: c0, 'stroke-width': 0.8 }));
+      bg.appendChild(s('path', { d: `M${f1(cx - 1.8)},${f1(cy + 0.6)}Q${f1(cx)},${f1(cy - 2.6)} ${f1(cx + 1.8)},${f1(cy + 0.6)}`, fill: 'none', stroke: neon, 'stroke-width': 0.8 }));
+      bg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy - 0.6), r: 0.7, fill: neon, class: 'minepulse' }));
+      svg.appendChild(bg);
+    } else if (!m.speed && m.drift) {
       // sleeper mine: a dark, low disc with a faint dashed ring (it creeps toward ships)
       const mg = s('g', { opacity: fade });
       mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 5.2, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.45, 'stroke-dasharray': '1 1.6', class: 'rotor' }));

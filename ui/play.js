@@ -563,8 +563,8 @@ function flightFx(frames, evs, viewer, base = 0) {
     );
   if (!flying) {
     for (let i = frames[0].ev; i < frames[frames.length - 1].ev; i++) if (evs[i]) eventFx(evs[i], viewer, base + 500);
-    setTimeout(() => toast('End of round', 'flight', 'No missiles in the air that you can see'), base);
-    return 1100;
+    if (!isRapidGame()) setTimeout(() => toast('End of round', 'flight', 'No missiles in the air that you can see'), base);   // rapid mode: every tick has a flight; no banner
+    return isRapidGame() ? 0 : 1100;
   }
   fxBusyUntil = Math.max(fxBusyUntil, performance.now() + base + total + 600);
   fx(total + 250, (x, t, now) => {
@@ -906,6 +906,8 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
+    case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
+    case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
     case 'pass_reveal': return e.ship + ' flew past ' + e.found.join(', ') + ' under afterburner: lit up for everyone until the end of next round, and so is ' + e.ship + '.';
     case 'burnt_out': return e.ship + '\'s afterburner is burnt out. From now on it moves ' + plural(e.move, 'hex') + ' a turn.';
@@ -1131,7 +1133,17 @@ function guideTap(c, v, gv) {
 function selectShip(id, v) {
   sel = id; look = null; mode = 'move'; pending = null; endArmed = false;
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
-  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a green marker to see the move, then tap it again to go.' : 'It cannot move further this turn.'));
+  const wing = isRapidGame() && game.rules.rapid.wingman !== 'off' ? (rapidFormation() || new Set()).size - 1 : 0;
+  say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a green marker to see the move, then tap it again to go.' : 'It cannot move further this turn.')
+    + (wing > 0 ? ' Formation bonus: when it fires, a free wingman move for one of the ' + (wing === 1 ? 'ship' : wing + ' ships') + ' ringed in purple.' : ''));
+}
+// Rapid mode: the selected ship and the friends close enough to be its wingman (within wingGap hexes).
+function rapidFormation() {
+  if (!isRapidGame() || !sel || game.rules.rapid.wingman === 'off') return null;
+  const me = game.ships.find((x) => x.id === sel && !x.dead && x.owner === 0);
+  if (!me) return null;
+  const near = game.ships.filter((x) => x.owner === 0 && !x.dead && E.gap(x, me) <= (game.rules.rapid.wingGap || 2));
+  return near.length > 1 ? new Set(near.map((x) => x.id)) : null;
 }
 
 // ---------- camera ----------
@@ -1639,7 +1651,7 @@ export function render() {
   const danger = mine && sel && mode === 'move' && !hid ? E.dangerMap(game, eyes) : null;
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines() }));
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation() }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
@@ -1830,9 +1842,10 @@ export function render() {
 //   auto   : out of time. A chosen laser, missile or scan fires on its own after a 1.5 s red Cancel
 //            button; with nothing chosen the game picks a ship and moves it forward (or passes, once free)
 // The computer picks its action the moment you pick yours, from its own view of the board.
-const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null };   // wingFor: a chosen shot waiting for its wingman move
+const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null, convertFor: null };   // convertFor: a move waiting for "convert to?"   // wingFor: a chosen shot waiting for its wingman move
 function rapidClear() {
   clearTimeout(RT.timer); RT.timer = 0;
+  const cv = document.getElementById('rapidconvert'); if (cv) cv.remove();
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
   document.body.classList.remove('rapid-auto');
 }
@@ -1876,7 +1889,7 @@ function rapidWatch(ms) {
 function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
-  RT.wingFor = RT.wingOpts = null;
+  RT.wingFor = RT.wingOpts = RT.convertFor = null;
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
   RT.timer = setTimeout(rapidTimeout, secs * 1000);
@@ -1887,6 +1900,7 @@ function rapidChoose() {
 function rapidTimeout() {
   if (!isRapidGame() || RT.phase !== 'choose' || game.phase !== 'play') return;
   if (RT.wingFor) return rapidAct(RT.wingFor, true, true);   // out of time choosing a wingman: the shot goes alone
+  if (RT.convertFor) return rapidAct(RT.convertFor, true, true);   // out of time at "convert to?": it stays a ship
   // the rules card or the menu is open: the clock starts again rather than acting behind it
   if ((document.getElementById('help') && !document.getElementById('help').hidden) || drawerOpen || document.getElementById('bsheet')) return rapidChoose();
   const R = game.rules.rapid;
@@ -1950,7 +1964,21 @@ function rapidAct(action, quiet, auto) {
       return render();
     }
   }
-  RT.wingFor = RT.wingOpts = null;
+  // going silent: a one-hex ship moving on or past the line is asked whether it becomes a scanner or a mine
+  if (!auto && a.type === 'move' && !a.convert && !RT.convertFor && game.rules.rapid.convert !== 'off' && E.canConvert(game, 0, a)) {
+    RT.convertFor = a; pending = null;
+    const pick = (into) => { const c = document.getElementById('rapidconvert'); if (c) c.remove(); rapidAct(into ? { ...a, convert: into } : a); };
+    const [r1, r2] = game.rules.rapid.buoyScan || [4, 8];
+    document.body.appendChild(h('div', { id: 'rapidconvert', class: 'rapidconv', role: 'dialog', 'aria-label': 'Convert to?' },
+      h('b', null, 'Convert ' + a.ship + ' to?'),
+      h('small', null, 'It goes silent: the ship is gone (not lost) and something quieter stays in its place.'),
+      h('button', { class: 'btn go', onclick: () => pick('scanner') }, 'Scanner buoy', h('small', null, 'scans every tick: full readout within ' + r1 + ', contacts within ' + r2)),
+      h('button', { class: 'btn go', onclick: () => pick('mine') }, 'Naval mine', h('small', null, 'goes off when an enemy comes within 1 hex')),
+      h('button', { class: 'btn', onclick: () => pick(null) }, 'Stay a ship')));
+    say('Past the line: convert ' + a.ship + ' to a scanner buoy or a mine, or keep it a ship.');
+    return render();
+  }
+  RT.wingFor = RT.wingOpts = RT.convertFor = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
   try {
@@ -2012,6 +2040,10 @@ const RAPID_CSS = `
 #rapidbar span:empty{display:none}
 .rapidcancel{position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:70;min-width:150px;min-height:56px;border:0;border-radius:14px;background:#e0283f;color:#fff;font:700 20px system-ui,sans-serif;box-shadow:0 6px 24px rgba(224,40,63,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
 .rapidcancel small{font-size:11px;font-weight:600;opacity:.85}
+.rapidconv{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:70;width:min(340px,92vw);background:#0b1426;border:1px solid #7fd8f0;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.rapidconv>b{font:700 17px system-ui,sans-serif;color:#e8f2ff}.rapidconv>small{color:#9fb0cc;font-size:12px}
+.rapidconv button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:48px;padding:6px 12px}
+.rapidconv button small{font-size:11px;opacity:.8;font-weight:500}
 body.rapid-auto #rail,body.rapid-auto #ctx,body.rapid-auto #dock,body.rapid-auto #turnbtns{pointer-events:none;opacity:.6}
 .endb.off{opacity:.45}
 `;

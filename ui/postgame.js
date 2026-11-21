@@ -27,7 +27,7 @@ export function battleStats(game, opts = {}) {
   const { moments } = E.analyse(log);
   const sides = [0, 1].map((k) => {
     const ships = game.ships.filter((z) => z.owner === k);
-    return { ships: ships.length, lost: ships.filter((z) => z.dead).length,
+    return { ships: ships.length, lost: ships.filter((z) => z.dead && !z.converted).length,   // a ship that went silent (rapid mode) isn't lost
       hull: ships.length ? Math.round(ships.reduce((n, z) => n + (z.dead ? 0 : E.hullPct(game, z)), 0) / ships.length) : 0,
       dealt: 0, shots: 0, hits: 0, bands: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], blocked: 0, missiles: { fired: 0, hit: 0, stopped: 0, wasted: 0, flying: 0 }, unused: 0 };
   });

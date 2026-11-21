@@ -1,4 +1,10 @@
-## Latest (22 Nov, later): Rapid Opus, second round of rules
+## Latest (22 Nov, night): Rapid Opus, third round
+- One-hex ships past the line can convert into a scanner buoy or a naval mine (`canConvert`, `scan_buoy` munition added by `rapidRules`).
+- Board marks for known parts in every mode: yellow shield rings; red T (turret) / E (engine) on enemies.
+- Purple formation ring on select.
+- Fix: rapid shields and point defence only recharged when objects were in the air.
+
+## 22 Nov, later: Rapid Opus, second round of rules
 - Five new rapid settings, all on by default (docs/design/rapid-mode.md):
   - missiles can only be shot down within 3 hexes;
   - close-in debris (1 hit, lit up for 3 ticks);
