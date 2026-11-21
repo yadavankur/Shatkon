@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rapid Mode Mock-ups · Shatkon Rapid Mode Mock-up</title>
+<style>
+:root{
+  --bg:#040812; --panel:#0c1830; --panel2:#08111f; --line:#1f3552;
+  --text:#e7ecf6; --muted:#97a5c2; --teal:#7fd8f0; --neon:#5ff7ff; --good:#2fe0b0;
+  --pink:#ff8bd8; --pneon:#ff5fc8; --purple:#b48bff; --amber:#f0b24a; --red:#ff5c6c;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.42 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{
+  background:
+    radial-gradient(900px 500px at 80% 15%, rgba(47,224,200,.06), transparent 60%),
+    radial-gradient(800px 500px at 15% 85%, rgba(255,95,200,.06), transparent 60%),
+    var(--bg);
+  min-height:100dvh;
+}
+a{color:var(--teal);text-decoration:none}
+.topbar{
+  flex:none;display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-bottom:1px solid var(--line);background:rgba(8,17,31,.94);flex-wrap:wrap;
+  position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);
+}
+.brand{font-weight:800;letter-spacing:.12em;font-size:12px;color:var(--neon);white-space:nowrap}
+.badge{font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);white-space:nowrap}
+.badge.mock{border-color:#d9a44155;color:#f4cd78;background:#1d1607}
+.nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.npill{font-size:11.5px;padding:3px 8px;border-radius:7px;border:1px solid var(--line);color:var(--muted);background:var(--panel2);white-space:nowrap}
+.npill:hover{color:var(--text);border-color:#355a88}
+.npill.on{background:var(--panel);color:var(--neon);border-color:var(--teal);font-weight:650}
+
+/* Rapid shrinking clock bar */
+.clock-strip{
+  flex:none;display:flex;align-items:center;gap:10px;padding:4px 12px;
+  background:#060d1b;border-bottom:1px solid var(--line);font-size:12px;
+}
+.clock-track{flex:1;height:7px;background:#111d33;border-radius:999px;overflow:hidden;border:1px solid #203759}
+.clock-fill{height:100%;border-radius:999px;transition:width .3s}
+.clock-fill.teal{background:linear-gradient(90deg,var(--good),var(--neon))}
+.clock-fill.amber{background:linear-gradient(90deg,#d9822b,var(--amber))}
+.clock-fill.red{background:linear-gradient(90deg,#c92a3e,var(--red))}
+.clock-lbl{font-family:var(--mono);font-weight:700;white-space:nowrap}
+
+/* 2-column stage for board scenario pages */
+.stage{
+  flex:1;min-height:0;display:grid;
+  grid-template-columns:minmax(0,1fr) clamp(260px, 34vw, 390px);
+  gap:10px;padding:10px 12px;
+}
+.board-pane{
+  min-width:0;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 50%, #091428 0%, #040812 80%);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:6px;gap:4px;
+}
+.board-pane svg{width:100%;flex:1;min-height:0;display:block}
+.side-pane{
+  min-width:0;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:2px;
+}
+.card{
+  background:linear-gradient(180deg, rgba(14,26,48,.96), rgba(8,17,31,.96));
+  border:1px solid var(--line);border-radius:11px;padding:10px 12px;
+}
+.card.teal{border-left:4px solid var(--teal)}
+.card.pink{border-left:4px solid var(--pink)}
+.card.amber{border-left:4px solid var(--amber)}
+.card.red{border-left:4px solid var(--red);background:linear-gradient(180deg, rgba(46,12,20,.92), rgba(22,8,14,.95))}
+.card h2,.card h3{margin:0 0 5px;font-size:13.5px;letter-spacing:.01em}
+.card p{margin:0 0 6px;font-size:12.5px;color:#cfd8ea}
+.card p:last-child{margin-bottom:0}
+.card ul{margin:4px 0 0;padding-left:16px;font-size:12.5px;color:#cfd8ea}
+.card li{margin:3px 0}
+.kpis{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.kpi{font-size:11.5px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--muted)}
+.kpi b{color:var(--text);font-family:var(--mono)}
+.kpi.teal b{color:var(--teal)}
+.kpi.pink b{color:var(--pink)}
+.kpi.amber b{color:var(--amber)}
+.kpi.red b{color:var(--red)}
+
+/* Overlay HUD elements inside board pane */
+.hud-pill{
+  flex:none;align-self:stretch;padding:4px 9px;border-radius:8px;
+  background:rgba(8,17,31,.9);border:1px solid var(--line);font-size:11.5px;
+}
+.hud-cancel{
+  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+  background:linear-gradient(180deg,#b82032,#7d1120);border:2px solid #ff7b8a;
+  color:#fff;border-radius:12px;padding:9px 18px;text-align:center;
+  box-shadow:0 8px 28px rgba(255,60,80,.42);min-width:min(340px,90%);
+  animation:pulseRed 1.4s ease-in-out infinite;
+}
+.hud-cancel strong{display:block;font-size:14px;letter-spacing:.03em}
+.hud-cancel span{display:block;font-size:11.5px;color:#ffd6dc;margin-top:2px}
+.hud-watch{
+  position:absolute;left:50%;top:10px;transform:translateX(-50%);
+  background:rgba(28,16,42,.92);border:1px solid var(--pink);color:#ffe2f6;
+  border-radius:999px;padding:4px 14px;font-size:12px;font-weight:650;
+  box-shadow:0 4px 18px rgba(255,95,200,.24);white-space:nowrap;
+}
+@keyframes pulseRed{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,92,108,.45),0 8px 24px rgba(255,60,80,.35)}
+  50%{box-shadow:0 0 0 6px rgba(255,92,108,.0),0 8px 30px rgba(255,60,80,.6)}
+}
+@keyframes shimmer{0%,100%{opacity:.55}50%{opacity:1}}
+.shimmer{animation:shimmer 2.2s ease-in-out infinite}
+
+/* Reference-sheet layouts */
+.wrap{max-width:1220px;margin:0 auto;padding:12px 14px 28px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.ship-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.legend-row{display:flex;flex-wrap:wrap;gap:8px;font-size:11.5px;color:var(--muted)}
+.swatch{display:inline-flex;align-items:center;gap:5px}
+.swatch i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th,.tbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.tbl th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+
+/* Phone landscape tuning (e.g. 844x390) */
+@media (max-height: 480px){
+  .topbar{padding:4px 10px;gap:5px}
+  .npill{font-size:10.5px;padding:2px 6px}
+  .clock-strip{padding:3px 10px;font-size:11px}
+  .stage{padding:6px 8px;gap:8px;grid-template-columns:minmax(0,1fr) minmax(245px, 38vw)}
+  .card{padding:7px 9px}
+  .card h2,.card h3{font-size:12.5px;margin-bottom:3px}
+  .card p,.card li{font-size:11.5px;line-height:1.34}
+  .hud-cancel{padding:6px 12px;bottom:8px}
+  .hud-cancel strong{font-size:12.5px}
+}
+@media (max-width: 680px) and (orientation: portrait){
+  body{height:auto;overflow:auto}
+  .stage{grid-template-columns:1fr;grid-template-rows:52vh auto}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">SHATKON · RAPID MODE</span>
+  <span class="badge mock">Planning Index · Static HTML</span>
+  <nav class="nav"><a href="index.html" class="npill on">Overview</a><a href="turn-one.html" class="npill">1. Turn One</a><a href="fleet-sheet.html" class="npill">2. Fleet & Sight</a><a href="watch-5s.html" class="npill">3. 5s Watch</a><a href="timeout-autofire.html" class="npill">4. Auto-Fire</a><a href="timeout-move.html" class="npill">5. Auto-Move</a><a href="beat-timeline.html" class="npill">6. Beat Tick</a></nav>
+</header>
+
+
+    <main class="wrap">
+      <div class="card teal" style="margin-bottom:12px">
+        <h2>Shatkon Rapid Mode — Static Annotated Mock-ups</h2>
+        <p>Planning mock-ups only (no game code changed). All hex positions, laser lines, screen gaps, and sensor sight ranges are computed directly from the repo's real <code>engine/hex.js</code>, <code>engine/detect.js</code>, and <code>rules/world_v0.4.yaml</code>, rendered with the real ship kits (<code>ui/frigate.js</code> &amp; <code>ui/ships.js</code>).</p>
+        <div class="kpis">
+          <span class="kpi teal">Board <b>Radius 12 (469 hexes)</b></span>
+          <span class="kpi teal">Fleet <b>14 ships · 27 hexes</b></span>
+          <span class="kpi">Clock <b>15s act + 5s watch</b></span>
+          <span class="kpi red">Timeout <b>No pass ever</b></span>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:14px">
+        
+    <a href="turn-one.html" class="card teal" style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">1. Turn One (Radius 12) &rarr;</h3>
+      <p>Full 469-hex board with mirrored fleets (9 singles screen + 5 big hulls), 6 laser axes, and the 40 unscreened gap hexes.</p>
+    </a>
+    <a href="fleet-sheet.html" class="card teal" style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">2. Fleet Sheet &amp; Flower Sight &rarr;</h3>
+      <p>All 5 ship shapes with legal parts, sensors and signatures — plus the exact hexes a Skiff must reach to see the enemy Flower (10 steps).</p>
+    </a>
+    <a href="watch-5s.html" class="card pink" style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">3. Scenario: 5-Second Watch &rarr;</h3>
+      <p>Controls locked for 5s right after the AI moves: shows actions in sight and flares, while hidden moves stay in fog.</p>
+    </a>
+    <a href="timeout-autofire.html" class="card red" style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">4. Scenario: Timeout Auto-Fire &rarr;</h3>
+      <p>Clock hits 0.0s with a laser or missile open: AI picks best safe target behind a 1.5s red Cancel (Cancel = move 1 hex).</p>
+    </a>
+    <a href="timeout-move.html" class="card amber" style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">5. Scenario: Timeout Auto-Move &rarr;</h3>
+      <p>No passing allowed: 0.0s with nothing open moves a random front single; 0.0s with Scan open drops Scan and moves that ship.</p>
+    </a>
+    <a href="beat-timeline.html" class="card " style="display:block;color:inherit">
+      <h3 style="color:var(--teal)">6. Scenario: Beat Tick &amp; Missiles &rarr;</h3>
+      <p>Visual timeline of Your Action + AI Action = 1 Beat, showing how missiles, shields, point defence and flares tick.</p>
+    </a>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Rapid-Mode Rules Summary</h3>
+          <ul>
+            <li><b>Alternating single actions:</b> You do one thing (move 1 hex, fire 1 laser, launch salvo, or scan) and your turn ends immediately.</li>
+            <li><b>15s clock + 5s watch:</b> Computer replies instantly; controls lock for 5s so you can read visible moves and flares.</li>
+            <li><b>No passing:</b> Weapon open at 0.0s &rarr; 1.5s red Cancel then AI best safe shot (Cancel moves that ship 1 hex). Ship or scan open &rarr; that ship moves 1 hex. Nothing open &rarr; random front single moves 1 hex.</li>
+          </ul>
+        </div>
+        <div class="card amber">
+          <h3>The Beat Tick (1 Beat = You + Opponent)</h3>
+          <ul>
+            <li><b>End of every beat:</b> Missiles fly 6 hexes (3 beats fuel), downed shields recharge if unhit all beat, point defence resets (1 stop/beat), and flares/scans/afterburners tick.</li>
+            <li><b>Engines:</b> No command points or thrust bank; any working engine lets a ship step 1 hex per move action.</li>
+            <li><b>v1 scope:</b> Flower is flagship; fleets mirrored; no mines in v1.</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+</body>
+</html>
