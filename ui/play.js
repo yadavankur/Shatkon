@@ -983,9 +983,16 @@ function confirmEmptyTurn(cp) {
 // ---------- what a tap would do in the current mode ----------
 function options(v) {
   const map = new Map();
-  // rapid mode, wingman step: the friends of the ship that fires, one hex each
+  // rapid mode, wingman step: the friends of the ship that fires: a shot of their own (W and its hits on the
+  // target) or, for one with nothing to shoot, a 1-hex move (W)
   if (isRapidGame() && RT.wingFor) {
     for (const m of RT.wingOpts || []) {
+      if (m.type === 'fire') {
+        const k = hex.key(m.at), was = map.get(k);
+        const act = { type: 'fire', ship: m.ship, seg: m.seg, part: m.part, at: m.at };
+        if (!was || (was.hits || 0) < m.hits) map.set(k, { action: act, wingAct: { ...RT.wingFor, wing: act }, mark: 'target', hits: m.hits, label: 'W\u2212' + m.hits });
+        continue;
+      }
       const x = v.ships.find((z) => z.id === m.ship);
       if (x) map.set(hex.key(hex.step(x.pos, m.path[0])), { action: m, wingAct: { ...RT.wingFor, wing: m }, mark: 'move', label: 'W' });
     }
@@ -1135,7 +1142,7 @@ function selectShip(id, v) {
   const ship = v.ships.find((x) => x.id === id), st = E.shipStatus(game, id);
   const wing = isRapidGame() && game.rules.rapid.wingman !== 'off' ? (rapidFormation() || new Set()).size - 1 : 0;
   say(shipName(ship) + ' selected. ' + (st.moveLeft > 0 ? 'Tap a green marker to see the move, then tap it again to go.' : 'It cannot move further this turn.')
-    + (wing > 0 ? ' Formation bonus: when it fires, a free wingman move for one of the ' + (wing === 1 ? 'ship' : wing + ' ships') + ' ringed in purple.' : ''));
+    + (wing > 0 ? ' Formation bonus: when it fires, one of the ' + (wing === 1 ? 'ship' : wing + ' ships') + ' ringed in purple gets a free wingman ' + (game.rules.rapid.wingman === 'move' ? 'move' : 'shot (or a move if it has nothing to shoot)') + '.' : ''));
 }
 // Rapid mode: the selected ship and the friends close enough to be its wingman (within wingGap hexes).
 function rapidFormation() {
@@ -1754,7 +1761,7 @@ export function render() {
   // end of turn (bottom right): always in the same place
   if (mine && !hid && R.rapid && RT.wingFor) {
     fill(tb, [h('button', { class: 'btn go ib endb', 'aria-label': 'Fire with no wingman move', onclick: () => rapidAct(RT.wingFor) },
-      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman move'))]);
+      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman'))]);
   } else if (mine && !hid && R.rapid) {
     const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
     fill(tb, [h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
@@ -1957,10 +1964,12 @@ function rapidAct(action, quiet, auto) {
   }
   // formation: a shot by a ship with friends close by first offers one of them a free 1-hex move
   if (!auto && a.type === 'fire' && !a.wing && !RT.wingFor && game.rules.rapid.wingman !== 'off') {
-    const wm = E.wingMoves(game, 0, a.ship);
-    if (wm.length) {
-      RT.wingFor = a; RT.wingOpts = wm; pending = null;
-      say('Wingman: tap a W marker to move a ship next to ' + a.ship + ' 1 hex as it fires, or press Fire alone.');
+    const ws = E.wingShots(game, 0, a.ship), wm = E.wingMoves(game, 0, a.ship);
+    if (ws.length || wm.length) {
+      RT.wingFor = a; RT.wingOpts = ws.concat(wm); pending = null;
+      say('Formation bonus: a free wingman ' + (ws.length ? 'shot' : 'move') + '. Tap a W marker: '
+        + (ws.length ? 'a red one fires a ship next to ' + a.ship + ' at that target' + (wm.length ? ', a green one moves a ship with nothing to shoot' : '') : 'it moves a ship next to ' + a.ship + ' 1 hex')
+        + '. Or press Fire alone.');
       return render();
     }
   }

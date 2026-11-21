@@ -30,7 +30,7 @@ export const RAPID_SETTINGS = [
   { key: 'debris', label: 'Close-in debris', options: [['on', 'On', 'Shoot a missile down within 2 hexes and the blast lights you up: 1 hit to your ship, and the enemy sees it, parts and all, for 3 ticks.'], ['off', 'Off', 'Shooting a missile down costs nothing but the action.']] },
   { key: 'forwardEyes', label: 'Eyes past the line', def: '2', options: [['2', '+2 sensor', 'A ship past the line sees 2 hexes further.'], ['3', '+3 sensor', 'A ship past the line sees 3 hexes further.'], ['0', 'None', 'Crossing gives no extra sight.']] },
   { key: 'attackRun', label: 'Attack run', options: [['last_tick', 'Moved last tick', '+1 laser hit for a ship that moved on the tick before it fires.'], ['off', 'Off', 'No bonus for moving before firing.']] },
-  { key: 'wingman', label: 'Formation', options: [['on', 'Wingman move', 'When a ship fires, one friend within 2 hexes of it (touching, or one empty hex between) may also move 1 hex in the same tick.'], ['off', 'Off', 'One action a tick, nothing more.']] },
+  { key: 'wingman', label: 'Formation', options: [['fire_or_move', 'Wingman fires', 'When a ship fires, one friend within 2 hexes of it (touching, or one empty hex between) fires too in the same tick, or moves 1 hex if it has nothing to shoot.'], ['move', 'Wingman moves', 'When a ship fires, one friend within 2 hexes of it may move 1 hex in the same tick.'], ['off', 'Off', 'One action a tick, nothing more.']] },
   { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
 const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid';
