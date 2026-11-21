@@ -14,6 +14,7 @@ Each item is: a short title, one sentence, an owner if known, and a link to wher
 
 ## In progress
 
+- **Rapid Opus (rapid mode, experimental, on main).** One action a tick, both sides at once, against the clock; forward only until a ship crosses the line. Vs computer only. Open: game length (computer-vs-computer games still draw at tick 100), two-phone play, mines and fleet-by-hexes (Ankur: next iteration). Notes: [docs/design/rapid-mode.md](docs/design/rapid-mode.md). Owner: Claude (gamedev chat). Source: chat 21 Nov
 - **Strength check in the Lab.** In the real [Lab](https://yadavankur.github.io/Shatkon/play.html#lab) (lab-strength.html forwards there): tap a segment, then **Strength check** for the segment's HP, shots needed per weapon, and a one-shot-per-press simulator that says why it ended. On branch `missile-tiers` it uses the real missiles and cores below. Owner: maps. Source: chat 20 Nov
 - **Missile tiers and core variants (branch `missile-tiers`, PR open, waiting for Claude's review).** Basic missile (3 hits), advanced missile (4 hits), Nuke (the existing `missile`: wrecks the segment); basic, steel (3 HP) and carbon crystal (6 HP) cores. Battles that don't use them are unchanged. Open: costs, campaign unlocks, picker design (Claude). Notes: [handoff/to-engine.md](handoff/to-engine.md). Owner: maps, review: Claude. Source: chat 20 Nov
 

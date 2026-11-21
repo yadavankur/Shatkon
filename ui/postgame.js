@@ -64,7 +64,7 @@ export function battleStats(game, opts = {}) {
   for (const l of moments.lost) items.push({ round: l.round, side: 1 - l.owner, kind: l.flagship ? 'flag' : 'lost', ship: l.ship, text: (l.flagship ? 'Flagship ' : '') + (l.name || nm(l.ship)) + ' destroyed' });
   items.sort((a, b) => a.round - b.round || (a.kind === 'flag') - (b.kind === 'flag'));
   for (const it of items) if (!it.at && it.ship) { const z = game.ships.find((s) => s.id === it.ship); if (z) it.at = z.pos.slice(); }
-  return { sides, items, rounds: Math.min(game.round, game.rules.turnLimit), winner: game.winner, log };
+  return { sides, items, rounds: game.rules.rapid ? game.round : Math.min(game.round, game.rules.turnLimit), winner: game.winner, log };   // rapid: ticks, the opening included
 }
 
 // The overlay. opts: { seat, title, sideName(k), onAgain(), onClose(), onSave(), onShow(at) }

@@ -108,7 +108,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -421,6 +421,20 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('path', { d: `M${f1(bx)},${f1(by)}L${f1(bx - hd * Math.cos(ang - 0.5))},${f1(by - hd * Math.sin(ang - 0.5))}L${f1(bx - hd * Math.cos(ang + 0.5))},${f1(by - hd * Math.sin(ang + 0.5))}Z`, fill: '#ffffff' }));
   }
 
+  // rapid mode: each side's line across the board (a ship on or past it frees its fleet). lines: [{ row, side, col, label }],
+  // row: the boundary between two rows (a half number). Drawn under the ships, never blocks a tap.
+  if (lines && lines.length) {
+    const lg = s('g', { 'pointer-events': 'none', class: 'rapidlines' });
+    for (const ln of lines) {
+      const r0 = Math.floor(ln.row), r1 = Math.ceil(ln.row);
+      const lo = Math.max(-R, -R - r0, -R - r1), hi = Math.min(R, R - r0, R - r1);
+      const a = [lo - 0.5, ln.row], b = [hi + 0.5, ln.row];
+      lg.appendChild(s('path', { d: `M${f1(X(a))},${f1(Y(a))}L${f1(X(b))},${f1(Y(b))}`, stroke: ln.col, 'stroke-width': 0.9, 'stroke-dasharray': '3 2', 'stroke-opacity': 0.85 }));
+      const end = FL > 0 ? b : a;
+      if (ln.label) lg.appendChild(s('text', { x: f1(X(end) + 2), y: f1(Y(end) + (ln.side === 0 ? 4 : -2) * FL), fill: ln.col, 'font-size': fs(11), 'text-anchor': 'start' }, ln.label));
+    }
+    svg.appendChild(lg);
+  }
   // move guide (campaign/GUIDE_PROPOSAL.md): a cyan hint of where to go and what to hit. Never blocks a tap.
   if (guide && !hidden) {
     const gc = '#6fe7ff', gl = s('g', { opacity: guide.live ? 1 : 0.4, 'pointer-events': 'none', class: 'guide' });

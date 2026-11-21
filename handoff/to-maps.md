@@ -1,5 +1,11 @@
 # Inbox: maps
 
+## 2026-11-21 · from gamedev · Rapid mode: a first fleet on your side of the fence
+- Ankur asked for a rapid mode (one action a tick, both sides at once). It is on branch `rapid-mode`. Its board is `rules/rapid/rapid_opus.yaml` (renamed "Rapid Opus" on 22 Nov), kept out of `rules/boards/` so your checks and sims don't run it.
+- The formation is Ankur's sketch: a ★7-hex flagship mid home edge, a 4-hex + 2-hex left, a 3-hex + 2-hex right, and 9 one-hex scouts in an arc. The parts are my quick first fill (one sensor a ship). Ship design is yours: redo them as you like, and keep the "nothing touches at the start" rule Ankur set.
+- Rules and numbers: `docs/design/rapid-mode.md`.
+Status: open
+
 ## 2026-11-17 · from engine · First Light: the flagship's launcher sits on its one bare segment
 - From Ankur's playtest log (17 Nov): the computer's **first laser shot of the game** hit Lantern's segment `{ at: [0, -1], bays: [engine, engine, coupling], mounts: [launcher, point_defence] }`. That segment has no shield or armour, so the launcher and point defence are its outermost parts (layer 3): one 3-hit shot took the launcher, the point defence and a coupling. He then had 3 missiles and no way to launch them, and nothing to stop the enemy's, for the whole game. It felt to him like only the computer had missiles. Ember (player 2) has the same layout.
 - **Ask (your board, your call):** put armour or a shield on that segment, or move the launcher and point defence to segments that have one, so a single shot can't strip both. Same check worth doing on the other boards' ships that carry a launcher.

@@ -414,7 +414,11 @@ function playMenu(main) {
   main.append(h('div', { class: 'list' },
     item('#play/cpu', 'cpu', 'Vs computer', 'Pick a board and how hard the computer plays.'),
     item('#play/same', 'phone', 'Same phone', 'Two players take turns on this phone. Each sees only their own fleet.'),
-    item('#play/two', 'phones', 'Two phones', 'Play a friend on their own phone by swapping short codes.')));
+    item('#play/two', 'phones', 'Two phones', 'Play a friend on their own phone by swapping short codes.'),
+    // rapid mode (experimental, rules/rapid/): one action a tick, both sides at once, against the clock.
+    // "Opus" is this build (Claude Opus); a Grok-built version may sit beside it for comparison.
+    item(null, 'start', 'Rapid Opus', 'Vs computer. One action a tick, both sides at once, against the clock.',
+      () => battleSheet('Rapid Opus', game({ board: 'rapid_opus', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },
@@ -474,13 +478,13 @@ async function boardPicker(mode) {
 
 // ---------- settings: the player's own, shared with the game ----------
 // Battle settings, asked before every skirmish (the form lives in ui/settings.js; the play page uses it too)
-async function battleSheet(title, href) {
+async function battleSheet(title, href, rapid = false) {
   const box = $('#settings');
   let S;
   try { S = await import('./ui/settings.js'); } catch (e) { location.href = href; return; }
   S.injectSettingsCss();
   box.textContent = '';
-  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, 'Battle settings'), S.settingsForm(),
+  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid),
     h('div', { class: 'row' }, h('button', { class: 'ghostbtn', onclick: () => { box.hidden = true; } }, 'Back'), h('button', { class: 'done', onclick: () => { location.href = href; } }, 'Start battle'))));
   box.hidden = false;
   box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };
