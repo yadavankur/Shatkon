@@ -1,5 +1,5 @@
 # ============================================================
-#  BOARD: Rapid (rapid mode, experimental)
+#  BOARD: Rapid Opus (rapid mode, experimental; built by Claude Opus)
 #
 #  Ankur's rapid-chess idea (21 Nov 2026): both sides pick ONE action a tick and both resolve
 #  together. Every move is one hex. Until one of your ships is past the line, ships only move
@@ -15,12 +15,12 @@
 #  only spares). Parts are a simple first fill, to be tuned by playing.
 #
 #  You are player_1 (south edge). The computer is player_2.
-#  Open it at  play.html?board=rapid_skirmish  (rapid boards live in rules/rapid/, out of the board checks)
+#  Open it at  play.html?board=rapid_opus  (rapid boards live in rules/rapid/, out of the board checks)
 # ============================================================
 
 board:
-  name: "Rapid"
-  idea: "Rapid mode: one action a tick, both sides at once, against the clock. Forward only until one of your ships is past the line."
+  name: "Rapid Opus"
+  idea: "Rapid mode: one action a tick, both sides at once, against the clock. Ships move 2 hexes until the first shot; forward only until one of your ships is past the line."
   try: "Push scouts forward as a screen. The first ship past the line frees your whole fleet and lets it scan, but it will be shot at."
   rules: {}
 
@@ -30,7 +30,7 @@ rapid:                        # rapid mode: the play screen turns these into rap
 budget: 99999
 
 map:
-  name: "Rapid"
+  name: "Rapid Opus"
   board: { shape: hexagon, radius: 12 }
   zones:
     player_1_home: { edge: south, depth: 7 }

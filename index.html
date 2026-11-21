@@ -415,9 +415,10 @@ function playMenu(main) {
     item('#play/cpu', 'cpu', 'Vs computer', 'Pick a board and how hard the computer plays.'),
     item('#play/same', 'phone', 'Same phone', 'Two players take turns on this phone. Each sees only their own fleet.'),
     item('#play/two', 'phones', 'Two phones', 'Play a friend on their own phone by swapping short codes.'),
-    // rapid mode (experimental, rules/rapid/): one action a tick, both sides at once, against the clock
-    item(null, 'start', 'Rapid (experimental)', 'Vs computer. One action a tick, both sides at once, against the clock.',
-      () => battleSheet('Rapid', game({ board: 'rapid_skirmish', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true))));
+    // rapid mode (experimental, rules/rapid/): one action a tick, both sides at once, against the clock.
+    // "Opus" is this build (Claude Opus); a Grok-built version may sit beside it for comparison.
+    item(null, 'start', 'Rapid Opus', 'Vs computer. One action a tick, both sides at once, against the clock.',
+      () => battleSheet('Rapid Opus', game({ board: 'rapid_opus', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

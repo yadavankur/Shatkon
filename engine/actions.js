@@ -6,7 +6,7 @@ import { no, num, geom, current, shipById, objById, segHex, footprint, workingPa
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
-import { dirAllowed, scanAllowed } from './rapidrules.js';
+import { dirAllowed, scanAllowed, stride } from './rapidrules.js';
 
 const foe = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
 
@@ -65,7 +65,7 @@ export function moveCap(state, ship) {
 export function movesLeft(state, ship) {
   const done = state.players[ship.owner].moved[ship.id] || 0;
   if (deadInWater(state, ship)) return 0;
-  if (state.rules.rapid) return Math.max(0, 1 - done);   // rapid mode: every move is one hex, no thrust
+  if (state.rules.rapid) return Math.max(0, stride(state) - done);   // rapid mode: 1 hex (2 in the opening), no thrust
   if (hasOwnDrive(state, ship)) return Math.max(0, ownMove(state, ship) - done);
   return Math.max(0, Math.min(moveCap(state, ship) - done, Math.floor((ship.thrust || 0) / shipWeight(state, ship))));
 }
@@ -85,8 +85,8 @@ export function doMove(state, a) {
   if (!Array.isArray(path) || !path.length || path.some((d) => !(Number.isInteger(d) && d >= 0 && d < 6))) no('that path cannot be read');
   const rapid = !!state.rules.rapid;
   // rapid mode: one hex, no thrust, and forward only until one of your ships is past the line
-  const drive = !rapid && hasOwnDrive(state, ship), n = drive || rapid ? 0 : shipWeight(state, ship), cap = rapid ? 1 : drive ? ownMove(state, ship) : moveCap(state, ship), done = pl.moved[ship.id] || 0;
-  if (rapid && path.length === 1 && !dirAllowed(state, ship, path[0])) no('forward only: no ship may turn back or sideways until one of yours is past the line');
+  const drive = !rapid && hasOwnDrive(state, ship), n = drive || rapid ? 0 : shipWeight(state, ship), cap = rapid ? stride(state) : drive ? ownMove(state, ship) : moveCap(state, ship), done = pl.moved[ship.id] || 0;
+  if (rapid && !path.every((d) => dirAllowed(state, ship, d))) no('forward only: no ship may turn back or sideways until one of yours is past the line');
   // reveals_on_pass: a scout under afterburner lights up enemy ships it flies past, and itself
   const passN = drive && !burntOut(state, ship) ? sumAttr(state, ship, 'reveals_on_pass') : 0, passed = [];
   if (done + path.length > cap) no('a ship can move at most ' + cap + ' hexes a turn');

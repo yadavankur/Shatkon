@@ -17,6 +17,7 @@ import { startScript } from './script.js';
 import { hashState, parseAction } from './codec.js';
 import { visibleTo } from './detect.js';
 import { bankCap } from './actions.js';
+import { rapidStart, rapidTick } from './rapid.js';
 
 export const LOG_FORMAT = 'shatkon-battle-log';
 
@@ -153,12 +154,7 @@ export function battleLog(state, opts = {}) {
     replayable: false, note: null, turns: [], setup: [],
   };
   const turns = turnsOf(state);
-  if (R.rapid) {   // rapid mode (engine/rapid.js): ticks are not replayed yet, so the log lists each side's action per tick
-    log.note = 'Rapid mode: this log lists both sides\u2019 actions tick by tick. Rapid games cannot be replayed yet, so hits and sightings are not written out.';
-    log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
-    log.summary = analyse(log).text;
-    return log;
-  }
+  if (R.rapid && state.rapid && state.seed != null) return rapidLog(state, log, full, viewer, side, nm);
   if (state.seed == null) {
     log.note = 'This game has no seed, so it cannot be replayed; only the list of actions is shown. It was started before battle logs existed (15 Nov 2026), or on the old beta page before beta became the main game (16 Nov 2026), and its save was carried over.';
     log.turns = turns.map((t) => ({ round: t.round, player: t.player, side: side(t.player), ...(t.at ? { at: t.at } : {}), actions: full || t.player === viewer ? t.actions.map((x) => ({ text: x })) : [] }));
@@ -219,10 +215,53 @@ export function battleLog(state, opts = {}) {
   return log;
 }
 
+// Rapid mode (engine/rapid.js): replay the game tick by tick from its seed and the actions both sides
+// chose, and write each tick as two turns (yours with the tick's events, then the other side's).
+function rapidLog(state, log, full, viewer, side, nm) {
+  const visible = (e) => full || (e.seenBy || []).includes(viewer);
+  const clean = (e) => { const { seenBy, ...rest } = e; return full ? { ...rest, seenBy } : rest; };
+  const parse = (t) => (t === 'pass' ? { type: 'pass' } : parseAction(t));
+  const ticks = state.rapid.ticks;
+  let s;
+  try {
+    s = rapidStart(state.rules, state.seed);
+    for (const k of ticks) {
+      const prev = s;
+      s = rapidTick(s, k.acts.map(parse));
+      const evs = s.events.filter(visible).map((e) => ({ ...clean(e), say: eventWords(e, nm, side) })).filter((e) => e.say);
+      for (const p of [0, 1]) {
+        const mine = full || p === viewer;
+        const rec = mine ? { text: k.acts[p], say: k.acts[p] === 'pass' ? 'passed' : actionWords(prev, s, k.acts[p], nm) } : {};
+        if (p === 0) rec.events = evs;
+        const t = { round: k.round, player: p, side: side(p), actions: mine || p === 0 ? [rec] : [] };
+        if (p === 1) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
+        log.turns.push(t);
+      }
+    }
+  } catch (e) {
+    log.note = 'Rapid mode: the replay did not match this game (' + e.message + '), so results are missing. Please report this.';
+    log.turns = ticks.flatMap((k) => [0, 1].map((p) => ({ round: k.round, player: p, side: side(p), actions: full || p === viewer ? [{ text: k.acts[p] }] : [] })));
+    log.summary = analyse(log).text;
+    return log;
+  }
+  log.replayable = hashState(s) === hashState(state);
+  log.note = 'Rapid mode: both sides act at once each tick; each tick is written as two turns, with the tick\u2019s events under the first.'
+    + (log.replayable ? '' : ' The replay finished in a different position from the saved game, so results may be off; please report this.');
+  if (full) log.replay = { seed: state.seed, finalHash: hashState(state), rules: state.rules, rapid: ticks };
+  log.summary = analyse(log).text;
+  return log;
+}
+
 // Rebuild the game a full log describes.
 export function replayLog(log) {
   if (!log || log.format !== LOG_FORMAT) throw new Error('that is not a SHATKON battle log');
   if (!log.replay) throw new Error('this log was saved mid-game and only holds one side\u2019s view, so it cannot be replayed');
+  if (log.replay.rapid) {   // rapid mode: tick by tick
+    let s = rapidStart(log.replay.rules, log.replay.seed);
+    for (const k of log.replay.rapid) s = rapidTick(s, k.acts.map((t) => (t === 'pass' ? { type: 'pass' } : parseAction(t))));
+    if (log.replay.finalHash && hashState(s) !== log.replay.finalHash) throw new Error('the replay did not end where the game did');
+    return s;
+  }
   const s = replay(log.replay.rules, log.replay.seed, log.replay.turns);
   if (log.replay.finalHash && hashState(s) !== log.replay.finalHash) throw new Error('the replay did not end where the game did');
   return s;

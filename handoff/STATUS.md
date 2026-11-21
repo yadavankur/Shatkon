@@ -1,6 +1,12 @@
-## Latest (21 Nov, gamedev chat): rapid mode, experimental (branch `rapid-mode`)
+## Latest (22 Nov, gamedev chat): Rapid Opus merged to main
+- Rapid mode is renamed **Rapid Opus** (`rules/rapid/rapid_opus.yaml`, Play → Rapid Opus); a Grok-built rapid mode may sit beside it for comparison, so keep `rapid_<name>` boards in `rules/rapid/`.
+- **Opening** (Ankur after his first game): until the first laser shot or launch, ships move up to 2 hexes, a 10 s clock, no watch wait, and those ticks don't count towards the limit. Settings: Opening clock, Opening moves.
+- **Rapid battle logs replay** from the seed tick by tick (`rapidLog`, `replayLog`).
+- **Fix for every mode:** a second tap on an aimed target never fired (the friendly-fire `warn: null` key made `sameAction` fail); `bare()` in ui/play.js now strips it.
+
+## 21 Nov, gamedev chat: rapid mode, experimental (branch `rapid-mode`)
 - **What it is.** Ankur's rapid-chess idea: both sides pick ONE action a tick and both resolve together. Moves are 1 hex. Forward only until one of your ships is on or past your line (then move any way, pass, scan). Out of time: a chosen laser, missile or scan fires by itself after a 1.5 s red Cancel; nothing chosen, the game moves a ship forward for you. Vs computer only. Full rules, settings and first numbers: [docs/design/rapid-mode.md](../docs/design/rapid-mode.md).
-- **Where.** Play → Rapid (experimental), or `play.html?board=rapid_skirmish`. Board and fleet: `rules/rapid/rapid_skirmish.yaml`. It is kept out of `rules/boards/` so the ten-board checks and `tools/boards.mjs` don't touch it.
+- **Where.** Play → Rapid Opus, or `play.html?board=rapid_opus`. Board and fleet: `rules/rapid/rapid_opus.yaml`. It is kept out of `rules/boards/` so the ten-board checks and `tools/boards.mjs` don't touch it.
 - **Engine.** `engine/rapid.js` (tick, computer, auto-fire, forced move) and `engine/rapidrules.js` (forward, the line, unlocked). The hooks in actions/query/flight are all off unless `rules.rapid`, and normal games are unchanged.
 - **Screen.** Rapid section in `ui/play.js` (clock bar, Cancel, Pass, both lines drawn by `drawBoard({ lines })`); `RAPID_SETTINGS` in `ui/settings.js` (sliders for watch time and the line). `sw.js` cache is `shatkon-offline-v10`.
 - **Checked.** 198 tests (7 new in `tests/rapid.test.js`); check.mjs, guide_acceptance 15/15 and engine_check pass. Headless Chrome at 844x390: sheet, start, a tick, time-out forced move, auto-fire with Cancel. No console errors.

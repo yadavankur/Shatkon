@@ -1,11 +1,11 @@
-// Rapid mode (engine/rapid.js, rules/rapid/rapid_skirmish.yaml): one action a side per tick, resolved together.
+// Rapid mode (engine/rapid.js, rules/rapid/rapid_opus.yaml): one action a side per tick, resolved together.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readYaml, shippedFiles, battle, pod } from './helpers.js';
 import * as E from '../engine/index.js';
 
 const board = () => {
-  const b = readYaml('rules/rapid/rapid_skirmish.yaml');
+  const b = readYaml('rules/rapid/rapid_opus.yaml');
   const { rules, problems } = E.buildRules(shippedFiles().world, b, b);
   return { b, rules, problems };
 };
@@ -52,8 +52,8 @@ test('forward only: before crossing, a ship cannot step back or sideways and the
   assert.equal(E.rapidRefusal(g, 0, { type: 'move', ship: pawn.id, path: [2] }), null);
   assert.match(E.rapidRefusal(g, 0, PASS), /must act/);
   // the screen's move markers agree
-  const dirs = E.legalMoves(g, 0).filter((a) => a.ship === pawn.id).map((a) => a.path[0]).sort();
-  assert.deepEqual(dirs, [1, 2]);
+  const firsts = [...new Set(E.legalMoves(g, 0).filter((a) => a.ship === pawn.id).flatMap((a) => a.path))].sort();
+  assert.deepEqual(firsts, [1, 2]);
   // a time-out never picks the flagship while an escort can go
   assert.ok(E.forcedMoves(g, 0).every((a) => !g.ships.find((s) => s.id === a.ship).flagship));
 });
@@ -129,6 +129,43 @@ test('the computer plays a whole rapid game without an illegal action', () => {
   assert.ok(g.rapid.ticks.length >= 10);
   // the battle log lists ticks without trying to replay them
   const log = E.battleLog(g, { seat: 'cpu' });
-  assert.match(log.note, /Rapid mode/);
   assert.ok(log.turns.length >= 2);
+});
+
+test('the opening: 2-hex moves and the short clock until the first shot, and its ticks are free', () => {
+  let g = rapidGame({ cap: 5 });
+  assert.equal(E.inOpening(g), true);
+  assert.equal(E.stride(g), 2);
+  const pawn = g.ships.find((s) => s.owner === 0 && s.name === 'Pawn A');
+  assert.equal(E.rapidRefusal(g, 0, { type: 'move', ship: pawn.id, path: [2, 2] }), null);
+  assert.match(E.rapidRefusal(g, 0, { type: 'move', ship: pawn.id, path: [2, 5] }), /forward only/);
+  // a time-out takes the full 2 hexes
+  assert.ok(E.forcedMoves(g, 0).every((a) => a.path.length === 2));
+  // eight ticks of walking: past the 5-tick limit, but opening ticks don't count
+  for (let i = 0; i < 8; i++) g = E.rapidTick(g, [E.forcedMoves(g, 0)[0], E.forcedMoves(g, 1)[0]]);
+  assert.equal(g.phase, 'play');
+  assert.equal(g.rapid.openTicks, 8);
+  // the first shot (or launch) ends the opening: back to 1 hex
+  const flag = g.ships.find((s) => s.owner === 0 && s.flagship);
+  const shot = E.autoLaunch({ ...g, rules: { ...g.rules, rapid: { ...g.rules.rapid, launch: 'blind' } } }, 0, flag.id, 'missile_basic') ||
+    E.aimLaunch({ ...g, rules: { ...g.rules, rapid: { ...g.rules.rapid, launch: 'blind' } } }, flag.id, 'missile_basic', [0, 0]);
+  const blind = { ...g, rules: { ...g.rules, rapid: { ...g.rules.rapid, launch: 'blind' } } };
+  g = E.rapidTick(blind, [shot, E.forcedMoves(blind, 1)[0]]);
+  assert.equal(E.inOpening(g), false);
+  assert.equal(E.stride(g), 1);
+  // 'off' keeps every move at one hex from the start
+  assert.equal(E.stride(rapidGame({ stride: 'off' })), 1);
+});
+
+test('a rapid battle log replays the game tick by tick: hits and sightings are in it', () => {
+  let g = rapidGame({ cap: 40 }, 21);
+  let seed = 3;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  while (g.phase === 'play') g = E.rapidTick(g, [E.rapidAI(g, 0, 'normal', rnd), E.rapidAI(g, 1, 'normal', rnd)]);
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true, log.note);
+  const evs = log.turns.flatMap((t) => t.actions.flatMap((a) => a.events || []));
+  assert.ok(evs.some((e) => e.t === 'damage'));
+  assert.ok(evs.some((e) => e.t === 'sighted'));
+  assert.ok(log.replay && log.replay.rapid && log.replay.rapid.length === g.rapid.ticks.length);
 });

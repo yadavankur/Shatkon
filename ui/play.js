@@ -90,7 +90,7 @@ async function loadRules() {
   let map = named && named.map ? named : docs.find((d) => d && d.map);
   if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
     // rapid-mode boards live in rules/rapid/ (kept out of rules/boards/, which the board checks and sims walk)
-    const file = (/^rapid_/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';
+    const file = (/^rapid_/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';   // rapid_opus, and any other rapid_ board
     const r = await fetch(file + '?t=' + Date.now());
     if (!r.ok) throw new Error('could not read ' + file);
     const b = YAML.parse(await r.text());
@@ -864,7 +864,8 @@ function ffWarn(a) {
   const st = E.beamStop(game, a), me = game.ships.find((x) => x.id === a.ship);
   return st && st.obj && me && st.owner === me.owner ? { at: st.at, kind: st.kind, path: st.path } : null;
 }
-const bare = (a) => { if (!a || !a.warn) return a; const { warn, ...rest } = a; return rest; };
+// (strips the friendly-fire note even when it is null: a kept "warn: null" made a second tap on a target never match, so it never fired)
+const bare = (a) => { if (!a || !('warn' in a)) return a; const { warn, ...rest } = a; return rest; };
 const sameAction = (a, b) => JSON.stringify(bare(a)) === JSON.stringify(bare(b));
 const warnText = (w) => 'Careful: your own ' + nice(w.kind) + ' at ' + at(w.at) + ' is in the line of fire. This shot would hit it, not the target. Press \u201cFire anyway\u201d to shoot, or Cancel.';
 
@@ -1594,7 +1595,7 @@ export function render() {
     return h('span', { class: 'stepchip s' + k + (free ? ' now' : ''), title: (k === 0 ? 'You' : 'Enemy') + ': ' + (free ? 'free to stop, turn back, pass and scan' + (past ? ' (' + plural(past, 'ship') + ' past the line)' : '') : 'forward only until a ship is on or past the line') },
       (k === 0 ? 'You' : 'Enemy') + (free ? ': free' : ': forward')); }) : null;
   fill(bar, [h('div', { class: 'line top' },
-      roundRing(v.round, R.turnLimit),
+      roundRing(v.round, R.turnLimit + (R.rapid && game.rapid ? game.rapid.openTicks || 0 : 0)),   // rapid: the opening's ticks don't count
       R.rapid ? h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps' }, rapidChips)) :
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
@@ -1671,7 +1672,7 @@ export function render() {
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
       ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
-        sub: st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : st.scanMoved < 1 ? 'move first' : 'not now',
+        sub: st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : R.rapid ? (R.rapid.scan === 'past_line' ? 'past the line only' : 'after crossing') : st.scanMoved < 1 ? 'move first' : 'not now',
         title: scanLocked && v.cp ? 'Move this ship first, then scan ' + me.scan.r[0] + ' / ' + me.scan.r[1] : null, onclick: () => {
         mode = 'scan'; pending = { type: 'scan', ship: sel };
         const [r1, r2] = me.scanR;
@@ -1810,7 +1811,7 @@ export function render() {
   if (aiTurn() && !aiTimer) aiTimer = setTimeout(aiStep, Math.max(1000, fxBusyUntil - performance.now() + 400));
 }
 
-// ---------- rapid mode (rules/boards/rapid_skirmish.yaml, engine/rapid.js) ----------
+// ---------- rapid mode (rules/rapid/rapid_opus.yaml, engine/rapid.js) ----------
 // Both sides pick one action a tick and they resolve together. The screen runs a clock:
 //   watch  : what both sides just did plays out; the controls sleep (battle setting "Time to watch")
 //   choose : the bar shrinks; pick one action (battle setting "Time to act")
@@ -1842,10 +1843,10 @@ function newRapidGame() {
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
-  say('Rapid mode: you and the computer each pick ONE action a tick, and both happen at once. Moves are one hex, forward only, until one of your ships is on or past your line (dashed). '
-    + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you.');
+  say('Rapid Opus: you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
+    + (r.stride === 'off' ? '' : 'Until the first shot, ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you.');
   save(); render();
-  setTimeout(() => toast('Rapid mode', 'p0', r.timer + ' s a tick · forward until you cross the line'), 300);
+  setTimeout(() => toast('Rapid Opus', 'p0', 'forward until you cross the line'), 300);
 }
 // Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
 function rapidEnsure() {
@@ -1863,8 +1864,9 @@ function rapidWatch(ms) {
 function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
-  RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + game.rules.rapid.timer * 1000;
-  RT.timer = setTimeout(rapidTimeout, game.rules.rapid.timer * 1000);
+  const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
+  RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
+  RT.timer = setTimeout(rapidTimeout, secs * 1000);
   yourTurnPing();
   render();
 }
@@ -1946,7 +1948,8 @@ function rapidAct(action, quiet, auto) {
     setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : game.winner === 0 ? 'Victory!' : 'Defeat', 'over'), 600);
     return render();
   }
-  const w = game.rules.rapid.watch * 1000;
+  // no waiting in the opening (nothing to watch but moves); after the first shot, the watch setting
+  const w = E.inOpening(game) ? 0 : game.rules.rapid.watch * 1000;
   rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
   render();
 }

@@ -39,7 +39,7 @@ export function reach(state, shipId) {
   seen.delete(key(ship.pos));
   const out = [...seen].map(([k, path]) => ({ at: k.split(',').map(Number), path }));
   // rapid mode: forward only until one of this side's ships is past the line
-  return state.rules.rapid ? out.filter((x) => dirAllowed(state, ship, x.path[0])) : out;
+  return state.rules.rapid ? out.filter((x) => x.path.every((d) => dirAllowed(state, ship, d))) : out;
 }
 
 // Every shot available to a ship right now: which weapon, which hex, how many hits.

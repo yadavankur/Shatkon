@@ -54,6 +54,16 @@ export function unlocked(state, p) {
   return state.rules.rapid.unlock === 'permanent' && !!(state.rapid && state.rapid.ever && state.rapid.ever[p]);
 }
 
+// The opening: from the start until the first laser shot or missile launch (either side).
+export const inOpening = (state) => !!(state.rapid && state.rapid.opening);
+
+// How many hexes a move may go this tick: 2 during the opening (setting stride 'opening', the default),
+// 2 always ('always'), or 1 ('off').
+export function stride(state) {
+  const m = state.rules.rapid.stride;
+  return m === 'always' || (m !== 'off' && inOpening(state)) ? 2 : 1;
+}
+
 // May this ship step in direction d this tick?
 export function dirAllowed(state, ship, d) {
   return unlocked(state, ship.owner) || forwardDirs(state, ship.owner).includes(d);

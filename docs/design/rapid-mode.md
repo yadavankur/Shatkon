@@ -1,8 +1,8 @@
-# Rapid mode (experimental, branch `rapid-mode`)
+# Rapid Opus: rapid mode (experimental)
 
-Ankur's idea, 21 Nov 2026: a fast game like rapid chess. Built from the design chat in the GameDev project.
+Ankur's idea, 21 Nov 2026: a fast game like rapid chess. Built by Claude Opus from the design chat in the GameDev project. The name "Rapid Opus" is so it can sit beside a Grok-built version of the same idea, for comparing code quality.
 
-Open it from **Play → Rapid (experimental)**, or `play.html?board=rapid_skirmish`. Only against the computer for now.
+Open it from **Play → Rapid Opus**, or `play.html?board=rapid_opus`. Only against the computer for now.
 
 ## The rules
 
@@ -10,7 +10,8 @@ Open it from **Play → Rapid (experimental)**, or `play.html?board=rapid_skirmi
   1. shots, launches and scans (both sides). Laser hits land together, so two ships that shoot each other are both hit, even if one of them dies;
   2. moves (both sides);
   3. missiles fly.
-- **Moves are one hex.** Engines no longer set speed. A ship needs one working engine to move; spare engines are just spares.
+- **The opening:** until the first laser shot or missile launch (either side), ships move **up to 2 hexes**, the clock is **10 s**, there is no watch wait between ticks, and these ticks don't count towards the tick limit (Ankur, 21 Nov, after his first game: the walk-up was too slow).
+- **After that, moves are one hex.** Engines no longer set speed. A ship needs one working engine to move; spare engines are just spares.
 - **Forward only** until one of your ships is on or past **your line**:
   - On this board, forward means two of the six directions: north-east and north-west for the south side.
   - There is no sideways move, so you can't stall by shuffling.
@@ -46,17 +47,19 @@ The `scale: 3` setting in `engine/rapid.js` holds the ×3.
 | Setting | Default | Options |
 |---|---|---|
 | Time to act | 15 s | 10, 15, 20, 30, 60 s |
-| Time to watch | 5 s | slider, 0–10 s |
+| Opening clock | 10 s | 5, 10, 15 s |
+| Opening moves | 2 hexes till the first shot | 2 hexes till first shot / 2 hexes always / 1 hex |
+| Time to watch (after the first shot) | 3 s | slider, 0–10 s |
 | Auto-fire | best target | best / nearest |
 | Missiles | sighted (a lock on a ship your fleet can see) | sighted / blind |
 | The line | 12 rows (halfway on this board) | slider, 6–18 |
 | Crossing frees you | while you hold it | while holding / for good |
 | Scans | ships past the line | past the line / any ship once free / always |
-| Tick limit | 100 | 60 / 100 / 150 |
+| Tick limit (opening not counted) | 100 | 60 / 100 / 150 |
 
 The settings are kept in localStorage `shatkon.rapid`. The board file's `rapid:` section can set any of them too.
 
-## The board (`rules/rapid/rapid_skirmish.yaml`)
+## The board (`rules/rapid/rapid_opus.yaml`)
 
 - **Board:** radius 12. Your home is the south edge, and player 2 is the same layout turned round.
 - **Fleet:** a ★7-hex flagship in the middle; a 4-hex and a 2-hex on the left wing; a 3-hex and a 2-hex on the right; nine one-hex scouts in an arc bulging around the flagship.
@@ -82,7 +85,7 @@ The settings are kept in localStorage `shatkon.rapid`. The board file's `rapid:`
   - point-defence reload in `runFlight`
 - `ui/play.js` (section "rapid mode"): the clock, auto-fire with Cancel, the forced move, the Pass button, and both lines on the board (`drawBoard({ lines })`).
 - `ui/settings.js`: `RAPID_SETTINGS`, with sliders for the watch time and the line.
-- **Battle log:** lists both sides' actions tick by tick. Rapid games aren't replayed yet, so it has no hits or sightings.
+- **Battle log:** replays the game from its seed tick by tick (`rapidLog` in `engine/log.js`), so it has hits, sightings and a working recap; `replayLog` rebuilds a rapid game too. Logs saved before 22 Nov have no seed and only list the actions.
 - **Tests:** `tests/rapid.test.js`.
 
 ## First computer-vs-computer numbers (10 games, normal v normal, tick limit 100)
@@ -121,3 +124,11 @@ Reading:
 - **Distance is the bottleneck.** You move one ship one hex a tick, so walking a fleet 10 rows takes about 50 of your ticks. Neither a smaller fleet nor stronger missiles shortens that walk. Starting closer does, about 7 times over.
 - **Missiles barely land.** About 1 blast a game. A launch costs one action and so does shooting the missile down, and at 2 hexes a tick there is time to do it.
 - **The draws at "4 rows closer" are mutual kills.** Mirrored fleets with the same computer go for each other's flagships at the same time. Against a person that won't be the pattern.
+
+## Ankur's first game (21 Nov) and what changed
+
+- He found it plays well, but the walk-up was slow and the 15 s clock too long while nothing was happening. Hence the opening rules above.
+- **"The laser controls died after I crossed the line."** His log was from before logs could be replayed, so the exact cause can't be proven. Rebuilding the game from its actions (positions match; damage dice differ) showed his ships did have targets on most ticks after the crossing, and the engine accepted those shots.
+- **Found and fixed:** tapping a target a second time never fired, in every game mode. A friendly-fire check left an empty `warn` note on the aimed shot, so the second tap never matched it. Only the Fire button worked. Under a 15 s clock that looks like dead controls.
+- Also likely: lasers sit right under shields and armour, so two 2-hit shots strip a scout's laser. The ship card shows it, but it's easy to miss in a rush.
+- Logs are now replayable, so the next time something like this happens the log will show exactly why.

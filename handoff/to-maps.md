@@ -1,7 +1,7 @@
 # Inbox: maps
 
 ## 2026-11-21 · from gamedev · Rapid mode: a first fleet on your side of the fence
-- Ankur asked for a rapid mode (one action a tick, both sides at once). It is on branch `rapid-mode`. Its board is `rules/rapid/rapid_skirmish.yaml`, kept out of `rules/boards/` so your checks and sims don't run it.
+- Ankur asked for a rapid mode (one action a tick, both sides at once). It is on branch `rapid-mode`. Its board is `rules/rapid/rapid_opus.yaml` (renamed "Rapid Opus" on 22 Nov), kept out of `rules/boards/` so your checks and sims don't run it.
 - The formation is Ankur's sketch: a ★7-hex flagship mid home edge, a 4-hex + 2-hex left, a 3-hex + 2-hex right, and 9 one-hex scouts in an arc. The parts are my quick first fill (one sensor a ship). Ship design is yours: redo them as you like, and keep the "nothing touches at the start" rule Ankur set.
 - Rules and numbers: `docs/design/rapid-mode.md`.
 Status: open

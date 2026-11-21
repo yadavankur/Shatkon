@@ -26,20 +26,22 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
-import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed } from './rapidrules.js';
+import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride } from './rapidrules.js';
 
-export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed };
+export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride };
 
 // The battle settings rapid mode reads (ui/settings.js shows them). Numbers are in ticks or seconds.
 export const RAPID_DEFAULTS = {
-  timer: 15,          // seconds to choose an action
-  watch: 5,           // seconds to watch what just happened before the controls wake up
+  timer: 15,          // seconds to choose an action once the shooting has started
+  openTimer: 10,      // seconds to choose during the opening (until the first laser shot or missile launch)
+  stride: 'opening',  // moves of 2 hexes: 'opening' (until the first shot), 'always' or 'off'
+  watch: 3,           // seconds to watch what just happened before the controls wake up (none in the opening)
   autofire: 'best',   // at time-out a chosen laser or missile picks: 'best' or 'nearest' target
   launch: 'sighted',  // 'sighted': a launch must lock onto a ship you can see. 'blind': any hex
   unlock: 'holding',  // 'holding': free only while a ship of yours is past the line. 'permanent': from the first crossing
   line: 12,           // rows from your own home edge (12 on a radius-12 board = halfway)
   scan: 'past_line',  // who may scan: 'past_line', 'unlocked' (any ship once free) or 'always'
-  cap: 100,           // ticks before the game is a draw
+  cap: 100,           // ticks before the game is a draw (opening ticks don't count)
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
 };
 
@@ -74,7 +76,7 @@ export function rapidRules(rules, opts = {}) {
 // A new rapid game (rules from rapidRules).
 export function rapidStart(rules, seed = 1) {
   const s = begin(newGame(rules, seed));
-  s.rapid = { sign: [homeSign(s, 0), homeSign(s, 1)], ever: [false, false], ticks: [] };
+  s.rapid = { sign: [homeSign(s, 0), homeSign(s, 1)], ever: [false, false], ticks: [], opening: true, openTicks: 0 };
   rest(s);
   s.pre = hashState(s);
   return s;
@@ -101,13 +103,17 @@ const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonat
 export function legalMoves(state, p) {
   const s = copy(state); asCurrent(s, p);
   const out = [];
-  for (const x of s.ships) if (x.owner === p && !x.dead) for (const r of reach(s, x.id)) if (r.path.length === 1) out.push({ type: 'move', ship: x.id, path: r.path });
+  for (const x of s.ships) if (x.owner === p && !x.dead) for (const r of reach(s, x.id)) out.push({ type: 'move', ship: x.id, path: r.path });
   return out;
 }
-// Forward moves only (what a time-out may pick), never the flagship while anything else can go.
+// Forward moves only (what a time-out may pick), as far as a move may go (2 hexes in the opening),
+// never the flagship while anything else can go.
 export function forcedMoves(state, p) {
   const s = copy(state); asCurrent(s, p);
-  const fw = forwardDirs(s, p), all = legalMoves(state, p).filter((a) => fw.includes(a.path[0]));
+  const fw = forwardDirs(s, p), fwd = legalMoves(state, p).filter((a) => a.path.every((d) => fw.includes(d)));
+  const far = new Map();
+  for (const a of fwd) far.set(a.ship, Math.max(far.get(a.ship) || 0, a.path.length));
+  const all = fwd.filter((a) => a.path.length === far.get(a.ship));
   const escorts = all.filter((a) => !shipById(s, a.ship).flagship);
   return escorts.length ? escorts : all;
 }
@@ -121,7 +127,7 @@ export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (!DO[a.type]) return 'that is not a rapid-mode action';
-  if (a.type === 'move' && (!Array.isArray(a.path) || a.path.length !== 1)) return 'in rapid mode a ship moves one hex at a time';
+  if (a.type === 'move' && (!Array.isArray(a.path) || !a.path.length || a.path.length > stride(state))) return stride(state) > 1 ? 'a ship moves up to 2 hexes in the opening' : 'once the shooting starts a ship moves one hex at a time';
   const s = copy(state); asCurrent(s, p);
   try { DO[a.type](s, a); return null; } catch (e) { if (e instanceof Illegal) return e.message; throw e; }
 }
@@ -164,6 +170,11 @@ export function rapidTick(state, acts) {
   if (s.phase === 'play' && s.objs.length) runFlight(s);
   // 4. the tick ends
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
+  // the opening ends with the first laser shot or missile launch; its ticks don't count towards the limit
+  if (s.rapid.opening) {
+    s.rapid.openTicks = (s.rapid.openTicks || 0) + 1;
+    if (acts.some((a) => a && (a.type === 'fire' || a.type === 'launch'))) s.rapid.opening = false;
+  }
   for (const p of [0, 1]) if (acts[p] && acts[p].type === 'scan') { s.rapid.lastScan = s.rapid.lastScan || [0, 0]; s.rapid.lastScan[p] = s.round; }
   const rec = { round: s.round, acts: texts.map((t) => t || 'pass') };
   s.rapid.ticks.push(rec);
@@ -173,7 +184,7 @@ export function rapidTick(state, acts) {
     s.round++;
     for (const x of s.ships) x.flares = x.flares.filter((f) => f.until >= s.round);
     for (const id of Object.keys(s.lit)) if (s.lit[id] < s.round) delete s.lit[id];
-    if (s.round > s.rules.turnLimit) {
+    if (s.round - (s.rapid.openTicks || 0) > s.rules.turnLimit) {
       s.phase = 'over';
       s.winner = limitWinner(s);
       emit(s, { t: 'game_over', winner: s.winner, by: 'turn_limit' }, [0, 1]);
@@ -263,7 +274,7 @@ export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
     for (const a of legalMoves(state, p)) {
       const x = shipById(s, a.ship);
       if (x.flagship) continue;
-      const moved = { ...x, pos: step(x.pos, a.path[0]) };
+      const moved = { ...x, pos: a.path.reduce((c, d) => step(c, d), x.pos) };
       const d = Math.min(...enemies.map((e) => gap(e, moved)));
       if (d < 3) continue;   // don't park on top of them
       const v = d + rnd() * 0.5;

@@ -4,7 +4,7 @@ import { readYaml, shippedFiles } from '../tests/helpers.js';
 import * as E from '../engine/index.js';
 const N = +process.argv[2] || 10, cap = +process.argv[3] || 100;
 const { world } = shippedFiles();
-const base = readYaml('rules/rapid/rapid_skirmish.yaml');
+const base = readYaml('rules/rapid/rapid_opus.yaml');
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const small = (b) => { // 5 scouts (C, D/B centre arc: A,B,C,D,E), no 4-hex
   const keep = new Set(['Throne', 'Warden', 'Lancer L', 'Lancer R', 'Pawn A', 'Pawn B', 'Pawn C', 'Pawn D', 'Pawn E']);

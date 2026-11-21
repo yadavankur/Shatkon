@@ -14,17 +14,19 @@ export const SETTINGS = [
     ['warn', 'Warn me', 'If a laser shot would hit your own mine, missile or drone, the board traces the beam and asks again.'],
     ['free', 'Just fire', 'Shots go as aimed, no question. Your own mines and missiles in the way still take the hit.']] },
 ];
-// Rapid mode (rules/boards/rapid_skirmish.yaml, engine/rapid.js): its own sheet. A row with `range`
+// Rapid mode (rules/rapid/rapid_opus.yaml, engine/rapid.js): its own sheet. A row with `range`
 // is a slider; the others are buttons. The first option (or `def`) is the default.
 export const RAPID_SETTINGS = [
   { key: 'timer', label: 'Time to act', def: '15', options: ['10', '15', '20', '30', '60'].map((v) => [v, v + ' s', 'Seconds to pick your action each tick. Run out and the game acts for you.']) },
-  { key: 'watch', label: 'Time to watch', range: [0, 10, 1], def: 5, why: (v) => v + ' s to see what both sides did before the controls wake up.' },
+  { key: 'openTimer', label: 'Opening clock', def: '10', options: ['5', '10', '15'].map((v) => [v, v + ' s', 'Seconds a tick until the first laser shot or missile launch (either side). No waiting between ticks, and these ticks don\u2019t count towards the tick limit.']) },
+  { key: 'stride', label: 'Opening moves', options: [['opening', '2 hexes till first shot', 'Ships move up to 2 hexes until the first laser shot or missile launch, then 1.'], ['always', '2 hexes always', 'Ships always move up to 2 hexes.'], ['off', '1 hex', 'Ships always move 1 hex.']] },
+  { key: 'watch', label: 'Time to watch', range: [0, 10, 1], def: 3, why: (v) => v + ' s to see what both sides did before the controls wake up, once the shooting has started.' },
   { key: 'autofire', label: 'Auto-fire', options: [['best', 'Best target', 'Out of time with a laser or missile chosen: it fires at the best target (the flagship first, then the most damage).'], ['nearest', 'Nearest', 'Out of time with a laser or missile chosen: it fires at the nearest target.']] },
   { key: 'launch', label: 'Missiles', options: [['sighted', 'Sighted', 'A missile must lock onto an enemy ship your fleet can see.'], ['blind', 'Blind', 'Fire a missile at any hex, seen or not. A wasted missile is gone.']] },
   { key: 'line', label: 'The line', range: [6, 18, 1], def: 12, why: (v) => v + ' rows from your own edge (' + Math.round((100 * v) / 24) + '% of the way on this board). A ship on or past it frees your fleet.' },
   { key: 'unlock', label: 'Crossing frees you', options: [['holding', 'While you hold it', 'You may stop, turn back and pass only while one of your ships is on or past the line.'], ['permanent', 'For good', 'From the first crossing on, even if that ship dies or comes back.']] },
   { key: 'scan', label: 'Scans', options: [['past_line', 'Past the line', 'Only a ship on or past the line can scan.'], ['unlocked', 'Once free', 'Any ship can scan once your fleet is free.'], ['always', 'Always', 'Any ship, any time.']] },
-  { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks the game is a draw.']) },
+  { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
 const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
@@ -46,7 +48,7 @@ export const rapidSettings = () => readSet(RSTORE, RAPID_SETTINGS);
 // The rapid settings as engine options (numbers where the engine wants numbers).
 export function rapidOptions() {
   const r = rapidSettings();
-  return { ...r, timer: Number(r.timer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap) };
+  return { ...r, timer: Number(r.timer), openTimer: Number(r.openTimer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap) };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
