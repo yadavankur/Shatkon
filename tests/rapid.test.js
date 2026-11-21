@@ -190,7 +190,7 @@ test('missiles: shot down only up close, and close-in debris hits and lights up 
 
 test('formation: a ship that fires lets a friend within 2 hexes move in the same tick; attack run is last tick', () => {
   const scout = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'shield', 'armour'] }] });
-  let g = small([scout('A', [0, 2], true), scout('W', [2, 2]), scout('Far', [-6, 6])], [scout('B', [0, -2], true)], { stride: 'off', scan: 'always' });
+  let g = small([scout('A', [0, 2], true), scout('W', [2, 2]), scout('Far', [-6, 6])], [scout('B', [0, -2], true)], { stride: 'off', scan: 'always', wingman: 'move' });
   const A = g.ships.find((s) => s.name === 'A'), W = g.ships.find((s) => s.name === 'W'), Far = g.ships.find((s) => s.name === 'Far');
   const shot = E.autoFire(g, 0, A.id);
   assert.ok(shot);
@@ -239,4 +239,21 @@ test('shields come back in rapid mode even with no missiles in the air (3 ticks 
   assert.equal(shieldOf(g), 0);
   for (let i = 0; i < 4; i++) g = E.rapidTick(g, [{ type: 'pass' }, { type: 'pass' }].map((x, k) => (E.passAllowed(g, k) ? x : E.forcedMoves(g, k)[0])));
   assert.equal(shieldOf(g), 1);
+});
+
+test('formation: the wingman fires too when it has a target (two hits back), or else moves', () => {
+  const scout = (name, at, flagship) => ({ name, at, flagship, hull: [{ at: [0, 0], bays: ['core', 'engine', 'sensor'], mounts: ['laser', 'shield', 'armour'] }] });
+  let g = small([scout('A', [0, 2], true), scout('B', [1, 3])], [scout('X', [0, -1], true)], { stride: 'off', scan: 'always' });
+  const A = g.ships.find((s) => s.name === 'A'), B = g.ships.find((s) => s.name === 'B'), X = g.ships.find((s) => s.owner === 1);
+  const shot = E.autoFire(g, 0, A.id);
+  const ws = E.wingShots(g, 0, A.id);
+  assert.ok(ws.some((f) => f.ship === B.id && f.target === X.id), 'B can fire as a wingman');
+  assert.equal(E.wingMoves(g, 0, A.id).filter((m) => m.ship === B.id).length, 0, 'a wingman with a shot fires instead of moving');
+  const w = ws.find((f) => f.ship === B.id);
+  const wing = { type: 'fire', ship: w.ship, seg: w.seg, part: w.part, at: w.at };
+  g = E.rapidTick(g, [{ ...shot, wing }, two(g)]);
+  const onX = g.events.filter((e) => e.t === 'damage' && e.ship === X.id);
+  assert.equal(onX.length, 2, 'two hits back in one tick');
+  assert.match(g.rapid.ticks[0].acts[0], /^f.*\+f/);
+  assert.equal(E.battleLog(g, { seat: 'cpu' }).replayable, true);
 });

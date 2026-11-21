@@ -53,6 +53,20 @@ Why ships seemed to shoot you unseen: a scout sees a scout from 5 hexes, but las
 - **Formation:** selecting a ship rings it and its possible wingmen (friends within 2 hexes) in **purple**. The hint says "Formation bonus: when it fires, a free wingman move…".
 - **Fixed:** shields and point defence only recharged in ticks where something was in the air. The flight step, which does that upkeep, was skipped when there were no missiles. It now runs every tick, and its "End of round" banner is not shown in rapid games.
 
+## Wingman fires (22 Nov, night, Ankur)
+
+- The formation bonus is now a **shot**. When a ship fires, one friend within 2 hexes fires too in the same volley, at any target it has.
+- A friend with nothing to shoot may move 1 hex instead.
+- Ankur's picture: ship A is being shot at and brings ship B up behind it. Next tick A fires and B fires too, so two hits go back.
+- In the wingman step:
+  - red **W−n** markers sit on targets: B fires there for n hits;
+  - green **W** markers are moves for friends with no shot;
+  - "Fire alone" skips the wingman.
+- Setting `wingman`: `fire_or_move` (default), `move`, or `off`. Tick text `<fire>+<fire>`.
+- The computer picks its wingman's best shot first.
+- Watch for: this doubles a formation's firepower. The counter is the missile blast, which hits everything within 1 hex.
+- **Fixed:** when a game ended partway through a tick, the other side's action was recorded as "pass". So the last tick of a log, and the replay, could be wrong.
+
 ## Rules counted in ticks (1 round ≈ 3 ticks)
 
 | Rule | Normal game | Rapid mode |

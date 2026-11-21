@@ -32,7 +32,7 @@ import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scan
 
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
 
-// A tick's action as text, and back: a shot with a wingman move is "<fire>+<move>".
+// A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
 export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
@@ -86,14 +86,27 @@ function buoysScan(s) {
   }
 }
 
-// Formation (wingman) moves: when side p's ship `shooter` fires, each friend within wingGap hexes of it
-// may make one 1-hex move in the same tick (one of them). The moves it could make, as move actions.
+// Formation (wingman): when side p's ship `shooter` fires, ONE friend within wingGap hexes of it acts too,
+// in the same tick: it fires (setting wingman 'fire_or_move', the default) if it has a target, or else
+// moves 1 hex. Setting 'move': it can only move. 'off': no wingman.
+const wingMode = (state) => { const m = state.rules.rapid && state.rules.rapid.wingman; return m === 'off' ? 'off' : m === 'move' || m === 'on' ? 'move' : 'fire_or_move'; };
+const wingmen = (s, p, shooter) => { const sh = shipById(s, shooter); return sh ? s.ships.filter((x) => x.owner === p && !x.dead && x.id !== shooter && gap(x, sh) <= wingGap(s)) : []; };
+// The shots its wingmen could take (fire actions), one per target hex and laser.
+export function wingShots(state, p, shooter) {
+  if (!state.rules.rapid || wingMode(state) !== 'fire_or_move') return [];
+  const s = copy(state); asCurrent(s, p);
+  const out = [];
+  for (const x of wingmen(s, p, shooter)) for (const t of beamTargets(s, x.id)) out.push({ type: 'fire', ship: x.id, seg: t.seg, part: t.part, at: t.at, hits: t.hits, target: t.target });
+  return out;
+}
+// The 1-hex moves its wingmen could make (only those with no shot, when wingmen fire).
 export function wingMoves(state, p, shooter) {
-  if (!state.rules.rapid || state.rules.rapid.wingman === 'off') return [];
+  if (!state.rules.rapid || wingMode(state) === 'off') return [];
   const s = copy(state); asCurrent(s, p);
   const sh = shipById(s, shooter);
   if (!sh) return [];
-  return legalMoves(state, p).filter((a) => a.path.length === 1 && a.ship !== shooter && gap(shipById(s, a.ship), sh) <= wingGap(s));
+  const firing = new Set(wingShots(state, p, shooter).map((f) => f.ship));
+  return legalMoves(state, p).filter((a) => a.path.length === 1 && a.ship !== shooter && !firing.has(a.ship) && gap(shipById(s, a.ship), sh) <= wingGap(s));
 }
 
 // The battle settings rapid mode reads (ui/settings.js shows them). Numbers are in ticks or seconds.
@@ -112,7 +125,7 @@ export const RAPID_DEFAULTS = {
   debris: 'on',       // a missile shot down within 2 hexes: the shooter takes 1 hit and is lit up, parts and all, for 3 ticks
   forwardEyes: 2,     // extra sensor range for a ship past the line (0: none)
   attackRun: 'last_tick', // +1 laser hit for a ship that moved last tick ('off': none)
-  wingman: 'on',      // formation: a ship that fires lets one friend within wingGap hexes move 1 hex in the same tick
+  wingman: 'fire_or_move', // formation: a ship that fires brings one friend within wingGap hexes: it fires too, or moves 1 hex if it has no target ('move': moves only; 'off')
   wingGap: 2,         // touching (1) or one empty hex between (2)
   convert: 'on',      // a one-hex ship that moves on or past the line may go silent: become a scanner buoy or a naval mine
   buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
@@ -210,9 +223,11 @@ export function rapidRefusal(state, p, a) {
     a = { ...a }; delete a.convert;
   }
   if (a.wing) {
-    if (a.type !== 'fire') return 'only a laser shot brings a wingman move';
+    if (a.type !== 'fire') return 'only a laser shot brings a wingman';
     const w = a.wing;
-    if (!w || w.type !== 'move' || !wingMoves(state, p, a.ship).some((m) => m.ship === w.ship && m.path.join() === (w.path || []).join())) return 'that ship cannot make a wingman move: it must be within ' + wingGap(state) + ' hexes of the ship that fires, and move 1 hex';
+    if (w && w.type === 'fire') {
+      if (!wingShots(state, p, a.ship).some((f) => f.ship === w.ship && f.seg === w.seg && f.part === w.part && f.at[0] === w.at[0] && f.at[1] === w.at[1])) return 'that ship cannot fire as a wingman: it must be within ' + wingGap(state) + ' hexes of the ship that fires, with a target of its own';
+    } else if (!w || w.type !== 'move' || !wingMoves(state, p, a.ship).some((m) => m.ship === w.ship && m.path.join() === (w.path || []).join())) return 'that ship cannot make a wingman move: it must be within ' + wingGap(state) + ' hexes of the ship that fires, have no shot of its own, and move 1 hex';
     a = { ...a }; delete a.wing;
   }
   if (a.type === 'move' && (!Array.isArray(a.path) || !a.path.length || a.path.length > stride(state))) return stride(state) > 1 ? 'a ship moves up to 2 hexes in the opening' : 'once the shooting starts a ship moves one hex at a time';
@@ -227,7 +242,7 @@ export function rapidTick(state, acts) {
   for (const p of [0, 1]) { const why = rapidRefusal(state, p, acts[p]); if (why) no((p === 0 ? '' : 'player 2: ') + why); }
   const s = copy(state);
   s.events = []; s.flight = null;
-  const texts = [null, null];
+  const texts = acts.map((a) => tickText(a));   // what each side chose, even if the game ends before it happens
   const start = new Map(s.ships.map((x) => [x.id, x.pos.join()]));
   // 1. shots, launches, scans: hits land together afterwards
   s.deferHits = [];
@@ -238,6 +253,8 @@ export function rapidTick(state, acts) {
     texts[p] = tickText(a);
     // both sides shot the same missile: the second shot has nothing left to hit and fizzles
     try { DO[a.type](s, a); } catch (e) { if (!(e instanceof Illegal)) throw e; }
+    // the wingman's shot, in the same volley
+    if (a.wing && a.wing.type === 'fire') { asCurrent(s, p); try { doFire(s, a.wing); } catch (e) { if (!(e instanceof Illegal)) throw e; } }
   }
   const held = s.deferHits; delete s.deferHits;
   for (const h of held) {
@@ -259,7 +276,7 @@ export function rapidTick(state, acts) {
   // 2b. wingman moves: the friend of a ship that fired this tick
   for (const p of [0, 1]) {
     const w = acts[p] && acts[p].wing;
-    if (s.phase !== 'play' || !w || !shipById(s, w.ship)) continue;
+    if (s.phase !== 'play' || !w || w.type !== 'move' || !shipById(s, w.ship)) continue;
     asCurrent(s, p);
     try { doMove(s, w); } catch (e) { if (!(e instanceof Illegal)) throw e; }
   }
@@ -279,7 +296,7 @@ export function rapidTick(state, acts) {
     if (acts.some((a) => a && (a.type === 'fire' || a.type === 'launch'))) s.rapid.opening = false;
   }
   for (const p of [0, 1]) if (acts[p] && acts[p].type === 'scan') { s.rapid.lastScan = s.rapid.lastScan || [0, 0]; s.rapid.lastScan[p] = s.round; }
-  const rec = { round: s.round, acts: texts.map((t) => t || 'pass') };
+  const rec = { round: s.round, acts: texts };
   s.rapid.ticks.push(rec);
   s.history.push({ round: s.round, player: 0, actions: [rec.acts[0]], pre: state.pre, rapid: true });
   s.history.push({ round: s.round, player: 1, actions: [rec.acts[1]], pre: state.pre, rapid: true });
@@ -363,10 +380,13 @@ function chooseAI(state, p, level, rnd) {
     const v = shotScore(s, p, t) + (level === 'easy' ? rnd() * 3 : 0);
     if (v > sv) { sv = v; shot = { type: 'fire', ship: x.id, seg: t.seg, part: t.part, at: t.at }; }
   }
-  // a shot also brings a wingman move for a friend close by (formation bonus): advance it as the fleet would
+  // a shot also brings a wingman (formation bonus): its best shot, or else a move as the fleet would advance
   const enemiesSeen = s.ships.filter((x) => x.owner !== p && !x.dead && s.players[p].vis.includes(x.id));
   const withWing = (a) => {
     if (!a || a.type !== 'fire') return a;
+    let ws = null, wv = 0;
+    for (const f of wingShots(state, p, a.ship)) { const v = shotScore(s, p, f); if (v > wv) { wv = v; ws = f; } }
+    if (ws) return { ...a, wing: { type: 'fire', ship: ws.ship, seg: ws.seg, part: ws.part, at: ws.at } };
     const fw = forwardDirs(s, p), wm = wingMoves(state, p, a.ship).filter((m) => fw.includes(m.path[0]));
     const w = advance(s, state, p, mine, enemiesSeen, wm, level, rnd);
     return w ? { ...a, wing: w } : a;
