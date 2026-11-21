@@ -15,7 +15,8 @@
 // (reach, beamTargets, launchOptions, shipStatus) works unchanged for the human; the computer's
 // action is worked out on a copy where it is player 2's turn.
 
-import { Illegal, no, num, shipById, emit, cellsOf, gap, nearestCell } from './state.js';
+import { Illegal, no, num, shipById, emit, cellsOf, gap, nearestCell, makeObj } from './state.js';
+import { fuzzAt } from './detect.js';
 import { parseAction } from './codec.js';
 import { refreshSight } from './detect.js';
 import { applyHits, checkWin } from './damage.js';
@@ -32,12 +33,57 @@ import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scan
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
 
 // A tick's action as text, and back: a shot with a wingman move is "<fire>+<move>".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : actionText(a) + (a.wing ? '+' + actionText(a.wing) : ''));
+// A move that converts the ship is "<move>~scanner" or "<move>~mine".
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
   if (t === 'pass') return { type: 'pass' };
-  const [main, wing] = String(t).split('+');
+  const [body, convert] = String(t).split('~');
+  const [main, wing] = body.split('+');
   const a = parseAction(main);
-  return wing ? { ...a, wing: parseAction(wing) } : a;
+  if (wing) a.wing = parseAction(wing);
+  if (convert) a.convert = convert;
+  return a;
+}
+
+// ---------- going silent: scanner buoys and mines ----------
+// A one-hex ship (not the flagship) that ends a move on or past its line may convert, as part of that
+// move, into a scanner buoy (scans around itself every tick for free) or a naval mine. The ship is gone
+// (not destroyed: it doesn't count as lost) and the enemy loses sight of it.
+export const BUOY = 'scan_buoy';
+export function canConvert(state, p, a) {
+  const R = state.rules.rapid;
+  if (!R || R.convert === 'off' || !a || a.type !== 'move') return false;
+  const s = copy(state); asCurrent(s, p);
+  const x = shipById(s, a.ship);
+  if (!x || x.flagship || x.segs.length !== 1) return false;
+  try { doMove(s, { ...a, convert: undefined }); } catch (e) { if (e instanceof Illegal) return false; throw e; }
+  const y = shipById(s, a.ship);
+  return !!y && pastLine(s, y);
+}
+function convertShip(s, x, into) {
+  const kind = into === 'mine' ? 'naval_mine' : BUOY;
+  s.objs.push(makeObj(s, kind, x.owner, x.pos, 0));
+  x.dead = true; x.converted = into;
+  emit(s, { t: 'converted', ship: x.id, into, at: x.pos.slice() }, [x.owner]);
+}
+// Every tick each buoy scans for its side: a full readout inside the first ring, rough contacts in the second.
+function buoysScan(s) {
+  const [r1, r2] = s.rules.rapid.buoyScan || [4, 8];
+  for (const b of s.objs.filter((o) => o.kind === BUOY)) {
+    const pl = s.players[b.owner];
+    pl.revealed = pl.revealed || {}; pl.pings = pl.pings || {};
+    for (const t of s.ships.filter((x) => !x.dead && x.owner !== b.owner).concat(s.objs.filter((o) => o.owner !== b.owner && o.kind !== BUOY))) {
+      const d = gap(b, t);
+      if (!t.segs && num(s.rules.munitions[t.kind].scan_resist) && d > num(s.rules.munitions[t.kind].scan_resist)) continue;
+      if (d <= r1) {
+        pl.revealed[t.id] = Math.max(pl.revealed[t.id] || 0, s.round + 1);
+        if (t.segs) {
+          const intel = (pl.intel[t.id] = pl.intel[t.id] || {});
+          t.segs.forEach((g, i) => { intel[i] = { round: s.round, wrecked: g.wrecked, parts: g.parts.map((q) => ({ t: q.t, hp: q.hp })) }; });
+        }
+      } else if (d <= r2 && t.segs) pl.pings[t.id] = { round: s.round, at: fuzzAt(s, b.owner, t), r: s.rules.det.fuzzR, kind: 'ship' };
+    }
+  }
 }
 
 // Formation (wingman) moves: when side p's ship `shooter` fires, each friend within wingGap hexes of it
@@ -68,6 +114,8 @@ export const RAPID_DEFAULTS = {
   attackRun: 'last_tick', // +1 laser hit for a ship that moved last tick ('off': none)
   wingman: 'on',      // formation: a ship that fires lets one friend within wingGap hexes move 1 hex in the same tick
   wingGap: 2,         // touching (1) or one empty hex between (2)
+  convert: 'on',      // a one-hex ship that moves on or past the line may go silent: become a scanner buoy or a naval mine
+  buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
 };
 
@@ -86,6 +134,9 @@ export function rapidRules(rules, opts = {}) {
   for (const [name, c] of Object.entries(rules.parts)) parts[name] = c.recharges ? { ...c, recharge_every: num(c.recharge_every, 1) * k } : c;
   const fr = {};
   for (const f of ['fire', 'beamHit', 'launch', 'pd', 'scan']) fr[f] = k;
+  // the scanner buoy a one-hex ship can become past the line: still, quiet (seen only from 2 hexes by a
+  // standard sensor), one hit kills it
+  munitions[BUOY] = { label: 'Scanner buoy', speed: 0, hits: 0, blast_radius: 0, signature: -2, setup_only: true, max_per_player: 99, cost: 0 };
   return {
     ...rules,
     rapid: o,
@@ -153,6 +204,11 @@ export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (!DO[a.type]) return 'that is not a rapid-mode action';
+  if (a.convert) {
+    if (!['scanner', 'mine'].includes(a.convert)) return 'a ship can become a scanner or a mine';
+    if (!canConvert(state, p, a)) return 'only a one-hex ship that ends its move on or past the line can go silent';
+    a = { ...a }; delete a.convert;
+  }
   if (a.wing) {
     if (a.type !== 'fire') return 'only a laser shot brings a wingman move';
     const w = a.wing;
@@ -193,10 +249,12 @@ export function rapidTick(state, acts) {
   for (const p of [0, 1]) {
     const a = acts[p];
     if (s.phase !== 'play' || !a || a.type !== 'move') continue;
-    texts[p] = actionText(a);
+    texts[p] = tickText(a);
     if (!shipById(s, a.ship)) continue;          // shot down before it could move
     asCurrent(s, p);
     try { doMove(s, a); } catch (e) { if (!(e instanceof Illegal)) throw e; }   // a hidden ship now in the way: it just doesn't go
+    const x = a.convert && shipById(s, a.ship);
+    if (x && x.segs.length === 1 && pastLine(s, x)) convertShip(s, x, a.convert);
   }
   // 2b. wingman moves: the friend of a ship that fired this tick
   for (const p of [0, 1]) {
@@ -210,7 +268,9 @@ export function rapidTick(state, acts) {
   s.rapid.movedLast = {};
   for (const x of s.ships) if (!x.dead && start.get(x.id) !== x.pos.join()) s.rapid.movedLast[x.id] = 1;
   // 3. missiles and drones
-  if (s.phase === 'play' && s.objs.length) runFlight(s);
+  // every tick, even with nothing in the air: the flight also recharges shields and reloads point defence
+  if (s.phase === 'play') runFlight(s);
+  if (s.phase === 'play') buoysScan(s);
   // 4. the tick ends
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
   // the opening ends with the first laser shot or missile launch; its ticks don't count towards the limit
@@ -284,6 +344,16 @@ export function autoLaunch(state, p, shipId, kind, mode = 'best') {
 // One action for side p, chosen on its own view of the board. level 'easy' takes the first shot it
 // finds and otherwise advances at random.
 export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
+  const a = chooseAI(state, p, level, rnd);
+  // a scout that reaches the line goes silent: a scanner buoy if the side has none, a mine if an enemy is close
+  if (a && a.type === 'move' && level !== 'easy' && canConvert(state, p, a)) {
+    const s = copy(state), x = shipById(s, a.ship), to = { ...x, pos: a.path.reduce((c, d) => step(c, d), x.pos) };
+    if (!s.objs.some((o) => o.owner === p && o.kind === BUOY)) return { ...a, convert: 'scanner' };
+    if (s.ships.some((e) => e.owner !== p && !e.dead && s.players[p].vis.includes(e.id) && gap(e, to) <= 2)) return { ...a, convert: 'mine' };
+  }
+  return a;
+}
+function chooseAI(state, p, level, rnd) {
   if (state.phase !== 'play') return { type: 'pass' };
   const s = copy(state); asCurrent(s, p);
   const mine = s.ships.filter((x) => x.owner === p && !x.dead);

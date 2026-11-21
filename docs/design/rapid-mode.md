@@ -38,6 +38,21 @@ Each one is a setting, on by default:
 
 Why ships seemed to shoot you unseen: a scout sees a scout from 5 hexes, but lasers reach 9, and a fleet shares what it sees. So one enemy spotter lets its other ships fire from 6–9 hexes. A hit shows the shooter only within 8. "Eyes past the line" and the attack run are partly aimed at this.
 
+## Third round (22 Nov, night)
+
+- **Going silent:** a one-hex ship (not the flagship) that ends a move on or past the line is asked **"Convert to?"**:
+  - **Scanner buoy:** every tick, free, a full readout (parts too) within **4** hexes and rough contacts within 8. It is quiet (signature −2) and one hit kills it.
+  - **Naval mine:** goes off when an enemy comes within 1 hex.
+  - **Stay a ship.**
+
+  The ship is gone, but it doesn't count as lost. Running out of time keeps it a ship. The computer converts its first scout past the line into a buoy, and later ones into mines when an enemy is within 2. Setting: `convert` (on/off); `buoyScan` [4, 8]. Tick text `<move>~scanner` or `~mine`.
+- **Board marks** (every mode), wherever parts are known (your own ships, or an enemy read out by a scan or buoy):
+  - a **yellow ring** on each segment whose shield is up;
+  - on enemies, a red **T** on each segment with a working laser;
+  - once an enemy has no working laser, a red **E** on each segment with a working engine.
+- **Formation:** selecting a ship rings it and its possible wingmen (friends within 2 hexes) in **purple**. The hint says "Formation bonus: when it fires, a free wingman move…".
+- **Fixed:** shields and point defence only recharged in ticks where something was in the air. The flight step, which does that upkeep, was skipped when there were no missiles. It now runs every tick, and its "End of round" banner is not shown in rapid games.
+
 ## Rules counted in ticks (1 round ≈ 3 ticks)
 
 | Rule | Normal game | Rapid mode |
