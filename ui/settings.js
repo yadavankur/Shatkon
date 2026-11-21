@@ -26,6 +26,11 @@ export const RAPID_SETTINGS = [
   { key: 'line', label: 'The line', range: [6, 18, 1], def: 12, why: (v) => v + ' rows from your own edge (' + Math.round((100 * v) / 24) + '% of the way on this board). A ship on or past it frees your fleet.' },
   { key: 'unlock', label: 'Crossing frees you', options: [['holding', 'While you hold it', 'You may stop, turn back and pass only while one of your ships is on or past the line.'], ['permanent', 'For good', 'From the first crossing on, even if that ship dies or comes back.']] },
   { key: 'scan', label: 'Scans', options: [['past_line', 'Past the line', 'Only a ship on or past the line can scan.'], ['unlocked', 'Once free', 'Any ship can scan once your fleet is free.'], ['always', 'Always', 'Any ship, any time.']] },
+  { key: 'shootRange', label: 'Shooting down missiles', def: '3', options: [['3', 'Within 3 hexes', 'A laser can only hit a missile or drone 3 hexes away or closer. Further off it is too small: the beam flies past.'], ['5', 'Within 5', 'A laser can only hit a missile or drone 5 hexes away or closer.'], ['0', 'Any range', 'A laser can hit a missile or drone anywhere in its reach.']] },
+  { key: 'debris', label: 'Close-in debris', options: [['on', 'On', 'Shoot a missile down within 2 hexes and the blast lights you up: 1 hit to your ship, and the enemy sees it, parts and all, for 3 ticks.'], ['off', 'Off', 'Shooting a missile down costs nothing but the action.']] },
+  { key: 'forwardEyes', label: 'Eyes past the line', def: '2', options: [['2', '+2 sensor', 'A ship past the line sees 2 hexes further.'], ['3', '+3 sensor', 'A ship past the line sees 3 hexes further.'], ['0', 'None', 'Crossing gives no extra sight.']] },
+  { key: 'attackRun', label: 'Attack run', options: [['last_tick', 'Moved last tick', '+1 laser hit for a ship that moved on the tick before it fires.'], ['off', 'Off', 'No bonus for moving before firing.']] },
+  { key: 'wingman', label: 'Formation', options: [['on', 'Wingman move', 'When a ship fires, one friend within 2 hexes of it (touching, or one empty hex between) may also move 1 hex in the same tick.'], ['off', 'Off', 'One action a tick, nothing more.']] },
   { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
 const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid';
@@ -48,7 +53,7 @@ export const rapidSettings = () => readSet(RSTORE, RAPID_SETTINGS);
 // The rapid settings as engine options (numbers where the engine wants numbers).
 export function rapidOptions() {
   const r = rapidSettings();
-  return { ...r, timer: Number(r.timer), openTimer: Number(r.openTimer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap) };
+  return { ...r, timer: Number(r.timer), openTimer: Number(r.openTimer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap), shootRange: Number(r.shootRange), forwardEyes: Number(r.forwardEyes) };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the

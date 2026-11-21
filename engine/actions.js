@@ -6,7 +6,7 @@ import { no, num, geom, current, shipById, objById, segHex, footprint, workingPa
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
 import { applyHits, explode, removeObj } from './damage.js';
-import { dirAllowed, scanAllowed, stride } from './rapidrules.js';
+import { dirAllowed, scanAllowed, stride, shootRange, isMoving } from './rapidrules.js';
 
 const foe = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
 
@@ -163,7 +163,9 @@ export function beamHitsAt(c, d) {
 // ...and with the attack-run bonus for a ship that has moved this turn.
 export function beamHits(state, ship, c, d) {
   let hits = beamHitsAt(c, d);
-  if (hits > 0 && state.rules.det.attackRun && netMoved(state, ship) >= 1) hits += state.rules.det.attackRun;
+  // attack run: +1 for a ship that moved before firing. In rapid mode (one action a tick) that means it moved last tick.
+  const ran = state.rules.rapid ? state.rules.rapid.attackRun !== 'off' && !!(state.rapid && state.rapid.movedLast && state.rapid.movedLast[ship.id]) : netMoved(state, ship) >= 1;
+  if (hits > 0 && state.rules.det.attackRun && ran) hits += state.rules.det.attackRun;
   return hits;
 }
 
@@ -179,6 +181,8 @@ export function doFire(state, a) {
   const target = enemyAt(state, a.at, p, ship);
   if (!target) no('there is nothing to shoot at on that hex');
   if (!networkSees(state, ship, target)) no('this ship cannot see that target');
+  const sr = shootRange(state);   // rapid mode: missiles and drones can only be shot down up close
+  if (sr && isMoving(state, target) && d > sr) no('a missile or drone can only be shot down within ' + sr + ' hexes');
   const g = geom(state.rules), cells = sightLine(src, a.at, (c) => g.blockSight.has(key(c)));
   if (!cells) no('an asteroid blocks the line of fire');
   spend(); ship.used[used] = 1;
@@ -194,7 +198,8 @@ export function doFire(state, a) {
     const ob = state.objs.find((x) => x.pos[0] === cells[i][0] && x.pos[1] === cells[i][1] && !(x.owner === p && state.rules.beamsPassOwnMunitions && num(state.rules.munitions[x.kind].speed) > 0)   // own mines still stop it
       && !(state.rules.beamsPassMines && !num(state.rules.munitions[x.kind].speed))
       // beams_pass (a deep mine): a beam aimed at something else flies over it; only a shot aimed at the mine itself hits it
-      && !(state.rules.munitions[x.kind].beams_pass === true && x !== target));
+      && !(state.rules.munitions[x.kind].beams_pass === true && x !== target)
+      && !(sr && i > sr && isMoving(state, x)));   // rapid mode: a missile further off than that is too small to stop a beam
     if (ob) { hitObj = ob; hd = i; }
   }
   let hits = hd ? beamHits(state, ship, c, hd) : 0;   // (hd 0: the beam met nothing it could touch)
@@ -210,7 +215,25 @@ export function doFire(state, a) {
     // death_flash: the ship that shot it down is caught in the flash too
     if (hitShip.dead && hitShip.segs.some((g) => g.parts.some((x) => num(state.rules.parts[x.t].death_flash)))) state.lit[ship.id] = state.round + 1;
   }
-  else if (hitObj && hits > 0) { removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, obj: hitObj.id, at: hitObj.pos.slice() }, state.players.map((_, i) => i)); }
+  else if (hitObj && hits > 0) {
+    removeObj(state, hitObj); emit(state, { t: 'obj_destroyed', kind: hitObj.kind, obj: hitObj.id, at: hitObj.pos.slice() }, state.players.map((_, i) => i));
+    // rapid mode, debris: a missile or drone shot down within 2 hexes lights up the sky. The shooter takes
+    // 1 hit and everyone sees it, parts and all, for a round (3 ticks).
+    const R = state.rules.rapid;
+    if (R && R.debris !== 'off' && isMoving(state, hitObj) && hd <= 2) {
+      const until = state.round + (R.scale || 3);
+      state.lit[ship.id] = Math.max(state.lit[ship.id] || 0, until);
+      state.players.forEach((pl, q) => {
+        if (q === p) return;
+        pl.revealed = pl.revealed || {}; pl.revealed[ship.id] = until;
+        const intel = (pl.intel[ship.id] = pl.intel[ship.id] || {});   // its parts, as a scan would read them
+        ship.segs.forEach((g, i) => { intel[i] = { round: state.round, wrecked: g.wrecked, parts: g.parts.map((x) => ({ t: x.t, hp: x.hp })) }; });
+      });
+      if (state.deferHits) state.deferHits.push({ ship: ship.id, seg: a.seg, hits: 1, cause: 'debris', by: ship.id });
+      else applyHits(state, ship, a.seg, 1, 'debris');
+      emit(state, { t: 'debris', ship: ship.id, at: hitObj.pos.slice() }, state.players.map((_, i) => i));
+    }
+  }
 }
 
 export function doLaunch(state, a) {

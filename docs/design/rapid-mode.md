@@ -27,6 +27,17 @@ Open it from **Play → Rapid Opus**, or `play.html?board=rapid_opus`. Only agai
 - **Watch:** after each tick the controls sleep for the watch time while both sides' actions play out. A bar across the top shows the clock.
 - **Win:** destroy the enemy flagship (the 7-hex ship). If neither flagship is destroyed by the tick limit, it's a draw.
 
+## Second round of rules (22 Nov, after Ankur's second game)
+
+Each one is a setting, on by default:
+- **Shooting down missiles:** a laser can only hit a missile or drone within **3 hexes** (5, or any range, on the sheet). Further off, the beam flies past it. Shooting one down still costs your action; point defence stays free and automatic.
+- **Close-in debris:** shoot a missile or drone down within 2 hexes and the shooter takes **1 hit** and is **lit up for 3 ticks**, parts readout included (log event `debris`).
+- **Eyes past the line:** a ship on or past the line gets **+2 sensor range** (+3, or none). The first idea was a free rough-contact ring, but rough contacts already reach 3 hexes past normal sight, so it would have added nothing.
+- **Attack run:** **+1 laser hit** for a ship that moved on the tick before it fires (`state.rapid.movedLast`). Before this there was no bonus at all in rapid mode.
+- **Formation (wingman move):** when a ship fires, **one** friend within 2 hexes (touching, or one empty hex between) may also move 1 hex in the same tick. It is chosen after the shot (W markers; "Fire alone" skips it, and so does running out of time). It's written in the log as `<fire>+<move>`. Missile blasts still hit everything within 1 hex, so bunching up has a price.
+
+Why ships seemed to shoot you unseen: a scout sees a scout from 5 hexes, but lasers reach 9, and a fleet shares what it sees. So one enemy spotter lets its other ships fire from 6–9 hexes. A hit shows the shooter only within 8. "Eyes past the line" and the attack run are partly aimed at this.
+
 ## Rules counted in ticks (1 round ≈ 3 ticks)
 
 | Rule | Normal game | Rapid mode |
@@ -38,7 +49,7 @@ Open it from **Play → Rapid Opus**, or `play.html?board=rapid_opus`. Only agai
 | Flares, scan reveal | to the end of next round | 3 ticks |
 | Point defence | 1 a round | 1 every 3 ticks |
 | Command points | 3 a turn, bank 6 | 1, no bank |
-| Attack-run bonus | +1 after moving | never (one action a tick) |
+| Attack-run bonus | +1 after moving this turn | +1 if the ship moved last tick |
 
 The `scale: 3` setting in `engine/rapid.js` holds the ×3.
 

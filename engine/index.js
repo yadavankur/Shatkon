@@ -40,7 +40,7 @@ export { campaignMove } from './ai.js';
 export { guideView } from './guide.js';
 
 // Rapid mode: one action a side per tick, both resolved together (engine/rapid.js).
-export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride } from './rapid.js';
+export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, wingMoves, tickText, parseTick } from './rapid.js';
 
 // Battle logs: replay a saved game turn by turn, and a plain-English recap of it.
 export { battleLog, replayLog, analyse, recapText, LOG_FORMAT } from './log.js';

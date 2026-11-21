@@ -1,4 +1,13 @@
-## Latest (22 Nov, gamedev chat): Rapid Opus merged to main
+## Latest (22 Nov, later): Rapid Opus, second round of rules
+- Five new rapid settings, all on by default (docs/design/rapid-mode.md):
+  - missiles can only be shot down within 3 hexes;
+  - close-in debris (1 hit, lit up for 3 ticks);
+  - +2 sensor past the line;
+  - attack run = moved last tick;
+  - formation wingman move (`wingMoves`; tick text `<fire>+<move>`; `tickText`/`parseTick`).
+- All hooks stay off unless `rules.rapid`. 202 tests and the campaign checks pass.
+
+## 22 Nov, gamedev chat: Rapid Opus merged to main
 - Rapid mode is renamed **Rapid Opus** (`rules/rapid/rapid_opus.yaml`, Play → Rapid Opus); a Grok-built rapid mode may sit beside it for comparison, so keep `rapid_<name>` boards in `rules/rapid/`.
 - **Opening** (Ankur after his first game): until the first laser shot or launch, ships move up to 2 hexes, a 10 s clock, no watch wait, and those ticks don't count towards the limit. Settings: Opening clock, Opening moves.
 - **Rapid battle logs replay** from the seed tick by tick (`rapidLog`, `replayLog`).

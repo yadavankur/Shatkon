@@ -17,7 +17,7 @@ import { startScript } from './script.js';
 import { hashState, parseAction } from './codec.js';
 import { visibleTo } from './detect.js';
 import { bankCap } from './actions.js';
-import { rapidStart, rapidTick } from './rapid.js';
+import { rapidStart, rapidTick, parseTick } from './rapid.js';
 
 export const LOG_FORMAT = 'shatkon-battle-log';
 
@@ -112,6 +112,7 @@ export function eventWords(e, nm, side) {
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';
     case 'game_over': return 'game over: ' + (e.winner === 'draw' ? 'a draw' : side(e.winner) + ' won') + (e.by ? ' (' + String(e.by).replace(/_/g, ' ') + ')' : '');
+    case 'debris': return nm(e.ship) + ' shot down a missile close in: the debris lit it up and hit it';
     case 'ram': return nm(e.ship) + ' rammed ' + nm(e.target) + ' for ' + plural(e.hits, 'hit');
     case 'removed': return nm(e.ship) + ' left the battle';
     case 'spawned': return 'reinforcements arrived';
@@ -220,7 +221,7 @@ export function battleLog(state, opts = {}) {
 function rapidLog(state, log, full, viewer, side, nm) {
   const visible = (e) => full || (e.seenBy || []).includes(viewer);
   const clean = (e) => { const { seenBy, ...rest } = e; return full ? { ...rest, seenBy } : rest; };
-  const parse = (t) => (t === 'pass' ? { type: 'pass' } : parseAction(t));
+  const parse = parseTick;
   const ticks = state.rapid.ticks;
   let s;
   try {
@@ -231,7 +232,8 @@ function rapidLog(state, log, full, viewer, side, nm) {
       const evs = s.events.filter(visible).map((e) => ({ ...clean(e), say: eventWords(e, nm, side) })).filter((e) => e.say);
       for (const p of [0, 1]) {
         const mine = full || p === viewer;
-        const rec = mine ? { text: k.acts[p], say: k.acts[p] === 'pass' ? 'passed' : actionWords(prev, s, k.acts[p], nm) } : {};
+        const t0 = k.acts[p].split('+');
+        const rec = mine ? { text: k.acts[p], say: k.acts[p] === 'pass' ? 'passed' : t0.map((x) => actionWords(prev, s, x, nm)).join(', and its wingman ') } : {};
         if (p === 0) rec.events = evs;
         const t = { round: k.round, player: p, side: side(p), actions: mine || p === 0 ? [rec] : [] };
         if (p === 1) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
@@ -258,7 +260,7 @@ export function replayLog(log) {
   if (!log.replay) throw new Error('this log was saved mid-game and only holds one side\u2019s view, so it cannot be replayed');
   if (log.replay.rapid) {   // rapid mode: tick by tick
     let s = rapidStart(log.replay.rules, log.replay.seed);
-    for (const k of log.replay.rapid) s = rapidTick(s, k.acts.map((t) => (t === 'pass' ? { type: 'pass' } : parseAction(t))));
+    for (const k of log.replay.rapid) s = rapidTick(s, k.acts.map(parseTick));
     if (log.replay.finalHash && hashState(s) !== log.replay.finalHash) throw new Error('the replay did not end where the game did');
     return s;
   }

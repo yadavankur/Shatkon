@@ -64,6 +64,13 @@ export function stride(state) {
   return m === 'always' || (m !== 'off' && inOpening(state)) ? 2 : 1;
 }
 
+// Rapid mode: lasers may shoot a moving missile or drone only this close (0: any range).
+export const shootRange = (state) => (state.rules.rapid ? Number(state.rules.rapid.shootRange) || 0 : 0);
+// A moving munition (missile, drone), not a mine.
+export const isMoving = (state, o) => !!(o && !o.segs && Number(state.rules.munitions[o.kind] && state.rules.munitions[o.kind].speed) > 0);
+// Rapid mode, formation bonus: ships this close (touching, or one empty hex between) fly together.
+export const wingGap = (state) => Number(state.rules.rapid && state.rules.rapid.wingGap) || 2;
+
 // May this ship step in direction d this tick?
 export function dirAllowed(state, ship, d) {
   return unlocked(state, ship.owner) || forwardDirs(state, ship.owner).includes(d);

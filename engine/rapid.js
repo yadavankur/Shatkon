@@ -16,6 +16,7 @@
 // action is worked out on a copy where it is player 2's turn.
 
 import { Illegal, no, num, shipById, emit, cellsOf, gap, nearestCell } from './state.js';
+import { parseAction } from './codec.js';
 import { refreshSight } from './detect.js';
 import { applyHits, checkWin } from './damage.js';
 import { doMove, doFire, doLaunch, doScan, doDetonate } from './actions.js';
@@ -26,9 +27,28 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
-import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride } from './rapidrules.js';
+import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
-export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride };
+export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
+
+// A tick's action as text, and back: a shot with a wingman move is "<fire>+<move>".
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : actionText(a) + (a.wing ? '+' + actionText(a.wing) : ''));
+export function parseTick(t) {
+  if (t === 'pass') return { type: 'pass' };
+  const [main, wing] = String(t).split('+');
+  const a = parseAction(main);
+  return wing ? { ...a, wing: parseAction(wing) } : a;
+}
+
+// Formation (wingman) moves: when side p's ship `shooter` fires, each friend within wingGap hexes of it
+// may make one 1-hex move in the same tick (one of them). The moves it could make, as move actions.
+export function wingMoves(state, p, shooter) {
+  if (!state.rules.rapid || state.rules.rapid.wingman === 'off') return [];
+  const s = copy(state); asCurrent(s, p);
+  const sh = shipById(s, shooter);
+  if (!sh) return [];
+  return legalMoves(state, p).filter((a) => a.path.length === 1 && a.ship !== shooter && gap(shipById(s, a.ship), sh) <= wingGap(s));
+}
 
 // The battle settings rapid mode reads (ui/settings.js shows them). Numbers are in ticks or seconds.
 export const RAPID_DEFAULTS = {
@@ -42,6 +62,12 @@ export const RAPID_DEFAULTS = {
   line: 12,           // rows from your own home edge (12 on a radius-12 board = halfway)
   scan: 'past_line',  // who may scan: 'past_line', 'unlocked' (any ship once free) or 'always'
   cap: 100,           // ticks before the game is a draw (opening ticks don't count)
+  shootRange: 3,      // lasers may shoot a missile or drone down only this close (0: any range)
+  debris: 'on',       // a missile shot down within 2 hexes: the shooter takes 1 hit and is lit up, parts and all, for 3 ticks
+  forwardEyes: 2,     // extra sensor range for a ship past the line (0: none)
+  attackRun: 'last_tick', // +1 laser hit for a ship that moved last tick ('off': none)
+  wingman: 'on',      // formation: a ship that fires lets one friend within wingGap hexes move 1 hex in the same tick
+  wingGap: 2,         // touching (1) or one empty hex between (2)
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
 };
 
@@ -127,6 +153,12 @@ export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (!DO[a.type]) return 'that is not a rapid-mode action';
+  if (a.wing) {
+    if (a.type !== 'fire') return 'only a laser shot brings a wingman move';
+    const w = a.wing;
+    if (!w || w.type !== 'move' || !wingMoves(state, p, a.ship).some((m) => m.ship === w.ship && m.path.join() === (w.path || []).join())) return 'that ship cannot make a wingman move: it must be within ' + wingGap(state) + ' hexes of the ship that fires, and move 1 hex';
+    a = { ...a }; delete a.wing;
+  }
   if (a.type === 'move' && (!Array.isArray(a.path) || !a.path.length || a.path.length > stride(state))) return stride(state) > 1 ? 'a ship moves up to 2 hexes in the opening' : 'once the shooting starts a ship moves one hex at a time';
   const s = copy(state); asCurrent(s, p);
   try { DO[a.type](s, a); return null; } catch (e) { if (e instanceof Illegal) return e.message; throw e; }
@@ -140,13 +172,14 @@ export function rapidTick(state, acts) {
   const s = copy(state);
   s.events = []; s.flight = null;
   const texts = [null, null];
+  const start = new Map(s.ships.map((x) => [x.id, x.pos.join()]));
   // 1. shots, launches, scans: hits land together afterwards
   s.deferHits = [];
   for (const p of [0, 1]) {
     const a = acts[p];
     if (!a || !(a.type in FIRST) || FIRST[a.type] !== 0) continue;
     asCurrent(s, p);
-    texts[p] = actionText(a);
+    texts[p] = tickText(a);
     // both sides shot the same missile: the second shot has nothing left to hit and fizzles
     try { DO[a.type](s, a); } catch (e) { if (!(e instanceof Illegal)) throw e; }
   }
@@ -165,7 +198,17 @@ export function rapidTick(state, acts) {
     asCurrent(s, p);
     try { doMove(s, a); } catch (e) { if (!(e instanceof Illegal)) throw e; }   // a hidden ship now in the way: it just doesn't go
   }
+  // 2b. wingman moves: the friend of a ship that fired this tick
+  for (const p of [0, 1]) {
+    const w = acts[p] && acts[p].wing;
+    if (s.phase !== 'play' || !w || !shipById(s, w.ship)) continue;
+    asCurrent(s, p);
+    try { doMove(s, w); } catch (e) { if (!(e instanceof Illegal)) throw e; }
+  }
   refreshSight(s); checkWin(s);
+  // ships that moved this tick get the attack-run bonus next tick
+  s.rapid.movedLast = {};
+  for (const x of s.ships) if (!x.dead && start.get(x.id) !== x.pos.join()) s.rapid.movedLast[x.id] = 1;
   // 3. missiles and drones
   if (s.phase === 'play' && s.objs.length) runFlight(s);
   // 4. the tick ends
@@ -250,7 +293,15 @@ export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
     const v = shotScore(s, p, t) + (level === 'easy' ? rnd() * 3 : 0);
     if (v > sv) { sv = v; shot = { type: 'fire', ship: x.id, seg: t.seg, part: t.part, at: t.at }; }
   }
-  if (shot && sv >= 1) return shot;
+  // a shot also brings a wingman move for a friend close by (formation bonus): advance it as the fleet would
+  const enemiesSeen = s.ships.filter((x) => x.owner !== p && !x.dead && s.players[p].vis.includes(x.id));
+  const withWing = (a) => {
+    if (!a || a.type !== 'fire') return a;
+    const fw = forwardDirs(s, p), wm = wingMoves(state, p, a.ship).filter((m) => fw.includes(m.path[0]));
+    const w = advance(s, state, p, mine, enemiesSeen, wm, level, rnd);
+    return w ? { ...a, wing: w } : a;
+  };
+  if (shot && sv >= 1) return withWing(shot);
   // 2. a missile at a ship it can see and reach, unless one of ours is already after it
   for (const x of mine) {
     const a = autoLaunch(state, p, x.id, null, 'best');
@@ -259,7 +310,7 @@ export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
     if (level === 'easy' && rnd() < 0.5) continue;
     if (!rapidRefusal(state, p, a)) return a;
   }
-  if (shot) return shot;   // shoot down a far-off missile rather than nothing
+  if (shot) return withWing(shot);   // shoot down a missile rather than nothing
   // 3. a scan when it is allowed and nothing of the enemy is in view
   const seen = s.players[p].vis.some((id) => s.ships.some((x) => x.id === id && x.owner !== p));
   const scannedLately = (s.rapid.lastScan || [])[p] > s.round - 3;

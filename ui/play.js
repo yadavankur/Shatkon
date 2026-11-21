@@ -981,6 +981,14 @@ function confirmEmptyTurn(cp) {
 // ---------- what a tap would do in the current mode ----------
 function options(v) {
   const map = new Map();
+  // rapid mode, wingman step: the friends of the ship that fires, one hex each
+  if (isRapidGame() && RT.wingFor) {
+    for (const m of RT.wingOpts || []) {
+      const x = v.ships.find((z) => z.id === m.ship);
+      if (x) map.set(hex.key(hex.step(x.pos, m.path[0])), { action: m, wingAct: { ...RT.wingFor, wing: m }, mark: 'move', label: 'W' });
+    }
+    return map;
+  }
   if (!myTurn() || (pending && !['move', 'fire', 'detonate'].includes(pending.type)) || (!sel && mode !== 'scan' && mode !== 'detonate')) return map;
   if (mode === 'move') for (const r of E.reach(game, sel)) map.set(hex.key(r.at), { action: { type: 'move', ship: sel, path: r.path }, mark: 'move', label: r.path.length });
   if (mode === 'fire') for (const t of E.beamTargets(game, sel)) {
@@ -1022,6 +1030,7 @@ function zoomOnShip(ship) {
 
 function tap(c, v, opts, viaChip, t) {
   if (isRapidGame() && game.phase === 'play' && RT.phase !== 'choose') return;   // rapid mode: watching, or the game is choosing for you
+  if (isRapidGame() && RT.wingFor) { const w = opts.get(hex.key(c)); if (w && w.wingAct) rapidAct(w.wingAct); return; }   // wingman step: a marker or nothing
   let o = opts.get(hex.key(c));
   endArmed = false;
   const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
@@ -1731,7 +1740,10 @@ export function render() {
   const rail = $('#rail');
   if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
-  if (mine && !hid && R.rapid) {
+  if (mine && !hid && R.rapid && RT.wingFor) {
+    fill(tb, [h('button', { class: 'btn go ib endb', 'aria-label': 'Fire with no wingman move', onclick: () => rapidAct(RT.wingFor) },
+      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman move'))]);
+  } else if (mine && !hid && R.rapid) {
     const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
     fill(tb, [h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
       onclick: () => rapidAct({ type: 'pass' }) },
@@ -1818,7 +1830,7 @@ export function render() {
 //   auto   : out of time. A chosen laser, missile or scan fires on its own after a 1.5 s red Cancel
 //            button; with nothing chosen the game picks a ship and moves it forward (or passes, once free)
 // The computer picks its action the moment you pick yours, from its own view of the board.
-const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0 };
+const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null };   // wingFor: a chosen shot waiting for its wingman move
 function rapidClear() {
   clearTimeout(RT.timer); RT.timer = 0;
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
@@ -1864,6 +1876,7 @@ function rapidWatch(ms) {
 function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
+  RT.wingFor = RT.wingOpts = null;
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
   RT.timer = setTimeout(rapidTimeout, secs * 1000);
@@ -1873,6 +1886,7 @@ function rapidChoose() {
 // Out of time.
 function rapidTimeout() {
   if (!isRapidGame() || RT.phase !== 'choose' || game.phase !== 'play') return;
+  if (RT.wingFor) return rapidAct(RT.wingFor, true, true);   // out of time choosing a wingman: the shot goes alone
   // the rules card or the menu is open: the clock starts again rather than acting behind it
   if ((document.getElementById('help') && !document.getElementById('help').hidden) || drawerOpen || document.getElementById('bsheet')) return rapidChoose();
   const R = game.rules.rapid;
@@ -1927,6 +1941,16 @@ function rapidAct(action, quiet, auto) {
     if (auto) rapidForced();          // an automatic choice went stale: fall back to the forced move
     return render();
   }
+  // formation: a shot by a ship with friends close by first offers one of them a free 1-hex move
+  if (!auto && a.type === 'fire' && !a.wing && !RT.wingFor && game.rules.rapid.wingman !== 'off') {
+    const wm = E.wingMoves(game, 0, a.ship);
+    if (wm.length) {
+      RT.wingFor = a; RT.wingOpts = wm; pending = null;
+      say('Wingman: tap a W marker to move a ship next to ' + a.ship + ' 1 hex as it fires, or press Fire alone.');
+      return render();
+    }
+  }
+  RT.wingFor = RT.wingOpts = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
   try {
