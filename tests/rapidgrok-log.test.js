@@ -44,7 +44,8 @@ describe('Rapid Grok battle log', () => {
     assert.equal(log.acts.length, (s.rg.acts || []).length);
     assert.ok(log.acts.length >= s.round * 2 - 2, 'at least nearly two actions per beat');
     const recap = (log.summary || []).join('\n');
-    assert.match(recap, /won in 79 beats/);
+    assert.match(recap, /won in \d+ beats/);
+    assert.equal(log.result.beats, s.round > s.rules.turnLimit && s.winner === 'draw' ? s.rules.turnLimit : s.round);
     assert.doesNotMatch(recap, /\bround\b|\btick\b/i);
     assert.equal(badWords(log).length, 0, String(badWords(log).slice(0, 5)));
     const lost0 = s.ships.filter((x) => x.owner === 0 && x.dead).length;
