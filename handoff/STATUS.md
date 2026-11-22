@@ -1,3 +1,8 @@
+## Latest (22 Nov, Sunday): Rapid Opus, fourth round (branch `rapid-round4`, PR open, not merged)
+- **The opening now ends at first contact**, not first shot: the first tick either side has any contact on the other (a ship in view or a fuzzy contact). From then on: 15 s clock, 1-hex moves, 3 s watch wait, and a "Contact" toast. New setting *Opening ends* (first contact / first shot, `openEnd`).
+- **A time-out moves the ship you had tapped** (flagship too) to a random forward hex; if it can't go forward, or nothing was tapped, the old random pick applies. `forcedMoves(state, p, prefer)`.
+- Built apart from Grok's PR #50 (`rapid-grok`); touches no Grok files. 207 tests pass.
+
 ## Latest (22 Nov, night): Rapid Opus, third round
 - One-hex ships past the line can convert into a scanner buoy or a naval mine (`canConvert`, `scan_buoy` munition added by `rapidRules`).
 - Board marks for known parts in every mode: yellow shield rings; red T (turret) / E (engine) on enemies.

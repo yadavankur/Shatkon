@@ -18,7 +18,7 @@
 import { Illegal, no, num, shipById, emit, cellsOf, gap, nearestCell, makeObj } from './state.js';
 import { fuzzAt } from './detect.js';
 import { parseAction } from './codec.js';
-import { refreshSight } from './detect.js';
+import { refreshSight, visibleTo, contactsFor } from './detect.js';
 import { applyHits, checkWin } from './damage.js';
 import { doMove, doFire, doLaunch, doScan, doDetonate } from './actions.js';
 import { runFlight } from './flight.js';
@@ -112,8 +112,9 @@ export function wingMoves(state, p, shooter) {
 // The battle settings rapid mode reads (ui/settings.js shows them). Numbers are in ticks or seconds.
 export const RAPID_DEFAULTS = {
   timer: 15,          // seconds to choose an action once the shooting has started
-  openTimer: 10,      // seconds to choose during the opening (until the first laser shot or missile launch)
-  stride: 'opening',  // moves of 2 hexes: 'opening' (until the first shot), 'always' or 'off'
+  openTimer: 10,      // seconds to choose during the opening (until the first sighting, or the first shot if that comes sooner)
+  openEnd: 'sighting', // what ends the opening: 'sighting' (the first tick either side has any contact on the other) or 'shot' (the first laser shot or missile launch)
+  stride: 'opening',  // moves of 2 hexes: 'opening' (until it ends), 'always' or 'off'
   watch: 3,           // seconds to watch what just happened before the controls wake up (none in the opening)
   autofire: 'best',   // at time-out a chosen laser or missile picks: 'best' or 'nearest' target
   launch: 'sighted',  // 'sighted': a launch must lock onto a ship you can see. 'blind': any hex
@@ -197,13 +198,16 @@ export function legalMoves(state, p) {
   return out;
 }
 // Forward moves only (what a time-out may pick), as far as a move may go (2 hexes in the opening),
-// never the flagship while anything else can go.
-export function forcedMoves(state, p) {
+// never the flagship while anything else can go. With `prefer` (the ship the player had tapped), that
+// ship's forward moves come first and alone, flagship or not; if it has none, the usual pick stands.
+export function forcedMoves(state, p, prefer) {
   const s = copy(state); asCurrent(s, p);
   const fw = forwardDirs(s, p), fwd = legalMoves(state, p).filter((a) => a.path.every((d) => fw.includes(d)));
   const far = new Map();
   for (const a of fwd) far.set(a.ship, Math.max(far.get(a.ship) || 0, a.path.length));
   const all = fwd.filter((a) => a.path.length === far.get(a.ship));
+  const mine = prefer ? all.filter((a) => a.ship === prefer) : [];
+  if (mine.length) return mine;
   const escorts = all.filter((a) => !shipById(s, a.ship).flagship);
   return escorts.length ? escorts : all;
 }
@@ -290,10 +294,13 @@ export function rapidTick(state, acts) {
   if (s.phase === 'play') buoysScan(s);
   // 4. the tick ends
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
-  // the opening ends with the first laser shot or missile launch; its ticks don't count towards the limit
+  // the opening ends at the first sighting (either side has a contact on the other) or, if that comes
+  // sooner, the first laser shot or missile launch; its ticks don't count towards the limit
   if (s.rapid.opening) {
     s.rapid.openTicks = (s.rapid.openTicks || 0) + 1;
-    if (acts.some((a) => a && (a.type === 'fire' || a.type === 'launch'))) s.rapid.opening = false;
+    const shot = acts.some((a) => a && (a.type === 'fire' || a.type === 'launch'));
+    const sighted = s.rules.rapid.openEnd !== 'shot' && firstContact(s);
+    if (shot || sighted) { s.rapid.opening = false; s.rapid.openEnded = shot ? 'shot' : 'sighting'; }
   }
   for (const p of [0, 1]) if (acts[p] && acts[p].type === 'scan') { s.rapid.lastScan = s.rapid.lastScan || [0, 0]; s.rapid.lastScan[p] = s.round; }
   const rec = { round: s.round, acts: texts };
@@ -315,6 +322,15 @@ export function rapidTick(state, acts) {
   s.pre = hashState(s);
   s.lastTurn = rec;
   return s;
+}
+
+// Has either side any contact on the other: a ship or munition in view, or a fuzzy contact just out of range?
+function firstContact(s) {
+  for (const p of [0, 1]) {
+    const vis = visibleTo(s, p);
+    if (vis.size || contactsFor(s, p, vis).length) return true;
+  }
+  return false;
 }
 
 // ---------- automatic choices ----------

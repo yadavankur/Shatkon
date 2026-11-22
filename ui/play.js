@@ -1876,7 +1876,7 @@ function newRapidGame() {
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
   say('Rapid Opus: you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
-    + (r.stride === 'off' ? '' : 'Until the first shot, ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you.');
+    + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).');
   save(); render();
   setTimeout(() => toast('Rapid Opus', 'p0', 'forward until you cross the line'), 300);
 }
@@ -1930,16 +1930,24 @@ function rapidAutoAsk(a) {
   RT.timer = setTimeout(() => { const c = document.getElementById('rapidcancel'); if (c) c.remove(); rapidAct(a, true, true); }, 1500);
   render();
 }
-// Nothing chosen: pass once free; otherwise spin through the ships that can go forward, pick one and move it.
+// Nothing chosen: pass once free; otherwise move a ship forward at random. A ship you had tapped is the
+// one that goes (to a random forward hex); if it has none, or nothing was tapped, the game spins through
+// the ships that can go forward and picks one.
 function rapidForced() {
   rapidClear();
   if (!isRapidGame() || game.phase !== 'play') return;
   if (E.passAllowed(game, 0) && E.unlocked(game, 0)) { say('Out of time: you passed.'); return rapidAct({ type: 'pass' }, true, true); }
-  const moves = E.forcedMoves(game, 0);
+  const moves = E.forcedMoves(game, 0, sel);
   if (!moves.length) return rapidAct({ type: 'pass' }, true, true);
   RT.phase = 'auto'; RT.start = performance.now(); RT.end = RT.start + 1600;
   document.body.classList.add('rapid-auto');
   const pick = moves[Math.floor(Math.random() * moves.length)], ids = [...new Set(moves.map((m) => m.ship))];
+  if (sel && pick.ship === sel) {   // the tapped ship goes, no spinning
+    mode = 'move'; pending = pick; render();
+    say('Out of time: your selected ship moves forward by itself.');
+    RT.timer = setTimeout(() => rapidAct(pick, true, true), 700);
+    return;
+  }
   let i = 0;
   const steps = Math.min(10, 4 + ids.length);
   say('Out of time: the game picks one of your ships and moves it forward.');
@@ -1995,6 +2003,7 @@ function rapidAct(action, quiet, auto) {
     if (E.rapidRefusal(game, 1, ai)) ai = E.forcedMoves(game, 1)[0] || { type: 'pass' };
     if (E.rapidRefusal(game, 1, ai)) ai = { type: 'pass' };
   } catch (err) { console.warn('AI error', err); ai = { type: 'pass' }; }
+  const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   pending = null; endArmed = false; undoStack = []; mode = 'move';
   if (sel && !game.ships.some((x) => x.id === sel && !x.dead)) sel = null;
@@ -2009,7 +2018,9 @@ function rapidAct(action, quiet, auto) {
     setTimeout(() => toast(game.winner === 'draw' ? 'Draw' : game.winner === 0 ? 'Victory!' : 'Defeat', 'over'), 600);
     return render();
   }
-  // no waiting in the opening (nothing to watch but moves); after the first shot, the watch setting
+  // the opening just ended: tell the player the pace has changed
+  if (wasOpening && !E.inOpening(game)) toast(game.rapid.openEnded === 'shot' ? 'First shot' : 'Contact', 'p0', 'the clock is now ' + game.rules.rapid.timer + ' s and ships move 1 hex');
+  // no waiting in the opening (nothing to watch but moves); after it ends, the watch setting
   const w = E.inOpening(game) ? 0 : game.rules.rapid.watch * 1000;
   rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
   render();

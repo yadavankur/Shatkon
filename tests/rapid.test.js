@@ -157,6 +157,33 @@ test('the opening: 2-hex moves and the short clock until the first shot, and its
   assert.equal(E.stride(rapidGame({ stride: 'off' })), 1);
 });
 
+test('the opening ends at the first sighting, before any shot; openEnd "shot" keeps the old rule', () => {
+  const walk = (g, n) => { for (let i = 0; i < n && E.inOpening(g) && g.phase === 'play'; i++) g = E.rapidTick(g, [E.forcedMoves(g, 0)[0] || PASS, E.forcedMoves(g, 1)[0] || PASS]); return g; };
+  const g = walk(rapidGame(), 40);
+  assert.equal(E.inOpening(g), false, 'walking at each other ends the opening');
+  assert.equal(g.rapid.openEnded, 'sighting');
+  assert.ok(g.rapid.ticks.every((t) => !/laser|fires|launch/i.test(t.acts.join(' '))), 'no shot was needed');
+  assert.ok(g.rapid.openTicks >= 1 && E.stride(g) === 1);
+  // the same walk with the old rule: still the opening after the same number of ticks
+  let o = rapidGame({ openEnd: 'shot' });
+  for (let i = 0; i < g.rapid.openTicks; i++) o = E.rapidTick(o, [E.forcedMoves(o, 0)[0] || PASS, E.forcedMoves(o, 1)[0] || PASS]);
+  assert.equal(E.inOpening(o), true);
+});
+
+test('a time-out moves the ship you had tapped (flagship included); if it cannot go forward, the usual pick stands', () => {
+  const g = rapidGame();
+  const pawn = g.ships.find((s) => s.owner === 0 && s.name === 'Pawn A');
+  const mine = E.forcedMoves(g, 0, pawn.id);
+  assert.ok(mine.length && mine.every((a) => a.ship === pawn.id), 'only the tapped ship moves');
+  const flag = g.ships.find((s) => s.owner === 0 && s.flagship);
+  const fm = E.forcedMoves(g, 0, flag.id);
+  assert.ok(fm.every((a) => a.ship === flag.id), 'a tapped flagship may go');
+  // nothing tapped: never the flagship while another ship can go
+  assert.ok(E.forcedMoves(g, 0).every((a) => a.ship !== flag.id));
+  // a ship with no forward move falls back to the usual pick
+  assert.deepEqual(E.forcedMoves(g, 0, 'no-such-ship'), E.forcedMoves(g, 0));
+});
+
 test('a rapid battle log replays the game tick by tick: hits and sightings are in it', () => {
   let g = rapidGame({ cap: 40 }, 21);
   let seed = 3;

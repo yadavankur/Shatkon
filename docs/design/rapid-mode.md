@@ -10,7 +10,7 @@ Open it from **Play → Rapid Opus**, or `play.html?board=rapid_opus`. Only agai
   1. shots, launches and scans (both sides). Laser hits land together, so two ships that shoot each other are both hit, even if one of them dies;
   2. moves (both sides);
   3. missiles fly.
-- **The opening:** until the first laser shot or missile launch (either side), ships move **up to 2 hexes**, the clock is **10 s**, there is no watch wait between ticks, and these ticks don't count towards the tick limit (Ankur, 21 Nov, after his first game: the walk-up was too slow).
+- **The opening:** until the first **sighting** (the first tick either side has any contact on the other, even a fuzzy one) or the first laser shot or missile launch, whichever comes first, ships move **up to 2 hexes**, the clock is **10 s**, there is no watch wait between ticks, and these ticks don't count towards the tick limit (Ankur, 21 Nov, after his first game: the walk-up was too slow).
 - **After that, moves are one hex.** Engines no longer set speed. A ship needs one working engine to move; spare engines are just spares.
 - **Forward only** until one of your ships is on or past **your line**:
   - On this board, forward means two of the six directions: north-east and north-west for the south side.
@@ -88,8 +88,9 @@ The `scale: 3` setting in `engine/rapid.js` holds the ×3.
 |---|---|---|
 | Time to act | 15 s | 10, 15, 20, 30, 60 s |
 | Opening clock | 10 s | 5, 10, 15 s |
-| Opening moves | 2 hexes till the first shot | 2 hexes till first shot / 2 hexes always / 1 hex |
-| Time to watch (after the first shot) | 3 s | slider, 0–10 s |
+| Opening ends | first contact | first contact / first shot |
+| Opening moves | 2 hexes till the opening ends | 2 hexes in the opening / 2 hexes always / 1 hex |
+| Time to watch (after the opening) | 3 s | slider, 0–10 s |
 | Auto-fire | best target | best / nearest |
 | Missiles | sighted (a lock on a ship your fleet can see) | sighted / blind |
 | The line | 12 rows (halfway on this board) | slider, 6–18 |
@@ -173,3 +174,8 @@ Reading:
 - Also likely: lasers sit right under shields and armour, so two 2-hit shots strip a scout's laser. The ship card shows it, but it's easy to miss in a rush.
 - **His battle report was empty** (0 shots, 0 damage, a "quiet battle") for the same reason: the old rapid log held no events. Fixed by the replay. Missiles in the report are credited to the launching ship's owner, and missiles shot down count as wasted.
 - Logs are now replayable, so the next time something like this happens the log will show exactly why.
+
+
+## Third round of rules (22 Nov, after Ankur's third game)
+- **The opening ends at first contact, not first shot.** Ankur: once the fleets sight each other the game was too fast and he needed a moment. From the tick either side has a contact on the other, the clock is the normal 15 s, ships move 1 hex and the 3 s watch wait applies. A toast says so. Setting *Opening ends*: first contact (default) or first shot (the old rule).
+- **A time-out moves the ship you had tapped.** Nothing chosen but a ship tapped: that ship moves forward by itself, to a random legal forward hex (the flagship too, since you picked it). If it has no forward move, or nothing was tapped, the game picks any ship that can go, never the flagship while another can. Once free, a time-out still passes.
