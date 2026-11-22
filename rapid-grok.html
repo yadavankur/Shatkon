@@ -86,11 +86,11 @@ main{flex:1;min-height:0;position:relative}
       <ul>
         <li>You and the computer take turns, <b>one action each</b>. Your action plus its reply is one <b>beat</b>.</li>
         <li>You have <b>15 seconds</b> to act (the bar at the top shrinks). Then you get <b>5 seconds</b> to watch the enemy's reply, but only the parts your ships can see.</li>
-        <li>An action is one of: <b>step</b> a ship 1 hex, fire one <b>laser</b>, <b>launch</b> a missile, or <b>scan</b>.</li>
+        <li>An action is one of: <b>move</b> a ship (Skiffs and Darts up to 3 hexes, bigger ships up to 2, to any reachable hex in that circle), fire one <b>laser</b>, <b>launch</b> a missile, or <b>scan</b>.</li>
         <li>At the end of each beat, missiles fly 6 hexes, shields that weren't hit come back, and point defence reloads.</li>
-        <li><b>No passing.</b> If the clock runs out with a laser or missile picked, it fires at the best target after a red <b>Cancel</b> button (1.5 seconds). If you cancel, that ship steps forward instead. If you picked a scan, or just a ship, that ship steps forward. If you picked nothing, a random Skiff or your front ship steps forward.</li>
+        <li><b>No passing.</b> If the clock runs out with a laser or missile picked, it fires at the best target after a red <b>Cancel</b> button (1.5 seconds). If you cancel, that ship moves forward instead. If you picked a scan, or just a ship, that ship moves forward. If you picked nothing, a random Skiff or your front ship moves forward.</li>
       </ul>
-      <p class="muted">Tap one of your ships, then tap a glowing hex to step there, or pick Laser, Missile or Scan.</p>
+      <p class="muted">Tap one of your ships, then tap any glowing hex in its circle to move there, or pick Laser, Missile or Scan.</p>
       <div class="row">
         <button type="button" id="startNormal">Start</button>
         <button type="button" id="startEasy" class="alt">Start (easier computer)</button>

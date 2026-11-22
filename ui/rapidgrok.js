@@ -62,6 +62,7 @@ let autoAct = null;            // the auto-fire waiting behind the red cancel bu
 let watch = null;              // what to highlight during the 5-second watch
 let log = [];
 let toastTimer = 0;
+const moveAnims = new Map();   // shipId -> { trail, to, start, dur }
 const ACT = () => (qs.has('act') ? Number(qs.get('act')) : cfg.act_seconds) * 1000;
 const WATCH = () => (qs.has('watch') ? Number(qs.get('watch')) : cfg.watch_seconds) * 1000;
 const CANCEL = () => (qs.has('cancel') ? Number(qs.get('cancel')) : cfg.cancel_seconds) * 1000;
@@ -84,7 +85,7 @@ function toast(text, foe = false, ms = 2600) {
 function describe(e, viewer) {
   const mine = (id) => { const s = game.ships.find((x) => x.id === id); return s && s.owner === viewer; };
   switch (e.t) {
-    case 'move': return mine(e.ship) ? null : [nameOf(e.ship) + ' moved', 'foe'];
+    case 'move': return mine(e.ship) ? null : [nameOf(e.ship) + ' moved' + (e.steps > 1 ? ' (' + e.steps + ' hexes)' : ''), 'foe'];
     case 'fire': return [nameOf(e.ship) + ' fired a laser' + (e.hits ? ' (' + e.hits + ' hit' + (e.hits > 1 ? 's' : '') + ')' : ' (missed)'), 'me'];
     case 'enemy_fire': return [nameOf(e.ship) + ' fired a laser at you', 'foe'];
     case 'launch': return [nameOf(e.ship) + ' launched a ' + kindName(e.kind) + (e.target ? ' at ' + nameOf(e.target) : ''), 'me'];
@@ -101,11 +102,35 @@ function describe(e, viewer) {
   }
 }
 
+function queueAnims(events, perHexMs) {
+  const now = performance.now();
+  for (const e of events) {
+    if (e.t === 'move' && e.trail && e.trail.length > 1) {
+      moveAnims.set(e.ship, { trail: e.trail, to: e.to, start: now, dur: perHexMs * (e.trail.length - 1) });
+    }
+  }
+}
+
+function animOffset(id, now) {
+  const a = moveAnims.get(id);
+  if (!a) return null;
+  const u = (now - a.start) / a.dur;
+  if (u >= 1) { moveAnims.delete(id); return null; }
+  const segs = a.trail.length - 1;
+  const f = Math.max(0, u) * segs;
+  const i = Math.min(segs - 1, Math.floor(f));
+  const t = f - i;
+  const ax = X(a.trail[i]) * (1 - t) + X(a.trail[i + 1]) * t;
+  const ay = Y(a.trail[i]) * (1 - t) + Y(a.trail[i + 1]) * t;
+  return [ax - X(a.to), ay - Y(a.to)];
+}
+
 // ---------- the flow: act -> (auto-fire) -> computer -> watch -> act ----------
 function newGame() {
   const seed = qs.has('seed') ? Number(qs.get('seed')) : (Date.now() % 100000) + 1;
   game = G.rgStart(rules, seed);
   sel = null; mode = 'move'; log = []; watch = null; autoAct = null; pausedLeft = null;
+  moveAnims.clear();
   $('intro').hidden = true; $('over').hidden = true;
   if (G.toAct(game) === CPU) { say('The computer moves first.', 'beat'); toast('The computer moves first'); computerTurn([]); }
   else { say('You move first.', 'beat'); toast('You move first'); startAct(); }
@@ -130,6 +155,7 @@ function play(action, why = null) {
   game = r.state;
   if (why) say(why, 'me');
   const mineEvents = G.seenEvents(game, ME);
+  queueAnims(mineEvents, 150);
   for (const e of mineEvents) { const d = describe(e, ME); if (d) say(d[0], d[1]); }
   if (before.round !== game.round && game.phase === 'play') say('— beat ' + game.round + ' —', 'beat');
   autoAct = null; $('cancel').hidden = true;
@@ -145,11 +171,12 @@ function computerTurn(myEvents) {
     const r = G.aiTurn(game, CPU, level);
     game = r.state;
     const seen = G.seenEvents(game, ME);
+    queueAnims(seen, 280);
     const foeMove = seen.find((e) => e.t === 'move' && game.ships.some((x) => x.id === e.ship && x.owner === CPU));
     const foeFire = seen.find((e) => e.t === 'enemy_fire');
     let text;
     if (foeFire) text = nameOf(foeFire.ship) + ' fired at you';
-    else if (foeMove) text = nameOf(foeMove.ship) + ' moved';
+    else if (foeMove) text = nameOf(foeMove.ship) + ' moved' + (foeMove.steps > 1 ? ' ' + foeMove.steps + ' hexes' : '');
     else if (seen.some((e) => e.t === 'sighted')) text = 'Enemy spotted';
     else text = 'The enemy acted out of your sight';
     for (const e of seen) { const d = describe(e, ME); if (d) say(d[0], d[1]); }
@@ -177,9 +204,9 @@ function timeUp() {
       render();
       return;
     }
-    toast('No target for the ' + mode + ': ' + ship.name + ' steps forward instead');
+    toast('No target for the ' + mode + ': ' + ship.name + ' moves forward instead');
   }
-  forced(ship ? ship.id : null, ship && mode === 'scan' ? 'Time up: scans never fire by themselves, so ' + ship.name + ' steps forward' : null);
+  forced(ship ? ship.id : null, ship && mode === 'scan' ? 'Time up: scans never fire by themselves, so ' + ship.name + ' moves forward' : null);
 }
 
 function forced(shipId, why) {
@@ -189,7 +216,7 @@ function forced(shipId, why) {
     if (game.phase !== 'play') return finish();
     return computerTurn([]);
   }
-  const msg = why || ('Time up: ' + nameOf(a.ship) + ' steps forward' + (shipId ? '' : ' (picked at random)'));
+  const msg = why || ('Time up: ' + nameOf(a.ship) + ' moves forward' + (shipId ? '' : ' (picked at random)'));
   toast(msg);
   play(a, msg);
 }
@@ -197,7 +224,7 @@ function forced(shipId, why) {
 function cancelAuto() {
   if (phase !== 'cancel' || !autoAct) return;
   const id = autoAct.ship; autoAct = null; $('cancel').hidden = true;
-  forced(id, 'Auto-fire cancelled: ' + nameOf(id) + ' steps forward instead');
+  forced(id, 'Auto-fire cancelled: ' + nameOf(id) + ' moves forward instead');
 }
 
 function finish() {
@@ -211,6 +238,17 @@ function finish() {
 // ---------- the clock ----------
 function frame(now) {
   requestAnimationFrame(frame);
+  if (moveAnims.size) {
+    const svg = $('board');
+    for (const id of [...moveAnims.keys()]) {
+      const g = svg.querySelector(`g[data-ship="${id}"]`);
+      const off = animOffset(id, now);
+      if (g) {
+        if (off) g.setAttribute('transform', `translate(${f1(off[0])},${f1(off[1])})`);
+        else g.removeAttribute('transform');
+      }
+    }
+  }
   if (!game || phase === 'intro' || phase === 'over' || phase === 'ai') { if (phase === 'ai') $('clocktext').textContent = 'Enemy is thinking…'; return; }
   const left = pausedLeft !== null ? pausedLeft : Math.max(0, deadline - now);
   const bar = $('bar');
@@ -237,7 +275,7 @@ function onCell(c) {
   if (phase !== 'act' || pausedLeft !== null) return;
   const v = E.view(game, ME), k = H.key(c);
   if (sel && mode === 'move') {
-    const r = E.reach(game, sel).find((o) => o.path.length === 1 && H.key(o.at) === k);
+    const r = E.reach(game, sel).find((o) => H.key(o.at) === k);
     if (r) { play({ type: 'move', ship: sel, path: r.path }); return; }
   }
   if (sel && mode === 'laser') {
@@ -273,7 +311,7 @@ function setMode(m) {
 const portrait = () => innerHeight > innerWidth * 1.05;
 function render() {
   if (!game) return;
-  const v = E.view(game, ME), svg = $('board'), R = rules.board.radius;
+  const v = E.view(game, ME), svg = $('board'), R = rules.board.radius, now = performance.now();
   $('beat').textContent = 'Beat ' + game.round + ' / ' + rules.turnLimit;
   const pr = portrait();
   const bw = W * (2 * R + 1.6), bh = S * (3 * R + 3.2);
@@ -298,7 +336,7 @@ function render() {
   const hot = new Map();   // key -> { cls, label }
   const selShip = sel && v.ships.find((x) => x.id === sel);
   if (phase === 'act' && selShip) {
-    if (mode === 'move') for (const o of E.reach(game, sel)) if (o.path.length === 1) hot.set(H.key(o.at), { cls: 'move' });
+    if (mode === 'move') for (const o of E.reach(game, sel)) hot.set(H.key(o.at), { cls: 'move' });
     if (mode === 'laser') for (const t of E.beamTargets(game, sel)) { const k = H.key(t.at), h = hot.get(k); if (!h || h.label < t.hits) hot.set(k, { cls: 'laser', label: t.hits }); }
     if (mode === 'missile') { const lo = E.launchOptions(game, sel); if (lo) for (const id of lo.locks) { const t = v.ships.find((x) => x.id === id); if (t) for (const c of t.cells) hot.set(H.key(c), { cls: 'lock' }); } }
   }
@@ -310,7 +348,7 @@ function render() {
 
   const cells = el('g');
   for (const c of H.disc([0, 0], R)) {
-    const k = H.key(c), tt = terrain.get(k), h = hot.get(k);
+    const k = H.key(c), tt = terrain.get(k);
     let fill = sensed.has(k) ? '#0d1d33' : '#070f1c', stroke = '#13243b';
     if (tt === 'nebula') fill = sensed.has(k) ? '#1b2350' : '#141a3c';
     const p = el('path', { d: cellPath(c), fill, stroke, 'stroke-width': 0.5 });
@@ -342,39 +380,19 @@ function render() {
     root.appendChild(el('circle', { cx: f1(X(ct.at)), cy: f1(Y(ct.at)), r: f1((ct.r + 0.5) * W), fill: TEAM[1].neon, 'fill-opacity': 0.06, stroke: TEAM[1].neon, 'stroke-opacity': 0.5, 'stroke-width': 0.7, 'stroke-dasharray': '2 2', 'pointer-events': 'none' }));
   }
 
-  // ships
-  for (const x of v.ships) {
-    const cx = x.cells.reduce((n, c) => n + X(c), 0) / x.cells.length, cy = x.cells.reduce((n, c) => n + Y(c), 0) / x.cells.length;
-    const T = TEAM[x.owner === ME ? 0 : 1];
-    root.appendChild(el('path', { d: outlinePath(x.cells), stroke: x.id === sel ? '#ffffff' : T.neon, 'stroke-width': x.id === sel ? 1.6 : 0.8, 'stroke-opacity': x.id === sel ? 1 : 0.55, fill: 'none', 'pointer-events': 'none' }));
-    const art = el('g', { transform: `translate(${f1(cx)},${f1(cy)}) scale(0.92) translate(${f1(-cx)},${f1(-cy)})`, 'pointer-events': 'none' });
-    try {
-      const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: x.owner === ME ? [-1, 0] : [1, 0], detail: 1, moved: 0, flagship: x.flagship, seen: true };
-      art.appendChild(x.owner === ME ? drawFrigate(so) : drawShip(so));
-    } catch (e) {
-      for (const c of x.cells) art.appendChild(el('path', { d: cellPath(c, 0.8), fill: T.mid, stroke: T.neon, 'stroke-width': 0.8 }));
-    }
-    root.appendChild(art);
-    if (x.mine) {
-      const short = x.name.startsWith('Skiff ') ? x.name.slice(6) : x.flagship ? '★' : x.name[0];
-      root.appendChild(label(cx + S * 0.6, cy - S * 0.6, short, T.neon, pr, 6.5));
-    }
-  }
-
-  // missiles and drones
-  for (const o of v.objs) {
-    const T = TEAM[o.mine ? 0 : 1];
-    if (o.mine) { const fc = E.forecast(game, o.id); if (fc && fc.path.length) root.appendChild(el('path', { d: 'M' + [o.pos].concat(fc.path).map((c) => f1(X(c)) + ',' + f1(Y(c))).join('L'), stroke: T.neon, 'stroke-width': 0.7, 'stroke-dasharray': '1.5 2', fill: 'none', 'pointer-events': 'none' })); }
-    if (o.last && phase === 'watch') root.appendChild(el('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(X(o.pos)), y2: f1(Y(o.pos)), stroke: T.neon, 'stroke-width': 1, 'stroke-opacity': 0.6, 'pointer-events': 'none' }));
-    root.appendChild(el('path', { d: `M${f1(X(o.pos))},${f1(Y(o.pos) - 4)}L${f1(X(o.pos) + 3)},${f1(Y(o.pos))}L${f1(X(o.pos))},${f1(Y(o.pos) + 4)}L${f1(X(o.pos) - 3)},${f1(Y(o.pos))}Z`, fill: T.neon, stroke: '#000', 'stroke-width': 0.5, 'pointer-events': 'none' }));
-  }
-
-  // what the last actions did (shown while watching)
+  // what the last actions did (drawn beneath ships so trails stay legible)
   if (watch && (phase === 'watch' || phase === 'act')) {
     const faint = phase === 'act' ? 0.35 : 1;
     for (const e of watch.events) {
-      if (e.t === 'move' && game.ships.some((x) => x.id === e.ship && x.owner === CPU)) {
-        root.appendChild(el('line', { x1: f1(X(e.from)), y1: f1(Y(e.from)), x2: f1(X(e.to)), y2: f1(Y(e.to)), stroke: TEAM[1].neon, 'stroke-width': 1.6, 'stroke-opacity': faint, 'marker-end': 'url(#rgArrow)', 'pointer-events': 'none' }));
+      if (e.t === 'move') {
+        const pts = e.trail && e.trail.length > 1 ? e.trail : [e.from, e.to];
+        const d = 'M' + pts.map((c) => f1(X(c)) + ',' + f1(Y(c))).join('L');
+        const isCpu = game.ships.some((x) => x.id === e.ship && x.owner === CPU);
+        if (isCpu) {
+          root.appendChild(el('path', { d, fill: 'none', stroke: TEAM[1].neon, 'stroke-width': 1.6, 'stroke-opacity': faint, 'stroke-linejoin': 'round', 'marker-end': 'url(#rgArrow)', 'pointer-events': 'none' }));
+        } else if (phase === 'watch' && pts.length > 1) {
+          root.appendChild(el('path', { d, fill: 'none', stroke: TEAM[0].accent, 'stroke-width': 1.2, 'stroke-opacity': 0.5, 'stroke-dasharray': '2 2', 'stroke-linejoin': 'round', 'pointer-events': 'none' }));
+        }
       }
       if (e.t === 'enemy_fire' || e.t === 'fire') {
         const T = TEAM[e.t === 'fire' ? 0 : 1];
@@ -383,6 +401,36 @@ function render() {
       if ((e.t === 'hit' || e.t === 'damage') && e.at) root.appendChild(el('path', { d: cellPath(e.at, 0.9), fill: '#ff4d5e', 'fill-opacity': 0.35 * faint, stroke: '#ff4d5e', 'stroke-width': 1, 'pointer-events': 'none' }));
       if (e.t === 'blast' && e.at) root.appendChild(el('circle', { cx: f1(X(e.at)), cy: f1(Y(e.at)), r: f1(S * 1.6), fill: '#ffb347', 'fill-opacity': 0.3 * faint, stroke: '#ffb347', 'pointer-events': 'none' }));
     }
+  }
+
+  // ships
+  for (const x of v.ships) {
+    const cx = x.cells.reduce((n, c) => n + X(c), 0) / x.cells.length, cy = x.cells.reduce((n, c) => n + Y(c), 0) / x.cells.length;
+    const T = TEAM[x.owner === ME ? 0 : 1];
+    const off = animOffset(x.id, now);
+    const wrap = el('g', { 'data-ship': x.id, transform: off ? `translate(${f1(off[0])},${f1(off[1])})` : null, 'pointer-events': 'none' });
+    wrap.appendChild(el('path', { d: outlinePath(x.cells), stroke: x.id === sel ? '#ffffff' : T.neon, 'stroke-width': x.id === sel ? 1.6 : 0.8, 'stroke-opacity': x.id === sel ? 1 : 0.55, fill: 'none' }));
+    const art = el('g', { transform: `translate(${f1(cx)},${f1(cy)}) scale(0.92) translate(${f1(-cx)},${f1(-cy)})` });
+    try {
+      const so = { cells: x.cells, segs: x.segs, owner: x.owner, rules, xy: (c) => [X(c), Y(c)], S, forward: x.owner === ME ? [-1, 0] : [1, 0], detail: 1, moved: 0, flagship: x.flagship, seen: true };
+      art.appendChild(x.owner === ME ? drawFrigate(so) : drawShip(so));
+    } catch (e) {
+      for (const c of x.cells) art.appendChild(el('path', { d: cellPath(c, 0.8), fill: T.mid, stroke: T.neon, 'stroke-width': 0.8 }));
+    }
+    wrap.appendChild(art);
+    if (x.mine) {
+      const short = x.name.startsWith('Skiff ') ? x.name.slice(6) : x.flagship ? '★' : x.name[0];
+      wrap.appendChild(label(cx + S * 0.6, cy - S * 0.6, short, T.neon, pr, 6.5));
+    }
+    root.appendChild(wrap);
+  }
+
+  // missiles and drones
+  for (const o of v.objs) {
+    const T = TEAM[o.mine ? 0 : 1];
+    if (o.mine) { const fc = E.forecast(game, o.id); if (fc && fc.path.length) root.appendChild(el('path', { d: 'M' + [o.pos].concat(fc.path).map((c) => f1(X(c)) + ',' + f1(Y(c))).join('L'), stroke: T.neon, 'stroke-width': 0.7, 'stroke-dasharray': '1.5 2', fill: 'none', 'pointer-events': 'none' })); }
+    if (o.last && phase === 'watch') root.appendChild(el('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(X(o.pos)), y2: f1(Y(o.pos)), stroke: T.neon, 'stroke-width': 1, 'stroke-opacity': 0.6, 'pointer-events': 'none' }));
+    root.appendChild(el('path', { d: `M${f1(X(o.pos))},${f1(Y(o.pos) - 4)}L${f1(X(o.pos) + 3)},${f1(Y(o.pos))}L${f1(X(o.pos))},${f1(Y(o.pos) + 4)}L${f1(X(o.pos) - 3)},${f1(Y(o.pos))}Z`, fill: T.neon, stroke: '#000', 'stroke-width': 0.5, 'pointer-events': 'none' }));
   }
 
   // tap targets on top
@@ -411,19 +459,19 @@ function renderPanel(v) {
     const full = game.ships.find((x) => x.id === sel);
     const st2 = E.shipStatus(game, sel) || {};
     const shots = E.beamTargets(game, sel), lo = E.launchOptions(game, sel), ammo = Object.values(ship.load || {}).reduce((n, x) => n + x, 0);
-    btn('Move', mode === 'move', can && st2.moveLeft > 0, () => { mode = 'move'; render(); });
+    btn('Move' + (st2.moveLeft ? ' (' + st2.moveLeft + ')' : ''), mode === 'move', can && st2.moveLeft > 0, () => { mode = 'move'; render(); });
     btn('Laser' + (st2.beamsReady ? ' (' + shots.length + ')' : ''), mode === 'laser', can && st2.beamsReady > 0, () => setMode('laser'));
     btn('Missile' + (st2.launchers ? ' ×' + ammo : ''), mode === 'missile', can && !!lo, () => setMode('missile'));
     btn('Scan', mode === 'scan', can, () => setMode('scan'));
     if (mode === 'scan') btn('Scan now', false, can, () => play({ type: 'scan', ship: sel }), 'go');
-    const hint = { move: 'tap a glowing hex to step 1 hex', laser: shots.length ? 'tap a red hex to fire (number = hits)' : 'no target in sight and in range', missile: lo && lo.locks.length ? 'tap a lit enemy to lock on, or any empty hex to fire blind' : 'no enemy in sight to lock on: tap any hex to fire blind', scan: 'shows the scan rings; press Scan now' }[mode];
+    const hint = { move: 'tap any glowing hex to move (up to ' + st2.moveLeft + ' hex' + (st2.moveLeft === 1 ? '' : 'es') + ')', laser: shots.length ? 'tap a red hex to fire (number = hits)' : 'no target in sight and in range', missile: lo && lo.locks.length ? 'tap a lit enemy to lock on, or any empty hex to fire blind' : 'no enemy in sight to lock on: tap any hex to fire blind', scan: 'shows the scan rings; press Scan now' }[mode];
     st.innerHTML = '';
     const b = document.createElement('b'); b.textContent = ship.name; st.append(b, ' · hull ' + (ship.hull ?? 100) + '% · ' + hint);
     if (full && st2.moveLeft === 0 && mode === 'move') st.append(' (this ship cannot move now)');
   } else {
-    st.textContent = phase === 'act' ? 'Your move: tap one of your ships (teal). Do nothing and a random ship steps forward.'
+    st.textContent = phase === 'act' ? 'Your move: tap one of your ships (teal). Do nothing and a random ship moves forward.'
       : phase === 'watch' ? 'Watching the enemy: ' + (watch ? watch.text : '') + '.'
-      : phase === 'cancel' ? 'Time up! Auto-firing ' + (autoAct ? autoAct.weapon + ' at ' + nameOf(autoAct.action.target) : '') + ' — press Cancel to step forward instead.'
+      : phase === 'cancel' ? 'Time up! Auto-firing ' + (autoAct ? autoAct.weapon + ' at ' + nameOf(autoAct.action.target) : '') + ' — press Cancel to move forward instead.'
       : phase === 'ai' ? 'The enemy is choosing…' : phase === 'over' ? 'Game over.' : '';
   }
   $('log').innerHTML = '';
@@ -444,4 +492,12 @@ load().then(() => {
   if (qs.get('autostart') === '1') { level = qs.get('level') === 'easy' ? 'easy' : 'normal'; newGame(); }
 }).catch((e) => { $('status').textContent = 'Could not load the rules: ' + e.message; console.error(e); });
 // for automated checks only
-window.__rapid = { get game() { return game; }, set game(st) { game = st; $('intro').hidden = true; startAct(); }, select(id, m = 'move') { sel = id; mode = m; render(); }, get phase() { return phase; }, get sel() { return sel; }, get mode() { return mode; } };
+window.__rapid = {
+  get game() { return game; },
+  set game(st) { game = st; $('intro').hidden = true; startAct(); },
+  select(id, m = 'move') { sel = id; mode = m; render(); },
+  get phase() { return phase; },
+  get sel() { return sel; },
+  get mode() { return mode; },
+  get anims() { return moveAnims.size; },
+};

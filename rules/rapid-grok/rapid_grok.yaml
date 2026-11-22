@@ -5,7 +5,9 @@
 # - You get 15 seconds to act, then 5 seconds to watch what the enemy did (only what you can see).
 # - At the end of every beat: missiles fly 6 hexes, shields that were not hit come back,
 #   point defence reloads (it stops 1 missile a beat), and flares, scans and afterburners tick down.
-# - Moving: any ship with a working engine steps 1 hex per move action.
+# - Moving: 1-hex and 2-hex ships move up to 3 hexes per move action; 3-hex, 4-hex and the
+#   7-hex Flower move up to 2 hexes. A ship can end on any reachable hex in that circle (with a
+#   clear step-by-step path, keeping its orientation).
 # - No command points, no thrust banking, no attack-run bonus, no "scan only after moving", no undo.
 #   Salvo stays: one launch order fires every ready launcher on that ship.
 # - No passing. If your clock runs out (see "timeout" below) something still happens.
@@ -19,11 +21,17 @@ rapid_grok:
   watch_seconds: 5       # how long you get to see what the enemy just did
   cancel_seconds: 1.5    # the red "cancel" window when the clock auto-fires for you
   beat_limit: 150        # after this many beats the game is a draw (about 50 minutes)
+  move_speed:            # max hexes a ship can move in one move action, by hull size (segments)
+    1: 3                 # Skiff (1 hex): up to 3 hexes
+    2: 3                 # Dart (2 hexes): up to 3 hexes
+    3: 2                 # Arrow (3 hexes): up to 2 hexes
+    4: 2                 # Lance (4 hexes): up to 2 hexes
+    7: 2                 # Flower flagship (7 hexes): up to 2 hexes
   timeout: |
     Laser or missile selected: it fires at the best target the computer would pick, after a
-    1.5 second red Cancel button. Cancel it, or have no target, and that ship steps 1 hex instead.
-    Scan selected: scans never run by themselves; that ship steps 1 hex instead.
-    Nothing selected: a random ship from your screen (a Skiff) or your front-most ship steps 1 hex.
+    1.5 second red Cancel button. Cancel it, or have no target, and that ship moves forward instead.
+    Scan selected: scans never run by themselves; that ship moves forward instead.
+    Nothing selected: a random ship from your screen (a Skiff) or your front-most ship moves forward.
 
 map:
   name: Rapid 12
