@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shatkon - Rapid (Grok)</title>
+<link rel="icon" href="docs/brand/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#040812">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!--
+  RAPID GROK: rapid mode, built separately from classic play.html.
+  You and the computer take turns, one action each: 15 seconds to act, 5 seconds to watch.
+  Rules and fleet: rules/rapid-grok/rapid_grok.yaml. Game logic: engine/rapidgrok.js. Screen: ui/rapidgrok.js.
+-->
+<style>
+:root{
+  --bg:#040812; --panel:#0c1830; --panel2:#08111f; --line:#1f3552; --text:#e7ecf6; --muted:#8f9cba;
+  --p0:#7fd8f0; --p0n:#5ff7ff; --p0a:#2fe0b0; --p1:#ff8bd8; --p1n:#ff5fc8; --p1a:#b48bff; --warn:#d9a441; --bad:#ff4d5e;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+header{flex:none;display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:16px;letter-spacing:.06em;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header h1 small{color:var(--muted);font-weight:400;letter-spacing:0}
+header a{color:var(--muted);font-size:13px;text-decoration:none}
+.chip{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted);white-space:nowrap}
+#pause{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:13px}
+#clock{flex:none;position:relative;height:30px;background:#06101e;border-bottom:1px solid var(--line)}
+#bar{position:absolute;left:0;top:0;bottom:0;width:100%;background:linear-gradient(90deg,var(--p0a),var(--p0n));transition:background .3s}
+#bar.watch{background:linear-gradient(90deg,var(--p1a),var(--p1n))}
+#bar.low{background:linear-gradient(90deg,#c0392b,var(--bad))}
+#clocktext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;text-shadow:0 1px 3px #000,0 0 6px #000}
+main{flex:1;min-height:0;position:relative}
+#board{width:100%;height:100%;display:block;touch-action:manipulation}
+#panel{flex:none;border-top:1px solid var(--line);background:var(--panel2);padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px}
+#status{font-size:14px;min-height:20px}
+#status b{color:var(--p0n)}
+#acts{display:flex;gap:6px;flex-wrap:wrap}
+#acts button{flex:1 1 0;min-width:72px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:14px}
+#acts button.on{border-color:var(--p0n);box-shadow:0 0 0 1px var(--p0n) inset,0 0 12px rgba(95,247,255,.35);color:var(--p0n)}
+#acts button:disabled{opacity:.35;cursor:default}
+#acts button.go{background:#0e3a3a;border-color:var(--p0a)}
+#log{font-size:12.5px;color:var(--muted);max-height:4.4em;overflow:hidden}
+#log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log .me{color:#a8e8f5} #log .foe{color:#ffb3e6} #log .beat{color:#d0c48a}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,14,.82);padding:16px;z-index:5}
+.overlay[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:520px;width:100%;max-height:100%;overflow:auto}
+.card h2{margin:0 0 6px;font-size:20px}
+.card ul{padding-left:18px;margin:8px 0}
+.card li{margin:3px 0}
+.card .row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.card .row button,.card .row a{flex:1;text-align:center;padding:11px;border-radius:10px;border:1px solid var(--p0a);background:#0e3a3a;font-weight:700;text-decoration:none;color:var(--text)}
+.card .row .alt{background:var(--panel2);border-color:var(--line)}
+.muted{color:var(--muted)}
+#cancel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:4;border:0;border-radius:14px;background:var(--bad);color:#fff;font-weight:800;font-size:17px;padding:14px 26px;box-shadow:0 0 0 3px rgba(255,77,94,.35),0 6px 24px rgba(255,40,60,.5);overflow:hidden}
+#cancel[hidden]{display:none}
+#cancel i{position:absolute;left:0;bottom:0;height:5px;background:#fff;opacity:.85}
+#toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:3;background:rgba(12,24,48,.92);border:1px solid var(--line);border-radius:10px;padding:7px 14px;font-size:14px;max-width:92%;text-align:center;pointer-events:none}
+#toast[hidden]{display:none}
+#toast.foe{border-color:var(--p1n)}
+</style>
+</head>
+<body>
+<header>
+  <a href="index.html" aria-label="Back to the start screen">&larr; Home</a>
+  <h1>RAPID <small>· Grok build</small></h1>
+  <span class="chip" id="beat">Beat 1</span>
+  <button id="pause" type="button">Pause</button>
+</header>
+<div id="clock"><div id="bar"></div><div id="clocktext">Ready</div></div>
+<main>
+  <svg id="board" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="toast" hidden></div>
+  <button id="cancel" type="button" hidden>CANCEL AUTO-FIRE<i></i></button>
+  <div class="overlay" id="intro">
+    <div class="card">
+      <h2>Rapid mode</h2>
+      <p class="muted">The Grok build. You (teal, right) against the computer (pink, left). Lose your Flower and you lose.</p>
+      <ul>
+        <li>You and the computer take turns, <b>one action each</b>. Your action plus its reply is one <b>beat</b>.</li>
+        <li>You have <b>15 seconds</b> to act (the bar at the top shrinks). Then you get <b>5 seconds</b> to watch the enemy's reply, but only the parts your ships can see.</li>
+        <li>An action is one of: <b>move</b> a ship (Skiffs and Darts up to 3 hexes, bigger ships up to 2, to any reachable hex in that circle), fire one <b>laser</b>, <b>launch</b> a missile, or <b>scan</b>.</li>
+        <li>At the end of each beat, missiles fly 6 hexes, shields that weren't hit come back, and point defence reloads.</li>
+        <li><b>No passing.</b> If the clock runs out with a laser or missile picked, it fires at the best target after a red <b>Cancel</b> button (1.5 seconds). If you cancel, that ship moves forward instead. If you picked a scan, or just a ship, that ship moves forward. If you picked nothing, a random Skiff or your front ship moves forward.</li>
+      </ul>
+      <p class="muted">Tap one of your ships, then tap any glowing hex in its circle to move there, or pick Laser, Missile or Scan.</p>
+      <div class="row">
+        <button type="button" id="startNormal">Start</button>
+        <button type="button" id="startEasy" class="alt">Start (easier computer)</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <div class="card">
+      <h2 id="overTitle">Game over</h2>
+      <p id="overText" class="muted"></p>
+      <div class="row">
+        <button type="button" id="again">Play again</button>
+        <a href="index.html" class="alt">Home</a>
+      </div>
+    </div>
+  </div>
+</main>
+<div id="panel">
+  <div id="status">Loading…</div>
+  <div id="acts"></div>
+  <div id="log"></div>
+</div>
+<script src="lib/yaml.min.js"></script>
+<script type="module" src="ui/rapidgrok.js"></script>
+</body>
+</html>
