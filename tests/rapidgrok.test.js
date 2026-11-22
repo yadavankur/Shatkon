@@ -33,7 +33,7 @@ const flower = (name, at, more = {}) => ({ name, at, flagship: true, load: { mis
 // a small hand-built rapid fight; player 1 always acts first
 function small(p1, p2, seed = 5, terrain = []) {
   const side = (ships) => ({ ships: ships.map(({ at, ...s }) => s), deployment: ships.map((s) => ({ ship: s.name, at: s.at })) });
-  const st = { map: { board: { shape: 'hexagon', radius: 12 }, terrain }, fleets: { budget: 99999, player_1: side(p1), player_2: side(p2) } };
+  const st = { map: { board: { shape: 'hexagon', radius: 11 }, terrain }, fleets: { budget: 99999, player_1: side(p1), player_2: side(p2) } };
   const w = world();
   const { rules, problems } = G.rgRules(w, st);
   assert.deepEqual(problems, []);
@@ -42,9 +42,9 @@ function small(p1, p2, seed = 5, terrain = []) {
 }
 const ship = (s, name, owner = 0) => s.ships.find((x) => x.name === name && x.owner === owner);
 
-test('rapid grok: the board and fleet are the agreed ones (radius 12, 9 Skiffs, 2 Darts, Arrow, Lance, Flower flagship, mirrored)', () => {
+test('rapid grok: the board and fleet are the agreed ones (radius 11, 9 Skiffs, 2 Darts, Arrow, Lance, Flower flagship, mirrored)', () => {
   const s = real();
-  assert.equal(s.rules.board.radius, 12);
+  assert.equal(s.rules.board.radius, 11);
   for (const p of [0, 1]) {
     const mine = s.ships.filter((x) => x.owner === p);
     const sizes = mine.map((x) => x.segs.length).sort((a, b) => a - b);
@@ -154,12 +154,12 @@ test('rapid grok: BFS blocks paths through asteroids, friendly ships and board e
 
   // Friendly ship blocking and board edge blocking
   const sWall = small(
-    [skiff('S', [12, 0], { flagship: true }), skiff('Friend', [11, 0])],
+    [skiff('S', [11, 0], { flagship: true }), skiff('Friend', [10, 0])],
     [skiff('Z', [-11, 0], { flagship: true })]
   );
   const wReach = reach(sWall, ship(sWall, 'S').id);
-  assert.ok(!wReach.some((o) => hex.same(o.at, [13, 0])), 'cannot leave board');
-  assert.ok(!wReach.some((o) => hex.same(o.at, [11, 0])), 'cannot end on friendly ship');
+  assert.ok(!wReach.some((o) => hex.same(o.at, [12, 0])), 'cannot leave board');
+  assert.ok(!wReach.some((o) => hex.same(o.at, [10, 0])), 'cannot end on friendly ship');
   assert.throws(() => G.rgAct(sWall, { type: 'move', ship: ship(sWall, 'S').id, path: [3] }), /in the way/);
 });
 

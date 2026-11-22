@@ -2,7 +2,9 @@
 #
 # Plain English:
 # - You and the computer take turns, ONE action each. Your action + its action = one "beat".
-# - You get 15 seconds to act, then 5 seconds to watch what the enemy did (only what you can see).
+# - You get 15 seconds to act, then (only if there is something in sight to show, or something
+#   happened to your ships) 3 seconds to watch. Tap the board to skip the watch. If the enemy
+#   acted completely out of your sight and nothing hit you, the watch is skipped.
 # - At the end of every beat: missiles fly 6 hexes, shields that were not hit come back,
 #   point defence reloads (it stops 1 missile a beat), and flares, scans and afterburners tick down.
 # - Moving: 1-hex and 2-hex ships move up to 3 hexes per move action; 3-hex, 4-hex and the
@@ -18,7 +20,9 @@
 
 rapid_grok:
   act_seconds: 15        # your thinking time each turn (the shrinking bar)
-  watch_seconds: 5       # how long you get to see what the enemy just did
+  watch_seconds: 3       # how long you get to see an enemy action that happened in sight (or a hit on you)
+  # If the enemy acted completely out of your sight and nothing hit your ships, the watch is skipped.
+  # Tap the board (or the timer) during the watch to skip the rest of it.
   cancel_seconds: 1.5    # the red "cancel" window when the clock auto-fires for you
   beat_limit: 150        # after this many beats the game is a draw (about 50 minutes)
   move_speed:            # max hexes a ship can move in one move action, by hull size (segments)
@@ -34,13 +38,14 @@ rapid_grok:
     Nothing selected: a random ship from your screen (a Skiff) or your front-most ship moves forward.
 
 map:
-  name: Rapid 12
-  board: { shape: hexagon, radius: 12 }
+  name: Rapid 11
+  board: { shape: hexagon, radius: 11 }
   # home zones: where each side starts. The computer uses them to know which way is forward,
   # and scans use them (a scan is stronger the further it is from home, same as classic).
+  # Depth 9 keeps the same 5-row gap in the middle as depth 10 did on the old radius-12 board.
   zones:
-    player_1_home: { edge: north_east, depth: 10 }
-    player_2_home: { edge: south_west, depth: 10 }
+    player_1_home: { edge: north_east, depth: 9 }
+    player_2_home: { edge: south_west, depth: 9 }
     no_mans_land: { everything_else: true }
   terrain:
     - { type: nebula, at: [0, 0], radius: 1 }
@@ -100,13 +105,13 @@ fleets:
       - { name: Skiff 8, hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }] }
       - { name: Skiff 9, hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser] }] }
     deployment:
-      - { ship: Dart N, at: [12, -9] }
-      - { ship: Arrow, at: [11, -5] }
+      - { ship: Dart N, at: [11, -9] }
+      - { ship: Arrow, at: [10, -5] }
       - { ship: Flower, at: [10, 0] }
       - { ship: Lance, at: [7, 4] }
-      - { ship: Dart S, at: [3, 9] }
+      - { ship: Dart S, at: [3, 8] }
       - { ship: Skiff 1, at: [10, -6] }
-      - { ship: Skiff 2, at: [10, -4] }
+      - { ship: Skiff 2, at: [9, -4] }
       - { ship: Skiff 3, at: [9, -2] }
       - { ship: Skiff 4, at: [8, -1] }
       - { ship: Skiff 5, at: [8, 0] }
