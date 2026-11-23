@@ -1,3 +1,8 @@
+## Latest (23 Nov, gamedev chat): Frontier, slice 4: upgrades and resupply; smaller battle logs (merged)
+- Buy → Upgrade (◈ 10, once per ship: +1 laser range, faster shields, +1 core sensor, +1 armour plate) and Resupply (◈ 5, +1 missile). Upgrades swap parts for `_up` copies added by rapidRules. Details: [docs/design/frontier.md](../docs/design/frontier.md).
+- PR #56: rapid battle logs about a quarter of the size (ship snapshots every 10th tick, compact JSON download, no empty recap lines).
+- 257 tests pass. `sw.js` cache `shatkon-offline-v15`.
+
 ## Latest (23 Nov, gamedev chat): Frontier, slice 3: turrets (branch `frontier-econ3`, PR open)
 - Buy → Turret (◈ 8): a ship leaves one laser behind as a turret on a free hex next to it (gold T chips). 2 hp; fires 2 hits a tick at the nearest enemy it can see within 4; upkeep 1 a tick from the next tick, unpaid turrets go dark until paid. Details: [docs/design/frontier.md](../docs/design/frontier.md).
 - 253 tests pass. `sw.js` cache `shatkon-offline-v13`.

@@ -326,3 +326,72 @@ test('a game with a turret replays from its log', () => {
   const log = E.battleLog(g, { seat: 'cpu' });
   assert.equal(log.replayable, true);
 });
+
+// ---------- slice 4: upgrades and resupply ----------
+const lasersOf = (g, x) => x.segs.flatMap((sg) => sg.parts).filter((q) => g.rules.parts[q.t].range && g.rules.parts[q.t].hits && q.hp > 0);
+
+test('upgrade +1 laser range: every laser on the ship reaches one hex further; once per ship; costs 10', () => {
+  let g = frontier();
+  g.econ.purse[0] = 25;
+  const x = g.ships.find((s) => s.owner === 0 && s.name === 'Bastion');
+  const r0 = Math.max(...lasersOf(g, x).map((q) => g.rules.parts[q.t].range));
+  const a = { type: 'buy', item: 'upgrade', ship: x.id, kind: 'range' };
+  assert.equal(E.rapidRefusal(g, 0, a), null);
+  g = E.rapidTick(g, [a, fwd(g, 1)]);
+  const y = g.ships.find((s) => s.id === x.id);
+  assert.ok(lasersOf(g, y).every((q) => q.t.endsWith('_up') && g.rules.parts[q.t].range === r0 + 1));
+  assert.equal(g.econ.purse[0] >= 15 && g.econ.purse[0] <= 21, true);
+  assert.match(E.rapidRefusal(g, 0, { ...a, kind: 'sensor' }), /already has its upgrade/);
+  assert.equal(g.rapid.ticks[0].acts[0], 'b:upgrade.' + x.id + '.range');
+});
+
+test('upgrades: shields come back a tick sooner, sensors see further, one armour plate takes a hit more', () => {
+  const g = frontier();
+  const P = g.rules.parts;
+  assert.equal(P.shield_up.recharge_every, P.shield.recharge_every - 1);
+  assert.equal(P.core_up.sensor_range, P.core.sensor_range + 1);
+  assert.ok(!P.sensor_up);
+  assert.equal(P.armour_up.hp, P.armour.hp + 1);
+  let s = frontier();
+  s.econ.purse[0] = 30;
+  const scout = s.ships.find((x) => x.owner === 0 && x.segs.length === 1);
+  s = E.rapidTick(s, [{ type: 'buy', item: 'upgrade', ship: scout.id, kind: 'armour' }, fwd(s, 1)]);
+  const plate = s.ships.find((x) => x.id === scout.id).segs[0].parts.find((q) => q.t === 'armour_up');
+  assert.ok(plate); assert.equal(plate.hp, 3);
+  // nothing to improve, no upgrade: a scout that has lost its laser can't take +1 range; a shield that is
+  // only down still counts
+  const t = frontier(); t.econ.purse[0] = 30;
+  const sc = t.ships.find((x) => x.owner === 0 && x.segs.length === 1);
+  for (const q of sc.segs[0].parts) if (q.t === 'laser' || q.t === 'shield') q.hp = 0;
+  assert.match(E.rapidRefusal(t, 0, { type: 'buy', item: 'upgrade', ship: sc.id, kind: 'range' }), /no working part/);
+  assert.equal(E.rapidRefusal(t, 0, { type: 'buy', item: 'upgrade', ship: sc.id, kind: 'shield' }), null);
+});
+
+test('resupply: +1 missile of the kind it carries most; needs a working launcher and room', () => {
+  let g = frontier();
+  g.econ.purse[0] = 20;
+  const lancer = g.ships.find((x) => x.owner === 0 && x.name === 'Lancer L');
+  const scout = g.ships.find((x) => x.owner === 0 && x.segs.length === 1);
+  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'resupply', ship: scout.id }), /no working launcher/);
+  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'resupply', ship: lancer.id }), /no room/);   // 3 basic missiles in one magazine of 3
+  // after a launch there is room
+  lancer.load.missile_basic = 2;
+  const a = { type: 'buy', item: 'resupply', ship: lancer.id };
+  assert.equal(E.rapidRefusal(g, 0, a), null);
+  g = E.rapidTick(g, [a, fwd(g, 1)]);
+  assert.equal(g.ships.find((x) => x.id === lancer.id).load.missile_basic, 3);
+  assert.equal(g.econ.spent[0].resupply, 5);
+});
+
+test('a game with an upgrade and a resupply replays from its log', () => {
+  let g = frontier({}, 15), up = false;
+  for (let i = 0; i < 45 && g.phase === 'play'; i++) {
+    let a = fwd(g, 0);
+    if (!up && g.econ.purse[0] >= 10) { const x = g.ships.find((s) => s.owner === 0 && !s.dead && s.name === 'Warden'); if (x) { a = { type: 'buy', item: 'upgrade', ship: x.id, kind: 'shield' }; up = true; } }
+    g = E.rapidTick(g, [a, fwd(g, 1)]);
+  }
+  assert.ok(up, 'never afforded an upgrade');
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true);
+  assert.ok(log.turns.some((t) => (t.actions || []).some((a) => /bought an upgrade/.test(a.say || ''))));
+});

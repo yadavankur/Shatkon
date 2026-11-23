@@ -34,6 +34,8 @@ export const ECON_DEFAULTS = {
   turretHits: 2,   // hits a turret's shot does
   turretRange: 4,  // how far a turret sees and shoots
   turretHp: 2,     // hits a turret takes before it is destroyed
+  upgrade: 10,     // one upgrade for one ship (once per ship)
+  resupply: 5,     // +1 missile for a ship with a working magazine and room
 };
 export const TURRET = 'turret';
 
@@ -47,6 +49,7 @@ export function econConfig(rules) {
   if (o.econOwnHalf != null) c.ownHalf = o.econOwnHalf === true || o.econOwnHalf === 'yes';
   if (o.econHeatmap != null && o.econHeatmap !== '') c.heatmap = Number(o.econHeatmap);
   if (o.econTurret != null && o.econTurret !== '') c.turret = Number(o.econTurret);
+  if (o.econUpgrade != null && o.econUpgrade !== '') c.upgrade = Number(o.econUpgrade);
   return c;
 }
 
@@ -139,7 +142,78 @@ export function newGround(state, p) {
 export const SHOP = {
   heatmap: { label: 'Heatmap', about: 'where the enemy ships you know of could hit next tick' },
   turret: { label: 'Turret', about: 'the selected ship leaves one laser behind as a turret on a free hex next to it', needsShip: true },
+  upgrade: { label: 'Upgrade', about: 'one ship, once: +1 laser range, faster shields, +1 sensor or +1 armour', needsShip: true },
+  resupply: { label: 'Resupply', about: '+1 missile for a ship with a working magazine and room', needsShip: true },
 };
+
+// ---------- upgrades ----------
+// Each upgrade swaps a ship's parts for an "_up" copy of the part (rapidRules adds the copies when the
+// economy is on), so every rule that reads a part's numbers sees the better one, and a scan shows it.
+//   range:  every laser +1 range            shield: every shield comes back 1 tick sooner
+//   sensor: the core sees 1 hex further      armour: one armour plate +1 hp (the core segment's first)
+export const UPGRADES = {
+  range: { label: '+1 laser range', test: (c) => num(c.range) > 0 && num(c.hits) > 0 },
+  shield: { label: 'Shields back a tick sooner', test: (c) => !!c.recharges },
+  sensor: { label: '+1 sensor range', test: (c) => !!c.required && num(c.sensor_range) > 0 },   // the core's own sensor: +1 in all
+  armour: { label: '+1 armour', test: (c) => num(c.hp) > 1 && !c.recharges && !c.required && !num(c.hits) && !c.launches && !c.thrust && !c.holds },
+};
+const UP = '_up';
+// The "_up" part copies for a game's parts (called by rapidRules; parts already scaled to ticks).
+export function upgradeParts(parts) {
+  const out = {};
+  for (const [name, c] of Object.entries(parts)) {
+    if (name.endsWith(UP)) continue;
+    let u = null;
+    if (UPGRADES.range.test(c)) u = { ...c, range: num(c.range) + 1 };
+    else if (UPGRADES.shield.test(c)) u = { ...c, recharge_every: Math.max(1, num(c.recharge_every, 1) - 1) };
+    else if (UPGRADES.sensor.test(c)) u = { ...c, sensor_range: num(c.sensor_range) + 1 };
+    else if (UPGRADES.armour.test(c)) u = { ...c, hp: num(c.hp) + 1 };
+    if (u) out[name + UP] = { ...u, upgraded: true, label: (c.label || name) + ' (upgraded)', note: (c.note ? c.note + ' ' : '') + '(upgraded)' };
+  }
+  return out;
+}
+// The parts an upgrade would change on this ship: [{ p, si, pi }]
+function upgradeTargets(state, x, kind) {
+  const U = UPGRADES[kind];
+  if (!U) return [];
+  const out = [];
+  x.segs.forEach((sg, si) => { if (!sg.wrecked) sg.parts.forEach((part, pi) => { const c = state.rules.parts[part.t]; if (c && (part.hp > 0 || c.recharges) && U.test(c) && !part.t.endsWith(UP) && state.rules.parts[part.t + UP]) out.push({ p: part, si, pi }); }); });
+  if (kind === 'armour' && out.length > 1) { const core = out.find((o) => x.segs[o.si].parts.some((q) => state.rules.parts[q.t] && state.rules.parts[q.t].required)); return [core || out[0]]; }
+  return out;
+}
+// Why this ship can't take this upgrade (null when it can).
+export function upgradeRefusal(state, p, shipId, kind) {
+  const x = shipById(state, shipId);
+  if (!x || x.owner !== p) return 'choose one of your ships';
+  if (x.upgraded) return x.id + ' already has its upgrade (' + UPGRADES[x.upgraded].label + ')';
+  if (!UPGRADES[kind]) return 'there is no such upgrade';
+  if (!upgradeTargets(state, x, kind).length) return x.id + ' has no working part that upgrade improves';
+  return null;
+}
+// ---------- resupply ----------
+// Room for missiles: what the ship's working magazines hold, less what it carries.
+export function magazineRoom(state, x) {
+  let holds = 0;
+  for (const sg of x.segs) if (!sg.wrecked) for (const part of sg.parts) if (part.hp > 0) holds += num(state.rules.parts[part.t].holds);
+  const loaded = Object.values(x.load || {}).reduce((a, n) => a + num(n), 0);
+  return holds ? holds - loaded : 0;
+}
+// The missile a resupply adds: the kind the ship carries most of, else the most basic missile there is.
+function resupplyKind(state, x) {
+  const have = Object.entries(x.load || {}).filter(([k]) => state.rules.munitions[k]).sort((a, b) => b[1] - a[1]);
+  if (have.length && have[0][1] > 0) return have[0][0];
+  if (have.length) return have[0][0];
+  const mis = Object.entries(state.rules.munitions).filter(([, m]) => m.family === 'missile').sort((a, b) => num(a[1].cost) - num(b[1].cost));
+  return mis.length ? mis[0][0] : null;
+}
+export function resupplyRefusal(state, p, shipId) {
+  const x = shipById(state, shipId);
+  if (!x || x.owner !== p) return 'choose one of your ships';
+  if (!x.segs.some((sg) => !sg.wrecked && sg.parts.some((q) => q.hp > 0 && state.rules.parts[q.t].launches))) return x.id + ' has no working launcher';
+  if (magazineRoom(state, x) <= 0) return x.id + ' has no room in a working magazine';
+  if (!resupplyKind(state, x)) return 'no missile to load';
+  return null;
+}
 export const price = (state, item) => num(econConfig(state.rules)[item]);
 
 // Why side p can't buy this now (null when it can).
@@ -148,6 +222,8 @@ export function buyRefusal(state, p, a) {
   if (!SHOP[a.item]) return 'that is not for sale';
   const cost = price(state, a.item);
   if (state.econ.purse[p] < cost) return 'not enough salvage: ' + a.item + ' costs ' + cost + ', you have ' + state.econ.purse[p];
+  if (a.item === 'upgrade') return upgradeRefusal(state, p, a.ship, a.kind);
+  if (a.item === 'resupply') return resupplyRefusal(state, p, a.ship);
   if (a.item === 'turret') {
     const x = shipById(state, a.ship);
     if (!x || x.owner !== p) return 'choose one of your ships to leave the turret';
@@ -172,6 +248,17 @@ export function doBuy(s, p, a) {
     const o = makeObj(s, TURRET, p, a.at, 0, { hp: num(econConfig(s.rules).turretHp, 2), born: s.round, from: x.id });
     s.objs.push(o);
     extra = { ship: x.id, at: a.at.slice(), obj: o.id };
+  }
+  if (a.item === 'upgrade') {
+    const x = shipById(s, a.ship);
+    for (const t of upgradeTargets(s, x, a.kind)) { t.p.t += UP; if (a.kind === 'armour') t.p.hp += 1; }
+    x.upgraded = a.kind;
+    extra = { ship: x.id, kind: a.kind };
+  }
+  if (a.item === 'resupply') {
+    const x = shipById(s, a.ship), k = resupplyKind(s, x);
+    x.load = { ...(x.load || {}) }; x.load[k] = (x.load[k] || 0) + 1;
+    extra = { ship: x.id, kind: k };
   }
   emit(s, { t: 'bought', player: p, item: a.item, cost, purse: E.purse[p], ...extra }, [p]);
 }
@@ -326,5 +413,5 @@ export function threatMap(state, p) {
 }
 
 // Words for the log and the screen.
-export const BUY_WORDS = { heatmap: 'a threat heatmap', turret: 'a turret' };
+export const BUY_WORDS = { heatmap: 'a threat heatmap', turret: 'a turret', upgrade: 'an upgrade', resupply: 'a missile' };
 export const EARN_WORDS = { cross: 'first across the line', kill: 'enemy ship destroyed', hold: 'holding past the line', ground: 'new ground', rock: 'new ground by an asteroid' };

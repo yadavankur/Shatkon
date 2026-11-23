@@ -28,19 +28,21 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
-import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig } from './economy.js';
+import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig, upgradeParts } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + '.' + a.at.join(',') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + (a.at ? '.' + a.at.join(',') : a.kind ? '.' + a.kind : '') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
   if (t === 'pass') return { type: 'pass' };
   if (/^b:/.test(t)) {   // economy mode: a purchase, "b:heatmap" or "b:turret.<ship>.<q>,<r>"
-    const [item, ship, at] = t.slice(2).split('.');
-    return ship ? { type: 'buy', item, ship, at: at.split(',').map(Number) } : { type: 'buy', item };
+    const [item, ship, more] = t.slice(2).split('.');
+    if (!ship) return { type: 'buy', item };
+    if (item === 'turret') return { type: 'buy', item, ship, at: more.split(',').map(Number) };
+    return more ? { type: 'buy', item, ship, kind: more } : { type: 'buy', item, ship };
   }
   const [body, convert] = String(t).split('~');
   const [main, wing] = body.split('+');
@@ -137,6 +139,7 @@ export const RAPID_DEFAULTS = {
   buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
   econHeatmap: ECON_DEFAULTS.heatmap, // what the threat heatmap costs
   econTurret: ECON_DEFAULTS.turret,   // what a turret costs
+  econUpgrade: ECON_DEFAULTS.upgrade, // what an upgrade costs
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -154,8 +157,9 @@ export function rapidRules(rules, opts = {}) {
     munitions[name] = sp ? { ...m, speed: Math.max(1, Math.round(sp / k)), fuel: typeof m.fuel === 'number' ? m.fuel * k : m.fuel } : { ...m };
     fastest = Math.max(fastest, num(munitions[name].speed));
   }
-  const parts = {};
+  let parts = {};
   for (const [name, c] of Object.entries(rules.parts)) parts[name] = c.recharges ? { ...c, recharge_every: num(c.recharge_every, 1) * k } : c;
+  if (o.economy === 'on') parts = { ...parts, ...upgradeParts(parts) };   // economy mode: the upgraded copies of parts
   const fr = {};
   for (const f of ['fire', 'beamHit', 'launch', 'pd', 'scan']) fr[f] = k;
   // the scanner buoy a one-hex ship can become past the line: still, quiet (seen only from 2 hexes by a
