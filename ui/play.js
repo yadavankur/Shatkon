@@ -1533,7 +1533,7 @@ function battleLogFile() {
   const log = E.battleLog(game, { viewer: who(), seat });
   const d = new Date(), two = (n) => String(n).padStart(2, '0');
   const name = 'shatkon-battle-' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + '.json';
-  return { log, name, text: JSON.stringify(log, null, 1) };
+  return { log, name, text: JSON.stringify(log) };   // compact: indenting doubled the file
 }
 function downloadLog() {
   try {

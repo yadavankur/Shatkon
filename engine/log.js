@@ -233,6 +233,7 @@ function rapidLog(state, log, full, viewer, side, nm) {
   const clean = (e) => { const { seenBy, ...rest } = e; return full ? { ...rest, seenBy } : rest; };
   const parse = parseTick;
   const ticks = state.rapid.ticks;
+  log.rapid = true;
   let s;
   try {
     s = rapidStart(state.rules, state.seed);
@@ -246,7 +247,10 @@ function rapidLog(state, log, full, viewer, side, nm) {
         const rec = mine ? { text: k.acts[p], say: k.acts[p] === 'pass' ? 'passed' : t0.map((x) => actionWords(prev, s, x, nm)).join(', and its wingman ') } : {};
         if (p === 0) rec.events = evs;
         const t = { round: k.round, player: p, side: side(p), actions: mine || p === 0 ? [rec] : [] };
-        if (p === 1) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
+        // where every ship is: every 10th tick, the tick a ship is lost, and the last tick
+        // (a full copy every tick made a 120-tick log almost 1 MB)
+        const lost = s.events.some((e) => e.t === 'destroyed' || e.t === 'converted');
+        if (p === 1 && (k.round % 10 === 1 || lost || k === ticks[ticks.length - 1])) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
         log.turns.push(t);
       }
     }
@@ -396,6 +400,7 @@ export function analyse(log) {
   if (!tips) lines.push('- Nothing obvious: no thrown-away points, no ships left in view after moving, no wasted missiles.');
   for (const t of log.turns) {
     const head = 'Round ' + t.round + ' \u2014 ' + side(t.player) + (t.cp && t.cp.left != null ? ' (command points ' + t.cp.start + ' \u2192 ' + t.cp.left + ' left, thrust on all ships ' + t.thrust.start + ' \u2192 ' + t.thrust.left + ')' : '');
+    if (log.rapid && !(t.actions || []).length) continue;   // rapid mode: the other side's hidden half of a tick says nothing
     recap.push(head);
     if (!(t.actions || []).length) recap.push('  (nothing you could see)');
     for (const a of t.actions || []) {
