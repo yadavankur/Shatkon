@@ -28,16 +28,17 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
-import { econStart, econTick, ECON_DEFAULTS } from './economy.js';
+import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
   if (t === 'pass') return { type: 'pass' };
+  if (/^b:/.test(t)) return { type: 'buy', item: t.slice(2) };   // economy mode: a purchase
   const [body, convert] = String(t).split('~');
   const [main, wing] = body.split('+');
   const a = parseAction(main);
@@ -131,6 +132,7 @@ export const RAPID_DEFAULTS = {
   wingGap: 2,         // touching (1) or one empty hex between (2)
   convert: 'on',      // a one-hex ship that moves on or past the line may go silent: become a scanner buoy or a naval mine
   buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
+  econHeatmap: ECON_DEFAULTS.heatmap, // what the threat heatmap costs
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -225,6 +227,7 @@ export function passAllowed(state, p) {
 export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
+  if (a.type === 'buy') return buyRefusal(state, p, a);   // economy mode: buying is the tick's action
   if (!DO[a.type]) return 'that is not a rapid-mode action';
   if (a.convert) {
     if (!['scanner', 'mine'].includes(a.convert)) return 'a ship can become a scanner or a mine';
@@ -253,6 +256,8 @@ export function rapidTick(state, acts) {
   s.events = []; s.flight = null;
   const texts = acts.map((a) => tickText(a));   // what each side chose, even if the game ends before it happens
   const start = new Map(s.ships.map((x) => [x.id, x.pos.join()]));
+  // 0. purchases (economy mode): paid before anything else, so this tick's earnings can't pay for them
+  for (const p of [0, 1]) if (acts[p] && acts[p].type === 'buy') doBuy(s, p, acts[p]);
   // 1. shots, launches, scans: hits land together afterwards
   s.deferHits = [];
   for (const p of [0, 1]) {

@@ -1,3 +1,8 @@
+## Latest (23 Nov, gamedev chat): Frontier, slice 2: the threat heatmap (branch `frontier-econ2`, PR open)
+- Buy (beside Pass) opens a shop; the heatmap costs ◈ 6 and your tick, and for your next 2 ticks shades where the enemy ships you can see could hit with a laser (hits by range), plus missile reach for known launchers. Free "in enemy reach" move numbers are off in Frontier. Details: [docs/design/frontier.md](../docs/design/frontier.md).
+- Fix: the `earned` event amount was clobbered by `emit`'s sequence number (`n`); renamed `amount`.
+- 247 tests pass. `sw.js` cache `shatkon-offline-v12`.
+
 ## Latest (23 Nov, gamedev chat): Frontier, economy mode, slice 1 (branch `frontier-econ1`, PR open)
 - Third rapid experiment: Rapid Opus plus salvage (◈), one hidden purse a fleet. Earned at the end of each tick: new ground in the enemy's half 1 (+1 by an asteroid), first across the line 3, each ship on or past the line 1 a tick, 2 a segment for a kill; cap 6 a tick. Nothing to buy yet. Details and first numbers: [docs/design/frontier.md](../docs/design/frontier.md).
 - `engine/economy.js` (called by `rapidTick`; off unless `rules.rapid.economy === 'on'`), board `rules/rapid/rapid_frontier.yaml`, `ECON_SETTINGS` in `ui/settings.js`, purse / "+n" / new-ground outline in `ui/play.js` and `ui/board.js`, Play → Frontier on the landing page. `sw.js` cache `shatkon-offline-v11`.

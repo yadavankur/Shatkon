@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readYaml, shippedFiles } from './helpers.js';
 import * as E from '../engine/index.js';
+import { dist } from '../engine/hex.js';
 
 const board = (file = 'rules/rapid/rapid_frontier.yaml') => {
   const b = readYaml(file);
@@ -61,8 +62,12 @@ test('walking forward earns salvage once past the centre; both sides earn the sa
   }
   assert.ok(g.econ.purse[0] > 0, 'player 1 earned nothing in 40 ticks');
   assert.ok(firstPay > 2, 'paid before reaching the enemy half');
-  // every earned event is seen only by its own side (the purse is hidden)
-  for (const e of g.events.filter((x) => x.t === 'earned')) assert.deepEqual(e.seenBy, [e.player]);
+  // every earned event is seen only by its own side (the purse is hidden), and says what this tick paid
+  for (const e of g.events.filter((x) => x.t === 'earned')) {
+    assert.deepEqual(e.seenBy, [e.player]);
+    assert.equal(e.amount, g.econ.perTick[e.player].slice(-1)[0]);
+    assert.equal(e.amount, e.items.reduce((a, it) => a + it.n, 0));
+  }
   // the board, the fleets and the forced-move rule are mirror images, so the purses match
   assert.equal(g.econ.purse[0], g.econ.purse[1]);
 });
@@ -150,4 +155,81 @@ test('new ground lists unentered enemy-half hexes and shrinks as ships fly throu
   assert.ok(E.newGround(g, 0).some((h) => h.rock));
   g = walk(g, 40);
   assert.ok(E.newGround(g, 0).length < n0);
+});
+
+// ---------- slice 2: the threat heatmap ----------
+// a game where player 1 has some salvage and an enemy ship in view
+function withEnemyInView(seed = 5) {
+  let g = frontier({}, seed);
+  for (let i = 0; i < 60 && g.phase === 'play'; i++) {
+    if (g.players[0].vis.some((id) => g.ships.some((x) => x.id === id && x.owner === 1))) break;
+    g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);
+  }
+  return g;
+}
+
+test('heatmap: costs its price and the whole tick; refused without the salvage', () => {
+  let g = frontier();
+  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'heatmap' }), /not enough salvage/);
+  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'lunch' }), /not for sale/);
+  g.econ.purse[0] = 9;
+  assert.equal(E.rapidRefusal(g, 0, { type: 'buy', item: 'heatmap' }), null);
+  const before = g.ships.filter((x) => x.owner === 0).map((x) => x.pos.join());
+  g = E.rapidTick(g, [{ type: 'buy', item: 'heatmap' }, fwd(g, 1)]);
+  assert.equal(g.econ.purse[0], 3);
+  assert.equal(g.econ.spent[0].heatmap, 6);
+  assert.deepEqual(g.ships.filter((x) => x.owner === 0).map((x) => x.pos.join()), before);   // nothing moved
+  assert.equal(g.rapid.ticks[0].acts[0], 'b:heatmap');
+  // the enemy sees nothing of it
+  const b = g.events.find((e) => e.t === 'bought');
+  assert.deepEqual(b.seenBy, [0]);
+  // not in the opening's forward-only rule's way: buying is allowed while you can't pass
+  assert.equal(E.passAllowed(g, 0), false);
+});
+
+test('heatmap: shows on your next 2 ticks, then fades', () => {
+  let g = frontier();
+  g.econ.purse[0] = 6;
+  assert.ok(!E.heatOn(g, 0));
+  g = E.rapidTick(g, [{ type: 'buy', item: 'heatmap' }, fwd(g, 1)]);
+  assert.ok(E.heatOn(g, 0)); assert.ok(!E.heatOn(g, 1));
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);
+  assert.ok(E.heatOn(g, 0));
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);
+  assert.ok(!E.heatOn(g, 0));
+});
+
+test('heatmap: built only from enemy ships you can see, with hits falling off by range', () => {
+  const g = withEnemyInView();
+  const seen = g.ships.filter((x) => x.owner === 1 && !x.dead && g.players[0].vis.includes(x.id));
+  assert.ok(seen.length, 'no enemy came into view');
+  const m = E.threatMap(g, 0);
+  assert.ok(m.size > 0);
+  // every threatened hex is within laser range of a ship you can see
+  const range = Math.max(...Object.values(g.rules.parts).filter((c) => +c.range && +c.hits).map((c) => +c.range));
+  for (const t of m.values()) if (t.hits) assert.ok(seen.some((e) => E.footprint(e).some((c) => dist(c, t.at) <= range)), 'threat at ' + t.at + ' from no visible ship');
+  // closer is worse: a hex next to a seen ship is hit at least as hard as one at long range
+  const one = structuredClone({ ...g, rules: undefined }); one.rules = g.rules; one.players[0].vis = [seen[0].id];
+  const m1 = E.threatMap(one, 0);
+  const e = seen[0], near = [...m1.values()].filter((t) => t.hits && E.footprint(e).some((c) => dist(c, t.at) === 1));
+  const far = [...m1.values()].filter((t) => t.hits && E.footprint(e).every((c) => dist(c, t.at) >= range - 1));
+  assert.ok(near.length && far.length);
+  assert.ok(Math.max(...near.map((t) => t.hits)) >= Math.max(...far.map((t) => t.hits)));
+  // a side that sees nothing gets an empty map
+  const blind = structuredClone({ ...g, rules: undefined }); blind.rules = g.rules; blind.players[0].vis = [];
+  assert.equal(E.threatMap(blind, 0).size, 0);
+});
+
+test('a game with a purchase replays from its log', () => {
+  let g = frontier({}, 12), bought = false;
+  for (let i = 0; i < 80 && g.phase === 'play'; i++) {
+    const buy = !bought && g.econ.purse[0] >= 6;
+    g = E.rapidTick(g, [buy ? { type: 'buy', item: 'heatmap' } : fwd(g, 0), fwd(g, 1)]);
+    bought = bought || buy;
+  }
+  assert.ok(bought, 'never had 6 salvage');
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true);
+  assert.deepEqual(E.replayLog(log).econ, g.econ);
+  assert.ok(log.turns.some((t) => (t.actions || []).some((a) => /bought a threat heatmap/.test(a.say || ''))));
 });

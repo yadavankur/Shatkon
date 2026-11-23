@@ -108,7 +108,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null, ground = null, earn = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null, ground = null, earn = null, heat = null, heatLabels = true }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -235,6 +235,21 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffc2ea', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
   }
 
+  // economy mode: the bought heatmap. heat: [{ at, hits, n, missile }]. Red by the hits one shot could do
+  // (deeper where more than one known ship reaches); amber dashes where a known launcher's missiles reach.
+  if (heat && heat.length && !hidden) {
+    const hg = s('g', { 'pointer-events': 'none', class: 'heatmap' });
+    const shades = new Map();
+    for (const t of heat) if (t.hits) { const k = Math.min(4, t.hits) + (t.n > 1 ? 'm' : ''); if (!shades.has(k)) shades.set(k, []); shades.get(k).push(t.at); }
+    for (const [k, cells] of shades) {
+      const n = parseInt(k, 10), multi = k.endsWith('m');
+      hg.appendChild(s('path', { d: cells.map((c) => cellPath(c, 0.94)).join(''), fill: '#ff3b52', 'fill-opacity': f1(0.05 + 0.12 * n + (multi ? 0.06 : 0)), stroke: '#ff5a6e', 'stroke-opacity': 0.25, 'stroke-width': 0.3 }));
+    }
+    const mis = heat.filter((t) => t.missile && !t.hits).map((t) => t.at);
+    if (mis.length) hg.appendChild(s('path', { d: mis.map((c) => cellPath(c, 0.7)).join(''), fill: 'none', stroke: '#ffb347', 'stroke-opacity': 0.45, 'stroke-width': 0.5, 'stroke-dasharray': '1.5 1.5' }));
+    if (heatLabels && px * S >= 9) for (const t of heat) if (t.hits) hg.appendChild(s('text', { x: f1(X(t.at)), y: f1(Y(t.at) + S * 0.3), fill: '#ffd0d6', 'fill-opacity': 0.85, 'font-size': fs(10), 'text-anchor': 'middle' }, '\u2212' + t.hits + (t.n > 1 ? '\u00d7' + t.n : '')));
+    svg.appendChild(hg);
+  }
   // economy mode (Frontier): new ground, the enemy-half hexes your side has never entered (they pay salvage).
   // ground: [{ at, rock }]; a hex by an asteroid (pays more) is brighter. Faint, under everything, never blocks a tap.
   if (ground && ground.length && !hidden) {
