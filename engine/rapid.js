@@ -28,6 +28,7 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
+import { econStart, econTick, ECON_DEFAULTS } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
@@ -131,6 +132,9 @@ export const RAPID_DEFAULTS = {
   convert: 'on',      // a one-hex ship that moves on or past the line may go silent: become a scanner buoy or a naval mine
   buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
+  economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
+  econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
+  econOwnHalf: 'no',  // 'yes': new ground in your own half pays too
 };
 
 // Rapid rules from a board's ordinary rules. Nothing in the world file changes; only this game's copy.
@@ -168,6 +172,7 @@ export function rapidRules(rules, opts = {}) {
 export function rapidStart(rules, seed = 1) {
   const s = begin(newGame(rules, seed));
   s.rapid = { sign: [homeSign(s, 0), homeSign(s, 1)], ever: [false, false], ticks: [], opening: true, openTicks: 0 };
+  if (rules.rapid.economy === 'on') econStart(s);
   rest(s);
   s.pre = hashState(s);
   return s;
@@ -293,6 +298,7 @@ export function rapidTick(state, acts) {
   if (s.phase === 'play') runFlight(s);
   if (s.phase === 'play') buoysScan(s);
   // 4. the tick ends
+  econTick(s, state);   // economy mode: salvage for both sides (does nothing when the economy is off)
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
   // the opening ends at the first sighting (either side has a contact on the other) or, if that comes
   // sooner, the first laser shot or missile launch; its ticks don't count towards the limit

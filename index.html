@@ -420,7 +420,10 @@ function playMenu(main) {
     // rapid mode (experimental, rules/rapid/): one action a tick, both sides at once, against the clock.
     // "Opus" is this build (Claude Opus); a Grok-built version may sit beside it for comparison.
     item(null, 'start', 'Rapid Opus', 'Vs computer. One action a tick, both sides at once, against the clock.',
-      () => battleSheet('Rapid Opus', game({ board: 'rapid_opus', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true))));
+      () => battleSheet('Rapid Opus', game({ board: 'rapid_opus', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true)),
+    // economy mode (experimental, third rapid version): Rapid Opus plus salvage earned by flying through the board.
+    item(null, 'start', 'Frontier', 'Rapid Opus with an economy: earn salvage in the enemy\u2019s half. Experimental.',
+      () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ'))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

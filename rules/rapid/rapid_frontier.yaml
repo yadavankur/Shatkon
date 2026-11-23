@@ -1,0 +1,136 @@
+# ============================================================
+#  BOARD: Frontier (economy mode, experimental; third rapid version, built by Claude Opus)
+#
+#  Rapid Opus plus an economy (design: claude/shatkon-economy-mode-draft.md in the GameDev project).
+#  Everything from Rapid Opus carries over. On top: ships earn salvage (one purse for the fleet,
+#  hidden from the enemy) by flying where your side has never been in the enemy's half (more next
+#  to an asteroid), by being first across the line, by holding ships on or past it, and by
+#  destroying enemy ships. Capped at 6 a tick. Slice 1: nothing to buy yet (heatmap, turrets,
+#  upgrades and resupply come in later slices). engine/economy.js; the amounts are in `econ:`.
+#
+#  Same fleet and formation as Rapid Opus; two more asteroid pairs, so each half has three rocks
+#  worth flying to.
+#
+#  You are player_1 (south edge). The computer is player_2.
+#  Open it at  play.html?board=rapid_frontier
+# ============================================================
+
+board:
+  name: "Frontier"
+  idea: "Rapid Opus with an economy: ships earn salvage by flying through new ground in the enemy's half, crossing the line, holding it and destroying enemy ships."
+  try: "Outlined hexes are new ground: fly scouts through them, especially by asteroids. Ships past the line earn every tick, but they are exposed."
+  rules: {}
+
+rapid:                        # rapid mode: the play screen turns these into rapid rules (battle settings can change them)
+  line: 12                    # rows from your own home edge: 12 on this radius-12 board is halfway
+  economy: on                 # engine/economy.js
+  econ:                       # salvage amounts (all starting guesses, to be tuned by playing)
+    newHex: 1                 # a hex your side has never entered, in the enemy's half
+    asteroid: 1               # +1 when that hex is next to an asteroid
+    cross: 3                  # the first time one of your ships is on or past the line (once a game)
+    hold: 1                   # each ship on or past the line, every tick
+    kill: 2                   # each segment of an enemy ship destroyed
+
+budget: 99999
+
+map:
+  name: "Frontier"
+  board: { shape: hexagon, radius: 12 }
+  zones:
+    player_1_home: { edge: south, depth: 7 }
+    player_2_home: { edge: north, depth: 7 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [-6, 3], size: 1 }
+    - { type: asteroid, at: [6, -3], size: 1 }
+    - { type: asteroid, at: [5, 2], size: 1 }
+    - { type: asteroid, at: [-5, -2], size: 1 }
+    - { type: asteroid, at: [-7, -4], size: 1 }
+    - { type: asteroid, at: [7, 4], size: 1 }
+    - { type: asteroid, at: [0, -6], size: 1 }
+    - { type: asteroid, at: [0, 6], size: 1 }
+
+player_1:
+  ships:
+    - name: "Throne"               # 7-hex flower, flagship
+      flagship: true
+      load: { missile: 2, missile_advanced: 3, missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, comms],        mounts: [laser, shield, point_defence] }
+        - { at: [1, 0],   bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [-1, 0],  bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, stealth, magazine], mounts: [launcher, shield, armour] }
+        - { at: [1, -1],  bays: [coupling, stealth, engine],  mounts: [laser, shield, point_defence] }
+        - { at: [0, 1],   bays: [coupling, engine, stealth],  mounts: [launcher, armour, armour] }
+        - { at: [-1, 1],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+    - name: "Bastion"              # 4-hex diamond, left wing
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, engine],       mounts: [laser, shield, armour] }
+        - { at: [-1, 0],  bays: [coupling, magazine, engine], mounts: [launcher, shield, point_defence] }
+        - { at: [0, -1],  bays: [coupling, stealth, magazine], mounts: [laser, shield, armour] }
+        - { at: [-1, -1], bays: [coupling, engine, stealth],  mounts: [laser, armour, armour] }
+    - name: "Warden"               # 3-hex triangle, right wing
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Lancer L"             # 2-hex, left wing outside
+      load: { missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
+        - { at: [1, 0],   bays: [coupling, magazine, engine], mounts: [launcher, laser, armour] }
+    - name: "Lancer R"             # 2-hex, right wing outside
+      load: { missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
+        - { at: [1, 0],   bays: [coupling, magazine, engine], mounts: [launcher, laser, armour] }
+    - name: "Pawn A"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn C"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn D"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn E"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn F"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn G"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn H"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn I"              # 1-hex scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Throne", at: [-5, 10] }
+    - { ship: "Bastion", at: [-8, 12] }
+    - { ship: "Warden", at: [-3, 12] }
+    - { ship: "Lancer L", at: [-12, 12] }
+    - { ship: "Lancer R", at: [-1, 12] }
+    - { ship: "Pawn A", at: [-3, 6] }
+    - { ship: "Pawn B", at: [-1, 7] }
+    - { ship: "Pawn C", at: [-6, 7] }
+    - { ship: "Pawn D", at: [0, 8] }
+    - { ship: "Pawn E", at: [-8, 8] }
+    - { ship: "Pawn F", at: [1, 9] }
+    - { ship: "Pawn G", at: [-10, 9] }
+    - { ship: "Pawn H", at: [2, 10] }
+    - { ship: "Pawn I", at: [-12, 10] }
+
+player_2:                     # the same fleet, turned round
+  copy_of: player_1
+  mirror_ships: true
+  mirror_deployment: true

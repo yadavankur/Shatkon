@@ -18,6 +18,7 @@ import { hashState, parseAction } from './codec.js';
 import { visibleTo } from './detect.js';
 import { bankCap } from './actions.js';
 import { rapidStart, rapidTick, parseTick } from './rapid.js';
+import { EARN_WORDS } from './economy.js';
 
 export const LOG_FORMAT = 'shatkon-battle-log';
 
@@ -112,6 +113,7 @@ export function eventWords(e, nm, side) {
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';
     case 'game_over': return 'game over: ' + (e.winner === 'draw' ? 'a draw' : side(e.winner) + ' won') + (e.by ? ' (' + String(e.by).replace(/_/g, ' ') + ')' : '');
+    case 'earned': return side(e.player) + ' earned ' + e.n + ' salvage (' + [...new Set((e.items || []).map((i) => EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? '; capped' : '') + '), purse ' + e.purse;
     case 'converted': return nm(e.ship) + ' went silent and became a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at);
     case 'debris': return nm(e.ship) + ' shot down a missile close in: the debris lit it up and hit it';
     case 'ram': return nm(e.ship) + ' rammed ' + nm(e.target) + ' for ' + plural(e.hits, 'hit');

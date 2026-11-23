@@ -34,7 +34,14 @@ export const RAPID_SETTINGS = [
   { key: 'wingman', label: 'Formation', options: [['fire_or_move', 'Wingman fires', 'When a ship fires, one friend within 2 hexes of it (touching, or one empty hex between) fires too in the same tick, or moves 1 hex if it has nothing to shoot.'], ['move', 'Wingman moves', 'When a ship fires, one friend within 2 hexes of it may move 1 hex in the same tick.'], ['off', 'Off', 'One action a tick, nothing more.']] },
   { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
-const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid';
+// Economy mode (Frontier, rules/rapid/rapid_frontier.yaml, engine/economy.js): shown under the rapid
+// settings on boards with an economy, kept in their own store.
+export const ECON_SETTINGS = [
+  { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn salvage (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Nothing to buy yet.'], ['off', 'Off', 'Plain Rapid Opus on this board: no salvage.']] },
+  { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' salvage a tick, so a lead can\u2019t snowball without limit.']) },
+  { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
+];
+const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
 const okVal = (d, v) => (d.range ? Number.isFinite(Number(v)) && Number(v) >= d.range[0] && Number(v) <= d.range[1] : d.options.some((o) => o[0] === v));
 function readSet(store, list) {
@@ -57,14 +64,24 @@ export function rapidOptions() {
   return { ...r, timer: Number(r.timer), openTimer: Number(r.openTimer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap), shootRange: Number(r.shootRange), forwardEyes: Number(r.forwardEyes) };
 }
 
+export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
+export function econOptions() {
+  const r = econSettings();
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf };
+}
+
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
 // landing page and the play screen can use it.
+// rapid: false (battle settings), true (rapid mode) or 'econ' (rapid mode with the economy rows first).
 export function settingsForm(onChange, rapid = false) {
   const box = document.createElement('div');
   box.className = 'bs-form';
-  const list = rapid ? RAPID_SETTINGS : SETTINGS, store = rapid ? RSTORE : STORE;
+  const groups = rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
+    for (const [list, store] of groups) drawGroup(list, store);
+  };
+  const drawGroup = (list, store) => {
     const cur = readSet(store, list);
     for (const d of list) {
       const row = document.createElement('div'); row.className = 'bs-row';
