@@ -42,6 +42,8 @@ export const ECON_SETTINGS = [
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' salvage and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
   { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' salvage and your tick. Each turret costs 1 a tick to keep working.']) },
   { key: 'econTurretRange', label: 'Turret range', def: '6', options: ['4', '6', '8'].map((v) => [v, v + ' hexes', 'A turret fires at the nearest enemy it can see within ' + v + ' hexes. Lasers reach 9, so a turret can be shot from out of its reach.']) },
+  { key: 'econUpkeepEvery', label: 'Turret upkeep', def: '3', options: [['0', 'None', 'Turrets cost nothing to keep.'], ['3', '1 every 3 ticks', 'Each turret costs 1 salvage every 3 ticks. If you can\u2019t pay, it goes dark until you can.'], ['1', '1 a tick', 'Each turret costs 1 salvage every tick (expensive).']] },
+  { key: 'econIdle', label: 'Idle penalty', def: '1', options: [['1', '\u22121 a pass', 'A tick you pass earns no salvage and costs 1. Sitting still shouldn\u2019t pay.'], ['0', 'None', 'Passing is free.']] },
   { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' salvage and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
@@ -71,7 +73,7 @@ export function rapidOptions() {
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange) };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle) };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the

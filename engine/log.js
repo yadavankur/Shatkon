@@ -119,6 +119,7 @@ export function eventWords(e, nm, side) {
     case 'turret_hit': return 'turret ' + e.obj + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left)';
     case 'turret_lit': return 'turret ' + e.obj + ' is working again (upkeep paid)';
     case 'turret_dark': return 'turret ' + e.obj + ' went dark: no salvage for its upkeep';
+    case 'idle': return side(e.player) + ' passed: lost ' + e.lost + ' salvage and earned nothing this tick' + (e.missed ? ' (would have earned ' + e.missed + ')' : '') + ', purse ' + e.purse;
     case 'upkeep': return side(e.player) + ' paid ' + e.amount + ' salvage upkeep for ' + plural(e.turrets, 'turret') + ', purse ' + e.purse;
     case 'earned': return side(e.player) + ' earned ' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? '; capped' : '') + '), purse ' + e.purse;
     case 'converted': return nm(e.ship) + ' went silent and became a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at);

@@ -141,6 +141,8 @@ export const RAPID_DEFAULTS = {
   econTurret: ECON_DEFAULTS.turret,   // what a turret costs
   econUpgrade: ECON_DEFAULTS.upgrade, // what an upgrade costs
   econTurretRange: ECON_DEFAULTS.turretRange, // how far a turret shoots
+  econUpkeepEvery: ECON_DEFAULTS.turretEvery, // turret upkeep: 1 salvage every this many ticks (0: no upkeep)
+  econIdle: ECON_DEFAULTS.idle,       // salvage lost on a tick you pass (0: none)
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -318,7 +320,7 @@ export function rapidTick(state, acts) {
   if (s.phase === 'play') runFlight(s);
   if (s.phase === 'play') buoysScan(s);
   // 4. the tick ends
-  econTick(s, state);   // economy mode: salvage for both sides (does nothing when the economy is off)
+  econTick(s, state, acts);   // economy mode: salvage for both sides (does nothing when the economy is off)
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
   // the opening ends at the first sighting (either side has a contact on the other) or, if that comes
   // sooner, the first laser shot or missile launch; its ticks don't count towards the limit
