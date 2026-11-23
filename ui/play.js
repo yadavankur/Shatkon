@@ -906,7 +906,8 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
-    case 'earned': return '+' + e.n + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
+    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
+    case 'earned': return '+' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
     case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
@@ -1437,7 +1438,7 @@ const ICONS = {
   hit: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 1v5M12 18v5M1 12h5M18 12h5',
   flame: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
   sensor: 'M5 19a10 10 0 0 1 0-14M19 5a10 10 0 0 1 0 14M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M12 11v2',
-  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', x: 'M6 6l12 12M18 6L6 18',
+  buy: 'M12 3l8 9-8 9-8-9z', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', x: 'M6 6l12 12M18 6L6 18',
 };
 const FILLED = { laser: 1 };
 function ico(name, size = 20) {
@@ -1657,10 +1658,12 @@ export function render() {
   // selected ship (Move), and enemy missiles heading somewhere. All from what this screen may know.
   const eyes = typeof who() === 'number' ? who() : turnOf();
   const field = mine && sel && mode === 'fire' && !hid ? E.beamField(game, sel) : null;
-  const danger = mine && sel && mode === 'move' && !hid ? E.dangerMap(game, eyes) : null;
+  // economy mode: no free reach labels; a bought heatmap puts its own numbers on the moves instead
+  const heat = isRapidGame() ? rapidHeat() : null;
+  const danger = mine && sel && mode === 'move' && !hid ? (E.econOn(game) ? (heat ? new Map(heat.filter((t) => t.hits).map((t) => [hex.key(t.at), t.hits])) : null) : E.dangerMap(game, eyes)) : null;
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn }));
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn, heat, heatLabels: labelsOn }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
@@ -1766,7 +1769,10 @@ export function render() {
       h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman'))]);
   } else if (mine && !hid && R.rapid) {
     const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
-    fill(tb, [h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
+    const shop = E.econOn(game) ? (() => { const can = RT.phase === 'choose' && Object.keys(E.SHOP).some((k) => !E.buyRefusal(game, 0, { type: 'buy', item: k }));
+      return h('button', { class: 'btn ib buyb' + (can ? '' : ' off'), 'aria-label': 'Buy: spend salvage, using this tick', disabled: RT.phase !== 'choose', onclick: rapidShop },
+        h('span', { class: 'ibic' }, ico('buy', 22)), h('span', { class: 'tl name' }, 'Buy'), h('small', { class: 'tl' }, 'uses the tick')); })() : null;
+    fill(tb, [shop, h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
       onclick: () => rapidAct({ type: 'pass' }) },
       h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Pass'), h('small', { class: 'tl' }, ok ? 'do nothing this tick' : 'once past the line'))]);
   } else if (mine && !hid) fill(tb, [
@@ -1855,6 +1861,7 @@ const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, w
 function rapidClear() {
   clearTimeout(RT.timer); RT.timer = 0;
   const cv = document.getElementById('rapidconvert'); if (cv) cv.remove();
+  const sh = document.getElementById('rapidbuy'); if (sh) sh.remove();
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
   document.body.classList.remove('rapid-auto');
 }
@@ -1880,7 +1887,7 @@ function newRapidGame() {
   const econ = E.econOn(game), title = econ ? 'Frontier' : 'Rapid Opus';
   say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
     + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
-    + (econ ? ' Salvage (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Nothing to buy yet.' : ''));
+    + (econ ? ' Salvage (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
   save(); render();
   setTimeout(() => toast(title, 'p0', econ ? 'earn salvage in the enemy\u2019s half' : 'forward until you cross the line'), 300);
 }
@@ -2010,6 +2017,10 @@ function rapidAct(action, quiet, auto) {
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   rapidEarnFx();
+  if (a.type === 'buy' && a.item === 'heatmap' && E.econOn(game)) {   // the heatmap is only as good as what you can see
+    const t = [...E.threatMap(game, 0).values()].filter((x) => x.hits).length;
+    setTimeout(() => toast('Heatmap', 'p0', t ? 'red: where the enemy ships you can see could hit you next tick' : 'no enemy ship in view, so nothing to shade yet (it updates if one appears)'), 200);
+  }
   pending = null; endArmed = false; undoStack = []; mode = 'move';
   if (sel && !game.ships.some((x) => x.id === sel && !x.dead)) sel = null;
   sfxFor(a, game.events, 0);
@@ -2035,7 +2046,32 @@ function pursePill() {
   if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
   const n = E.purse(game, 0), last = (game.econ.perTick[0] || []).slice(-1)[0] || 0;
   return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Hidden from the enemy.' },
-    h('i', null, '\u25c8'), h('b', null, String(n)));
+    h('i', null, '\u25c8'), h('b', null, String(n)),
+    E.heatOn(game, 0) ? h('span', { class: 'heatchip', title: 'Heatmap showing: ' + plural(game.econ.heat[0] - game.round + 1, 'tick') + ' left' }, '\u25a6 ' + (game.econ.heat[0] - game.round + 1)) : null);
+}
+// The shop (economy mode): what salvage buys. Buying is the tick's whole action, like Pass.
+const SOON = [['Turret', 'leave a laser behind as a turret', 8], ['Upgrade', 'one ship: range, shields, sensor or armour', 10], ['Resupply', '+1 missile', 5]];
+function rapidShop() {
+  if (RT.phase !== 'choose') return;
+  const old = document.getElementById('rapidbuy'); if (old) { old.remove(); return; }
+  const close = () => { const c = document.getElementById('rapidbuy'); if (c) c.remove(); };
+  const purse = E.purse(game, 0);
+  const rows = Object.entries(E.SHOP).map(([k, it]) => {
+    const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
+    return h('button', { class: 'btn go' + (why ? ' off' : ''), disabled: !!why, onclick: () => { close(); rapidAct({ type: 'buy', item: k }); } },
+      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, why && purse < cost ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : '')));
+  });
+  const later = SOON.map(([n, about, c]) => h('button', { class: 'btn off', disabled: true }, h('span', { class: 'shoprow' }, h('span', null, n), h('b', null, '\u25c8 ' + c)), h('small', null, about + ' (coming later)')));
+  document.body.appendChild(h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
+    h('b', null, 'Buy \u00b7 \u25c8 ' + purse),
+    h('small', null, 'Buying is your action for this tick: your ships hold still. The enemy doesn\u2019t see it.'),
+    ...rows, ...later,
+    h('button', { class: 'btn', onclick: close }, 'Back')));
+}
+// The heatmap (economy mode, bought): every hex the enemy ships you can see could hit next tick.
+function rapidHeat() {
+  if (!E.econOn(game) || game.phase !== 'play' || !E.heatOn(game, 0)) return null;
+  return [...E.threatMap(game, 0).values()];
 }
 function rapidEarnFx() {
   if (!E.econOn(game)) return;
@@ -2097,6 +2133,10 @@ const RAPID_CSS = `
 .rapidconv{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:70;width:min(340px,92vw);background:#0b1426;border:1px solid #7fd8f0;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
 .rapidconv>b{font:700 17px system-ui,sans-serif;color:#e8f2ff}.rapidconv>small{color:#9fb0cc;font-size:12px}
 .rapidconv button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:48px;padding:6px 12px}
+.rapidconv .shoprow{display:flex;justify-content:space-between;width:100%;gap:12px}.rapidconv .shoprow b{color:#ffd77a}
+.rapidconv button.off{opacity:.45}
+.buyb .ibic{color:#ffd77a}
+.purse .heatchip{margin-left:4px;padding:0 5px;border-radius:6px;background:rgba(255,59,82,.25);color:#ffb3bd;font-size:12px}
 .rapidconv button small{font-size:11px;opacity:.8;font-weight:500}
 body.rapid-auto #rail,body.rapid-auto #ctx,body.rapid-auto #dock,body.rapid-auto #turnbtns{pointer-events:none;opacity:.6}
 .endb.off{opacity:.45}

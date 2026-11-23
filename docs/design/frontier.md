@@ -34,5 +34,17 @@ Starting hexes count as entered. When the cap cuts a tick short, items are paid 
 
 **Seen along the way (not changed here).** On both rapid boards the computer's lead scout makes a contact on tick 1 (the scouts start 12 rows apart and move 2), so the fast opening lasts one tick in computer games.
 
+**Fix (slice 2 PR):** the `earned` event's amount was stored as `n`, which `emit` overwrites with the event's sequence number, so the log and the message line showed nonsense amounts (the purse, floats and tests were right). It is now `amount`.
+
+## Slice 2: the threat heatmap (built 23 Nov 2026)
+
+- **Buy** (bottom right, beside Pass) opens the shop. Only the Heatmap is for sale; Turret, Upgrade and Resupply are listed greyed out as "coming later". Buying is the tick's whole action, `{ type: 'buy', item: 'heatmap' }`, written `b:heatmap` in the tick log. It is paid before the tick's shots, so this tick's earnings can't pay for it, and the enemy gets no event.
+- **Price** ◈ 6 (setting: Heatmap cost 4 / 6 / 8). It shows on your next 2 ticks (`econ.heatTicks`), and a red chip by the purse counts them down.
+- **What it shows** (`threatMap(state, p)` in engine/economy.js): every hex an enemy ship you can see right now could hit with a laser next tick, shaded by the hits one shot would do there (falling off by range, +1 attack run if that ship moved last tick), and darker where more than one ship reaches. Numbers (−3, −2×2…) show when zoomed in with labels on. Amber dashes: where a known launcher's missiles could reach in 2 ticks. Built only from what you know: hidden ships and fuzzy contacts don't count; a scanned ship uses its real working lasers and launchers; an unscanned one is assumed to carry the best laser on every segment and no known launcher. It is worked out again each time you look, so it follows enemies you see moving.
+- **The free "in enemy reach" numbers on moves are off in Frontier.** While a heatmap is showing, the move options show its numbers instead. Rapid Opus and the other modes are unchanged.
+- The computer doesn't buy yet (slice 5).
+- **Checked:** 4 new tests (price and refusals, the tick used, 2-tick duration, only visible ships, falloff by range, replay with a purchase); 247 pass. Headless Chrome 844x390: shop, purchase, shading, countdown chip, no console errors.
+- **Seen in play:** two unscanned enemy ships at the centre shaded most of the board, because an unscanned ship is assumed to have the best laser (range 9) on all its segments. Scanning first makes the heatmap much sharper. A tuning question for later.
+
 ## Next slices
-2. Heatmap. 3. Turrets. 4. Upgrades and resupply. 5. Computer styles (rush / boom / turtle) and the triangle runs.
+3. Turrets. 4. Upgrades and resupply. 5. Computer styles (rush / boom / turtle) and the triangle runs.

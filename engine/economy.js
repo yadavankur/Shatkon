@@ -1,5 +1,6 @@
 // Economy mode ("Frontier", the third rapid experiment; design: GameDev project doc
-// claude/shatkon-economy-mode-draft.md). Slice 1: money, with nothing to buy yet.
+// claude/shatkon-economy-mode-draft.md). Slice 1: earning salvage. Slice 2: the first thing to buy,
+// the threat heatmap (see "Spending" below).
 //
 // Salvage (◈) is one purse for the whole fleet, hidden from the enemy. It is earned at the end of
 // every tick (engine/rapid.js calls econTick), in this order, up to a cap a tick:
@@ -11,8 +12,9 @@
 // Hexes your ships start on count as entered. Every amount and the cap are settings (ECON_DEFAULTS);
 // everything lives in state.econ, so a replay from the seed rebuilds the purse exactly.
 
-import { cellsOf, emit, geom } from './state.js';
-import { key, DIRS, add } from './hex.js';
+import { cellsOf, emit, geom, footprint, num, no } from './state.js';
+import { key, DIRS, add, dist, sightLine } from './hex.js';
+import { beamHitsAt } from './actions.js';
 import { pastLine, rowsForward } from './rapidrules.js';
 
 export const ECON_DEFAULTS = {
@@ -23,6 +25,8 @@ export const ECON_DEFAULTS = {
   cross: 3,        // the first time one of your ships is on or past your line (once a game)
   hold: 1,         // each of your ships on or past the line, every tick
   kill: 2,         // each segment of an enemy ship destroyed
+  heatmap: 6,      // the heatmap's price
+  heatTicks: 2,    // how many of your next ticks it is shown for
 };
 
 export const econOn = (state) => !!(state && state.rules.rapid && state.rules.rapid.economy === 'on' && state.econ);
@@ -33,6 +37,7 @@ export function econConfig(rules) {
   const c = { ...ECON_DEFAULTS, ...(o.econ || {}) };
   if (o.econCap != null && o.econCap !== '') c.cap = Number(o.econCap);
   if (o.econOwnHalf != null) c.ownHalf = o.econOwnHalf === true || o.econOwnHalf === 'yes';
+  if (o.econHeatmap != null && o.econHeatmap !== '') c.heatmap = Number(o.econHeatmap);
   return c;
 }
 
@@ -58,7 +63,7 @@ export const inEnemyHalf = (state, p, c) => rowsForward(state, p, c) > state.rul
 
 // Start the economy (rapidStart calls this when the economy is on).
 export function econStart(s) {
-  s.econ = { purse: [0, 0], earned: [0, 0], crossed: [false, false], seen: [{}, {}], perTick: [[], []] };
+  s.econ = { purse: [0, 0], earned: [0, 0], spent: [{}, {}], crossed: [false, false], seen: [{}, {}], perTick: [[], []], heat: [0, 0] };
   for (const x of s.ships) if (!x.dead) for (const c of cellsOf(x)) s.econ.seen[x.owner][key(c)] = 1;
 }
 
@@ -98,7 +103,7 @@ export function econTick(s, before) {
     E.perTick[p].push(total);
     if (!total) continue;
     E.purse[p] += total; E.earned[p] += total;
-    emit(s, { t: 'earned', player: p, n: total, purse: E.purse[p], items: paid, capped: items.reduce((a, it) => a + it.n, 0) > total }, [p]);
+    emit(s, { t: 'earned', player: p, amount: total, purse: E.purse[p], items: paid, capped: items.reduce((a, it) => a + it.n, 0) > total }, [p]);
   }
 }
 
@@ -117,5 +122,86 @@ export function newGround(state, p) {
   return out;
 }
 
+// ---------- spending ----------
+// Buying is the side's whole action for the tick: { type: 'buy', item }. Paid before the tick's shots,
+// so this tick's earnings can't pay for it. The enemy sees nothing of it.
+export const SHOP = {
+  heatmap: { label: 'Heatmap', about: 'where the enemy ships you know of could hit next tick' },
+};
+export const price = (state, item) => num(econConfig(state.rules)[item]);
+
+// Why side p can't buy this now (null when it can).
+export function buyRefusal(state, p, a) {
+  if (!econOn(state)) return 'there is nothing to buy in this game';
+  if (!SHOP[a.item]) return 'that is not for sale';
+  const cost = price(state, a.item);
+  if (state.econ.purse[p] < cost) return 'not enough salvage: ' + a.item + ' costs ' + cost + ', you have ' + state.econ.purse[p];
+  return null;
+}
+export function doBuy(s, p, a) {
+  const why = buyRefusal(s, p, a);
+  if (why) no(why);
+  const cost = price(s, a.item), E = s.econ;
+  E.purse[p] -= cost;
+  E.spent[p][a.item] = (E.spent[p][a.item] || 0) + cost;
+  // the heatmap shows on this side's next heatTicks ticks (the tick it is bought in is already spent)
+  if (a.item === 'heatmap') E.heat[p] = s.round + num(econConfig(s.rules).heatTicks, 2);
+  emit(s, { t: 'bought', player: p, item: a.item, cost, purse: E.purse[p] }, [p]);
+}
+// Is side p's heatmap showing now? (between ticks, state.round is the tick about to be chosen)
+export const heatOn = (state, p) => econOn(state) && (state.econ.heat || [0, 0])[p] >= state.round;
+
+// The threat heatmap: every hex a known enemy ship could hit with a laser next tick, and the hits a
+// single shot would do there; and where its missiles could reach within the heatmap's 2 ticks.
+// Built only from what side p knows: enemy ships it can see now (hidden ones don't show). A ship it has
+// scanned uses its known working lasers and launchers; one it hasn't is assumed to carry the best laser
+// on every segment and no known launcher.
+//   -> Map(hexKey -> { at, hits, n, missile })   hits: the most one shot could do; n: how many ships reach it
+export function threatMap(state, p) {
+  const pl = state.players[p], vis = new Set(pl.vis), g = geom(state.rules), out = new Map();
+  const P = state.rules.parts;
+  let best = null;
+  for (const c of Object.values(P)) if (num(c.range) && num(c.hits) && (!best || num(c.hits) > num(best.hits))) best = c;
+  let mSpeed = 0;
+  for (const m of Object.values(state.rules.munitions)) if (m.family === 'missile') mSpeed = Math.max(mSpeed, num(m.speed));
+  const R = state.rules.rapid || {};
+  const run = R.attackRun !== 'off' ? num(state.rules.det.attackRun) : 0;
+  const ticks = num(econConfig(state.rules).heatTicks, 2);
+  const get = (c) => { const k = key(c); let o = out.get(k); if (!o) { o = { at: c, hits: 0, n: 0, missile: false }; out.set(k, o); } return o; };
+  const ring = (src, rad, f) => { for (let q = -rad; q <= rad; q++) for (let r = Math.max(-rad, -q - rad); r <= Math.min(rad, -q + rad); r++) { const c = [src[0] + q, src[1] + r]; if (g.inside(c) && !g.blockMove.has(key(c))) f(c, dist(src, c)); } };
+  for (const e of state.ships) {
+    if (e.dead || e.owner === p || !vis.has(e.id)) continue;
+    const intel = pl.intel[e.id];
+    const cells = footprint(e);
+    // the guns: [source hex, part rules]
+    const guns = [];
+    let launcher = false;
+    if (intel && Object.keys(intel).length) {
+      e.segs.forEach((sg, i) => {
+        const it = intel[i];
+        if (!it || it.wrecked) return;
+        for (const q of it.parts) {
+          const c = P[q.t];
+          if (!c || q.hp <= 0) continue;
+          if (num(c.range) && num(c.hits)) guns.push([cells[i], c]);
+          if (c.launches) launcher = true;
+        }
+      });
+    } else if (best) for (const c of cells) guns.push([c, best]);
+    const ran = run && state.rapid && state.rapid.movedLast && state.rapid.movedLast[e.id] ? run : 0;
+    const hitBy = new Map();   // this ship's best shot on each hex
+    for (const [src, c] of guns) ring(src, num(c.range), (h, d) => {
+      if (d < 1 || !sightLine(src, h, (x) => g.blockSight.has(key(x)))) return;
+      const hits = beamHitsAt(c, d) + ran;
+      const k = key(h);
+      if (hits > 0 && (hitBy.get(k) || [0])[0] < hits) hitBy.set(k, [hits, h]);
+    });
+    for (const [, [hits, h]] of hitBy) { const o = get(h); o.n++; if (hits > o.hits) o.hits = hits; }
+    if (launcher && mSpeed) for (const src of cells) ring(src, mSpeed * ticks, (h, d) => { if (d >= 1) get(h).missile = true; });
+  }
+  return out;
+}
+
 // Words for the log and the screen.
+export const BUY_WORDS = { heatmap: 'a threat heatmap' };
 export const EARN_WORDS = { cross: 'first across the line', kill: 'enemy ship destroyed', hold: 'holding past the line', ground: 'new ground', rock: 'new ground by an asteroid' };
