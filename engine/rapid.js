@@ -173,7 +173,7 @@ export function rapidRules(rules, opts = {}) {
   // standard sensor), one hit kills it
   // economy mode: the turret a ship can leave behind (engine/economy.js): still, seen from about 1 hex
   // further than a scout, it watches 2 hexes around itself for its side and fires on its own every tick
-  munitions[TURRET] = { label: 'Turret', speed: 0, hits: 0, blast_radius: 0, signature: 1, sensor_range: 2, reports: true, setup_only: true, max_per_player: 99, cost: 0 };
+  munitions[TURRET] = { label: 'Turret', speed: 0, hits: 0, blast_radius: 0, signature: ECON_DEFAULTS.turretSig, sensor_range: 2, reports: true, setup_only: true, max_per_player: 99, cost: 0 };
   munitions[BUOY] = { label: 'Scanner buoy', speed: 0, hits: 0, blast_radius: 0, signature: -2, setup_only: true, max_per_player: 99, cost: 0 };
   return {
     ...rules,

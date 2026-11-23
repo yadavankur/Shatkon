@@ -33,8 +33,9 @@ export const ECON_DEFAULTS = {
   turretUpkeep: 1, // salvage for each turret every turretEvery ticks (from the tick after it is placed); short of it, the oldest go dark until paid again
   turretEvery: 3,  // ticks between upkeep payments (23 Nov: every tick made turrets cost more than they gave)
   idle: 1,         // a side that passes (no ship moves or acts, nothing bought) earns nothing that tick and loses this
-  turretHits: 2,   // hits a turret's shot does
-  turretRange: 6,  // how far a turret shoots (was 4: lasers reach 9, so turrets were picked off from out of reach)
+  turretHits: 1,   // hits a turret's shot does (24 Nov: 2 -> 1, traded for reach and stealth)
+  turretRange: 7,  // how far a turret shoots (4, then 6: turrets were picked off from out of reach)
+  turretSig: -2,   // a turret's signature: seen from about 2 hexes closer than a scout (was 1)
   turretHp: 2,     // hits a turret takes before it is destroyed
   upgrade: 10,     // one upgrade for one ship (once per ship)
   resupply: 5,     // +1 missile for a ship with a working magazine and room

@@ -260,7 +260,7 @@ test('turret: a ship leaves a laser behind on a free hex next to it; it costs 8 
   assert.equal(E.turretSpots(g, 0, ship.id).length, 0);
 });
 
-test('turret: fires 2 hits at the nearest enemy it can see within 4 hexes', () => {
+test('turret: fires 1 hit at the nearest enemy it can see within its range', () => {
   let g = frontier();
   const enemy = g.ships.find((x) => x.owner === 1 && x.segs.length === 1);
   // put a turret 3 hexes from an enemy scout and let player 1 see it
@@ -271,9 +271,9 @@ test('turret: fires 2 hits at the nearest enemy it can see within 4 hexes', () =
   g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);
   const shot = g.events.find((e) => e.t === 'turret_fire');
   if (shot) {
-    assert.equal(shot.hits, 2);
-    const x = g.ships.find((s) => s.id === shot.target);
-    assert.ok(x.dead || E.hullPct(g, x) < 100);
+    assert.equal(shot.hits, 1);
+    // the hit lands (on a shield, the shield goes down)
+    assert.ok(g.events.some((e) => e.t === 'damage' && e.ship === shot.target && e.cause === 'turret'));
   } else assert.fail('the turret did not fire (enemy at ' + enemy.pos + ', hull ' + hullBefore + ')');
 });
 
@@ -311,7 +311,7 @@ test('turret: enemy turrets you can see show on the heatmap', () => {
   g.objs.push({ id: 'o70', kind: E.TURRET, owner: 1, pos: [0, -3], dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 });
   const s = structuredClone({ ...g, rules: undefined }); s.rules = g.rules; s.players[0].vis = ['o70'];
   const m = E.threatMap(s, 0);
-  assert.ok(m.get('0,-1') && m.get('0,-1').hits === 2);
+  assert.ok(m.get('0,-1') && m.get('0,-1').hits === 1);
   assert.ok(m.get('3,0'));    // 6 away: in its range (6)
   assert.ok(!m.get('5,0'));   // 8 away: out of it
 });
