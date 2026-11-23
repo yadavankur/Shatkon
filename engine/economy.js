@@ -32,7 +32,7 @@ export const ECON_DEFAULTS = {
   turret: 8,       // a turret's price
   turretUpkeep: 1, // salvage a tick for each turret (from the tick after it is placed); short of it, the oldest go dark until paid again
   turretHits: 2,   // hits a turret's shot does
-  turretRange: 4,  // how far a turret sees and shoots
+  turretRange: 6,  // how far a turret shoots (was 4: lasers reach 9, so turrets were picked off from out of reach)
   turretHp: 2,     // hits a turret takes before it is destroyed
   upgrade: 10,     // one upgrade for one ship (once per ship)
   resupply: 5,     // +1 missile for a ship with a working magazine and room
@@ -50,6 +50,7 @@ export function econConfig(rules) {
   if (o.econHeatmap != null && o.econHeatmap !== '') c.heatmap = Number(o.econHeatmap);
   if (o.econTurret != null && o.econTurret !== '') c.turret = Number(o.econTurret);
   if (o.econUpgrade != null && o.econUpgrade !== '') c.upgrade = Number(o.econUpgrade);
+  if (o.econTurretRange != null && o.econTurretRange !== '') c.turretRange = Number(o.econTurretRange);
   return c;
 }
 

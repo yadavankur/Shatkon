@@ -421,6 +421,15 @@ function textFx(at, lines, col, delay) {
 // a hit: on your own ship it is a warning (amber); on theirs it is in the attacker's colours
 function impactFx(r, delay, mine) {
   let col = mine ? WARN : colOf(1 - ownerOfId(r.ship));
+  // a missile, drone or mine that lands: a big flash, a second shock ring, a shake and a banner, so a
+  // hit reads at a glance (a laser hit keeps the smaller rings)
+  const heavy = /missile|drone|mine|ram/.test(String(r.cause || ''));
+  if (heavy) {
+    boomFx(r.at, delay, true, col);
+    ringFx(r.at, col, 2.4, 900, (delay || 0) + 120, 6);
+    setTimeout(() => toast((mine ? 'Missile hit you' : 'Missile hit!') + ' \u2212' + r.hits, mine ? 'p1' : 'p0', (r.lost || []).slice(0, 2).join(', ') || 'no damage'), delay || 0);
+    mine = true;   // shake for every missile hit, yours or theirs
+  }
   ringFx(r.at, col, 1.3, 700, delay, 5);
   ringFx(r.at, '#ffffff', 0.8, 450, delay, 2);
   textFx(
@@ -871,6 +880,7 @@ function ffWarn(a) {
   return st && st.obj && me && st.owner === me.owner ? { at: st.at, kind: st.kind, path: st.path } : null;
 }
 // (strips the friendly-fire note even when it is null: a kept "warn: null" made a second tap on a target never match, so it never fired)
+let launchAim = null;   // the hex the pending launch was aimed at (a second tap there sends it)
 const bare = (a) => { if (!a || !('warn' in a)) return a; const { warn, ...rest } = a; return rest; };
 const sameAction = (a, b) => JSON.stringify(bare(a)) === JSON.stringify(bare(b));
 const warnText = (w) => 'Careful: your own ' + nice(w.kind) + ' at ' + at(w.at) + ' is in the line of fire. This shot would hit it, not the target. Press \u201cFire anyway\u201d to shoot, or Cancel.';
@@ -1095,17 +1105,22 @@ function tap(c, v, opts, viaChip, t) {
     return render();
   }
   if (o && o.action) return act(o.action);
+  // a launch: the first tap aims (you see the path), a second tap on the same hex sends it (the Launch
+  // button does too). Rapid mode had only the button, hidden in the drawer, so aimed launches never went.
+  if ((o && o.preview) || (!o && isLaunchKind(mode))) {
+    if (pending && pending.type === 'launch' && launchAim && hex.same(launchAim, c)) { launchAim = null; return act(bare(pending)); }
+  }
   if (o && o.preview) {
-    pending = o.preview;
-    say(forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.');
+    pending = o.preview; launchAim = c;
+    say(forecastText(E.forecast(game, pending), pending.kind) + ' Tap it again or press Launch to send it.');
     return render();
   }
   // missiles and drones can be aimed at any hex: they fly the straight line toward it
   if (!o && isLaunchKind(mode) && sel && myTurn() && !v.ships.some((x) => x.mine && x.cells.some((y) => hex.same(y, c)))) {
     const aimed = E.aimLaunch(game, sel, mode, c);
     if (aimed) {
-      pending = aimed;
-      say('Aimed straight at ' + at(c) + '. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.');
+      pending = aimed; launchAim = c;
+      say('Aimed straight at ' + at(c) + '. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Tap it again or press Launch to send it.');
       return render();
     }
   }
@@ -1530,20 +1545,30 @@ function codeBox(label, text, button) {
 // ---------- battle log ----------
 // One JSON file: a readable recap ("summary") at the top, then every turn, then the replay data.
 // Mid-game it only holds what the player whose eyes the screen shows could see.
-function battleLogFile() {
-  const log = E.battleLog(game, { viewer: who(), seat });
+// Rapid mode saves the short log by default: board, changed settings, seed and one line of moves a
+// tick (like a chess score sheet) plus the recap. "Full log" keeps every event, turn by turn.
+function changedSettings() {
+  if (!isRapidGame() || !game.rules.rapid) return null;
+  const base = { ...E.RAPID_DEFAULTS, ...(boardRapid || {}) }, out = {};
+  for (const [k, v] of Object.entries(game.rules.rapid)) if (k in base && JSON.stringify(v) !== JSON.stringify(base[k]) && k !== 'econ') out[k] = { now: v, was: base[k] };
+  return out;
+}
+function battleLogFile(kind = 'short') {
+  const opts = { viewer: who(), seat, settings: changedSettings(), board: BOARD };
+  const short = kind === 'short' && isRapidGame();
+  const log = short ? E.shortLog(game, opts) : E.battleLog(game, opts);
   const d = new Date(), two = (n) => String(n).padStart(2, '0');
-  const name = 'shatkon-battle-' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + '.json';
+  const name = 'shatkon-battle-' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + '-' + two(d.getHours()) + two(d.getMinutes()) + (short ? '-short' : '') + '.json';
   return { log, name, text: JSON.stringify(log) };   // compact: indenting doubled the file
 }
-function downloadLog() {
+function downloadLog(kind) {
   try {
-    const { name, text, log } = battleLogFile();
+    const { name, text, log } = battleLogFile(kind === 'full' ? 'full' : 'short');
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     const a = h('a', { href: url, download: name, style: 'display:none' });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    say('Battle log saved as ' + name + (log.viewer === 'all' ? '.' : ' (only what you could see, since the game is still going).'));
+    say('Battle log saved as ' + name + ' (' + Math.ceil(text.length / 1024) + ' KB)' + (log.viewer === 'all' ? '.' : ', only what you could see, since the game is still going.'));
   } catch (e) { say('Could not make the battle log: ' + e.message + '.', true); }
   render();
 }
@@ -1567,7 +1592,7 @@ function showReport() {
   try {
     box = postGameCards(game, { seat: seat === 'cpu' ? 0 : typeof seat === 'number' ? seat : null, sideName,
       title: seat === 'cpu' ? (game.winner === 0 ? 'Victory' : 'Defeat') : null,
-      onClose: close, onAgain: () => { postShown = gameKey(); askSetup(newGame); render(); }, onSave: downloadLog,
+      onClose: close, onAgain: () => { postShown = gameKey(); askSetup(newGame); render(); }, onSave: () => downloadLog('short'),
       onShow: (at) => { postShown = gameKey(); const from = { x: cam.x, y: cam.y, w: cam.w }; cam.w = Math.min(cam.w, fitWidth() * 0.6); cam.x = X(at); cam.y = Y(at); render(); camTween(from); } });
   } catch (e) { console.error(e); postShown = gameKey(); return; }
   box.id = 'postgame';
@@ -1575,7 +1600,8 @@ function showReport() {
 }
 
 const logButtons = () => [
-  h('button', { class: 'btn', onclick: downloadLog, title: 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
+  h('button', { class: 'btn', onclick: () => downloadLog('short'), title: isRapidGame() ? 'The short log: moves like a chess score sheet, plus the recap' : 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
+  isRapidGame() ? h('button', { class: 'btn', onclick: () => downloadLog('full'), title: 'Every event, turn by turn (much bigger)' }, 'Full log') : null,
   h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log')];
 
 function pasteBox(label, button, onText) {
@@ -1687,7 +1713,7 @@ export function render() {
   const danger = mine && sel && mode === 'move' && !hid ? (E.econOn(game) ? (heat ? new Map(heat.filter((t) => t.hits).map((t) => [hex.key(t.at), t.hits])) : null) : E.dangerMap(game, eyes)) : null;
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn, heat, heatLabels: labelsOn }));
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn, heat, heatLabels: labelsOn, tagsOn: isRapidGame() ? 'tap' : 'all', look }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
@@ -2014,6 +2040,7 @@ function rapidAct(action, quiet, auto) {
     const ws = E.wingShots(game, 0, a.ship), wm = E.wingMoves(game, 0, a.ship);
     if (ws.length || wm.length) {
       RT.wingFor = a; RT.wingOpts = ws.concat(wm); pending = null;
+      toast('Wingman bonus', 'p0 wingt', ws.length ? 'a free 2nd shot: tap a red W' : 'a free move: tap a green W');   // big and plain, so the bonus can't be missed
       say('Formation bonus: a free wingman ' + (ws.length ? 'shot' : 'move') + '. Tap a W marker: '
         + (ws.length ? 'a red one fires a ship next to ' + a.ship + ' at that target' + (wm.length ? ', a green one moves a ship with nothing to shoot' : '') : 'it moves a ship next to ' + a.ship + ' 1 hex')
         + '. Or press Fire alone.');
@@ -2045,6 +2072,10 @@ function rapidAct(action, quiet, auto) {
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   rapidEarnFx();
+  if (a.wing) {   // say what the wingman's free action did
+    const w = game.events.find((e) => e.t === 'fire' && e.ship === a.wing.ship);
+    setTimeout(() => toast(w ? 'Wingman fired too' : 'Wingman moved', 'p0 wingt', w ? a.wing.ship + ' added a shot of ' + plural(w.hits, 'hit') : a.wing.ship + ' moved 1 hex for free'), 150);
+  }
   if (a.type === 'buy' && a.item === 'heatmap' && E.econOn(game)) {   // the heatmap is only as good as what you can see
     const t = [...E.threatMap(game, 0).values()].filter((x) => x.hits).length;
     setTimeout(() => toast('Heatmap', 'p0', t ? 'red: where the enemy ships you can see could hit you next tick' : 'no enemy ship in view, so nothing to shade yet (it updates if one appears)'), 200);
@@ -2181,6 +2212,7 @@ const RAPID_CSS = `
 .earnup{animation:earnup 1.8s ease-out forwards;transform-box:fill-box}
 @keyframes earnup{0%{opacity:0;transform:translateY(4px)}12%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
 @media (prefers-reduced-motion:reduce){.earnup{animation:none}}
+#toast.wingt{border-color:#c58cff!important;box-shadow:0 0 18px rgba(197,140,255,.55)}
 #rapidbar{position:fixed;left:0;right:0;top:0;height:7px;z-index:60;background:rgba(10,20,36,.75);pointer-events:none}
 #rapidbar i{display:block;height:100%;width:0;background:#7fd8f0;box-shadow:0 0 10px rgba(127,216,240,.7);margin:0 auto}
 #rapidbar.watch i{background:#8f9cba;box-shadow:none}

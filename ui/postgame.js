@@ -28,6 +28,7 @@ export function battleStats(game, opts = {}) {
   const sides = [0, 1].map((k) => {
     const ships = game.ships.filter((z) => z.owner === k);
     return { ships: ships.length, lost: ships.filter((z) => z.dead && !z.converted).length,   // a ship that went silent (rapid mode) isn't lost
+      converted: ships.filter((z) => z.converted).length,   // ...but it is gone from the fleet, so it is counted on its own
       hull: ships.length ? Math.round(ships.reduce((n, z) => n + (z.dead ? 0 : E.hullPct(game, z)), 0) / ships.length) : 0,
       dealt: 0, shots: 0, hits: 0, bands: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], blocked: 0, missiles: { fired: 0, hit: 0, stopped: 0, wasted: 0, flying: 0 }, unused: 0 };
   });
@@ -60,11 +61,32 @@ export function battleStats(game, opts = {}) {
   const nm = (id) => names[id] || id;
   const items = [];
   for (const [by, f] of Object.entries(moments.firstSight)) items.push({ round: f.round, side: Number(by), kind: 'sight', at: f.at, text: 'First sight of ' + nm(f.id) + ' (by ' + f.how.replace(/\s*\(.*$/, '') + ')' });
-  for (const b of moments.bigHits.filter((x) => x.hits >= 2).slice(0, 4)) items.push({ round: b.round, side: 1 - b.owner, kind: 'hit', at: null, ship: b.ship, text: nm(b.ship) + ' takes ' + b.hits + ' hits' + (b.cause ? ' (' + String(b.cause).replace(/_/g, ' ') + ')' : '') });
-  for (const l of moments.lost) items.push({ round: l.round, side: 1 - l.owner, kind: l.flagship ? 'flag' : 'lost', ship: l.ship, text: (l.flagship ? 'Flagship ' : '') + (l.name || nm(l.ship)) + ' destroyed' });
+  for (const b of moments.bigHits.filter((x) => x.hits >= 2).slice(0, 4)) items.push({ round: b.round, side: b.owner, kind: 'hit', at: null, ship: b.ship, text: nm(b.ship) + ' takes ' + b.hits + ' hits' + (b.cause ? ' (' + String(b.cause).replace(/_/g, ' ') + ')' : '') });
+  // coloured by whose ship it was: your losses in your colour, theirs in theirs
+  for (const l of moments.lost) items.push({ round: l.round, side: l.owner, kind: l.flagship ? 'flag' : 'lost', ship: l.ship, text: (l.owner === 0 ? 'Your ' : 'Their ') + (l.flagship ? 'flagship ' : '') + (l.name || nm(l.ship)) + ' destroyed' });
+  for (const z of game.ships.filter((x) => x.converted)) { const ev = evs.find(({ e }) => e.t === 'converted' && e.ship === z.id); if (ev) items.push({ round: ev.round, side: z.owner, kind: 'conv', ship: z.id, at: ev.e.at, text: nm(z.id) + ' went silent as a ' + (z.converted === 'mine' ? 'mine' : 'scanner') }); }
   items.sort((a, b) => a.round - b.round || (a.kind === 'flag') - (b.kind === 'flag'));
   for (const it of items) if (!it.at && it.ship) { const z = game.ships.find((s) => s.id === it.ship); if (z) it.at = z.pos.slice(); }
-  return { sides, items, rounds: game.rules.rapid ? game.round : Math.min(game.round, game.rules.turnLimit), winner: game.winner, log };   // rapid: ticks, the opening included
+  const econ = game.econ ? econStats(game, evs) : null;
+  return { econ, sides, items, rounds: game.rules.rapid ? game.round : Math.min(game.round, game.rules.turnLimit), winner: game.winner, log };   // rapid: ticks, the opening included
+}
+
+// Economy mode (Frontier): what each side earned, what it bought and what the purchases did.
+function econStats(game, evs) {
+  const E2 = game.econ, out = [0, 1].map((p) => ({ earned: E2.earned[p], purse: E2.purse[p], spent: { ...E2.spent[p] }, perTick: E2.perTick[p].slice(), from: {}, buys: [] }));
+  const turrets = new Map();   // obj id -> { side, round, shots, dmg, gone }
+  for (const { e, round } of evs) {
+    if (e.t === 'earned') for (const it of e.items || []) out[e.player].from[it.why] = (out[e.player].from[it.why] || 0) + it.n;
+    if (e.t === 'bought') {
+      out[e.player].buys.push({ round, item: e.item, kind: e.kind, ship: e.ship, obj: e.obj, cost: e.cost });
+      if (e.obj) turrets.set(e.obj, { side: e.player, round, shots: 0, dmg: 0, gone: null });
+    }
+    if (e.t === 'turret_fire' && turrets.has(e.obj)) turrets.get(e.obj).shots++;
+    if (e.t === 'damage' && e.cause === 'turret') { const t = turrets.get(e.by); if (t) t.dmg += e.hits; }
+    if (e.t === 'obj_destroyed' && turrets.has(e.obj) && turrets.get(e.obj).gone == null) turrets.get(e.obj).gone = round;
+  }
+  for (const side of out) for (const b of side.buys) if (b.obj) b.turret = turrets.get(b.obj);
+  return out;
 }
 
 // The overlay. opts: { seat, title, sideName(k), onAgain(), onClose(), onSave(), onShow(at) }
@@ -82,6 +104,7 @@ export function postGameCards(game, opts = {}) {
   const head = h('div', { class: 'pg-sides' }, h('b', { class: 's0' }, name(0)), h('b', { class: 's1' }, name(1)));
   const card1 = h('section', { class: 'pg-card', 'aria-label': 'Head to head' }, h('h3', null, 'Head to head'), head,
     bar('Hull left', a.hull, b.hull, (x) => x + '%'), bar('Damage done', a.dealt, b.dealt), bar('Ships lost', a.lost, b.lost, (x) => x),
+    a.converted || b.converted ? bar('Went silent', a.converted, b.converted, (x) => x) : null,
     bar('Laser shots', a.shots, b.shots), bar('Moves wasted', a.unused, b.unused),
     h('p', { class: 'pg-foot' }, 'Finished in round ' + st.rounds + '.'));
 
@@ -95,7 +118,7 @@ export function postGameCards(game, opts = {}) {
       h('tbody', null, [0, 1].map((k) => h('tr', { class: 's' + k }, h('th', null, name(k)), [0, 1, 2].map((i) => rateCell(st.sides[k], i)))))),
     h('div', { class: 'pg-msl' }, [0, 1].map((k) => h('div', { class: 's' + k }, h('b', null, name(k) + ' missiles: ' + st.sides[k].missiles.fired), h('span', null, msl(st.sides[k]))))));
 
-  const icon = { sight: '\u{1F441}', hit: '✸', lost: '✖', flag: '★' };
+  const icon = { sight: '\u{1F441}', hit: '✸', lost: '✖', flag: '★', conv: '◌' };
   const card3 = h('section', { class: 'pg-card', 'aria-label': 'Key moments' }, h('h3', null, 'Key moments'),
     st.items.length ? h('ol', { class: 'pg-time' }, st.items.map((it) => h('li', { class: 's' + it.side + ' k-' + it.kind },
       h('span', { class: 'pg-r' }, 'R' + it.round), h('span', { class: 'pg-i', 'aria-hidden': 'true' }, icon[it.kind]),
@@ -103,7 +126,25 @@ export function postGameCards(game, opts = {}) {
       : h('p', { class: 'pg-foot' }, 'A quiet battle: nothing to show.'),
     opts.onShow ? h('p', { class: 'pg-foot' }, 'Tap a moment to see where it happened.') : null);
 
-  const cards = [card1, card2, card3];
+  // 4. economy mode: salvage in and out, and what each purchase did
+  let card4 = null;
+  if (st.econ) {
+    const spark = (vals, cls) => { const w = 220, hgt = 36, n = Math.max(1, vals.length - 1), mx = Math.max(1, ...vals);
+      const pts = vals.map((v, i) => (i * w / n).toFixed(1) + ',' + (hgt - (v / mx) * (hgt - 2) - 1).toFixed(1)).join(' ');
+      const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s2.setAttribute('viewBox', '0 0 ' + w + ' ' + hgt); s2.setAttribute('class', 'pg-spark ' + cls);
+      const pl = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); pl.setAttribute('points', pts); s2.appendChild(pl); return s2; };
+    const words = { cross: 'first across', kill: 'kills', hold: 'holding the line', ground: 'new ground', rock: 'by asteroids' };
+    const buyText = (b) => b.item === 'turret' ? 'Turret from ' + b.ship + ': ' + (b.turret.shots ? b.turret.shots + ' shots, ' + b.turret.dmg + ' damage' : 'never fired') + (b.turret.gone != null ? ', destroyed R' + b.turret.gone : ', still standing')
+      : b.item === 'upgrade' ? 'Upgrade ' + b.ship + ': ' + E.UPGRADES[b.kind].label : b.item === 'resupply' ? 'Resupply ' + b.ship + ': +1 ' + String(b.kind).replace(/_/g, ' ') : 'Heatmap';
+    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Salvage \u25c8'), head,
+      bar('Earned', st.econ[0].earned, st.econ[1].earned), bar('Spent', Object.values(st.econ[0].spent).reduce((x, y) => x + y, 0), Object.values(st.econ[1].spent).reduce((x, y) => x + y, 0)),
+      bar('Turret upkeep', st.econ[0].spent.upkeep || 0, st.econ[1].spent.upkeep || 0),
+      h('div', { class: 'pg-msl' }, [0, 1].map((k) => h('div', { class: 's' + k },
+        h('b', null, name(k) + ': income a tick'), spark(st.econ[k].perTick, 's' + k),
+        h('span', null, Object.entries(st.econ[k].from).map(([w, n]) => (words[w] || w) + ' ' + n).join(' · ') || 'nothing earned'),
+        h('span', null, st.econ[k].buys.length ? st.econ[k].buys.map((b) => 'R' + b.round + ' ' + buyText(b)).join('; ') : 'bought nothing')))));
+  }
+  const cards = [card1, card2, card3, card4].filter(Boolean);
   const track = h('div', { class: 'pg-track' }, cards);
   const dots = h('div', { class: 'pg-dots' }, cards.map((c, i) => h('button', { 'aria-label': c.getAttribute('aria-label'), onclick: () => track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' }) })));
   const mark = () => { const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth)); [...dots.children].forEach((d, j) => d.setAttribute('aria-current', String(i === j))); };

@@ -41,6 +41,7 @@ export const ECON_SETTINGS = [
   { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' salvage a tick, so a lead can\u2019t snowball without limit.']) },
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' salvage and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
   { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' salvage and your tick. Each turret costs 1 a tick to keep working.']) },
+  { key: 'econTurretRange', label: 'Turret range', def: '6', options: ['4', '6', '8'].map((v) => [v, v + ' hexes', 'A turret fires at the nearest enemy it can see within ' + v + ' hexes. Lasers reach 9, so a turret can be shot from out of its reach.']) },
   { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' salvage and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
@@ -70,7 +71,7 @@ export function rapidOptions() {
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade) };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange) };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
@@ -102,17 +103,28 @@ export function settingsForm(onChange, rapid = false) {
       for (const [v, name] of d.options) {
         const b = document.createElement('button');
         b.type = 'button'; b.textContent = name; b.setAttribute('aria-pressed', String(cur[d.key] === v));
+        if (v === defOf(d)) { b.classList.add('bs-def'); b.title = 'the default'; }   // a small dot marks the default
         b.addEventListener('click', () => { writeSet(store, list, d.key, v); draw(); if (onChange) onChange(readSet(store, list)); });
         seg.append(b);
       }
+      if (cur[d.key] !== defOf(d)) { lab.classList.add('bs-changed'); lab.title = 'changed from the default'; }
       const why = document.createElement('div'); why.className = 'bs-why';
       why.textContent = (d.options.find((o) => o[0] === cur[d.key]) || d.options[0])[2];
       row.append(lab, seg, why);
       box.append(row);
     }
   };
+  // every setting is remembered on this device until changed; this puts them all back
+  const drawAll = draw;
+  const reset = () => { for (const [list, store] of groups) { try { localStorage.removeItem(store); } catch (e) {} if (onChange) onChange(readSet(store, list)); } drawAll(); };
+  const wrap = document.createElement('div');
+  const foot = document.createElement('div'); foot.className = 'bs-foot';
+  const note = document.createElement('span'); note.textContent = 'Kept on this device. \u2022 marks each default; a changed setting has a gold dot by its name.';
+  const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn bs-reset'; rb.textContent = 'Reset to defaults'; rb.addEventListener('click', reset);
+  foot.append(note, rb);
   draw();
-  return box;
+  wrap.append(box, foot);
+  return wrap;
 }
 
 // The look, shared by both pages (injected once).
@@ -120,6 +132,8 @@ export const SETTINGS_CSS = `
 .bs-form{display:flex;flex-direction:column;gap:14px}
 .bs-row{display:grid;grid-template-columns:120px 1fr;grid-template-areas:"l s" ". w";gap:4px 12px;align-items:center}
 .bs-label{grid-area:l;font-size:14px;color:#c6d0e4}
+.bs-def::after{content:' \u2022';opacity:.7}.bs-changed::after{content:' \u25cf';color:#ffd77a;font-size:10px;vertical-align:middle}
+.bs-foot{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;margin-top:10px;font-size:12.5px;color:#a7b3cc}.bs-reset{min-height:36px}
 .bs-seg{grid-area:s;display:inline-flex;justify-self:start;border:1px solid rgba(127,216,240,.3);border-radius:999px;overflow:hidden}
 .bs-seg button{border:0;background:transparent;color:#a7b3cc;min-height:40px;padding:0 16px;font:inherit;font-size:13.5px;cursor:pointer}
 .bs-seg button[aria-pressed="true"]{background:#7fd8f0;color:#04101c;font-weight:700}

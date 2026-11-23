@@ -140,6 +140,7 @@ export const RAPID_DEFAULTS = {
   econHeatmap: ECON_DEFAULTS.heatmap, // what the threat heatmap costs
   econTurret: ECON_DEFAULTS.turret,   // what a turret costs
   econUpgrade: ECON_DEFAULTS.upgrade, // what an upgrade costs
+  econTurretRange: ECON_DEFAULTS.turretRange, // how far a turret shoots
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -285,7 +286,9 @@ export function rapidTick(state, acts) {
   const held = s.deferHits; delete s.deferHits;
   for (const h of held) {
     const ship = shipById(s, h.ship);
+    const n0 = s.events.length;
     if (ship) applyHits(s, ship, h.seg, h.hits, h.cause);
+    if (h.by) for (const e of s.events.slice(n0)) if (e.t === 'damage') e.by = h.by;   // a turret's hits: which turret
   }
   refreshSight(s); checkWin(s);
   // 2. moves
