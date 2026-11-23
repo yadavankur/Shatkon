@@ -93,6 +93,8 @@ export function partLooks(rules) {
     used.add(letter);
     out[name] = { color, letter, recharges: !!c.recharges };
   }
+  // economy mode: an upgraded part ("laser_up") looks like the part it upgrades
+  for (const name of Object.keys(out)) if (name.endsWith('_up') && out[name.slice(0, -3)]) out[name] = { ...out[name.slice(0, -3)], upgraded: true };
   return out;
 }
 
@@ -346,7 +348,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     // What its parts say, where they are known (your own ships, or an enemy you have read out with a scan):
     // a yellow ring on each segment whose shield is up; on an enemy, a red T on each segment with a working
     // laser (the turrets to shoot at), or once it has none, a red E on each segment with a working engine.
-    const live = (ps, t) => !!ps && ps.some((q) => q.t === t && q.hp > 0);
+    const live = (ps, t) => !!ps && ps.some((q) => (q.t === t || q.t === t + '_up') && q.hp > 0);   // _up: an upgraded part (economy mode)
     x.cells.forEach((c, j) => {
       const sg = x.segs[j];
       if (sg && !sg.wrecked && live(sg.parts, 'shield')) g.appendChild(s('path', { d: hexPath(X(c), Y(c), S * 0.96), fill: 'none', stroke: '#ffd84a', 'stroke-width': 1.1, 'stroke-opacity': 0.85, 'pointer-events': 'none' }));

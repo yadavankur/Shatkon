@@ -18,7 +18,7 @@ import { hashState, parseAction } from './codec.js';
 import { visibleTo } from './detect.js';
 import { bankCap } from './actions.js';
 import { rapidStart, rapidTick, parseTick } from './rapid.js';
-import { EARN_WORDS, BUY_WORDS } from './economy.js';
+import { EARN_WORDS, BUY_WORDS, UPGRADES } from './economy.js';
 
 export const LOG_FORMAT = 'shatkon-battle-log';
 
@@ -114,7 +114,7 @@ export function eventWords(e, nm, side) {
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';
     case 'game_over': return 'game over: ' + (e.winner === 'draw' ? 'a draw' : side(e.winner) + ' won') + (e.by ? ' (' + String(e.by).replace(/_/g, ' ') + ')' : '');
-    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' salvage' + (e.item === 'turret' ? ' (' + nm(e.ship) + ' left a laser behind at ' + at(e.at) + ')' : '') + ', purse ' + e.purse;
+    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' salvage' + (e.item === 'turret' ? ' (' + nm(e.ship) + ' left a laser behind at ' + at(e.at) + ')' : e.item === 'upgrade' ? ' for ' + nm(e.ship) + ' (' + ((UPGRADES[e.kind] || {}).label || e.kind) + ')' : e.item === 'resupply' ? ' for ' + nm(e.ship) + ' (+1 ' + e.kind + ')' : '') + ', purse ' + e.purse;
     case 'turret_fire': return 'turret ' + e.obj + ' fired at ' + (/^o/.test(e.target || '') ? 'an enemy object' : nm(e.target)) + ' at ' + at(e.at) + ' (' + plural(e.hits, 'hit') + ')';
     case 'turret_hit': return 'turret ' + e.obj + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left)';
     case 'turret_lit': return 'turret ' + e.obj + ' is working again (upkeep paid)';

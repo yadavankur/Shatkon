@@ -57,5 +57,12 @@ Starting hexes count as entered. When the cap cuts a tick short, items are paid 
 - The computer doesn't buy turrets yet (slice 5).
 - **Checked:** 6 new tests (placement and refusals, laser removed, firing, 2 hp, upkeep and going dark and waking, heatmap, replay); 253 pass. Headless Chrome 844x390: Buy → Turret → tap ship → T chips → placed, purse charged; no console errors.
 
-## Next slices
-4. Upgrades and resupply. 5. Computer styles (rush / boom / turtle) and the triangle runs.
+## Slice 4: upgrades and resupply (built 23 Nov 2026)
+
+- **Buy → Upgrade** (◈ 10, setting 8 / 10 / 12), one per ship, for good. Tap the ship (or have it selected), then pick one: **+1 laser range** (every laser on it), **shields back a tick sooner** (every shield), **+1 sensor range** (its core's own sensor; the sensor part already adds 2), **+1 armour** (one plate: the core segment's, else the first).
+- How: rapidRules adds an `_up` copy of each part that can be upgraded (`laser_up`, `shield_up`, `core_up`, `armour_up`…) and the upgrade swaps the ship's parts to it, so every rule that reads a part's numbers (firing, the heatmap, the computer) uses the better one, and a scan shows it to the enemy (draft open question 4: yes). They are drawn like the part they upgrade.
+- **Buy → Resupply** (◈ 5): +1 missile of the kind the ship carries most, if it has a working launcher and room in a working magazine.
+- Log text: `b:upgrade.<ship>.<kind>`, `b:resupply.<ship>`.
+- **Checked:** 4 new tests (range, shields, core sensor, armour, refusals, once per ship, resupply room and launcher, replay); 257 pass. Headless Chrome 844x390: Buy → Upgrade → tap ship → four choices → bought; no console errors.
+
+## Next slices 5. Computer styles (rush / boom / turtle) and the triangle runs.
