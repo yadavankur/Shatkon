@@ -162,6 +162,8 @@ export function battleLog(state, opts = {}) {
     summary: [],
     result: { phase: state.phase, round: state.round, winner: state.winner, turnLimit: R.turnLimit },
     rules: { cpPerTurn: R.cp.perTurn, cpBankCap: R.cp.bankCap, thrustBankTurns: R.move.bankTurns },
+    // the battle settings that differ from the board's defaults (the play page passes them)
+    settings: opts.settings && Object.keys(opts.settings).length ? opts.settings : null,
     replayable: false, note: null, turns: [], setup: [],
   };
   const turns = turnsOf(state);
@@ -268,6 +270,36 @@ function rapidLog(state, log, full, viewer, side, nm) {
   return log;
 }
 
+// ---------- the short log (rapid mode): like a chess score sheet ----------
+// The board, the changed settings, the seed and one line of moves a tick ("<you> <them>", in the
+// notation of tickText: m1f.11 is ship 1f moving, f… a shot, b:heatmap a purchase), plus the readable
+// recap without the turn-by-turn part. A few KB where the full log is hundreds. Replay it with the
+// board's rules: tools/replay_short.mjs (or replayShort(short, rules)), which checks finalHash.
+export const SHORT_FORMAT = 'shatkon-short';
+export function shortLog(state, opts = {}) {
+  const full = battleLog(state, opts), over = full.viewer === 'all';
+  const me = typeof full.viewer === 'number' ? full.viewer : 0;
+  const moves = (state.rapid ? state.rapid.ticks : []).map((k) => (over ? k.acts.join(' ') : k.acts[me]));
+  return {
+    format: SHORT_FORMAT, v: 1, created: full.created, board: opts.board || null, sides: full.sides,
+    started: full.started, lastPlayed: full.lastPlayed, result: full.result, viewer: full.viewer,
+    settings: full.settings,
+    seed: over ? state.seed : null, finalHash: over ? hashState(state) : null,
+    notation: over ? 'one line a tick: "<player 1 action> <player 2 action>"' : 'one line a tick: your action only (the game was still going, so the other side stays hidden)',
+    moves,
+    summary: analyse(full).lines,
+  };
+}
+// Replay a short log, given the rules the game was played with (board file + world + its settings).
+export function replayShort(short, rules) {
+  if (!short || short.format !== SHORT_FORMAT) throw new Error('that is not a SHATKON short log');
+  if (short.seed == null) throw new Error('this short log was saved mid-game and only holds one side, so it cannot be replayed');
+  let s = rapidStart(rules, short.seed);
+  for (const m of short.moves) s = rapidTick(s, m.split(' ').map(parseTick));
+  if (short.finalHash && hashState(s) !== short.finalHash) throw new Error('the replay did not end where the game did (different rules or settings?)');
+  return s;
+}
+
 // Rebuild the game a full log describes.
 export function replayLog(log) {
   if (!log || log.format !== LOG_FORMAT) throw new Error('that is not a SHATKON battle log');
@@ -365,6 +397,7 @@ export function analyse(log) {
   if (log.result) lines.push(log.result.phase === 'over' ? 'Result: ' + (winner === 'draw' ? 'a draw' : side(winner) + ' won') + ' in round ' + Math.min(log.result.round, log.result.turnLimit || 99) + '.' : 'The game was still going (round ' + log.result.round + ') when this was saved.');
   if (log.started || log.lastPlayed) lines.push('Played: ' + (log.started ? 'started ' + log.started : 'start time not recorded') + (log.lastPlayed ? ', last move ' + log.lastPlayed : '') + ' (UTC).');
   lines.push('What this covers: ' + log.scope + '.');
+  if (log.settings) lines.push('Settings changed from the board\u2019s defaults: ' + Object.entries(log.settings).map(([k, v]) => k + ' ' + JSON.stringify(v.now) + ' (default ' + JSON.stringify(v.was) + ')').join(', ') + '.');
   if (log.note) lines.push('Note: ' + log.note);
   lines.push('');
   lines.push('KEY MOMENTS');

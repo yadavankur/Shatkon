@@ -45,4 +45,4 @@ export { UPGRADES, upgradeRefusal, resupplyRefusal, magazineRoom, TURRET, turret
 export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, wingMoves, wingShots, tickText, parseTick, canConvert } from './rapid.js';
 
 // Battle logs: replay a saved game turn by turn, and a plain-English recap of it.
-export { battleLog, replayLog, analyse, recapText, LOG_FORMAT } from './log.js';
+export { battleLog, replayLog, shortLog, replayShort, SHORT_FORMAT, analyse, recapText, LOG_FORMAT } from './log.js';

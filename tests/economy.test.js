@@ -312,7 +312,8 @@ test('turret: enemy turrets you can see show on the heatmap', () => {
   const s = structuredClone({ ...g, rules: undefined }); s.rules = g.rules; s.players[0].vis = ['o70'];
   const m = E.threatMap(s, 0);
   assert.ok(m.get('0,-1') && m.get('0,-1').hits === 2);
-  assert.ok(!m.get('0,3'));   // 6 away: out of its range
+  assert.ok(m.get('3,0'));    // 6 away: in its range (6)
+  assert.ok(!m.get('5,0'));   // 8 away: out of it
 });
 
 test('a game with a turret replays from its log', () => {
@@ -394,4 +395,21 @@ test('a game with an upgrade and a resupply replays from its log', () => {
   const log = E.battleLog(g, { seat: 'cpu' });
   assert.equal(log.replayable, true);
   assert.ok(log.turns.some((t) => (t.actions || []).some((a) => /bought an upgrade/.test(a.say || ''))));
+});
+
+// ---------- the short (chess-style) log ----------
+test('short log: a few KB, one line a tick, replays to the same game; settings that changed are listed', () => {
+  let g = frontier({ econCap: 10 }, 21);
+  for (let i = 0; i < 60 && g.phase === 'play'; i++) g = E.rapidTick(g, [E.rapidAI(g, 0, 'normal', () => 0.3), E.rapidAI(g, 1, 'normal', () => 0.7)]);
+  const settings = { econCap: { now: 10, was: 6 } };
+  const short = E.shortLog(g, { seat: 'cpu', board: 'rapid_frontier', settings });
+  assert.equal(short.moves.length, g.rapid.ticks.length);
+  const full = E.battleLog(g, { seat: 'cpu', settings });
+  assert.ok(JSON.stringify(short).length * 10 < JSON.stringify(full).length, 'short ' + JSON.stringify(short).length + ' vs full ' + JSON.stringify(full).length);
+  assert.ok(short.summary.some((l) => /econCap 10 \(default 6\)/.test(l)));
+  const { b, rules } = board();
+  const r = E.replayShort(short, E.rapidRules({ ...rules, rapid: b.rapid }, { econCap: 10 }));
+  assert.deepEqual(r.econ, g.econ);
+  // the wrong settings don't match
+  assert.throws(() => E.replayShort(short, E.rapidRules({ ...rules, rapid: b.rapid }, {})), /did not end where/);
 });

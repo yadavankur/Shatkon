@@ -1,3 +1,12 @@
+## Latest (23 Nov evening, gamedev chat): playtest fixes (merged)
+- Short battle log for rapid mode (default "Download battle log"): board, changed settings, seed, one line of moves a tick, recap; ~10x smaller. "Full log" keeps every event. Replay: `node tools/replay_short.mjs <file>`. Logs now list settings changed from the board's defaults.
+- Aimed (blind) launches: a second tap on the aimed hex sends it (the Launch button was hidden in the drawer in rapid mode).
+- Rapid: ship name tags only on the tapped ship. Wingman bonus: big toasts when offered and when it fires. Missile hits: big flash, shock ring, shake and a toast.
+- End screen: "Went silent" row, losses coloured by whose ship it was, a Salvage card (earned, spent, upkeep, income a tick, what each purchase did).
+- Settings sheet: dot marks each default, gold dot on changed settings, Reset to defaults.
+- Turret range 4 -> 6 (setting 4/6/8): turrets were shot from out of reach.
+- 258 tests pass. `sw.js` cache `shatkon-offline-v16`.
+
 ## Latest (23 Nov, gamedev chat): Frontier, slice 4: upgrades and resupply; smaller battle logs (merged)
 - Buy → Upgrade (◈ 10, once per ship: +1 laser range, faster shields, +1 core sensor, +1 armour plate) and Resupply (◈ 5, +1 missile). Upgrades swap parts for `_up` copies added by rapidRules. Details: [docs/design/frontier.md](../docs/design/frontier.md).
 - PR #56: rapid battle logs about a quarter of the size (ship snapshots every 10th tick, compact JSON download, no empty recap lines).

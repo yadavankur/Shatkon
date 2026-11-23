@@ -110,7 +110,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null, ground = null, earn = null, heat = null, heatLabels = true }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null, ground = null, earn = null, heat = null, heatLabels = true, tagsOn = 'all', look = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -342,9 +342,11 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     let lx = mid, ly = Y(low) + S + th * 0.7;
     const hit = (ax, ay) => tags.some((r) => Math.abs(r[0] - ax) < (r[2] + tw) / 2 && Math.abs(r[1] - ay) < th * 1.05);
     if (hit(lx, ly)) { const up = Y(high) - S - th * 0.7; if (!hit(lx, up)) ly = up; }
-    tags.push([lx, ly, tw]);
-    g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: quiet ? '#6b7592' : c0, 'stroke-width': f1(1 / px), 'stroke-dasharray': quiet ? f1(3 / px) + ' ' + f1(2 / px) : null }));
-    g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: quiet ? '#9aa5c0' : c0 }, label));
+    // rapid mode: a ship's name tag shows only while it is the tapped one (tagsOn 'tap')
+    const tagged = tagsOn !== 'tap' || x.id === sel || x.id === look;
+    if (tagged) tags.push([lx, ly, tw]);
+    if (tagged) g.appendChild(s('rect', { x: f1(lx - tw / 2), y: f1(ly - th / 2), width: f1(tw), height: f1(th), rx: f1(th / 2), fill: '#060a14', 'fill-opacity': 0.85, stroke: quiet ? '#6b7592' : c0, 'stroke-width': f1(1 / px), 'stroke-dasharray': quiet ? f1(3 / px) + ' ' + f1(2 / px) : null }));
+    if (tagged) g.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': fs(11), 'font-weight': 700, fill: quiet ? '#9aa5c0' : c0 }, label));
     // What its parts say, where they are known (your own ships, or an enemy you have read out with a scan):
     // a yellow ring on each segment whose shield is up; on an enemy, a red T on each segment with a working
     // laser (the turrets to shoot at), or once it has none, a red E on each segment with a working engine.
