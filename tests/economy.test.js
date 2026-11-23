@@ -443,3 +443,49 @@ test('passing costs: no salvage that tick and 1 lost (never below 0); 0 turns it
   o = E.rapidTick(o, [PASS, fwd(o, 1)]);
   assert.ok(o.econ.purse[0] >= b0);
 });
+
+// ---------- slice 5: the computer's styles ----------
+function cpuGame(s0, s1, ticks, seed = 31) {
+  let r = seed;
+  const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  let g = frontier({ cpuStyle0: s0, cpuStyle: s1 }, seed);
+  const buys = [[], []];
+  for (let i = 0; i < ticks && g.phase === 'play'; i++) {
+    const acts = [0, 1].map((p) => { const a = E.rapidAI(g, p, 'normal', rnd); return E.rapidRefusal(g, p, a) ? (E.forcedMoves(g, p)[0] || PASS) : a; });
+    acts.forEach((a, p) => { if (a.type === 'buy') buys[p].push({ tick: g.round, ...a }); });
+    g = E.rapidTick(g, acts);
+  }
+  return { g, buys };
+}
+
+test('styles: chosen per side from the settings; random picks one from the seed', () => {
+  assert.deepEqual(frontier({ cpuStyle0: 'boom', cpuStyle: 'turtle' }).econ.style, ['boom', 'turtle']);
+  const r = frontier({}, 7).econ.style;
+  assert.ok(E.STYLES.includes(r[0]) && E.STYLES.includes(r[1]));
+});
+
+test('rush buys nothing before tick 20, then only missiles', () => {
+  const { buys } = cpuGame('rush', 'rush', 70);
+  for (const b of buys.flat()) { assert.ok(b.tick >= 20, 'bought on tick ' + b.tick); assert.equal(b.item, 'resupply'); }
+});
+
+test('boom earns more from new ground than rush, and buys only upgrades', () => {
+  const boom = cpuGame('boom', 'rush', 60), rush = cpuGame('rush', 'rush', 60);
+  const ground = (g, p) => g.econ.earned[p];
+  assert.ok(ground(boom.g, 0) >= ground(rush.g, 0), 'boom ' + ground(boom.g, 0) + ' rush ' + ground(rush.g, 0));
+  for (const b of boom.buys[0]) assert.equal(b.item, 'upgrade');
+});
+
+test('turtle buys turrets and heatmaps, never passes while it can move', () => {
+  const { g, buys } = cpuGame('turtle', 'rush', 80);
+  const items = new Set(buys[0].map((b) => b.item));
+  assert.ok(items.has('heatmap') || items.has('turret'), 'turtle bought ' + [...items]);
+  assert.ok(!(g.econ.spent[0].idle > 0), 'turtle paid the idle penalty');
+});
+
+test('a computer-v-computer Frontier game with styles replays from its log', () => {
+  const { g } = cpuGame('turtle', 'boom', 50, 44);
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true);
+  assert.deepEqual(E.replayLog(log).econ, g.econ);
+});

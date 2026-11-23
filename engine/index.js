@@ -40,6 +40,7 @@ export { campaignMove } from './ai.js';
 export { guideView } from './guide.js';
 
 // Rapid mode: one action a side per tick, both resolved together (engine/rapid.js).
+export { STYLES, styleOf, econAI } from './econai.js';
 // Economy mode (Frontier): salvage earned by flying through the board (engine/economy.js).
 export { UPGRADES, upgradeRefusal, resupplyRefusal, magazineRoom, TURRET, turretSpots, hitObject, droppableLaser, isTurret, turretLive, SHOP, price, buyRefusal, heatOn, threatMap, BUY_WORDS, ECON_DEFAULTS, econOn, econTick, econConfig, purse, newGround, hexValue, inEnemyHalf, nextToAsteroid, EARN_WORDS } from './economy.js';
 export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, wingMoves, wingShots, tickText, parseTick, canConvert } from './rapid.js';
