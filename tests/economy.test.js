@@ -288,8 +288,8 @@ test('turret: takes 2 hits to destroy; a laser hit of 1 only damages it', () => 
   assert.ok(!s.objs.some((o) => o.id === 'o91'));
 });
 
-test('turret: upkeep 1 a tick from the tick after it is placed; short of salvage, the oldest goes dark until paid', () => {
-  let g = frontier();
+test('turret: upkeep (setting: every tick) from the tick after it is placed; short of salvage, the oldest goes dark until paid', () => {
+  let g = frontier({ econUpkeepEvery: 1 });
   const mk = (id, born, pos) => ({ id, kind: E.TURRET, owner: 0, pos, dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born });
   g.objs.push(mk('o80', 0, [-11, 3]), mk('o81', 1, [-11, 4]));   // o81 placed in tick 1: free this tick
   g.econ.purse[0] = 2;
@@ -412,4 +412,34 @@ test('short log: a few KB, one line a tick, replays to the same game; settings t
   assert.deepEqual(r.econ, g.econ);
   // the wrong settings don't match
   assert.throws(() => E.replayShort(short, E.rapidRules({ ...rules, rapid: b.rapid }, {})), /did not end where/);
+});
+
+test('turret upkeep is due every 3 ticks by default; 0 turns it off', () => {
+  let g = frontier();
+  g.objs.push({ id: 'o60', kind: E.TURRET, owner: 0, pos: [-11, 3], dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 });
+  g.econ.purse[0] = 5;
+  for (let i = 0; i < 6; i++) g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);   // ticks 1-6: due on 3 and 6
+  assert.equal(g.econ.spent[0].upkeep, 2);
+  let h = frontier({ econUpkeepEvery: 0 });
+  h.objs.push({ id: 'o61', kind: E.TURRET, owner: 0, pos: [-11, 3], dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 });
+  h.econ.purse[0] = 5;
+  for (let i = 0; i < 6; i++) h = E.rapidTick(h, [fwd(h, 0), fwd(h, 1)]);
+  assert.equal(h.econ.spent[0].upkeep || 0, 0);
+});
+
+test('passing costs: no salvage that tick and 1 lost (never below 0); 0 turns it off', () => {
+  let g = frontier();
+  g = walk(g, 30);
+  assert.ok(E.passAllowed(g, 0), 'player 1 can pass by now');
+  const before = g.econ.purse[0];
+  g = E.rapidTick(g, [PASS, fwd(g, 1)]);
+  assert.equal(g.econ.purse[0], Math.max(0, before - 1) - (g.econ.spent[0].upkeep || 0));
+  assert.equal(g.econ.perTick[0].slice(-1)[0], -Math.min(1, before));
+  assert.ok(g.events.some((e) => e.t === 'idle' && e.player === 0));
+  let z = frontier(); z = walk(z, 30); z.econ.purse[0] = 0;
+  z = E.rapidTick(z, [PASS, fwd(z, 1)]);
+  assert.equal(z.econ.purse[0], 0);
+  let o = frontier({ econIdle: 0 }); o = walk(o, 30); const b0 = o.econ.purse[0];
+  o = E.rapidTick(o, [PASS, fwd(o, 1)]);
+  assert.ok(o.econ.purse[0] >= b0);
 });

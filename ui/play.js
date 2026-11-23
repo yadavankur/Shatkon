@@ -928,6 +928,7 @@ function describe(e) {
     case 'turret_lit': return 'A dark turret is working again.';
     case 'turret_dark': return 'A turret went dark: not enough salvage for its upkeep.';
     case 'upkeep': return 'Turret upkeep: \u25c8 ' + e.amount + '.';
+    case 'idle': return 'You passed: \u2212' + e.lost + ' \u25c8 and no salvage this tick' + (e.missed ? ' (you would have earned ' + e.missed + ')' : '') + '. Sitting still costs.';
     case 'earned': return '+' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
     case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
@@ -1827,7 +1828,7 @@ export function render() {
         h('span', { class: 'ibic' }, ico('buy', 22)), h('span', { class: 'tl name' }, 'Buy'), h('small', { class: 'tl' }, 'uses the tick')); })() : null;
     fill(tb, [shop, h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
       onclick: () => rapidAct({ type: 'pass' }) },
-      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Pass'), h('small', { class: 'tl' }, ok ? 'do nothing this tick' : 'once past the line'))]);
+      h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Pass'), h('small', { class: 'tl' }, !ok ? 'once past the line' : E.econOn(game) && E.econConfig(game.rules).idle ? '\u2212' + E.econConfig(game.rules).idle + ' \u25c8, earn nothing' : 'do nothing this tick'))]);
   } else if (mine && !hid) fill(tb, [
     undoStack.length ? ibtn({ icon: 'undo', label: 'Undo', sub: 'last ' + ({ m: 'move', l: 'launch' }[(game.pending[game.pending.length - 1] || '')[0]] || 'action'), on: true, title: 'Undo (Ctrl+Z)', onclick: undo, cls: 'undo' }) : null,
     // Ending a turn in which nothing was done, while a ship could act, asks in a pop-up (two separate
@@ -2072,6 +2073,7 @@ function rapidAct(action, quiet, auto) {
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   rapidEarnFx();
+  { const idle = game.events.find((e) => e.t === 'idle' && e.player === 0); if (idle) setTimeout(() => toast('Idle: \u2212' + idle.lost + ' \u25c8', 'p1', 'passing earns nothing and costs salvage'), 120); }
   if (a.wing) {   // say what the wingman's free action did
     const w = game.events.find((e) => e.t === 'fire' && e.ship === a.wing.ship);
     setTimeout(() => toast(w ? 'Wingman fired too' : 'Wingman moved', 'p0 wingt', w ? a.wing.ship + ' added a shot of ' + plural(w.hits, 'hit') : a.wing.ship + ' moved 1 hex for free'), 150);
@@ -2106,10 +2108,20 @@ function pursePill() {
   const n = E.purse(game, 0), last = (game.econ.perTick[0] || []).slice(-1)[0] || 0;
   return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Turrets cost ' + E.econConfig(game.rules).turretUpkeep + ' a tick each. Hidden from the enemy.' },
     h('i', null, '\u25c8'), h('b', null, String(n)),
+    (() => { const ts = game.objs.filter((o) => o.kind === E.TURRET && o.owner === 0), c = E.econConfig(game.rules);
+      if (!ts.length || !c.turretUpkeep) return null;
+      const due = ts.length * c.turretUpkeep, short = E.purse(game, 0) < due;
+      return h('span', { class: 'upchip' + (short ? ' short' : ''), title: ts.length + ' turret' + (ts.length > 1 ? 's' : '') + ': upkeep \u25c8 ' + due + ' every ' + c.turretEvery + ' ticks' + (short ? '. Not enough salvage: the oldest will go dark.' : '') }, 'T' + ts.length + ' \u2212' + due + '/' + c.turretEvery + 't'); })(),
     E.heatOn(game, 0) ? h('span', { class: 'heatchip', title: 'Heatmap showing: ' + plural(game.econ.heat[0] - game.round + 1, 'tick') + ' left' }, '\u25a6 ' + (game.econ.heat[0] - game.round + 1)) : null);
 }
 // The shop (economy mode): what salvage buys. Buying is the tick's whole action, like Pass.
 const SOON = [];
+// What turret upkeep costs, in words (economy mode)
+function upkeepWords() {
+  const c = E.econConfig(game.rules);
+  if (!c.turretUpkeep) return 'No upkeep.';
+  return 'Upkeep: \u25c8 ' + c.turretUpkeep + ' per turret every ' + (c.turretEvery > 1 ? c.turretEvery + ' ticks' : 'tick') + '. Can\u2019t pay? It goes dark (stops firing) until you can. Salvage never goes below 0.';
+}
 function rapidShop() {
   if (RT.phase !== 'choose') return;
   const old = document.getElementById('rapidbuy'); if (old) { old.remove(); return; }
@@ -2119,7 +2131,7 @@ function rapidShop() {
     const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
     const short = purse < cost;
     return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); it.needsShip ? rapidForShip(k) : rapidAct({ type: 'buy', item: k }); } },
-      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, short ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'resupply' ? '' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + ', upkeep \u25c8 ' + E.econConfig(game.rules).turretUpkeep + ' a tick' : '')));
+      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, short ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'resupply' ? '' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + '. ' + upkeepWords() : '')));
   });
   const later = SOON.map(([n, about, c]) => h('button', { class: 'btn off', disabled: true }, h('span', { class: 'shoprow' }, h('span', null, n), h('b', null, '\u25c8 ' + c)), h('small', null, about + ' (coming later)')));
   document.body.appendChild(h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
@@ -2228,6 +2240,7 @@ const RAPID_CSS = `
 .rapidconv .shoprow{display:flex;justify-content:space-between;width:100%;gap:12px}.rapidconv .shoprow b{color:#ffd77a}
 .rapidconv button.off{opacity:.45}
 .buyb .ibic{color:#ffd77a}
+.purse .upchip{margin-left:4px;padding:0 5px;border-radius:6px;background:rgba(232,196,106,.18);color:#ffd77a;font-size:12px}.purse .upchip.short{background:rgba(255,90,110,.3);color:#ffc2ca}
 .purse .heatchip{margin-left:4px;padding:0 5px;border-radius:6px;background:rgba(255,59,82,.25);color:#ffb3bd;font-size:12px}
 .rapidconv button small{font-size:11px;opacity:.8;font-weight:500}
 body.rapid-auto #rail,body.rapid-auto #ctx,body.rapid-auto #dock,body.rapid-auto #turnbtns{pointer-events:none;opacity:.6}

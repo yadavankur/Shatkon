@@ -30,7 +30,9 @@ export const ECON_DEFAULTS = {
   heatmap: 6,      // the heatmap's price
   heatTicks: 2,    // how many of your next ticks it is shown for
   turret: 8,       // a turret's price
-  turretUpkeep: 1, // salvage a tick for each turret (from the tick after it is placed); short of it, the oldest go dark until paid again
+  turretUpkeep: 1, // salvage for each turret every turretEvery ticks (from the tick after it is placed); short of it, the oldest go dark until paid again
+  turretEvery: 3,  // ticks between upkeep payments (23 Nov: every tick made turrets cost more than they gave)
+  idle: 1,         // a side that passes (no ship moves or acts, nothing bought) earns nothing that tick and loses this
   turretHits: 2,   // hits a turret's shot does
   turretRange: 6,  // how far a turret shoots (was 4: lasers reach 9, so turrets were picked off from out of reach)
   turretHp: 2,     // hits a turret takes before it is destroyed
@@ -51,6 +53,8 @@ export function econConfig(rules) {
   if (o.econTurret != null && o.econTurret !== '') c.turret = Number(o.econTurret);
   if (o.econUpgrade != null && o.econUpgrade !== '') c.upgrade = Number(o.econUpgrade);
   if (o.econTurretRange != null && o.econTurretRange !== '') c.turretRange = Number(o.econTurretRange);
+  if (o.econUpkeepEvery != null && o.econUpkeepEvery !== '') { const v = Number(o.econUpkeepEvery); c.turretEvery = v > 0 ? v : 1; if (v === 0) c.turretUpkeep = 0; }
+  if (o.econIdle != null && o.econIdle !== '') c.idle = Number(o.econIdle);
   return c;
 }
 
@@ -87,7 +91,7 @@ export function hexValue(state, p, c, cfg = econConfig(state.rules)) {
 }
 
 // End of a tick: pay both sides. `before` is the state the tick started from (to tell who died this tick).
-export function econTick(s, before) {
+export function econTick(s, before, acts = []) {
   if (!econOn(s)) return;
   const cfg = econConfig(s.rules), E = s.econ;
   const wasAlive = new Set(before.ships.filter((x) => !x.dead).map((x) => x.id));
@@ -112,6 +116,15 @@ export function econTick(s, before) {
       if (left <= 0) break;
       const n = Math.min(it.n, left);
       left -= n; total += n; paid.push(n === it.n ? it : { ...it, n, capped: true });
+    }
+    // sitting still costs: a side that passed earns nothing this tick and loses `idle` (never below 0)
+    if (cfg.idle && acts[p] && acts[p].type === 'pass') {
+      const loss = Math.min(cfg.idle, E.purse[p]);
+      E.purse[p] -= loss; E.spent[p].idle = (E.spent[p].idle || 0) + loss;
+      E.perTick[p].push(-loss);
+      emit(s, { t: 'idle', player: p, lost: loss, missed: total, purse: E.purse[p] }, [p]);
+      payUpkeep(s, p, cfg);
+      continue;
     }
     E.perTick[p].push(total);
     if (total) {
@@ -338,6 +351,7 @@ export function hitObject(s, o, hits) {
 function payUpkeep(s, p, cfg) {
   const all = s.objs.filter((o) => isTurret(o) && o.owner === p).sort((a, b) => b.born - a.born || (a.id < b.id ? 1 : -1));
   if (!all.length) return;
+  if (cfg.turretUpkeep && s.round % Math.max(1, cfg.turretEvery) !== 0) return;   // upkeep falls due every turretEvery ticks
   let paid = 0, n = 0;
   for (const o of all) {
     if (o.born >= s.round) { o.dark = false; continue; }   // placed this tick: first upkeep next tick
