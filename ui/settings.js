@@ -38,6 +38,7 @@ export const RAPID_SETTINGS = [
 // settings on boards with an economy, kept in their own store.
 export const ECON_SETTINGS = [
   { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn salvage (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Spend it on a threat heatmap, turrets, upgrades and missiles.'], ['off', 'Off', 'Plain Rapid Opus on this board: no salvage.']] },
+  { key: 'cpuStyle', label: 'Computer plays', def: 'random', options: [['random', 'Random', 'The computer picks rush, boom or turtle at the start, and doesn\u2019t tell you which.'], ['rush', 'Rush', 'Buys nothing early, then missiles. Pushes forward and fights.'], ['boom', 'Boom', 'Roams your half for salvage and upgrades its ships.'], ['turtle', 'Turtle', 'Turrets on its line and heatmaps. Makes you come to it.']] },
   { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' salvage a tick, so a lead can\u2019t snowball without limit.']) },
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' salvage and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
   { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' salvage and your tick. Each turret costs 1 a tick to keep working.']) },
@@ -73,7 +74,7 @@ export function rapidOptions() {
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle) };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), cpuStyle: r.cpuStyle };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the

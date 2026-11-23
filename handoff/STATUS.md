@@ -1,3 +1,8 @@
+## Latest (23 Nov night, gamedev chat): Frontier slice 5: computer styles (merged)
+- `engine/econai.js`: rush / boom / turtle, setting "Computer plays" (random by default). Tool: `node tools/frontier_styles.mjs 12 150` (about 8 minutes).
+- First runs: boom beats rush 8-1 and turtle 7-3; turtle beats rush 8-4. Not a triangle yet; games run to the 150-tick cap. Details and tuning ideas: [docs/design/frontier.md](../docs/design/frontier.md).
+- PR #59 before it: idle penalty (passing costs 1 and earns nothing), turret upkeep 1 every 3 ticks, upkeep shown on screen.
+
 ## Latest (23 Nov evening, gamedev chat): playtest fixes (merged)
 - Short battle log for rapid mode (default "Download battle log"): board, changed settings, seed, one line of moves a tick, recap; ~10x smaller. "Full log" keeps every event. Replay: `node tools/replay_short.mjs <file>`. Logs now list settings changed from the board's defaults.
 - Aimed (blind) launches: a second tap on the aimed hex sends it (the Launch button was hidden in the drawer in rapid mode).

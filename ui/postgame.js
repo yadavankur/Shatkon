@@ -136,7 +136,9 @@ export function postGameCards(game, opts = {}) {
     const words = { cross: 'first across', kill: 'kills', hold: 'holding the line', ground: 'new ground', rock: 'by asteroids' };
     const buyText = (b) => b.item === 'turret' ? 'Turret from ' + b.ship + ': ' + (b.turret.shots ? b.turret.shots + ' shots, ' + b.turret.dmg + ' damage' : 'never fired') + (b.turret.gone != null ? ', destroyed R' + b.turret.gone : ', still standing')
       : b.item === 'upgrade' ? 'Upgrade ' + b.ship + ': ' + E.UPGRADES[b.kind].label : b.item === 'resupply' ? 'Resupply ' + b.ship + ': +1 ' + String(b.kind).replace(/_/g, ' ') : 'Heatmap';
-    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Salvage \u25c8'), head,
+    const style = game.econ.style && game.econ.style[1];
+    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Salvage \u25c8'),
+      style ? h('p', { class: 'pg-foot' }, name(1) + ' played ' + style.toUpperCase() + ({ rush: ': buy late, push and fight.', boom: ': roam for salvage, upgrade later.', turtle: ': turrets and heatmaps, hold the line.' })[style]) : null, head,
       bar('Earned', st.econ[0].earned, st.econ[1].earned), bar('Spent', Object.values(st.econ[0].spent).reduce((x, y) => x + y, 0), Object.values(st.econ[1].spent).reduce((x, y) => x + y, 0)),
       bar('Turret upkeep', st.econ[0].spent.upkeep || 0, st.econ[1].spent.upkeep || 0),
       h('div', { class: 'pg-msl' }, [0, 1].map((k) => h('div', { class: 's' + k },

@@ -28,6 +28,7 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
+import { econAI, pickStyles } from './econai.js';
 import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig, upgradeParts } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
@@ -143,6 +144,8 @@ export const RAPID_DEFAULTS = {
   econTurretRange: ECON_DEFAULTS.turretRange, // how far a turret shoots
   econUpkeepEvery: ECON_DEFAULTS.turretEvery, // turret upkeep: 1 salvage every this many ticks (0: no upkeep)
   econIdle: ECON_DEFAULTS.idle,       // salvage lost on a tick you pass (0: none)
+  cpuStyle: 'random', // economy mode: how the computer (player 2) plays it: rush, boom, turtle or random (engine/econai.js)
+  cpuStyle0: 'random',// the same for player 1 when the computer plays both sides (tools)
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -188,7 +191,7 @@ export function rapidRules(rules, opts = {}) {
 export function rapidStart(rules, seed = 1) {
   const s = begin(newGame(rules, seed));
   s.rapid = { sign: [homeSign(s, 0), homeSign(s, 1)], ever: [false, false], ticks: [], opening: true, openTicks: 0 };
-  if (rules.rapid.economy === 'on') econStart(s);
+  if (rules.rapid.economy === 'on') { econStart(s); pickStyles(s); }
   rest(s);
   s.pre = hashState(s);
   return s;
@@ -405,7 +408,7 @@ export function autoLaunch(state, p, shipId, kind, mode = 'best') {
 // One action for side p, chosen on its own view of the board. level 'easy' takes the first shot it
 // finds and otherwise advances at random.
 export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
-  const a = chooseAI(state, p, level, rnd);
+  const a = econAI(state, p, chooseAI(state, p, level, rnd), rnd);   // economy mode: its style may buy or reroute
   // a scout that reaches the line goes silent: a scanner buoy if the side has none, a mine if an enemy is close
   if (a && a.type === 'move' && level !== 'easy' && canConvert(state, p, a)) {
     const s = copy(state), x = shipById(s, a.ship), to = { ...x, pos: a.path.reduce((c, d) => step(c, d), x.pos) };

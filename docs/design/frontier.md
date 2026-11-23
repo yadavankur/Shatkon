@@ -65,4 +65,31 @@ Starting hexes count as entered. When the cap cuts a tick short, items are paid 
 - Log text: `b:upgrade.<ship>.<kind>`, `b:resupply.<ship>`.
 - **Checked:** 4 new tests (range, shields, core sensor, armour, refusals, once per ship, resupply room and launcher, replay); 257 pass. Headless Chrome 844x390: Buy → Upgrade → tap ship → four choices → bought; no console errors.
 
-## Next slices 5. Computer styles (rush / boom / turtle) and the triangle runs.
+## Idle penalty and cheaper upkeep (23 Nov 2026, PR #59)
+- A tick you pass earns no salvage and costs 1 (never below 0). Setting: Idle penalty.
+- Turret upkeep 1 every 3 ticks (was every tick). Setting: None / every 3 ticks / every tick. Shown on screen: shop text, a T-count chip by the purse (red when short), Pass shows its cost.
+
+## Slice 5: the computer's styles (built 23 Nov 2026)
+
+`engine/econai.js`. Each side plays a style, chosen at the start: setting "Computer plays" (Random / Rush / Boom / Turtle; `cpuStyle`, and `cpuStyle0` for player 1 in tools). Random picks from the seed. The normal rapid computer still chooses; a style replaces only a move or a pass, so it never gives up a shot, missile or scan. No style passes while it can move.
+- **Rush:** buys nothing before tick 20, then resupply (missiles).
+- **Boom:** from tick 10 with 20 salvage, upgrades its biggest ships (+1 range, else shields, else armour); otherwise moves ships through the most valuable new ground (asteroid hexes first), away from what it can see.
+- **Turtle:** a heatmap when an enemy is within 10 and none is showing; turrets from ships on the line (up to 3, keeping upkeep money); moves that would go well past its line are swapped for ones that don't, unless an enemy is within 6.
+- The end screen's Salvage card says which style the computer played.
+
+**The triangle runs** (`node tools/frontier_styles.mjs 12 150`, 12 games a pairing, sides swapped; a game with no flagship lost by tick 150 is judged on enemy segments destroyed):
+
+| Pairing | Result | Outright wins |
+|---|---|---|
+| rush v boom | boom 8, rush 1, draws 3 | 1 |
+| boom v turtle | boom 7, turtle 3, draws 2 | 2 |
+| turtle v rush | turtle 8, rush 4 | 0 |
+
+By style: boom won 15, lost 4; turtle 11–11; rush 5–16. Earned a game: boom 51, turtle 41, rush 37.
+
+**So it isn't a triangle yet.** Boom beats both; rush, which should beat boom, loses to everything. Games run to the 150-tick cap (target: under 60), and only 3 of 36 ended with a flagship kill.
+- Rush isn't a rush: it is the normal computer that buys missiles late. It never concentrates on the enemy flagship early.
+- Boom's upgrades (+1 laser range on its biggest ships) look strong for 10 salvage.
+- Turtle spent most of its money on heatmaps (546 salvage over 24 games), which do nothing for the computer (it already acts on everything it sees), and few turrets (4).
+
+Next: tuning, to be decided with Ankur (a real rush at the flagship, dearer or weaker upgrades, the turtle spending on turrets rather than heatmaps).
