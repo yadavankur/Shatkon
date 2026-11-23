@@ -19,7 +19,7 @@ import { Illegal, no, num, shipById, emit, cellsOf, gap, nearestCell, makeObj } 
 import { fuzzAt } from './detect.js';
 import { parseAction } from './codec.js';
 import { refreshSight, visibleTo, contactsFor } from './detect.js';
-import { applyHits, checkWin } from './damage.js';
+import { applyHits, checkWin, stunned } from './damage.js';
 import { doMove, doFire, doLaunch, doScan, doDetonate } from './actions.js';
 import { runFlight } from './flight.js';
 import { limitWinner } from './objective.js';
@@ -98,7 +98,7 @@ function buoysScan(s) {
 // in the same tick: it fires (setting wingman 'fire_or_move', the default) if it has a target, or else
 // moves 1 hex. Setting 'move': it can only move. 'off': no wingman.
 const wingMode = (state) => { const m = state.rules.rapid && state.rules.rapid.wingman; return m === 'off' ? 'off' : m === 'move' || m === 'on' ? 'move' : 'fire_or_move'; };
-const wingmen = (s, p, shooter) => { const sh = shipById(s, shooter); return sh ? s.ships.filter((x) => x.owner === p && !x.dead && x.id !== shooter && gap(x, sh) <= wingGap(s)) : []; };
+const wingmen = (s, p, shooter) => { const sh = shipById(s, shooter); return sh ? s.ships.filter((x) => x.owner === p && !x.dead && !stunned(s, x) && x.id !== shooter && gap(x, sh) <= wingGap(s)) : []; };
 // The shots its wingmen could take (fire actions), one per target hex and laser.
 export function wingShots(state, p, shooter) {
   if (!state.rules.rapid || wingMode(state) !== 'fire_or_move') return [];
@@ -131,6 +131,7 @@ export const RAPID_DEFAULTS = {
   scan: 'past_line',  // who may scan: 'past_line', 'unlocked' (any ship once free) or 'always'
   cap: 100,           // ticks before the game is a draw (opening ticks don't count)
   shootRange: 3,      // lasers may shoot a missile or drone down only this close (0: any range)
+  interceptHurts: 'off', // 'on' (Frontier): an intercepted missile stuns the ship that stopped it for a tick; a Nuke still does 2 hits
   debris: 'on',       // a missile shot down within 2 hexes: the shooter takes 1 hit and is lit up, parts and all, for 3 ticks
   forwardEyes: 2,     // extra sensor range for a ship past the line (0: none)
   attackRun: 'last_tick', // +1 laser hit for a ship that moved last tick ('off': none)
@@ -218,7 +219,7 @@ const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonat
 export function legalMoves(state, p) {
   const s = copy(state); asCurrent(s, p);
   const out = [];
-  for (const x of s.ships) if (x.owner === p && !x.dead) for (const r of reach(s, x.id)) out.push({ type: 'move', ship: x.id, path: r.path });
+  for (const x of s.ships) if (x.owner === p && !x.dead && !stunned(s, x)) for (const r of reach(s, x.id)) out.push({ type: 'move', ship: x.id, path: r.path });
   return out;
 }
 // Forward moves only (what a time-out may pick), as far as a move may go (2 hexes in the opening),
@@ -245,6 +246,7 @@ export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (a.type === 'buy') return buyRefusal(state, p, a);   // economy mode: buying is the tick's action
+  for (const id of [a.ship, a.wing && a.wing.ship]) { const x = id && shipById(state, id); if (x && stunned(state, x)) return x.id + ' is stunned this tick (an intercepted missile)'; }
   if (!DO[a.type]) return 'that is not a rapid-mode action';
   if (a.convert) {
     if (!['scanner', 'mine'].includes(a.convert)) return 'a ship can become a scanner or a mine';
@@ -420,7 +422,7 @@ export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
 function chooseAI(state, p, level, rnd) {
   if (state.phase !== 'play') return { type: 'pass' };
   const s = copy(state); asCurrent(s, p);
-  const mine = s.ships.filter((x) => x.owner === p && !x.dead);
+  const mine = s.ships.filter((x) => x.owner === p && !x.dead && !stunned(s, x));
   // 1. the best laser shot anywhere in the fleet
   let shot = null, sv = 0;
   for (const x of mine) for (const t of beamTargets(s, x.id)) {

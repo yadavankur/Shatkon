@@ -342,6 +342,8 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     let lx = mid, ly = Y(low) + S + th * 0.7;
     const hit = (ax, ay) => tags.some((r) => Math.abs(r[0] - ax) < (r[2] + tw) / 2 && Math.abs(r[1] - ay) < th * 1.05);
     if (hit(lx, ly)) { const up = Y(high) - S - th * 0.7; if (!hit(lx, up)) ly = up; }
+    // rapid mode: a stunned ship (an intercepted missile) can't act this tick: a lightning mark over it
+    if (x.stunned) g.appendChild(s('text', { x: f1(mid), y: f1(Y(high) - S * 0.9), 'font-size': fs(16), 'font-weight': 800, fill: '#ffe066', stroke: '#1a1206', 'stroke-width': f1(2 / px), 'paint-order': 'stroke', 'text-anchor': 'middle', 'pointer-events': 'none' }, '\u26a1'));
     // rapid mode: a ship's name tag shows only while it is the tapped one (tagsOn 'tap')
     const tagged = tagsOn !== 'tap' || x.id === sel || x.id === look;
     if (tagged) tags.push([lx, ly, tw]);

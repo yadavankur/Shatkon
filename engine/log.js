@@ -123,6 +123,7 @@ export function eventWords(e, nm, side) {
     case 'upkeep': return side(e.player) + ' paid ' + e.amount + ' salvage upkeep for ' + plural(e.turrets, 'turret') + ', purse ' + e.purse;
     case 'earned': return side(e.player) + ' earned ' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? '; capped' : '') + '), purse ' + e.purse;
     case 'converted': return nm(e.ship) + ' went silent and became a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at);
+    case 'stunned': return nm(e.ship) + ' was stunned by an intercepted ' + e.kind + ': it can\u2019t act next tick';
     case 'debris': return nm(e.ship) + ' shot down a missile close in: the debris lit it up and hit it';
     case 'ram': return nm(e.ship) + ' rammed ' + nm(e.target) + ' for ' + plural(e.hits, 'hit');
     case 'removed': return nm(e.ship) + ' left the battle';

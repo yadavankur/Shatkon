@@ -41,6 +41,7 @@ export function view(state, who) {
     ships.push({
       id: s.id, owner: s.owner, mine, seen: mine || vis.has(s.id), pos: s.pos.slice(), cells: footprint(s),
       name: open ? s.name : null, flagship: open ? s.flagship : null,
+      stunned: s.stunned && s.stunned === state.round ? s.stunned : null,   // rapid mode: can't act this tick (everyone sees the flash)
       segs: s.segs.map((sg, i) => ({
         off: sg.off.slice(), wrecked: sg.wrecked,
         parts: open ? sg.parts.map((x) => ({ t: x.t, hp: x.hp, max: rules.parts[x.t].hp })) : intel[i] ? intel[i].parts.map((x) => ({ t: x.t, hp: x.hp, max: rules.parts[x.t].hp })) : null,

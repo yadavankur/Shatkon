@@ -5,7 +5,7 @@ import { key, add, step, dist, sightLine, turnDiff, dirToward } from './hex.js';
 import { no, num, geom, current, shipById, objById, segHex, footprint, workingParts, sumAttr, occupancy, gap, emit, makeObj, nearestCell, deadInWater, maxAttr } from './state.js';
 import { refreshSight, networkSees, addFlare, visibleTo, netMoved, fuzzAt } from './detect.js';
 import { scanRadii } from './scan.js';
-import { applyHits, explode, removeObj } from './damage.js';
+import { applyHits, explode, removeObj, intercepted } from './damage.js';
 import { dirAllowed, scanAllowed, stride, shootRange, isMoving } from './rapidrules.js';
 
 const foe = (state, p) => state.players.map((_, i) => i).filter((i) => i !== p);
@@ -225,6 +225,8 @@ export function doFire(state, a) {
     // rapid mode, debris: a missile or drone shot down within 2 hexes lights up the sky. The shooter takes
     // 1 hit and everyone sees it, parts and all, for a round (3 ticks).
     const R = state.rules.rapid;
+    // a missile shot down: the ship it was locked onto (or, close in, the shooter) is stunned; see intercepted()
+    if (R && isMoving(state, hitObj)) { const tg = hitObj.target && shipById(state, hitObj.target); const who = tg && tg.owner === p ? tg : hd <= 2 ? ship : null; if (who) intercepted(state, hitObj.kind, who, who === ship ? a.seg : -1, hitObj.pos); }
     if (R && R.debris !== 'off' && isMoving(state, hitObj) && hd <= 2) {
       const until = state.round + (R.scale || 3);
       state.lit[ship.id] = Math.max(state.lit[ship.id] || 0, until);

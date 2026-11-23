@@ -24,6 +24,7 @@ board:
 rapid:                        # rapid mode: the play screen turns these into rapid rules (battle settings can change them)
   line: 12                    # rows from your own home edge: 12 on this radius-12 board is halfway
   economy: on                 # engine/economy.js
+  interceptHurts: on          # an intercepted missile stuns the ship that stopped it for a tick; a Nuke still does 2 hits
   econ:                       # salvage amounts (all starting guesses, to be tuned by playing)
     newHex: 1                 # a hex your side has never entered, in the enemy's half
     asteroid: 1               # +1 when that hex is next to an asteroid

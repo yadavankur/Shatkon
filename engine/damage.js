@@ -95,6 +95,7 @@ export function explode(state, obj, struck) {
       struck.ship.pd++;
       addFlare(state, struck.ship, 'pd');
       emit(state, { t: 'stopped', kind: obj.kind, ship: struck.ship.id, at: center }, everyone);
+      intercepted(state, obj.kind, struck.ship, struck.seg, center);
       return;
     }
   }
@@ -161,3 +162,29 @@ export function checkWin(state) {
   state.winner = lost.every(Boolean) ? 'draw' : lost.indexOf(false);
   emit(state, { t: 'game_over', winner: state.winner }, state.players.map((_, i) => i));
 }
+
+// Rapid mode setting interceptHurts ('on' on Frontier): a missile stopped short still costs the ship that
+// stopped it. Point defence or a laser takes it down, but the ship is stunned for its next tick (it
+// can't act), and a warhead that would have wrecked a segment (the Nuke) still does 2 hits to the
+// nearest segment. (23 Nov 2026: missiles were too easy to stop to be worth firing.)
+export function intercepted(state, kind, ship, seg, at) {
+  const R = state.rules.rapid;
+  if (!R || R.interceptHurts !== 'on' || !ship || ship.dead) return;
+  const m = state.rules.munitions[kind];
+  if (!m || m.family !== 'missile') return;
+  ship.stunned = Math.max(ship.stunned || 0, state.round + 1);   // the tick after this one
+  emit(state, { t: 'stunned', ship: ship.id, until: ship.stunned, kind, at: at.slice() }, state.players.map((_, i) => i));
+  if (m.wrecks_segment || num(m.wrecks_segments) > 0) {
+    const si = seg != null && seg >= 0 ? seg : nearestSeg(ship, at);
+    if (state.deferHits) state.deferHits.push({ ship: ship.id, seg: si, hits: 2, cause: kind });
+    else applyHits(state, ship, si, 2, kind);
+  }
+}
+function nearestSeg(ship, at) {
+  const cells = cellsOf(ship);
+  let best = 0;
+  cells.forEach((c, i) => { if (!ship.segs[i].wrecked && dist(c, at) < dist(cells[best], at)) best = i; });
+  return best;
+}
+// Is this ship stunned this tick (rapid mode)?
+export const stunned = (state, x) => !!(x && x.stunned && x.stunned === state.round);
