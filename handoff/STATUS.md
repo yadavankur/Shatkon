@@ -1,3 +1,7 @@
+## Latest (23 Nov, gamedev chat): Frontier, slice 3: turrets (branch `frontier-econ3`, PR open)
+- Buy → Turret (◈ 8): a ship leaves one laser behind as a turret on a free hex next to it (gold T chips). 2 hp; fires 2 hits a tick at the nearest enemy it can see within 4; upkeep 1 a tick from the next tick, unpaid turrets go dark until paid. Details: [docs/design/frontier.md](../docs/design/frontier.md).
+- 253 tests pass. `sw.js` cache `shatkon-offline-v13`.
+
 ## Latest (23 Nov, gamedev chat): Frontier, slice 2: the threat heatmap (branch `frontier-econ2`, PR open)
 - Buy (beside Pass) opens a shop; the heatmap costs ◈ 6 and your tick, and for your next 2 ticks shades where the enemy ships you can see could hit with a laser (hits by range), plus missile reach for known launchers. Free "in enemy reach" move numbers are off in Frontier. Details: [docs/design/frontier.md](../docs/design/frontier.md).
 - Fix: the `earned` event amount was clobbered by `emit`'s sequence number (`n`); renamed `amount`.

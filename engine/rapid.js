@@ -28,17 +28,20 @@ import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './quer
 import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
-import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy } from './economy.js';
+import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
 export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + '.' + a.at.join(',') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
   if (t === 'pass') return { type: 'pass' };
-  if (/^b:/.test(t)) return { type: 'buy', item: t.slice(2) };   // economy mode: a purchase
+  if (/^b:/.test(t)) {   // economy mode: a purchase, "b:heatmap" or "b:turret.<ship>.<q>,<r>"
+    const [item, ship, at] = t.slice(2).split('.');
+    return ship ? { type: 'buy', item, ship, at: at.split(',').map(Number) } : { type: 'buy', item };
+  }
   const [body, convert] = String(t).split('~');
   const [main, wing] = body.split('+');
   const a = parseAction(main);
@@ -133,6 +136,7 @@ export const RAPID_DEFAULTS = {
   convert: 'on',      // a one-hex ship that moves on or past the line may go silent: become a scanner buoy or a naval mine
   buoyScan: [4, 8],   // a scanner buoy's rings, every tick, free: full readout within the first, rough contacts within the second
   econHeatmap: ECON_DEFAULTS.heatmap, // what the threat heatmap costs
+  econTurret: ECON_DEFAULTS.turret,   // what a turret costs
   scale: 3,           // ticks to a round: missile speeds are divided by it, fuel, shields and flares multiplied
   economy: 'off',     // 'on': the Frontier economy (engine/economy.js): ships earn salvage by flying through the board
   econCap: ECON_DEFAULTS.cap,        // most salvage a side earns in one tick
@@ -156,6 +160,9 @@ export function rapidRules(rules, opts = {}) {
   for (const f of ['fire', 'beamHit', 'launch', 'pd', 'scan']) fr[f] = k;
   // the scanner buoy a one-hex ship can become past the line: still, quiet (seen only from 2 hexes by a
   // standard sensor), one hit kills it
+  // economy mode: the turret a ship can leave behind (engine/economy.js): still, seen from about 1 hex
+  // further than a scout, it watches 2 hexes around itself for its side and fires on its own every tick
+  munitions[TURRET] = { label: 'Turret', speed: 0, hits: 0, blast_radius: 0, signature: 1, sensor_range: 2, reports: true, setup_only: true, max_per_player: 99, cost: 0 };
   munitions[BUOY] = { label: 'Scanner buoy', speed: 0, hits: 0, blast_radius: 0, signature: -2, setup_only: true, max_per_player: 99, cost: 0 };
   return {
     ...rules,
@@ -270,6 +277,7 @@ export function rapidTick(state, acts) {
     // the wingman's shot, in the same volley
     if (a.wing && a.wing.type === 'fire') { asCurrent(s, p); try { doFire(s, a.wing); } catch (e) { if (!(e instanceof Illegal)) throw e; } }
   }
+  turretsFire(s);   // economy mode: turrets shoot with everyone else (nothing when the economy is off)
   const held = s.deferHits; delete s.deferHits;
   for (const h of held) {
     const ship = shipById(s, h.ship);

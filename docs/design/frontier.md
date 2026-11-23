@@ -46,5 +46,16 @@ Starting hexes count as entered. When the cap cuts a tick short, items are paid 
 - **Checked:** 4 new tests (price and refusals, the tick used, 2-tick duration, only visible ships, falloff by range, replay with a purchase); 247 pass. Headless Chrome 844x390: shop, purchase, shading, countdown chip, no console errors.
 - **Seen in play:** two unscanned enemy ships at the centre shaded most of the board, because an unscanned ship is assumed to have the best laser (range 9) on all its segments. Scanning first makes the heatmap much sharper. A tuning question for later.
 
+## Slice 3: turrets (built 23 Nov 2026, Ankur away: decisions below are mine, all easy to change)
+
+- **Buy → Turret** (◈ 8, setting 6 / 8 / 10). With a ship selected, gold **T** chips mark the free hexes next to it; with none, you tap the ship first. Tapping anything else cancels. Buying is the tick's action, written `b:turret.<ship>.<q>,<r>`.
+- The ship gives up its working laser nearest that hex (the part is left at 0 hp, marked `dropped`), so a scout that drops its only laser has none left.
+- **The turret** (`kind: 'turret'`, engine/economy.js): 2 hp, signature 1, a small sensor (2) whose sight is shared with its side like a drone's. Every tick, with both sides' shots, it fires 2 hits at the nearest enemy ship, missile, drone or turret its side can see within 4 hexes, with a clear line. Hits on ships land with the tick's other laser hits; a missile it hits is destroyed. A laser hit of 1 leaves it at 1 hp; a missile blast destroys it.
+- **Upkeep** 1 a turret a tick, **from the tick after it is placed** (otherwise buying with your last 8 salvage made it go dark at once). Paid newest first; a turret that can't be paid **goes dark until a later tick pays for it again** (the draft said the oldest goes dark; I made it temporary rather than permanent). Dark turrets are grey and don't fire.
+- Enemy turrets you can see are on the heatmap (2 hits within 4).
+- Not decided (draft open question 3): turrets can't be picked back up, and they fire at missiles too.
+- The computer doesn't buy turrets yet (slice 5).
+- **Checked:** 6 new tests (placement and refusals, laser removed, firing, 2 hp, upkeep and going dark and waking, heatmap, replay); 253 pass. Headless Chrome 844x390: Buy → Turret → tap ship → T chips → placed, purse charged; no console errors.
+
 ## Next slices
-3. Turrets. 4. Upgrades and resupply. 5. Computer styles (rush / boom / turtle) and the triangle runs.
+4. Upgrades and resupply. 5. Computer styles (rush / boom / turtle) and the triangle runs.

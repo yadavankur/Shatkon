@@ -12,9 +12,11 @@
 // Hexes your ships start on count as entered. Every amount and the cap are settings (ECON_DEFAULTS);
 // everything lives in state.econ, so a replay from the seed rebuilds the purse exactly.
 
-import { cellsOf, emit, geom, footprint, num, no } from './state.js';
+import { cellsOf, emit, geom, footprint, num, no, occupancy, makeObj, objById, shipById, nearestCell, segHex } from './state.js';
 import { key, DIRS, add, dist, sightLine } from './hex.js';
 import { beamHitsAt } from './actions.js';
+import { visibleTo } from './detect.js';
+import { applyHits, removeObj } from './damage.js';
 import { pastLine, rowsForward } from './rapidrules.js';
 
 export const ECON_DEFAULTS = {
@@ -27,7 +29,13 @@ export const ECON_DEFAULTS = {
   kill: 2,         // each segment of an enemy ship destroyed
   heatmap: 6,      // the heatmap's price
   heatTicks: 2,    // how many of your next ticks it is shown for
+  turret: 8,       // a turret's price
+  turretUpkeep: 1, // salvage a tick for each turret (from the tick after it is placed); short of it, the oldest go dark until paid again
+  turretHits: 2,   // hits a turret's shot does
+  turretRange: 4,  // how far a turret sees and shoots
+  turretHp: 2,     // hits a turret takes before it is destroyed
 };
+export const TURRET = 'turret';
 
 export const econOn = (state) => !!(state && state.rules.rapid && state.rules.rapid.economy === 'on' && state.econ);
 
@@ -38,6 +46,7 @@ export function econConfig(rules) {
   if (o.econCap != null && o.econCap !== '') c.cap = Number(o.econCap);
   if (o.econOwnHalf != null) c.ownHalf = o.econOwnHalf === true || o.econOwnHalf === 'yes';
   if (o.econHeatmap != null && o.econHeatmap !== '') c.heatmap = Number(o.econHeatmap);
+  if (o.econTurret != null && o.econTurret !== '') c.turret = Number(o.econTurret);
   return c;
 }
 
@@ -101,9 +110,11 @@ export function econTick(s, before) {
       left -= n; total += n; paid.push(n === it.n ? it : { ...it, n, capped: true });
     }
     E.perTick[p].push(total);
-    if (!total) continue;
-    E.purse[p] += total; E.earned[p] += total;
-    emit(s, { t: 'earned', player: p, amount: total, purse: E.purse[p], items: paid, capped: items.reduce((a, it) => a + it.n, 0) > total }, [p]);
+    if (total) {
+      E.purse[p] += total; E.earned[p] += total;
+      emit(s, { t: 'earned', player: p, amount: total, purse: E.purse[p], items: paid, capped: items.reduce((a, it) => a + it.n, 0) > total }, [p]);
+    }
+    payUpkeep(s, p, cfg);
   }
 }
 
@@ -127,6 +138,7 @@ export function newGround(state, p) {
 // so this tick's earnings can't pay for it. The enemy sees nothing of it.
 export const SHOP = {
   heatmap: { label: 'Heatmap', about: 'where the enemy ships you know of could hit next tick' },
+  turret: { label: 'Turret', about: 'the selected ship leaves one laser behind as a turret on a free hex next to it', needsShip: true },
 };
 export const price = (state, item) => num(econConfig(state.rules)[item]);
 
@@ -136,6 +148,12 @@ export function buyRefusal(state, p, a) {
   if (!SHOP[a.item]) return 'that is not for sale';
   const cost = price(state, a.item);
   if (state.econ.purse[p] < cost) return 'not enough salvage: ' + a.item + ' costs ' + cost + ', you have ' + state.econ.purse[p];
+  if (a.item === 'turret') {
+    const x = shipById(state, a.ship);
+    if (!x || x.owner !== p) return 'choose one of your ships to leave the turret';
+    if (!droppableLaser(state, x)) return 'that ship has no working laser to leave behind';
+    if (!Array.isArray(a.at) || !turretSpots(state, p, a.ship).some((c) => c[0] === a.at[0] && c[1] === a.at[1])) return 'a turret goes on a free hex next to the ship';
+  }
   return null;
 }
 export function doBuy(s, p, a) {
@@ -146,7 +164,103 @@ export function doBuy(s, p, a) {
   E.spent[p][a.item] = (E.spent[p][a.item] || 0) + cost;
   // the heatmap shows on this side's next heatTicks ticks (the tick it is bought in is already spent)
   if (a.item === 'heatmap') E.heat[p] = s.round + num(econConfig(s.rules).heatTicks, 2);
-  emit(s, { t: 'bought', player: p, item: a.item, cost, purse: E.purse[p] }, [p]);
+  let extra = {};
+  if (a.item === 'turret') {
+    // the ship gives up one working laser (the one nearest the turret's hex) and the turret appears there
+    const x = shipById(s, a.ship), las = droppableLaser(s, x, a.at);
+    las.p.hp = 0; las.p.dropped = true;
+    const o = makeObj(s, TURRET, p, a.at, 0, { hp: num(econConfig(s.rules).turretHp, 2), born: s.round, from: x.id });
+    s.objs.push(o);
+    extra = { ship: x.id, at: a.at.slice(), obj: o.id };
+  }
+  emit(s, { t: 'bought', player: p, item: a.item, cost, purse: E.purse[p], ...extra }, [p]);
+}
+
+// ---------- turrets ----------
+const isLaser = (state, part) => { const c = state.rules.parts[part.t]; return !!(c && num(c.range) && num(c.hits)) && part.hp > 0 && !part.off; };
+// A working laser the ship could leave behind (the one nearest hex `near`, if given), or null.
+export function droppableLaser(state, x, near) {
+  let best = null, bd = Infinity;
+  x.segs.forEach((sg, si) => {
+    if (sg.wrecked) return;
+    sg.parts.forEach((part, pi) => {
+      if (!isLaser(state, part)) return;
+      const d = near ? dist(segHex(x, si), near) : 0;
+      if (d < bd) { bd = d; best = { p: part, si, pi }; }
+    });
+  });
+  return best;
+}
+// Free hexes next to the ship where its turret could go: on the board, no asteroid, no ship, no object.
+export function turretSpots(state, p, shipId) {
+  const x = shipById(state, shipId);
+  if (!x || x.owner !== p || !droppableLaser(state, x)) return [];
+  const g = geom(state.rules), occ = occupancy(state), taken = new Set(state.objs.map((o) => key(o.pos))), out = new Map();
+  for (const c of footprint(x)) for (const d of DIRS) {
+    const n = add(c, d), k = key(n);
+    if (out.has(k) || !g.inside(n) || g.blockMove.has(k) || occ.has(k) || taken.has(k)) continue;
+    out.set(k, n);
+  }
+  return [...out.values()];
+}
+export const isTurret = (o) => !!o && o.kind === TURRET;
+export const turretLive = (o) => isTurret(o) && !o.dark;
+
+// The turrets fire (rapidTick, with both sides' shots): each working turret shoots the nearest enemy
+// ship, missile, drone or turret its side can see, within its range and with a clear line. Hits on
+// ships are held back with the tick's other laser hits; missiles and turrets are hit at once.
+export function turretsFire(s) {
+  if (!econOn(s)) return;
+  const cfg = econConfig(s.rules), g = geom(s.rules);
+  for (const t of s.objs.filter(turretLive)) {
+    const p = t.owner, vis = visibleTo(s, p);
+    let best = null, bd = Infinity;
+    const consider = (thing, at, seg) => {
+      const d = dist(t.pos, at);
+      if (d < 1 || d > cfg.turretRange || d >= bd || !sightLine(t.pos, at, (h) => g.blockSight.has(key(h)))) return;
+      bd = d; best = { thing, at, seg };
+    };
+    for (const x of s.ships) {
+      if (x.dead || x.owner === p || !vis.has(x.id)) continue;
+      const c = nearestCell(x, t.pos), si = footprint(x).findIndex((h) => h[0] === c[0] && h[1] === c[1]);
+      if (!x.segs[si].wrecked) consider(x, c, si);
+    }
+    for (const o of s.objs) if (o.owner !== p && vis.has(o.id) && (num(s.rules.munitions[o.kind].speed) > 0 || isTurret(o))) consider(o, o.pos, -1);
+    if (!best) continue;
+    const hits = cfg.turretHits, seenBy = [...new Set([p, best.thing.owner])];
+    emit(s, { t: 'turret_fire', obj: t.id, owner: p, from: t.pos.slice(), at: best.at.slice(), target: best.thing.id, hits }, seenBy);
+    if (best.thing.segs) { if (s.deferHits) s.deferHits.push({ ship: best.thing.id, seg: best.seg, hits, cause: 'turret', by: t.id }); else applyHits(s, best.thing, best.seg, hits, 'turret'); }
+    else hitObject(s, best.thing, hits);
+  }
+}
+// A laser or turret shot on an object: turrets soak hits (hp); anything else is destroyed.
+export function hitObject(s, o, hits) {
+  if (!objById(s, o.id)) return;
+  if (isTurret(o) && num(o.hp) > hits) {
+    o.hp -= hits;
+    emit(s, { t: 'turret_hit', obj: o.id, owner: o.owner, at: o.pos.slice(), hits, hp: o.hp }, s.players.map((_, i) => i));
+    return;
+  }
+  removeObj(s, o);
+  emit(s, { t: 'obj_destroyed', kind: o.kind, obj: o.id, at: o.pos.slice() }, s.players.map((_, i) => i));
+}
+// Upkeep, at the end of each tick after earnings: each turret costs its side turretUpkeep, starting the
+// tick after it was placed. Paid newest first; a turret that can't be paid is dark (doesn't fire) until a
+// later tick pays for it again, so the oldest go dark first when salvage runs short.
+function payUpkeep(s, p, cfg) {
+  const all = s.objs.filter((o) => isTurret(o) && o.owner === p).sort((a, b) => b.born - a.born || (a.id < b.id ? 1 : -1));
+  if (!all.length) return;
+  let paid = 0, n = 0;
+  for (const o of all) {
+    if (o.born >= s.round) { o.dark = false; continue; }   // placed this tick: first upkeep next tick
+    const was = !!o.dark;
+    if (s.econ.purse[p] - paid >= cfg.turretUpkeep) { paid += cfg.turretUpkeep; n++; o.dark = false; if (was) emit(s, { t: 'turret_lit', obj: o.id, at: o.pos.slice() }, [p]); }
+    else { o.dark = true; if (!was) emit(s, { t: 'turret_dark', obj: o.id, at: o.pos.slice() }, [p]); }
+  }
+  if (!paid) return;
+  s.econ.purse[p] -= paid;
+  s.econ.spent[p].upkeep = (s.econ.spent[p].upkeep || 0) + paid;
+  emit(s, { t: 'upkeep', player: p, amount: paid, turrets: n, purse: s.econ.purse[p] }, [p]);
 }
 // Is side p's heatmap showing now? (between ticks, state.round is the tick about to be chosen)
 export const heatOn = (state, p) => econOn(state) && (state.econ.heat || [0, 0])[p] >= state.round;
@@ -199,9 +313,18 @@ export function threatMap(state, p) {
     for (const [, [hits, h]] of hitBy) { const o = get(h); o.n++; if (hits > o.hits) o.hits = hits; }
     if (launcher && mSpeed) for (const src of cells) ring(src, mSpeed * ticks, (h, d) => { if (d >= 1) get(h).missile = true; });
   }
+  // enemy turrets you can see: their fixed shot within their range
+  const tc = econConfig(state.rules);
+  for (const t of state.objs) {
+    if (!turretLive(t) || t.owner === p || !vis.has(t.id)) continue;
+    ring(t.pos, tc.turretRange, (h, d) => {
+      if (d < 1 || !sightLine(t.pos, h, (x) => g.blockSight.has(key(x)))) return;
+      const o = get(h); o.n++; if (tc.turretHits > o.hits) o.hits = tc.turretHits;
+    });
+  }
   return out;
 }
 
 // Words for the log and the screen.
-export const BUY_WORDS = { heatmap: 'a threat heatmap' };
+export const BUY_WORDS = { heatmap: 'a threat heatmap', turret: 'a turret' };
 export const EARN_WORDS = { cross: 'first across the line', kill: 'enemy ship destroyed', hold: 'holding past the line', ground: 'new ground', rock: 'new ground by an asteroid' };

@@ -37,9 +37,10 @@ export const RAPID_SETTINGS = [
 // Economy mode (Frontier, rules/rapid/rapid_frontier.yaml, engine/economy.js): shown under the rapid
 // settings on boards with an economy, kept in their own store.
 export const ECON_SETTINGS = [
-  { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn salvage (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Spend it on a threat heatmap (more to buy later).'], ['off', 'Off', 'Plain Rapid Opus on this board: no salvage.']] },
+  { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn salvage (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Spend it on a threat heatmap or turrets (more to buy later).'], ['off', 'Off', 'Plain Rapid Opus on this board: no salvage.']] },
   { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' salvage a tick, so a lead can\u2019t snowball without limit.']) },
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' salvage and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
+  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' salvage and your tick. Each turret costs 1 a tick to keep working.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
 const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ';
@@ -68,7 +69,7 @@ export function rapidOptions() {
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap) };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret) };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the

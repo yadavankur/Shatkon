@@ -72,7 +72,7 @@ function namer(state) {
 
 // One plain sentence per action, from the action itself and the state before it.
 function actionWords(prev, next, text, nm) {
-  if (/^b:/.test(text)) return 'bought ' + (BUY_WORDS[text.slice(2)] || text.slice(2));   // economy mode
+  if (/^b:/.test(text)) { const it = text.slice(2).split('.')[0]; return 'bought ' + (BUY_WORDS[it] || it); }   // economy mode
   const a = parseAction(text), ship = a.ship && prev.ships.find((s) => s.id === a.ship);
   switch (a.type) {
     case 'move': { const to = next.ships.find((s) => s.id === a.ship); return 'moved ' + nm(a.ship) + ' ' + plural(a.path.length, 'step') + (ship ? ' from ' + at(ship.pos) : '') + (to && !to.dead ? ' to ' + at(to.pos) : ''); }
@@ -114,7 +114,12 @@ export function eventWords(e, nm, side) {
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';
     case 'game_over': return 'game over: ' + (e.winner === 'draw' ? 'a draw' : side(e.winner) + ' won') + (e.by ? ' (' + String(e.by).replace(/_/g, ' ') + ')' : '');
-    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' salvage, purse ' + e.purse;
+    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' salvage' + (e.item === 'turret' ? ' (' + nm(e.ship) + ' left a laser behind at ' + at(e.at) + ')' : '') + ', purse ' + e.purse;
+    case 'turret_fire': return 'turret ' + e.obj + ' fired at ' + (/^o/.test(e.target || '') ? 'an enemy object' : nm(e.target)) + ' at ' + at(e.at) + ' (' + plural(e.hits, 'hit') + ')';
+    case 'turret_hit': return 'turret ' + e.obj + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left)';
+    case 'turret_lit': return 'turret ' + e.obj + ' is working again (upkeep paid)';
+    case 'turret_dark': return 'turret ' + e.obj + ' went dark: no salvage for its upkeep';
+    case 'upkeep': return side(e.player) + ' paid ' + e.amount + ' salvage upkeep for ' + plural(e.turrets, 'turret') + ', purse ' + e.purse;
     case 'earned': return side(e.player) + ' earned ' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? '; capped' : '') + '), purse ' + e.purse;
     case 'converted': return nm(e.ship) + ' went silent and became a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at);
     case 'debris': return nm(e.ship) + ' shot down a missile close in: the debris lit it up and hit it';

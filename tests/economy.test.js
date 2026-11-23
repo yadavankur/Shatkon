@@ -233,3 +233,96 @@ test('a game with a purchase replays from its log', () => {
   assert.deepEqual(E.replayLog(log).econ, g.econ);
   assert.ok(log.turns.some((t) => (t.actions || []).some((a) => /bought a threat heatmap/.test(a.say || ''))));
 });
+
+// ---------- slice 3: turrets ----------
+const scoutOf = (g, p) => g.ships.find((x) => x.owner === p && x.segs.length === 1 && !x.dead);
+function dropTurret(g, p = 0, ship = scoutOf(g, p)) {
+  g.econ.purse[p] = Math.max(g.econ.purse[p], 20);
+  const at = E.turretSpots(g, p, ship.id)[0];
+  return { a: { type: 'buy', item: 'turret', ship: ship.id, at }, ship, at };
+}
+
+test('turret: a ship leaves a laser behind on a free hex next to it; it costs 8 and the tick', () => {
+  let g = frontier();
+  const { a, ship, at } = dropTurret(g);
+  assert.ok(at, 'no free hex');
+  const lasersBefore = ship.segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
+  assert.match(E.rapidRefusal(g, 0, { ...a, at: [99, 99] }), /free hex next to the ship/);
+  assert.match(E.rapidRefusal(g, 0, { ...a, ship: g.ships.find((x) => x.owner === 1).id }), /your ships/);
+  assert.equal(E.rapidRefusal(g, 0, a), null);
+  g = E.rapidTick(g, [a, fwd(g, 1)]);
+  const t = g.objs.find((o) => o.kind === E.TURRET);
+  assert.ok(t); assert.deepEqual(t.pos, at); assert.equal(t.owner, 0); assert.equal(t.hp, 2);
+  const after = g.ships.find((x) => x.id === ship.id).segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
+  assert.equal(after, lasersBefore - 1);
+  assert.equal(g.econ.spent[0].turret, 8);
+  // a scout that has dropped its only laser can't drop another
+  assert.equal(E.turretSpots(g, 0, ship.id).length, 0);
+});
+
+test('turret: fires 2 hits at the nearest enemy it can see within 4 hexes', () => {
+  let g = frontier();
+  const enemy = g.ships.find((x) => x.owner === 1 && x.segs.length === 1);
+  // put a turret 3 hexes from an enemy scout and let player 1 see it
+  const at = [enemy.pos[0], enemy.pos[1] + 3];
+  g.objs.push({ id: 'o90', kind: E.TURRET, owner: 0, pos: at, dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 });
+  g.players[0].vis = [...g.players[0].vis, enemy.id];
+  const hullBefore = E.hullPct(g, enemy);
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);
+  const shot = g.events.find((e) => e.t === 'turret_fire');
+  if (shot) {
+    assert.equal(shot.hits, 2);
+    const x = g.ships.find((s) => s.id === shot.target);
+    assert.ok(x.dead || E.hullPct(g, x) < 100);
+  } else assert.fail('the turret did not fire (enemy at ' + enemy.pos + ', hull ' + hullBefore + ')');
+});
+
+test('turret: takes 2 hits to destroy; a laser hit of 1 only damages it', () => {
+  let g = frontier();
+  const t = { id: 'o91', kind: E.TURRET, owner: 1, pos: [0, 2], dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 };
+  g.objs.push(t);
+  const s = structuredClone({ ...g, rules: undefined }); s.rules = g.rules; s.events = [];
+  E.hitObject(s, s.objs.find((o) => o.id === 'o91'), 1);
+  assert.equal(s.objs.find((o) => o.id === 'o91').hp, 1);
+  E.hitObject(s, s.objs.find((o) => o.id === 'o91'), 1);
+  assert.ok(!s.objs.some((o) => o.id === 'o91'));
+});
+
+test('turret: upkeep 1 a tick from the tick after it is placed; short of salvage, the oldest goes dark until paid', () => {
+  let g = frontier();
+  const mk = (id, born, pos) => ({ id, kind: E.TURRET, owner: 0, pos, dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born });
+  g.objs.push(mk('o80', 0, [-11, 3]), mk('o81', 1, [-11, 4]));   // o81 placed in tick 1: free this tick
+  g.econ.purse[0] = 2;
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);   // tick 1: o80 pays 1 (nothing earned at home)
+  assert.equal(g.econ.purse[0], 1);
+  assert.ok(!g.objs.some((o) => o.dark));
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);   // tick 2: 1 left for 2 turrets: the newest is paid, the oldest goes dark
+  assert.equal(g.objs.find((o) => o.id === 'o80').dark, true);
+  assert.ok(!g.objs.find((o) => o.id === 'o81').dark);
+  assert.equal(g.econ.purse[0], 0);
+  g.econ.purse[0] = 5;
+  g = E.rapidTick(g, [fwd(g, 0), fwd(g, 1)]);   // salvage again: both paid, the dark one wakes
+  assert.ok(!g.objs.some((o) => o.dark));
+  assert.equal(g.econ.purse[0], 3);
+});
+
+test('turret: enemy turrets you can see show on the heatmap', () => {
+  const g = frontier();
+  g.objs.push({ id: 'o70', kind: E.TURRET, owner: 1, pos: [0, -3], dir: 0, fuel: null, target: null, lock: false, route: [], src: null, hp: 2, born: 0 });
+  const s = structuredClone({ ...g, rules: undefined }); s.rules = g.rules; s.players[0].vis = ['o70'];
+  const m = E.threatMap(s, 0);
+  assert.ok(m.get('0,-1') && m.get('0,-1').hits === 2);
+  assert.ok(!m.get('0,3'));   // 6 away: out of its range
+});
+
+test('a game with a turret replays from its log', () => {
+  let g = frontier({}, 14), done = false;
+  for (let i = 0; i < 40 && g.phase === 'play'; i++) {
+    let a = fwd(g, 0);
+    if (!done && g.econ.purse[0] >= 8) { const sc = scoutOf(g, 0), at = sc && E.turretSpots(g, 0, sc.id)[0]; if (at) { a = { type: 'buy', item: 'turret', ship: sc.id, at }; done = true; } }
+    g = E.rapidTick(g, [a, fwd(g, 1)]);
+  }
+  assert.ok(done, 'never afforded a turret');
+  const log = E.battleLog(g, { seat: 'cpu' });
+  assert.equal(log.replayable, true);
+});

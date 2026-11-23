@@ -659,6 +659,12 @@ function eventFx(r, viewer, delay) {
     case 'obj_destroyed':
       boomFx(r.at, delay);
       break;
+    case 'turret_fire':   // economy mode: a turret's shot
+      beamFx(r.from, r.at, colOf(r.owner), delay);
+      break;
+    case 'turret_hit':
+      textFx(r.at, ['turret \u2212' + r.hits], colOf(r.owner), delay);
+      break;
     case 'scan':
       scanFx(r, delay);
       break;
@@ -906,7 +912,12 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
-    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
+    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + (e.item === 'turret' ? ': ' + e.ship + ' left a laser behind at ' + at(e.at) : '') + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
+    case 'turret_fire': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' fired at ' + (/^o/.test(e.target || '') ? 'a missile or turret' : e.target) + ' (' + plural(e.hits, 'hit') + ').';
+    case 'turret_hit': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left).';
+    case 'turret_lit': return 'A dark turret is working again.';
+    case 'turret_dark': return 'A turret went dark: not enough salvage for its upkeep.';
+    case 'upkeep': return 'Turret upkeep: \u25c8 ' + e.amount + '.';
     case 'earned': return '+' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
     case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
@@ -985,6 +996,12 @@ function confirmEmptyTurn(cp) {
 // ---------- what a tap would do in the current mode ----------
 function options(v) {
   const map = new Map();
+  // economy mode, placing a turret: the free hexes next to the chosen ship (T)
+  if (isRapidGame() && RT.turretFor === '?') return map;
+  if (isRapidGame() && RT.turretFor) {
+    for (const c of E.turretSpots(game, 0, RT.turretFor)) { const a = { type: 'buy', item: 'turret', ship: RT.turretFor, at: c }; map.set(hex.key(c), { action: a, wingAct: a, mark: 'turret', label: 'T' }); }
+    return map;
+  }
   // rapid mode, wingman step: the friends of the ship that fires: a shot of their own (W and its hits on the
   // target) or, for one with nothing to shoot, a 1-hex move (W)
   if (isRapidGame() && RT.wingFor) {
@@ -1041,7 +1058,13 @@ function zoomOnShip(ship) {
 
 function tap(c, v, opts, viaChip, t) {
   if (isRapidGame() && game.phase === 'play' && RT.phase !== 'choose') return;   // rapid mode: watching, or the game is choosing for you
-  if (isRapidGame() && RT.wingFor) { const w = opts.get(hex.key(c)); if (w && w.wingAct) rapidAct(w.wingAct); return; }   // wingman step: a marker or nothing
+  if (isRapidGame() && RT.wingFor) { const w = opts.get(hex.key(c)); if (w && w.wingAct) rapidAct(w.wingAct); return; }
+  if (isRapidGame() && RT.turretFor === '?') {   // choosing the ship that leaves the turret
+    const x = game.ships.find((z) => z.owner === 0 && !z.dead && E.footprint(z).some((q) => q[0] === c[0] && q[1] === c[1]));
+    if (x) { sel = x.id; RT.turretFor = null; return rapidTurretStart(); }
+    RT.turretFor = null; say('Turret cancelled.'); return render();
+  }
+  if (isRapidGame() && RT.turretFor) { const w = opts.get(hex.key(c)); if (w && w.wingAct) { RT.turretFor = null; rapidAct(w.wingAct); } else { RT.turretFor = null; say('Turret cancelled.'); render(); } return; }   // wingman step: a marker or nothing
   let o = opts.get(hex.key(c));
   endArmed = false;
   const under = v.ships.find((x) => x.cells.some((y) => hex.same(y, c)));
@@ -1764,12 +1787,15 @@ export function render() {
   const rail = $('#rail');
   if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
-  if (mine && !hid && R.rapid && RT.wingFor) {
+  if (mine && !hid && R.rapid && RT.turretFor) {
+    fill(tb, [h('button', { class: 'btn ib endb', 'aria-label': 'Cancel the turret', onclick: () => { RT.turretFor = null; say('Turret cancelled.'); render(); } },
+      h('span', { class: 'ibic' }, ico('x', 22)), h('span', { class: 'tl name' }, 'Cancel'), h('small', { class: 'tl' }, 'no turret'))]);
+  } else if (mine && !hid && R.rapid && RT.wingFor) {
     fill(tb, [h('button', { class: 'btn go ib endb', 'aria-label': 'Fire with no wingman move', onclick: () => rapidAct(RT.wingFor) },
       h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman'))]);
   } else if (mine && !hid && R.rapid) {
     const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
-    const shop = E.econOn(game) ? (() => { const can = RT.phase === 'choose' && Object.keys(E.SHOP).some((k) => !E.buyRefusal(game, 0, { type: 'buy', item: k }));
+    const shop = E.econOn(game) ? (() => { const can = RT.phase === 'choose' && Object.keys(E.SHOP).some((k) => E.purse(game, 0) >= E.price(game, k));
       return h('button', { class: 'btn ib buyb' + (can ? '' : ' off'), 'aria-label': 'Buy: spend salvage, using this tick', disabled: RT.phase !== 'choose', onclick: rapidShop },
         h('span', { class: 'ibic' }, ico('buy', 22)), h('span', { class: 'tl name' }, 'Buy'), h('small', { class: 'tl' }, 'uses the tick')); })() : null;
     fill(tb, [shop, h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
@@ -1857,7 +1883,7 @@ export function render() {
 //   auto   : out of time. A chosen laser, missile or scan fires on its own after a 1.5 s red Cancel
 //            button; with nothing chosen the game picks a ship and moves it forward (or passes, once free)
 // The computer picks its action the moment you pick yours, from its own view of the board.
-const RT = { phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null, convertFor: null };   // convertFor: a move waiting for "convert to?"   // wingFor: a chosen shot waiting for its wingman move
+const RT = { turretFor: null, phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null, convertFor: null };   // convertFor: a move waiting for "convert to?"   // wingFor: a chosen shot waiting for its wingman move
 function rapidClear() {
   clearTimeout(RT.timer); RT.timer = 0;
   const cv = document.getElementById('rapidconvert'); if (cv) cv.remove();
@@ -1907,7 +1933,7 @@ function rapidWatch(ms) {
 function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
-  RT.wingFor = RT.wingOpts = RT.convertFor = null;
+  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = null;
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
   RT.timer = setTimeout(rapidTimeout, secs * 1000);
@@ -1919,6 +1945,7 @@ function rapidTimeout() {
   if (!isRapidGame() || RT.phase !== 'choose' || game.phase !== 'play') return;
   if (RT.wingFor) return rapidAct(RT.wingFor, true, true);   // out of time choosing a wingman: the shot goes alone
   if (RT.convertFor) return rapidAct(RT.convertFor, true, true);   // out of time at "convert to?": it stays a ship
+  RT.turretFor = null;   // out of time placing a turret: no turret, the usual time-out applies
   // the rules card or the menu is open: the clock starts again rather than acting behind it
   if ((document.getElementById('help') && !document.getElementById('help').hidden) || drawerOpen || document.getElementById('bsheet')) return rapidChoose();
   const R = game.rules.rapid;
@@ -2006,7 +2033,7 @@ function rapidAct(action, quiet, auto) {
     say('Past the line: convert ' + a.ship + ' to a scanner buoy or a mine, or keep it a ship.');
     return render();
   }
-  RT.wingFor = RT.wingOpts = RT.convertFor = null;
+  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
   try {
@@ -2045,12 +2072,12 @@ function rapidAct(action, quiet, auto) {
 function pursePill() {
   if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
   const n = E.purse(game, 0), last = (game.econ.perTick[0] || []).slice(-1)[0] || 0;
-  return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Hidden from the enemy.' },
+  return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Turrets cost ' + E.econConfig(game.rules).turretUpkeep + ' a tick each. Hidden from the enemy.' },
     h('i', null, '\u25c8'), h('b', null, String(n)),
     E.heatOn(game, 0) ? h('span', { class: 'heatchip', title: 'Heatmap showing: ' + plural(game.econ.heat[0] - game.round + 1, 'tick') + ' left' }, '\u25a6 ' + (game.econ.heat[0] - game.round + 1)) : null);
 }
 // The shop (economy mode): what salvage buys. Buying is the tick's whole action, like Pass.
-const SOON = [['Turret', 'leave a laser behind as a turret', 8], ['Upgrade', 'one ship: range, shields, sensor or armour', 10], ['Resupply', '+1 missile', 5]];
+const SOON = [['Upgrade', 'one ship: range, shields, sensor or armour', 10], ['Resupply', '+1 missile', 5]];
 function rapidShop() {
   if (RT.phase !== 'choose') return;
   const old = document.getElementById('rapidbuy'); if (old) { old.remove(); return; }
@@ -2058,8 +2085,9 @@ function rapidShop() {
   const purse = E.purse(game, 0);
   const rows = Object.entries(E.SHOP).map(([k, it]) => {
     const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
-    return h('button', { class: 'btn go' + (why ? ' off' : ''), disabled: !!why, onclick: () => { close(); rapidAct({ type: 'buy', item: k }); } },
-      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, why && purse < cost ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : '')));
+    const short = purse < cost;
+    return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); it.needsShip ? rapidTurretStart() : rapidAct({ type: 'buy', item: k }); } },
+      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, short ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + ', upkeep \u25c8 ' + E.econConfig(game.rules).turretUpkeep + ' a tick' : '')));
   });
   const later = SOON.map(([n, about, c]) => h('button', { class: 'btn off', disabled: true }, h('span', { class: 'shoprow' }, h('span', null, n), h('b', null, '\u25c8 ' + c)), h('small', null, about + ' (coming later)')));
   document.body.appendChild(h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
@@ -2067,6 +2095,16 @@ function rapidShop() {
     h('small', null, 'Buying is your action for this tick: your ships hold still. The enemy doesn\u2019t see it.'),
     ...rows, ...later,
     h('button', { class: 'btn', onclick: close }, 'Back')));
+}
+// Buying a turret: the selected ship (or the one to tap next) shows the free hexes next to it; tap one.
+function rapidTurretStart() {
+  const x = sel && game.ships.find((z) => z.id === sel && z.owner === 0 && !z.dead);
+  if (!x) { RT.turretFor = '?'; pending = null; say('Turret: tap the ship that will leave one of its lasers behind.'); return render(); }
+  if (!E.droppableLaser(game, x)) { say(x.id + ' has no working laser to leave behind.'); return render(); }
+  if (!E.turretSpots(game, 0, x.id).length) { say('No free hex next to ' + x.id + ' for a turret.'); return render(); }
+  RT.turretFor = x.id; pending = null;
+  say('Tap a hex marked T next to ' + x.id + ' for the turret. It takes one of ' + x.id + '\u2019s lasers.');
+  render();
 }
 // The heatmap (economy mode, bought): every hex the enemy ships you can see could hit next tick.
 function rapidHeat() {
