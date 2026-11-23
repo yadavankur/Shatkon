@@ -154,7 +154,7 @@ export function battleLog(state, opts = {}) {
   const nm = namer(state);
   const R = state.rules;
   const log = {
-    format: LOG_FORMAT, v: 1, created: opts.now || new Date().toISOString(), game: 'SHATKON',
+    format: LOG_FORMAT, v: 1, build: opts.build || null, created: opts.now || new Date().toISOString(), game: 'SHATKON',
     chapter: R.campaign ? R.campaign.title || R.campaign.id || 'story chapter' : null,
     seat, sides, viewer,
     // wall-clock times from the play page (absent in games saved before 17 Nov 2026 and in tools/tests)
@@ -283,7 +283,7 @@ export function shortLog(state, opts = {}) {
   const me = typeof full.viewer === 'number' ? full.viewer : 0;
   const moves = (state.rapid ? state.rapid.ticks : []).map((k) => (over ? k.acts.join(' ') : k.acts[me]));
   return {
-    format: SHORT_FORMAT, v: 1, created: full.created, board: opts.board || null, sides: full.sides,
+    format: SHORT_FORMAT, v: 1, build: full.build, created: full.created, board: opts.board || null, sides: full.sides,
     started: full.started, lastPlayed: full.lastPlayed, result: full.result, viewer: full.viewer,
     settings: full.settings,
     seed: over ? state.seed : null, finalHash: over ? hashState(state) : null,

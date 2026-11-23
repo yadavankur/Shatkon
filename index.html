@@ -393,6 +393,8 @@ function route() {
   sc.draw(main);
   const f = $('#foot'); f.textContent = '';
   if (!sc.title) f.append(h('button', { onclick: openSettings }, h('span', { class: 'round' }, ico('gear', 22)), 'Settings'), h('a', { href: 'docs/' }, h('span', { class: 'round' }, ico('doc', 22)), 'How to play'));
+  // the build number (ui/version.js), so a playtest can be matched to its code
+  if (!sc.title) import('./ui/version.js').then((v) => { if (!f.querySelector('.build')) f.append(h('span', { class: 'build', style: 'opacity:.55;font-size:12px;align-self:center' }, v.buildLabel())); }).catch(() => {});
 }
 window.addEventListener('hashchange', route);
 

@@ -6,6 +6,7 @@ import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions } from './settings.js';
+import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
@@ -1559,7 +1560,7 @@ function changedSettings() {
   return out;
 }
 function battleLogFile(kind = 'short') {
-  const opts = { viewer: who(), seat, settings: changedSettings(), board: BOARD };
+  const opts = { viewer: who(), seat, settings: changedSettings(), board: BOARD, build: BUILD };
   const short = kind === 'short' && isRapidGame();
   const log = short ? E.shortLog(game, opts) : E.battleLog(game, opts);
   const d = new Date(), two = (n) => String(n).padStart(2, '0');
@@ -1607,7 +1608,8 @@ function showReport() {
 const logButtons = () => [
   h('button', { class: 'btn', onclick: () => downloadLog('short'), title: isRapidGame() ? 'The short log: moves like a chess score sheet, plus the recap' : 'Save a file with everything that happened, turn by turn' }, 'Download battle log'),
   isRapidGame() ? h('button', { class: 'btn', onclick: () => downloadLog('full'), title: 'Every event, turn by turn (much bigger)' }, 'Full log') : null,
-  h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log')];
+  h('button', { class: 'btn', onclick: copyLog, title: 'Copy the battle log (for phones)' }, 'Copy log'),
+  h('small', { class: 'muted buildtag' }, buildLabel())];
 
 function pasteBox(label, button, onText) {
   const ta = h('textarea', { 'aria-label': label, placeholder: 'Paste here' });

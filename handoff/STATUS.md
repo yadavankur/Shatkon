@@ -1,3 +1,7 @@
+## Latest (24 Nov, gamedev chat): turrets retuned; build number (merged, build #62)
+- Turrets: 1 hit a shot (was 2), range 7 (setting 5/7/9), signature -2 (was 1): hard to spot, so they usually shoot first.
+- Build number: `ui/version.js` (BUILD = the PR number; bump it in every PR). Shown on the home screen footer, in the in-game menu by the log buttons, and as `build` in both battle logs. The service worker cache is named after it (`shatkon-offline-b62`); tests/version.test.js checks they match.
+
 ## Latest (24 Nov, gamedev chat): intercepted missiles hurt; buy fix; laser reasons; salvage table (merged)
 - Frontier (`interceptHurts: on`): a missile stopped by point defence or shot down still stuns the ship that stopped it (or its locked target) for its next tick; a Nuke still does 2 hits. `stunned()` in engine/damage.js; refused in rapidRefusal, left out of legalMoves and the computer's choices; ⚡ on the board.
 - Buy: the ship selected when Buy is pressed is the one the purchase is for (taps on the sheet were reaching the board and deselecting it).
