@@ -376,7 +376,17 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind] || { speed: 1 }, c0 = col(o.owner), fade = o.seen ? null : 0.4;
     if (o.last && !hex.same(o.last, o.pos)) svg.appendChild(s('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(cx), y2: f1(cy), stroke: c0, 'stroke-width': 1, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
     const ink = '#050a14', neon = o.owner === 1 ? TEAM[1].neon : TEAM[0].neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
-    if (o.kind === 'scan_buoy') {
+    if (o.kind === 'turret') {
+      // economy mode, turret: a squat hex base with a barrel and a T; grey when dark; a pip per hit point left
+      const tg = s('g', { opacity: o.dark ? 0.5 : fade, transform: `translate(${f1(cx)},${f1(cy)}) scale(1.5) translate(${f1(-cx)},${f1(-cy)})` });
+      const tc = o.dark ? '#7f8aa0' : c0;
+      tg.appendChild(s('path', { d: hexPath(cx, cy, 5.4), fill: ink, stroke: tc, 'stroke-width': 1.1 }));
+      tg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 2.6, fill: 'none', stroke: tc, 'stroke-width': 0.8 }));
+      tg.appendChild(s('path', { d: `M${f1(cx)},${f1(cy - 2.6)}L${f1(cx)},${f1(cy - 7.4)}`, stroke: tc, 'stroke-width': 1.4, 'stroke-linecap': 'round' }));
+      tg.appendChild(s('text', { x: f1(cx), y: f1(cy + 0.9), 'font-size': 3.4, 'font-weight': 800, fill: o.dark ? tc : neon, 'text-anchor': 'middle' }, 'T'));
+      for (let i = 0; i < (o.hp || 0); i++) tg.appendChild(s('circle', { cx: f1(cx - 1.6 + i * 3.2), cy: f1(cy + 4), r: 0.8, fill: tc }));
+      svg.appendChild(tg);
+    } else if (o.kind === 'scan_buoy') {
       // rapid mode, scanner buoy: a small dish with two sweeping rings (a one-hex ship that went silent)
       const bg = s('g', { opacity: fade });
       bg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 6, fill: 'none', stroke: c0, 'stroke-width': 0.5, 'stroke-opacity': 0.5, 'stroke-dasharray': '2 1.5', class: 'rotor' }));
@@ -570,7 +580,14 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   // what can be tapped right now
   for (const [k, o] of opts) {
     const c = hex.unkey(k), cx = f1(X(c)), cy = f1(Y(c));
-    if (o.mark === 'move') {
+    if (o.mark === 'turret') {
+      // economy mode: where the selected ship could leave its turret (gold chip with a T)
+      const rc = Math.min(S * 0.62, 12 / px), g = s('g', { 'data-tap': k, class: 'turretchip' });
+      g.appendChild(s('path', { d: cellPath(c, 0.94), fill: '#ffd77a', 'fill-opacity': 0.2, stroke: '#ffd77a', 'stroke-width': f1(1.5), class: 'movepulse' }));
+      g.appendChild(s('circle', { cx, cy, r: f1(rc), fill: '#ffd77a', stroke: '#1a1206', 'stroke-width': f1(1.2 / px) }));
+      g.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(12), 'font-weight': 800, fill: '#1a1206' }, 'T'));
+      svg.appendChild(g);
+    } else if (o.mark === 'move') {
       // The centre hex of a big ship's one-step move lies under the ship itself, so a marker there says nothing.
       // Those get their chip and an arrow on the ship's outer edge, on the side it would move towards.
       const path = o.action.path, own = mover && mover.cells.some((x) => hex.same(x, c));

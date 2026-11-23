@@ -73,7 +73,7 @@ export function view(state, who) {
   for (const o of state.objs) {
     const mine = o.owner === p, open = mine || all;
     if (!open && !vis.has(o.id)) continue;
-    objs.push({ id: o.id, kind: o.kind, owner: o.owner, mine, seen: mine || vis.has(o.id), pos: o.pos.slice(), dir: o.dir, last: o.last || null, fuel: open ? o.fuel : null, target: open ? o.target : null });
+    objs.push({ id: o.id, kind: o.kind, owner: o.owner, mine, seen: mine || vis.has(o.id), pos: o.pos.slice(), dir: o.dir, last: o.last || null, fuel: open ? o.fuel : null, target: open ? o.target : null, hp: o.hp, dark: !!o.dark });
   }
   const ghosts = all ? [] : Object.keys(pl.seen).filter((id) => !vis.has(id)).map((id) => ({ id, ...pl.seen[id] }));
   return {
