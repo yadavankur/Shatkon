@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions } from './settings.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
@@ -769,7 +769,7 @@ export function askSetup(start, title) {
   const close = () => back.remove();
   const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
   const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
-    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, !!boardRapid),
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (boardRapid.economy ? 'econ' : true) : false),
       h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
   document.body.appendChild(back);
 }
@@ -906,6 +906,7 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
+    case 'earned': return '+' + e.n + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
     case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
@@ -1624,6 +1625,7 @@ export function render() {
       (k === 0 ? 'You' : 'Enemy') + (free ? ': free' : ': forward')); }) : null;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit + (R.rapid && game.rapid ? game.rapid.openTicks || 0 : 0)),   // rapid: the opening's ticks don't count
+      E.econOn(game) ? pursePill() : null,   // economy mode: your salvage (the enemy's is hidden)
       R.rapid ? h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps' }, rapidChips)) :
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
@@ -1658,7 +1660,7 @@ export function render() {
   const danger = mine && sel && mode === 'move' && !hid ? E.dangerMap(game, eyes) : null;
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
-    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation() }));
+    halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn }));
   drawMini(v, guide, hid);
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
@@ -1869,16 +1871,18 @@ function rapidLines() {
 function newRapidGame() {
   rapidReset();
   seat = 'cpu'; store.set('shatkon.seat', 'cpu');
-  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions() }), (Date.now() % 2147483647) | 0);
+  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}) }), (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
-  say('Rapid Opus: you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
-    + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).');
+  const econ = E.econOn(game), title = econ ? 'Frontier' : 'Rapid Opus';
+  say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
+    + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
+    + (econ ? ' Salvage (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Nothing to buy yet.' : ''));
   save(); render();
-  setTimeout(() => toast('Rapid Opus', 'p0', 'forward until you cross the line'), 300);
+  setTimeout(() => toast(title, 'p0', econ ? 'earn salvage in the enemy\u2019s half' : 'forward until you cross the line'), 300);
 }
 // Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
 function rapidEnsure() {
@@ -2005,6 +2009,7 @@ function rapidAct(action, quiet, auto) {
   } catch (err) { console.warn('AI error', err); ai = { type: 'pass' }; }
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
+  rapidEarnFx();
   pending = null; endArmed = false; undoStack = []; mode = 'move';
   if (sel && !game.ships.some((x) => x.id === sel && !x.dead)) sel = null;
   sfxFor(a, game.events, 0);
@@ -2024,6 +2029,30 @@ function rapidAct(action, quiet, auto) {
   const w = E.inOpening(game) ? 0 : game.rules.rapid.watch * 1000;
   rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
   render();
+}
+// Economy mode: the purse by the tick ring, and "+n" floating up from each ship that earned this tick.
+function pursePill() {
+  if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
+  const n = E.purse(game, 0), last = (game.econ.perTick[0] || []).slice(-1)[0] || 0;
+  return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Hidden from the enemy.' },
+    h('i', null, '\u25c8'), h('b', null, String(n)));
+}
+function rapidEarnFx() {
+  if (!E.econOn(game)) return;
+  const now = Date.now(), e = game.events.find((x) => x.t === 'earned' && x.player === 0);
+  RT.earn = (RT.earn || []).filter((f) => now - f.born < 1800);
+  if (!e) return;
+  const by = new Map();   // one float per ship: the sum of what it earned
+  for (const it of e.items) {
+    const x = game.ships.find((q) => q.id === it.ship);
+    const at = it.why === 'kill' || !x || x.dead ? it.at : x.pos;   // a kill floats from the wreck
+    const k = it.why === 'kill' ? 'k' + it.ship : it.ship;
+    const f = by.get(k) || { at, n: 0, born: now };
+    f.n += it.n; by.set(k, f);
+  }
+  RT.earn.push(...by.values());
+  RT.earnAt = now;
+  setTimeout(() => { if (RT.earn && RT.earn.length && Date.now() - RT.earnAt >= 1800) { RT.earn = []; render(); } }, 1900);
 }
 // The clock: a bar across the top of the screen. Teal while you choose (red in the last 5 s), grey while you watch.
 function rapidBar() {
@@ -2051,6 +2080,11 @@ function rapidFrame() {
   RT.raf = requestAnimationFrame(rapidFrame);
 }
 const RAPID_CSS = `
+#tbar .purse,.purse{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;border:1px solid rgba(232,196,106,.45);color:#ffd77a;font:700 14px system-ui,sans-serif;white-space:nowrap}
+.purse i{font-style:normal;font-size:15px}.purse.up{background:rgba(232,196,106,.18);box-shadow:0 0 10px rgba(255,215,122,.45)}
+.earnup{animation:earnup 1.8s ease-out forwards;transform-box:fill-box}
+@keyframes earnup{0%{opacity:0;transform:translateY(4px)}12%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+@media (prefers-reduced-motion:reduce){.earnup{animation:none}}
 #rapidbar{position:fixed;left:0;right:0;top:0;height:7px;z-index:60;background:rgba(10,20,36,.75);pointer-events:none}
 #rapidbar i{display:block;height:100%;width:0;background:#7fd8f0;box-shadow:0 0 10px rgba(127,216,240,.7);margin:0 auto}
 #rapidbar.watch i{background:#8f9cba;box-shadow:none}

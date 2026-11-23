@@ -1,3 +1,8 @@
+## Latest (23 Nov, gamedev chat): Frontier, economy mode, slice 1 (branch `frontier-econ1`, PR open)
+- Third rapid experiment: Rapid Opus plus salvage (◈), one hidden purse a fleet. Earned at the end of each tick: new ground in the enemy's half 1 (+1 by an asteroid), first across the line 3, each ship on or past the line 1 a tick, 2 a segment for a kill; cap 6 a tick. Nothing to buy yet. Details and first numbers: [docs/design/frontier.md](../docs/design/frontier.md).
+- `engine/economy.js` (called by `rapidTick`; off unless `rules.rapid.economy === 'on'`), board `rules/rapid/rapid_frontier.yaml`, `ECON_SETTINGS` in `ui/settings.js`, purse / "+n" / new-ground outline in `ui/play.js` and `ui/board.js`, Play → Frontier on the landing page. `sw.js` cache `shatkon-offline-v11`.
+- 243 tests pass (10 new in `tests/economy.test.js`); battle logs replay to the same purses. `tools/frontier_econ.mjs` runs computer v computer: it earns almost only from kills and holding the line, because it never goes where the money is (needs slice 5, computer styles).
+
 ## Latest (22 Nov, Sunday): Rapid Opus, fourth round (branch `rapid-round4`, PR open, not merged)
 - **The opening now ends at first contact**, not first shot: the first tick either side has any contact on the other (a ship in view or a fuzzy contact). From then on: 15 s clock, 1-hex moves, 3 s watch wait, and a "Contact" toast. New setting *Opening ends* (first contact / first shot, `openEnd`).
 - **A time-out moves the ship you had tapped** (flagship too) to a random forward hex; if it can't go forward, or nothing was tapped, the old random pick applies. `forcedMoves(state, p, prefer)`.

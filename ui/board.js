@@ -108,7 +108,7 @@ function diamond(cx, cy, k) {
 
 const drawFail = new Set();   // ships whose hull art threw once: they are drawn as schematics, logged once
 export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, ghost, seat, box, onTap, pending = null, hidden = false, guide = null, field = null, danger = null, incoming = null,
-  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null }) {
+  halo = null, idle = null, style = 'hull', modelBase = '', offsets = null, nameOf = null, onCam = null, onView = null, lines = null, formation = null, ground = null, earn = null }) {
   // nothing to draw while the board has no size (Lab tab open, mid-resize)
   if (!box.clientWidth || !box.clientHeight || !(cam.w > 0) || !isFinite(cam.w)) return s('svg', { role: 'img', 'aria-label': 'Game board' });
   const R = v.board.radius, aspect = box.clientHeight / Math.max(1, box.clientWidth), vw = cam.w, vh = cam.w * aspect;
@@ -235,6 +235,15 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('text', { x: f1(cx), y: f1(cy), 'font-size': fs(12), fill: '#ffc2ea', 'font-weight': 700 }, x.kind === 'ship' ? '?' : '·?'));
   }
 
+  // economy mode (Frontier): new ground, the enemy-half hexes your side has never entered (they pay salvage).
+  // ground: [{ at, rock }]; a hex by an asteroid (pays more) is brighter. Faint, under everything, never blocks a tap.
+  if (ground && ground.length && !hidden) {
+    const gg = s('g', { 'pointer-events': 'none', class: 'newground' });
+    const plain = ground.filter((g) => !g.rock).map((g) => g.at), rock = ground.filter((g) => g.rock).map((g) => g.at);
+    if (plain.length) gg.appendChild(s('path', { d: plain.map((c) => cellPath(c, 0.8)).join(''), fill: 'none', stroke: '#e8c46a', 'stroke-opacity': 0.4, 'stroke-width': 0.6, 'stroke-dasharray': '2 1.5' }));
+    if (rock.length) gg.appendChild(s('path', { d: rock.map((c) => cellPath(c, 0.8)).join(''), fill: '#e8c46a', 'fill-opacity': 0.12, stroke: '#ffd77a', 'stroke-opacity': 0.8, 'stroke-width': 0.8 }));
+    svg.appendChild(gg);
+  }
   // ships. Each one is a single outlined shape, so ships that touch still read as separate.
   const tags = [];
   for (const x of v.ships) {
@@ -620,6 +629,18 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     }
   }
 
+  // economy mode: "+n" salvage floating up from where it was earned. earn: [{ at, n, born }] (born: ms
+  // timestamp; a negative delay keeps the float going smoothly across re-renders).
+  if (earn && earn.length) {
+    const eg = s('g', { 'pointer-events': 'none', class: 'earnfx' });
+    const now = Date.now();
+    for (const e of earn) {
+      const age = now - e.born;
+      if (age > 1800) continue;
+      eg.appendChild(s('text', { x: f1(X(e.at)), y: f1(Y(e.at) - S * 0.6), fill: '#ffd77a', stroke: '#1a1206', 'stroke-width': f1(2 / px), 'paint-order': 'stroke', 'font-size': fs(15), 'font-weight': 700, 'text-anchor': 'middle', class: 'earnup', style: 'animation-delay:-' + age + 'ms' }, '+' + e.n));
+    }
+    svg.appendChild(eg);
+  }
   // taps, dragging and pinching. One finger (or the mouse) drags the view, two fingers zoom it; a tap is passed on.
   let down = null, dragged = false, pinch = null;
   const touches = new Map();
