@@ -668,6 +668,9 @@ function eventFx(r, viewer, delay) {
     case 'obj_destroyed':
       boomFx(r.at, delay);
       break;
+    case 'stunned':   // an intercepted missile still rattles the ship that stopped it
+      textFx(r.at, ['\u26a1 STUNNED'], '#ffe066', delay);
+      break;
     case 'turret_fire':   // economy mode: a turret's shot
       beamFx(r.from, r.at, colOf(r.owner), delay);
       break;
@@ -928,6 +931,7 @@ function describe(e) {
     case 'turret_lit': return 'A dark turret is working again.';
     case 'turret_dark': return 'A turret went dark: not enough salvage for its upkeep.';
     case 'upkeep': return 'Turret upkeep: \u25c8 ' + e.amount + '.';
+    case 'stunned': return (e.ship[0] === '1' ? 'Your ' : 'Enemy ') + e.ship + ' stopped a ' + nice(e.kind) + ' but is stunned: it can\u2019t act next tick' + (e.kind === 'missile' ? ', and the Nuke still did 2 hits' : '') + '.';
     case 'idle': return 'You passed: \u2212' + e.lost + ' \u25c8 and no salvage this tick' + (e.missed ? ' (you would have earned ' + e.missed + ')' : '') + '. Sitting still costs.';
     case 'earned': return '+' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
@@ -1745,12 +1749,15 @@ export function render() {
     const has = (kind) => st.launchers > 0 && kind in st.ammo;      // only offer what this ship carries
     const ammoPips = (kind) => Array.from({ length: Math.min(8, st.ammo[kind] || 0) }, () => st.launchersReady > 0);
     const targets = new Set(shots.map((x) => x.target)).size;
+    const meStunned = !!me.stunned;
     const scanLocked = !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan);
     fill(tools, [
       btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0),
       // the laser's damage close up and far away is the point: closer hits harder
-      st.beams ? btn('fire', 'laser', 'Laser', !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no moves' : targets ? plural(targets, 'target') : 'show reach', st.beamsReady && v.cp >= R.cost.fire,
-        { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : 'show where the lasers reach' }) : null,
+      // always shown, so "why can't I fire?" has an answer: no laser left, out of reach, blocked, nothing seen
+      st.beams ? btn('fire', 'laser', 'Laser', meStunned ? 'stunned' : !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no moves' : targets ? plural(targets, 'target') : noShotWhy(sel), st.beamsReady && v.cp >= R.cost.fire && !meStunned,
+        { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : noShotWhy(sel) })
+        : btn('fire', 'laser', 'Laser', 'no laser left', false, { title: me.id + ' has no working laser: they were shot away' + (isRapidGame() && E.econOn(game) ? ' or left behind as turrets' : '') + '. It can still move.' }),
       // one button per missile kind the ship carries, weakest first (basic, advanced, Nuke)
       ...E.missileKinds(game.rules, Object.fromEntries(Object.keys(st.ammo).map((k) => [k, 1])), true).filter(has).map((k) => btn(k, 'missile', munName(k), launchWhy(k), !!lo && lo.kinds.includes(k), { pips: ammoPips(k), pipCls: 'amber' })),
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
@@ -2117,6 +2124,17 @@ function pursePill() {
 // The shop (economy mode): what salvage buys. Buying is the tick's whole action, like Pass.
 const SOON = [];
 // What turret upkeep costs, in words (economy mode)
+// Why the selected ship has no laser target: nothing seen, out of reach (how far vs its reach), or blocked.
+function noShotWhy(id) {
+  const x = game.ships.find((z) => z.id === id);
+  if (!x) return 'no target';
+  const vis = new Set(game.players[0].vis), foes = game.ships.filter((z) => z.owner !== x.owner && !z.dead && vis.has(z.id));
+  if (!foes.length) return 'no enemy in sight';
+  let reachMax = 0;
+  for (const sg of x.segs) if (!sg.wrecked) for (const q of sg.parts) { const c = game.rules.parts[q.t]; if (q.hp > 0 && c && +c.range && +c.hits) reachMax = Math.max(reachMax, +c.range); }
+  const d = Math.min(...foes.map((f) => Math.min(...E.footprint(f).flatMap((c) => E.footprint(x).map((m) => hex.dist(c, m))))));
+  return d > reachMax ? 'nearest ' + d + ' away, reach ' + reachMax : 'line blocked';
+}
 function upkeepWords() {
   const c = E.econConfig(game.rules);
   if (!c.turretUpkeep) return 'No upkeep.';
@@ -2127,18 +2145,22 @@ function rapidShop() {
   const old = document.getElementById('rapidbuy'); if (old) { old.remove(); return; }
   const close = () => { const c = document.getElementById('rapidbuy'); if (c) c.remove(); };
   const purse = E.purse(game, 0);
+  const forShip = sel;   // the ship selected when Buy was pressed is the one a purchase is for
   const rows = Object.entries(E.SHOP).map(([k, it]) => {
     const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
     const short = purse < cost;
-    return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); it.needsShip ? rapidForShip(k) : rapidAct({ type: 'buy', item: k }); } },
+    return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); if (forShip) sel = forShip; it.needsShip ? rapidForShip(k) : rapidAct({ type: 'buy', item: k }); } },
       h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, short ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'resupply' ? '' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + '. ' + upkeepWords() : '')));
   });
   const later = SOON.map(([n, about, c]) => h('button', { class: 'btn off', disabled: true }, h('span', { class: 'shoprow' }, h('span', null, n), h('b', null, '\u25c8 ' + c)), h('small', null, about + ' (coming later)')));
-  document.body.appendChild(h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
-    h('b', null, 'Buy \u00b7 \u25c8 ' + purse),
+  const sheet = h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
+    h('b', null, 'Buy \u00b7 \u25c8 ' + purse + (forShip ? ' \u00b7 for ' + forShip : '')),
     h('small', null, 'Buying is your action for this tick: your ships hold still. The enemy doesn\u2019t see it.'),
     ...rows, ...later,
-    h('button', { class: 'btn', onclick: close }, 'Back')));
+    h('button', { class: 'btn', onclick: close }, 'Back'));
+  // taps on the sheet must not reach the board underneath (a tap there on empty space deselected the ship)
+  for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend']) sheet.addEventListener(ev, (e) => e.stopPropagation());
+  document.body.appendChild(sheet);
 }
 // A purchase for one ship: the selected one, or the one the player taps next.
 function rapidForShip(item) {
@@ -2157,9 +2179,11 @@ function rapidForShip(item) {
     const why = E.upgradeRefusal(game, 0, x.id, k);
     return h('button', { class: 'btn go' + (why ? ' off' : ''), disabled: !!why, onclick: () => { close(); rapidAct({ type: 'buy', item: 'upgrade', ship: x.id, kind: k }); } }, u.label, h('small', null, why || ({ range: 'every laser on it reaches 1 hex further', shield: 'its shields come back 1 tick sooner', sensor: 'its core sees 1 hex further', armour: 'one armour plate takes 1 more hit' })[k]));
   });
-  document.body.appendChild(h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Upgrade' },
+  const sheet = h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Upgrade' },
     h('b', null, 'Upgrade ' + x.id + ' \u00b7 \u25c8 ' + E.price(game, 'upgrade')), h('small', null, 'One upgrade per ship, for good. It uses your tick. A scan shows it to the enemy.'),
-    ...rows, h('button', { class: 'btn', onclick: close }, 'Back')));
+    ...rows, h('button', { class: 'btn', onclick: close }, 'Back'));
+  for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend']) sheet.addEventListener(ev, (e) => e.stopPropagation());
+  document.body.appendChild(sheet);
 }
 // Buying a turret: the selected ship (or the one to tap next) shows the free hexes next to it; tap one.
 function rapidTurretStart() {

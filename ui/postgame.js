@@ -126,25 +126,36 @@ export function postGameCards(game, opts = {}) {
       : h('p', { class: 'pg-foot' }, 'A quiet battle: nothing to show.'),
     opts.onShow ? h('p', { class: 'pg-foot' }, 'Tap a moment to see where it happened.') : null);
 
-  // 4. economy mode: salvage in and out, and what each purchase did
+  // 4. economy mode: salvage in and out, and what the purchases did, as one plain table
   let card4 = null;
   if (st.econ) {
-    const spark = (vals, cls) => { const w = 220, hgt = 36, n = Math.max(1, vals.length - 1), mx = Math.max(1, ...vals);
-      const pts = vals.map((v, i) => (i * w / n).toFixed(1) + ',' + (hgt - (v / mx) * (hgt - 2) - 1).toFixed(1)).join(' ');
-      const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s2.setAttribute('viewBox', '0 0 ' + w + ' ' + hgt); s2.setAttribute('class', 'pg-spark ' + cls);
-      const pl = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); pl.setAttribute('points', pts); s2.appendChild(pl); return s2; };
-    const words = { cross: 'first across', kill: 'kills', hold: 'holding the line', ground: 'new ground', rock: 'by asteroids' };
-    const buyText = (b) => b.item === 'turret' ? 'Turret from ' + b.ship + ': ' + (b.turret.shots ? b.turret.shots + ' shots, ' + b.turret.dmg + ' damage' : 'never fired') + (b.turret.gone != null ? ', destroyed R' + b.turret.gone : ', still standing')
-      : b.item === 'upgrade' ? 'Upgrade ' + b.ship + ': ' + E.UPGRADES[b.kind].label : b.item === 'resupply' ? 'Resupply ' + b.ship + ': +1 ' + String(b.kind).replace(/_/g, ' ') : 'Heatmap';
+    const [e0, e1] = st.econ, sum = (o) => Object.values(o).reduce((x, y) => x + y, 0);
+    const row = (label, a0, a1, cls = '') => (a0 || a1 || cls === 'tot') ? h('tr', { class: cls }, h('th', null, label), h('td', { class: 's0' }, a0 || '\u2013'), h('td', { class: 's1' }, a1 || '\u2013')) : null;
+    const sec = (label) => h('tr', { class: 'sec' }, h('th', { colspan: 3 }, label));
+    const from = (e, k) => e.from[k] || 0, cnt = (e, item) => e.buys.filter((b) => b.item === item).length;
+    const spentOn = (e, k) => e.spent[k] || 0;
+    const turretLine = (e) => { const ts = e.buys.filter((b) => b.turret); if (!ts.length) return '';
+      const fired = ts.filter((b) => b.turret.shots), dmg = ts.reduce((n, b) => n + b.turret.dmg, 0);
+      return ts.length + ' built, ' + fired.length + ' ever fired, ' + dmg + ' damage in all'; };
     const style = game.econ.style && game.econ.style[1];
     card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Salvage \u25c8'),
-      style ? h('p', { class: 'pg-foot' }, name(1) + ' played ' + style.toUpperCase() + ({ rush: ': buy late, push and fight.', boom: ': roam for salvage, upgrade later.', turtle: ': turrets and heatmaps, hold the line.' })[style]) : null, head,
-      bar('Earned', st.econ[0].earned, st.econ[1].earned), bar('Spent', Object.values(st.econ[0].spent).reduce((x, y) => x + y, 0), Object.values(st.econ[1].spent).reduce((x, y) => x + y, 0)),
-      bar('Turret upkeep', st.econ[0].spent.upkeep || 0, st.econ[1].spent.upkeep || 0),
-      h('div', { class: 'pg-msl' }, [0, 1].map((k) => h('div', { class: 's' + k },
-        h('b', null, name(k) + ': income a tick'), spark(st.econ[k].perTick, 's' + k),
-        h('span', null, Object.entries(st.econ[k].from).map(([w, n]) => (words[w] || w) + ' ' + n).join(' · ') || 'nothing earned'),
-        h('span', null, st.econ[k].buys.length ? st.econ[k].buys.map((b) => 'R' + b.round + ' ' + buyText(b)).join('; ') : 'bought nothing')))));
+      style ? h('p', { class: 'pg-foot' }, name(1) + ' played ' + style.toUpperCase() + ({ rush: ': buy late, push and fight.', boom: ': roam for salvage, upgrade later.', turtle: ': turrets and heatmaps, hold the line.' })[style]) : null,
+      h('table', { class: 'pg-tab pg-econ' },
+        h('thead', null, h('tr', null, h('th'), h('th', { class: 's0' }, name(0)), h('th', { class: 's1' }, name(1)))),
+        h('tbody', null,
+          row('Earned', e0.earned, e1.earned, 'tot'), row('Spent', sum(e0.spent), sum(e1.spent), 'tot'), row('Left at the end', e0.purse, e1.purse, 'tot'),
+          sec('Where it came from'),
+          row('New ground', from(e0, 'ground'), from(e1, 'ground')), row('By asteroids', from(e0, 'rock'), from(e1, 'rock')),
+          row('Holding the line', from(e0, 'hold'), from(e1, 'hold')), row('First across', from(e0, 'cross'), from(e1, 'cross')), row('Kills', from(e0, 'kill'), from(e1, 'kill')),
+          sec('What it went on'),
+          row('Turrets', spentOn(e0, 'turret') ? spentOn(e0, 'turret') + ' (' + cnt(e0, 'turret') + ')' : 0, spentOn(e1, 'turret') ? spentOn(e1, 'turret') + ' (' + cnt(e1, 'turret') + ')' : 0),
+          row('Turret upkeep', spentOn(e0, 'upkeep'), spentOn(e1, 'upkeep')),
+          row('Upgrades', spentOn(e0, 'upgrade') ? spentOn(e0, 'upgrade') + ' (' + cnt(e0, 'upgrade') + ')' : 0, spentOn(e1, 'upgrade') ? spentOn(e1, 'upgrade') + ' (' + cnt(e1, 'upgrade') + ')' : 0),
+          row('Missiles (resupply)', spentOn(e0, 'resupply') ? spentOn(e0, 'resupply') + ' (' + cnt(e0, 'resupply') + ')' : 0, spentOn(e1, 'resupply') ? spentOn(e1, 'resupply') + ' (' + cnt(e1, 'resupply') + ')' : 0),
+          row('Heatmaps', spentOn(e0, 'heatmap') ? spentOn(e0, 'heatmap') + ' (' + cnt(e0, 'heatmap') + ')' : 0, spentOn(e1, 'heatmap') ? spentOn(e1, 'heatmap') + ' (' + cnt(e1, 'heatmap') + ')' : 0),
+          row('Lost by passing', spentOn(e0, 'idle'), spentOn(e1, 'idle')))),
+      [0, 1].map((k) => turretLine(st.econ[k]) ? h('p', { class: 'pg-foot s' + k }, name(k) + '\u2019s turrets: ' + turretLine(st.econ[k]) + '.') : null),
+      h('p', { class: 'pg-foot' }, 'Numbers in brackets: how many were bought.'));
   }
   const cards = [card1, card2, card3, card4].filter(Boolean);
   const track = h('div', { class: 'pg-track' }, cards);

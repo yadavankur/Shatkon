@@ -1,3 +1,9 @@
+## Latest (24 Nov, gamedev chat): intercepted missiles hurt; buy fix; laser reasons; salvage table (merged)
+- Frontier (`interceptHurts: on`): a missile stopped by point defence or shot down still stuns the ship that stopped it (or its locked target) for its next tick; a Nuke still does 2 hits. `stunned()` in engine/damage.js; refused in rapidRefusal, left out of legalMoves and the computer's choices; ⚡ on the board.
+- Buy: the ship selected when Buy is pressed is the one the purchase is for (taps on the sheet were reaching the board and deselecting it).
+- Laser button always shown with why it can't fire: no laser left, nearest enemy out of reach (distance vs reach), line blocked, no enemy in sight, stunned.
+- End screen Salvage card is now one table: earned/spent/left, where it came from, what it went on, turret summary.
+
 ## Latest (23 Nov night, gamedev chat): Frontier slice 5: computer styles (merged)
 - `engine/econai.js`: rush / boom / turtle, setting "Computer plays" (random by default). Tool: `node tools/frontier_styles.mjs 12 150` (about 8 minutes).
 - First runs: boom beats rush 8-1 and turtle 7-3; turtle beats rush 8-4. Not a triangle yet; games run to the 150-tick cap. Details and tuning ideas: [docs/design/frontier.md](../docs/design/frontier.md).

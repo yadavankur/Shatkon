@@ -489,3 +489,39 @@ test('a computer-v-computer Frontier game with styles replays from its log', () 
   assert.equal(log.replayable, true);
   assert.deepEqual(E.replayLog(log).econ, g.econ);
 });
+
+// ---------- intercepted missiles still cost (Frontier: interceptHurts on) ----------
+import { explode, stunned } from '../engine/damage.js';
+test('a missile stopped by point defence stuns that ship for its next tick; a Nuke still does 2 hits', () => {
+  const g = frontier();
+  const x = g.ships.find((s) => s.owner === 1);
+  const pdShip = g.ships.find((s) => s.owner === 1 && s.segs.some((sg) => sg.parts.some((q) => g.rules.parts[q.t].stops_per_round)));
+  assert.ok(pdShip, 'no enemy ship with point defence'); assert.ok(x);
+  const s = structuredClone({ ...g, rules: undefined }); s.rules = g.rules; s.events = [];
+  const tgt = s.ships.find((z) => z.id === pdShip.id);
+  s.objs.push({ id: 'o99', kind: 'missile_basic', owner: 0, pos: tgt.pos.slice(), dir: 0, fuel: 3, target: tgt.id, lock: true, route: [], src: null });
+  explode(s, s.objs.find((o) => o.id === 'o99'), { ship: tgt, seg: 0 });
+  assert.ok(s.events.some((e) => e.t === 'stopped'));
+  assert.ok(!stunned(s, tgt), 'stunned on this tick already');
+  s.round += 1;
+  assert.ok(stunned(s, tgt));
+  assert.match(E.rapidRefusal(s, 1, { type: 'move', ship: tgt.id, path: [0] }) || '', /stunned/);
+  assert.ok(!E.legalMoves(s, 1).some((m) => m.ship === tgt.id));
+  s.round += 1;
+  assert.ok(!stunned(s, tgt));
+  // the Nuke: stopped, but 2 hits on the nearest segment
+  const n = structuredClone({ ...g, rules: undefined }); n.rules = g.rules; n.events = [];
+  const t2 = n.ships.find((z) => z.id === pdShip.id);
+  n.objs.push({ id: 'o98', kind: 'missile', owner: 0, pos: t2.pos.slice(), dir: 0, fuel: 3, target: t2.id, lock: true, route: [], src: null });
+  explode(n, n.objs.find((o) => o.id === 'o98'), { ship: t2, seg: 0 });
+  const dmg = n.events.find((e) => e.t === 'damage' && e.ship === t2.id);
+  assert.ok(dmg && dmg.hits === 2, 'nuke did ' + (dmg && dmg.hits));
+  // Rapid Opus: off
+  const { b, rules } = board('rules/rapid/rapid_opus.yaml');
+  const o = E.rapidStart(E.rapidRules({ ...rules, rapid: b.rapid }), 5);
+  const t3 = o.ships.find((z) => z.owner === 1 && z.id === pdShip.id);
+  o.objs.push({ id: 'o97', kind: 'missile_basic', owner: 0, pos: t3.pos.slice(), dir: 0, fuel: 3, target: t3.id, lock: true, route: [], src: null });
+  explode(o, o.objs.find((q) => q.id === 'o97'), { ship: t3, seg: 0 });
+  o.round += 1;
+  assert.ok(!stunned(o, t3));
+});
