@@ -65,6 +65,13 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
 .item b{display:block;font-size:17px;font-weight:300;letter-spacing:.14em;text-transform:uppercase}
 .item span{color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .item .num{width:30px;height:30px;border-radius:50%;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font:600 13px ui-monospace,monospace;color:var(--accent)}
+/* practice boards live in a sub-list under the Experiments card, not as top-level Play items */
+.lab-group{display:flex;flex-direction:column;align-items:center;gap:8px}
+.lab-practices{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%}
+.lab-practices-label{margin:4px 0 0;color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.lab-practices-list{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.lab-practices-list .item{width:200px;min-height:116px;padding:12px}
+.lab-practices-list .item b{font-size:15px}
 /* board picker: a vertical ladder. Dark hex field on this screen only.
    The base .list wraps and centres its cards. Here we must nowrap and
    start at the top, or later boards go into off-screen columns and the
@@ -427,10 +434,18 @@ function playMenu(main) {
     item(null, 'start', 'Frontier', 'Rapid Opus with an economy: earn rekon in the enemy\u2019s half. Experimental.',
       () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ')),
     // experiments: new rules, each switched off until you turn it on, on a small board with small fleets
-    item(null, 'start', 'Experiments', 'Small fleets, a small board, and switches for new ideas. Nothing here touches the real game.',
-      () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
-    item(null, 'start', 'Ram', 'Practice board: move your scout one hex closer to their Warden, then tap Ram.',
-      () => battleSheet('Ram', game({ board: 'lab_ram', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab'))));
+    h('div', { class: 'lab-group' },
+      item(null, 'start', 'Experiments', 'Small fleets, a small board, and switches for new ideas. Nothing here touches the real game.',
+        () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
+      h('div', { class: 'lab-practices' },
+        h('p', { class: 'lab-practices-label' }, 'Practice boards'),
+        h('div', { class: 'lab-practices-list' },
+          item(null, 'start', 'Ram', 'Move your scout one hex closer (on Convert to?, tap Stay a ship), then tap Ram.',
+            () => battleSheet('Ram', game({ board: 'lab_ram', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
+          item(null, 'start', 'Smart mine', 'Move your healthy scout one hex, then tap Mine — not Stay a ship.',
+            () => battleSheet('Smart mine', game({ board: 'lab_stateMines', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
+          item(null, 'start', 'Decoy', 'Tap your Warden, tap Decoy, and place it in the gap between the two fleets.',
+            () => battleSheet('Decoy', game({ board: 'lab_decoy', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')))))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

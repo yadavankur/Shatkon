@@ -21,6 +21,7 @@ test('the Ram practice board loads through the same board builder as the Lab, wi
   assert.deepEqual(problems, []);
   assert.equal(b.board.name, 'Ram');
   assert.match(b.board.try, /Move your scout/i);
+  assert.match(b.board.try, /Stay a ship/i);
   assert.match(b.board.idea, /wrecked/i);
   assert.equal(game.rules.board.radius, 7);
   assert.equal(game.rules.rapid.experiments, 'on');

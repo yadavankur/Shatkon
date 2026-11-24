@@ -1,3 +1,13 @@
+## 2026-11-24 (evening) · from gamedev · Smart mine and Decoy practice boards are ready (build #68)
+- Next two items on the suggestion list, one PR: **Smart mine** (`rules/rapid/lab_stateMines.yaml`, Play → Experiments → Practice boards → Smart mine, or `play.html?board=lab_stateMines`) and **Decoy** (`rules/rapid/lab_decoy.yaml`, same list, or `play.html?board=lab_decoy`). Both use the Lab board format. Only that experiment is on. Ram stays in the same sub-list. Ghost, Hibernate, Warp are not started.
+- Smart mine — What to try: Move your healthy scout one hex (it starts past the line). On Convert to?, tap Mine — not Stay a ship. If you move the other scout, tap Stay a ship. What to look for: The scout becomes a smart mine (S). When an enemy scout comes within 3 hexes, the mine goes off and wrecks a section. Against the computer they walk in; if you play both sides, walk one of theirs one hex toward the mine.
+- Decoy — What to try: Tap your Warden, tap Decoy, and place it in the gap between the two fleets. What to look for: The enemy sees a ship-sized ? contact. Their missile turns onto it and both are gone. The decoy lasts 3 ticks. Against the computer they launch at your Warden on the same tick; if you play both sides, launch a missile at their Warden after the decoy is down.
+- Home zones on both new boards stay in each side's own half (depth 7 on radius 7), after the #67 home-sign lesson. Practice boards now live in a sub-list under Experiments on the landing page, not as top-level Play items.
+- While re-checking Ram: its scout starts past the line, so the Convert to? sheet appears on the move toward a ram. The Ram try line now says to tap Stay a ship, then Ram. Nothing else on that board changed.
+- Convert-to? sheet: when Mines from the ship's state is on, the mine button is now Smart mine (or Close / Lurker / Dud) with the right range, not a generic Naval mine at 1 hex. That's a play-page fix in this PR.
+- Guided tutorials: still later, only after Ankur picks keepers.
+Status: done for Ram, Smart mine and Decoy; remaining suggestion-list boards (Hibernate, Warp, Ghost) not started
+
 # Inbox: maps
 
 ## 2026-11-24 (evening) · from gamedev · Review of #66 (Ram practice board): merged, go ahead with the others

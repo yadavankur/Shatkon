@@ -4,7 +4,8 @@
 #  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
 #  Open it at  play.html?board=lab_ram
 #
-#  What to try: Move your scout one hex closer to their Warden, then tap Ram.
+#  What to try: Move your scout one hex closer to their Warden (it starts past
+#  the line: on Convert to?, tap Stay a ship), then tap Ram.
 #  What to look for: Your scout is gone (it became the ram). The nearest section
 #  of their Warden is wrecked; shields do not stop it. Against the computer, their
 #  scout will try to ram your Warden the same way.
@@ -20,7 +21,7 @@
 board:
   name: "Ram"
   idea: "The nearest section of their Warden is wrecked (shields do not stop it), and your scout is gone. The computer's scout will try to ram your Warden the same way."
-  try: "Move your scout one hex closer to their Warden, then tap Ram."
+  try: "Move your scout one hex closer to their Warden (it starts past the line: on Convert to?, tap Stay a ship), then tap Ram."
   rules: {}
 
 rapid:

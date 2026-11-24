@@ -1,3 +1,11 @@
+## Latest (24 Nov evening, gamedev chat): Smart mine and Decoy practice boards (PR open, build #68)
+- Play → Experiments, then the Practice boards sub-list: **Smart mine** (`play.html?board=lab_stateMines`) and **Decoy** (`play.html?board=lab_decoy`), plus the existing **Ram**. Same format as the Lab board. Each board has only its own experiment on. No guided tutorials. Ghost, repair, warp and hibernate are not built yet.
+- Smart mine: your healthy scout starts just past the line; convert it to a smart mine (S). Enemy scouts walk in and set it off at 3 hexes, wrecking a section. Vs the computer this happens on the first tick.
+- Decoy: tap your Warden, tap Decoy, place it in the gap. Their missile turns onto the ? contact and both are gone. Vs the computer this happens on the first tick, at any keenness.
+- Convert-to? sheet now names the mine from the ship's state when that experiment is on (Smart mine / 3 hexes, and so on). Off, it still says Naval mine.
+- Ram's try line now says to tap Stay a ship (the scout starts past the line, so the convert sheet appears on the way to a ram). Home zones on the new boards stay in each side's own half (depth 7).
+- Hard playtest in headless Chrome: complete games of Smart mine and Decoy (vs computer, me v me), Decoy and Ram at each computer keenness, every ship tapped, console clean.
+
 ## Latest (24 Nov evening, gamedev chat): #66 reviewed and merged; fixes (merged, build #67)
 - Home side read from the board's home zone (engine/rapidrules.js homeSign), not the ships' average row: lab_ram had both sides "home south".
 - Rapid: tapping a ship past the line crashed the action buttons (view scanR null); fixed. Eager-ram computer keeps scouts as rams. Plain Lab board no longer reset by practice-board seeding.

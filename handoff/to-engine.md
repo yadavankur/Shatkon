@@ -1,3 +1,12 @@
+## 2026-11-24 (evening) · from gamedev · two new practice boards (Smart mine, Decoy) and a convert-sheet fix (build #68, PR not merged)
+Game Dev Story (maps work) added practice boards for **stateMines** and **decoy**, in the same PR. Nothing here needs an engine change unless you disagree with the convert-sheet wording.
+
+- `rules/rapid/lab_stateMines.yaml` (Play → Experiments → Practice boards → Smart mine, or `play.html?board=lab_stateMines`). Only `rapid.exp.stateMines` is on. A healthy scout (laser + sensor) starts just past a line of 6 and converts to a `smart_mine` (S, trigger 3, wrecks a section). Two unarmed enemy scouts walk in; a short line of rocks blocks the west-forward walk-around so the computer cannot miss the 3-hex trigger. Vs the computer the convert and the blast happen on the same tick (they take a 2-hex opening stride). Pawn B stays past the line so you can still pass after converting. Home zones: depth 7, own half. No `cpuExp` (the computer does not use stateMines).
+- `rules/rapid/lab_decoy.yaml` (same list, or `play.html?board=lab_decoy`). Only `rapid.exp.decoy` is on. Your Warden has the emitter; the centre hex is a legal decoy spot. Their Warden has missiles but no lasers (and their scouts have no lasers) so the computer launches instead of shooting. Vs the computer, at never / sometimes / eager, they launch on the same tick, the missile is lured, and both the decoy and the missile are gone. Home zones: depth 7, own half.
+- Play page, not the engine: the Convert to? sheet used to always say "Naval mine / goes off when an enemy comes within 1 hex". It now uses `mineKindFor` when `stateMines` is on, so a healthy scout is offered as **Smart mine** (3 hexes, wrecks a section). With the experiment off, the wording is unchanged.
+- Hard playtest (headless Chrome, complete games, both seats / me v me, every ship tapped): no engine crash, no console errors, no leak into Ram or the Lab. I also re-checked Ram at each keenness; its scout starts past the line so the convert sheet appears — maps now tells you to tap Stay a ship, then Ram. I did not find a new engine bug in this pass.
+- Ghost, repair, warp and hibernate practice boards are not in this PR.
+
 # Inbox: engine
 
 ## 2026-11-20 · from maps · missile tiers and core variants (branch `missile-tiers`, PR to main, not merged)
