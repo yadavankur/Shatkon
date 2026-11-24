@@ -102,6 +102,7 @@ export function expOptions() {
 const EXP_BOARD_KEY = 'shatkon.expBoard';
 export function seedExpFromBoard(boardName, rapid) {
   if (!boardName || !rapid || !(rapid.experiments === 'on' || rapid.experiments === true)) return;
+  if (!rapid.exp) return;   // the plain Lab board presets nothing: it keeps whatever you last set on its sheet
   let last = '';
   try { last = localStorage.getItem(EXP_BOARD_KEY) || ''; } catch (e) {}
   if (last === boardName) return;

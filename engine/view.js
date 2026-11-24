@@ -66,7 +66,7 @@ export function view(state, who) {
       tier: open ? 3 : s.segs.every((_, i) => intel[i] && intel[i].round >= state.round - 1) ? 3 : 2,
       hull: open ? hullPct(state, s) : null,
       scan: mine ? scanInfo(state, s) : null,
-      scanR: mine && netMoved(state, s) >= 1 ? scanRadii(state, s) : null,
+      scanR: mine && (netMoved(state, s) >= 1 || state.rules.rapid) ? scanRadii(state, s) : null,   // rapid: no 'moved this turn' (tapping a scout past the line crashed the buttons)
       motionSig: open ? motionSig(state, s) : null,
       sigBreak: open ? sigBreak(state, s) : null,
     });
