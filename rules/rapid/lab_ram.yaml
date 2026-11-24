@@ -43,7 +43,8 @@ map:
     player_2_home: { edge: north, depth: 10 }
     no_mans_land:  { everything_else: true }
   terrain:
-    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [2, 1], size: 1 }     # was one rock at [0, 0]: right between the two Wardens, so once both
+    - { type: asteroid, at: [-2, -1], size: 1 }   # lost their engines neither could ever shoot the other (Ankur's game, 24 Nov)
     - { type: asteroid, at: [0, 5], size: 1 }
     - { type: asteroid, at: [0, -5], size: 1 }
 

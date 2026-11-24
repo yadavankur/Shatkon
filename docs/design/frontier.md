@@ -53,7 +53,7 @@ Starting hexes count as entered. When the cap cuts a tick short, items are paid 
 - **The turret** (`kind: 'turret'`, engine/economy.js): 2 hp, signature 1, a small sensor (2) whose sight is shared with its side like a drone's. Every tick, with both sides' shots, it fires 2 hits at the nearest enemy ship, missile, drone or turret its side can see within 4 hexes, with a clear line. Hits on ships land with the tick's other laser hits; a missile it hits is destroyed. A laser hit of 1 leaves it at 1 hp; a missile blast destroys it.
 - **Upkeep** 1 a turret a tick, **from the tick after it is placed** (otherwise buying with your last 8 salvage made it go dark at once). Paid newest first; a turret that can't be paid **goes dark until a later tick pays for it again** (the draft said the oldest goes dark; I made it temporary rather than permanent). Dark turrets are grey and don't fire.
 - Enemy turrets you can see are on the heatmap (2 hits within 4).
-- Not decided (draft open question 3): turrets can't be picked back up, and they fire at missiles too.
+- Decided (Ankur, 24 Nov; draft open question 3): turrets can't be picked back up, and they fire at missiles too.
 - The computer doesn't buy turrets yet (slice 5).
 - **Checked:** 6 new tests (placement and refusals, laser removed, firing, 2 hp, upkeep and going dark and waking, heatmap, replay); 253 pass. Headless Chrome 844x390: Buy → Turret → tap ship → T chips → placed, purse charged; no console errors.
 
