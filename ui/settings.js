@@ -36,7 +36,19 @@ export const RAPID_SETTINGS = [
   { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
 // Experiments (engine/experiments.js): on the Lab board's sheet, one on/off switch each, all off by default.
-export const EXP_SETTINGS = EXPERIMENTS.map((e) => ({ key: e.key, label: e.label, def: 'off', options: [['off', 'Off', e.about], ['on', 'On', e.about]] }));
+// The ones the computer can choose to use (engine/labai.js) get a choice of how keen it is: 'on' is
+// "sometimes" (the computer uses it when it clearly helps), 'eager' and 'mine' (only you use it).
+const CPU_USES = { ram: 'rams with a crippled scout, or one next to a bigger ship', decoy: 'puts a decoy out when your missiles are in the air', repair: 'repairs a ship missing 3 or more parts', warp: 'warps a badly damaged ship away from your ships', hibernate: 'hibernates a damaged ship by an asteroid when you are not close' };
+const CPU_EAGER = { ram: 'rams with any scout that gets within 2 of a bigger ship, even instead of a shot', decoy: 'puts a decoy out whenever it can see you', repair: 'repairs any damaged ship it can afford to', warp: 'warps any hit ship that has your ships within 4', hibernate: 'hibernates any damaged ship by an asteroid when you are not close' };
+export const EXP_SETTINGS = EXPERIMENTS.map((e) => ({ key: e.key, label: e.label, def: 'off', options: CPU_USES[e.key]
+  ? [['off', 'Off', e.about], ['mine', 'On, just me', e.about + ' The computer never uses it.'], ['on', 'On, computer sometimes', e.about + ' The computer ' + CPU_USES[e.key] + '.'], ['eager', 'On, computer eager', e.about + ' The computer ' + CPU_EAGER[e.key] + '.']]
+  : [['off', 'Off', e.about], ['on', 'On', e.about]] }));
+// Who plays on the Experiments board: you v the computer, or you v you to try both sides of a rule.
+export const LAB_PLAY = [{ key: 'who', label: 'Who plays', def: 'cpu', options: [
+  ['cpu', 'Me v computer', 'You are player 1; the computer is player 2 and uses the experiments as set below.'],
+  ['pass', 'Me v me, pass', 'You pick player 1\u2019s action, then a curtain, then player 2\u2019s on the board turned round; then the tick happens. No clock. Hand the phone over or play both.'],
+  ['all', 'Me v me, no curtain', 'Like pass, but no curtain between the two picks. Each side still only sees what its own ships see.']] }];
+export const labWho = () => readSet(XSTORE, LAB_PLAY).who;
 // Economy mode (Frontier, rules/rapid/rapid_frontier.yaml, engine/economy.js): shown under the rapid
 // settings on boards with an economy, kept in their own store.
 export const ECON_SETTINGS = [
@@ -78,7 +90,9 @@ export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
 // The experiments switched on, as the rapid option `exp`
 export function expOptions() {
   const r = readSet(XSTORE, EXP_SETTINGS);
-  return { exp: Object.fromEntries(EXP_SETTINGS.filter((d) => r[d.key] === 'on').map((d) => [d.key, true])) };
+  const on = EXP_SETTINGS.filter((d) => r[d.key] !== 'off');
+  return { exp: Object.fromEntries(on.map((d) => [d.key, true])),
+    cpuExp: Object.fromEntries(on.filter((d) => CPU_USES[d.key]).map((d) => [d.key, r[d.key] === 'mine' ? 'never' : r[d.key] === 'eager' ? 'eager' : 'sometimes'])) };
 }
 export function econOptions() {
   const r = econSettings();
@@ -91,7 +105,7 @@ export function econOptions() {
 export function settingsForm(onChange, rapid = false) {
   const box = document.createElement('div');
   box.className = 'bs-form';
-  const groups = rapid === 'lab' ? [[EXP_SETTINGS, XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);

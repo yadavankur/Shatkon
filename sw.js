@@ -1,7 +1,7 @@
 // Shatkon's service worker: it makes the game installable and lets it open with no signal.
 // Network first: every file is fetched fresh whenever there is a connection, so a new version of the
 // game or its rule files is never held back by an old copy. The copy kept here is only used offline.
-const CACHE = 'shatkon-offline-b63';   // the build number (ui/version.js): a new build is a new cache
+const CACHE = 'shatkon-offline-b64';   // the build number (ui/version.js): a new build is a new cache
 // The launch splash's drawing file is kept from the very first visit, so the splash also shows when the game is first opened with no signal.
 self.addEventListener('install', (ev) => { ev.waitUntil(caches.open(CACHE).then((c) => c.add('lib/splash.js')).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', (ev) => ev.waitUntil((async () => {
