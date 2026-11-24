@@ -2125,11 +2125,21 @@ function rapidAct(action, quiet, auto) {
     RT.convertFor = a; pending = null;
     const pick = (into) => { const c = document.getElementById('rapidconvert'); if (c) c.remove(); rapidAct(into ? { ...a, convert: into } : a); };
     const [r1, r2] = game.rules.rapid.buoyScan || [4, 8];
+    // stateMines: the mine depends on what still works on this scout (smart / close / lurker / dud)
+    const convShip = game.ships.find((s) => s.id === a.ship);
+    const mineKind = E.exp(game, 'stateMines') && convShip ? E.mineKindFor(game, convShip) : 'naval_mine';
+    const mun = (game.rules.munitions || {})[mineKind] || {};
+    const mineName = E.exp(game, 'stateMines') ? (mun.label || 'Naval mine') : 'Naval mine';
+    const trig = Number(mun.trigger_range);
+    const wreck = mun.wrecks_segment ? '; wrecks a section' : '';
+    const mineHint = !E.exp(game, 'stateMines') ? 'goes off when an enemy comes within 1 hex'
+      : trig === 0 ? 'goes off only if a ship moves onto it'
+      : 'goes off when an enemy comes within ' + trig + ' hex' + (trig === 1 ? '' : 'es') + wreck;
     document.body.appendChild(h('div', { id: 'rapidconvert', class: 'rapidconv', role: 'dialog', 'aria-label': 'Convert to?' },
       h('b', null, 'Convert ' + a.ship + ' to?'),
       h('small', null, 'It goes silent: the ship is gone (not lost) and something quieter stays in its place.'),
       h('button', { class: 'btn go', onclick: () => pick('scanner') }, 'Scanner buoy', h('small', null, 'scans every tick: full readout within ' + r1 + ', contacts within ' + r2)),
-      h('button', { class: 'btn go', onclick: () => pick('mine') }, 'Naval mine', h('small', null, 'goes off when an enemy comes within 1 hex')),
+      h('button', { class: 'btn go', onclick: () => pick('mine') }, mineName, h('small', null, mineHint)),
       h('button', { class: 'btn', onclick: () => pick(null) }, 'Stay a ship')));
     say('Past the line: convert ' + a.ship + ' to a scanner buoy or a mine, or keep it a ship.');
     return render();

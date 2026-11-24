@@ -218,6 +218,7 @@ const SCREENS = {
   'play/cpu': { title: 'Vs computer', back: 'play', draw: () => boardPicker('cpu') },
   'play/same': { title: 'Same phone', back: 'play', draw: () => boardPicker('pass') },
   'play/two': { title: 'Two phones', back: 'play', draw: twoPhones },
+  'play/lab': { title: 'Experiments', back: 'play', draw: labMenu },
   'play/two/start': { title: 'Start a game for two phones', back: 'play/two', draw: () => boardPicker('p1') },
   workshop: { title: 'Workshop', back: '', draw: workshop },
   'workshop/open': { title: 'Open board', back: 'workshop', draw: () => boardPicker('all') },
@@ -426,11 +427,20 @@ function playMenu(main) {
     // economy mode (experimental, third rapid version): Rapid Opus plus rekon earned by flying through the board.
     item(null, 'start', 'Frontier', 'Rapid Opus with an economy: earn rekon in the enemy\u2019s half. Experimental.',
       () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ')),
-    // experiments: new rules, each switched off until you turn it on, on a small board with small fleets
-    item(null, 'start', 'Experiments', 'Small fleets, a small board, and switches for new ideas. Nothing here touches the real game.',
-      () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
-    item(null, 'start', 'Ram', 'Practice board: move your scout one hex closer to their Warden, then tap Ram.',
-      () => battleSheet('Ram', game({ board: 'lab_ram', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab'))));
+    // experiments: new rules, each switched off until you turn it on; its own list (the free Lab and the practice boards)
+    item('#play/lab', 'start', 'Experiments', 'New ideas on a small board with small fleets: the free Lab, and a practice board per idea. Nothing here touches the real game.')));
+}
+// The Experiments list. Practice boards are rules/rapid/lab_<key>.yaml: add one line here for each new one.
+const LAB_BOARDS = [
+  ['rapid_lab', 'Free lab', 'Every switch on the sheet: turn on any ideas you like and play them out.'],
+  ['lab_ram', 'Ram', 'Move your scout one hex closer (on Convert to?, tap Stay a ship), then tap Ram.'],
+  ['lab_stateMines', 'Smart mine', 'Move your healthy scout one hex, then tap Mine, not Stay a ship.'],
+  ['lab_decoy', 'Decoy', 'Tap your Warden, tap Decoy, and place it in the gap between the two fleets.'],
+];
+function labMenu(main) {
+  main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about]) =>
+    item(null, 'start', name, about, () => battleSheet(name === 'Free lab' ? 'Experiments' : name, game({ board, mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')))));
+  main.append(h('p', { class: 'muted' }, 'Practice boards start with just their idea switched on and the ships set up for it. No clock on any of them.'));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

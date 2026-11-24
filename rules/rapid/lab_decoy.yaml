@@ -1,0 +1,88 @@
+# ============================================================
+#  BOARD: Decoy (Experiments practice set-up)
+#
+#  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
+#  Open it at  play.html?board=lab_decoy
+#
+#  What to try: Tap your Warden, tap Decoy, and place it in the gap between the
+#  two fleets.
+#  What to look for: The enemy sees a ship-sized ? contact. Their missile turns
+#  onto it and both are gone. The decoy lasts 3 ticks. Against the computer they
+#  launch at your Warden on the same tick; if you play both sides, launch a
+#  missile at their Warden after the decoy is down.
+#
+#  A Warden (with the decoy emitter) and two scouts a side, within Ankur's limit
+#  of two scouts and one 3-section ship at most. Their Warden carries missiles
+#  but no lasers, so they launch instead of shooting. The line sits at 4 so both
+#  Wardens start just past it and can act freely. Home zones stay in each side's
+#  own half (depth 7). The Decoys switch is on; the others stay off.
+# ============================================================
+
+board:
+  name: "Decoy"
+  idea: "The enemy sees a ship-sized ? contact. Their missile turns onto it and both are gone. The decoy lasts 3 ticks. Against the computer they launch at your Warden on the same tick; if you play both sides, launch a missile at their Warden after the decoy is down."
+  try: "Tap your Warden, tap Decoy, and place it in the gap between the two fleets."
+  rules: {}
+
+rapid:
+  line: 4                     # both Wardens start just past it (the Experiments sheet still overrides it)
+  economy: on
+  interceptHurts: on
+  experiments: on
+  exp: { decoy: true }        # only Decoys is on
+  econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Decoy"
+  board: { shape: hexagon, radius: 7 }
+  zones:
+    player_1_home: { edge: south, depth: 7 }
+    player_2_home: { edge: north, depth: 7 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [5, 0], size: 1 }
+    - { type: asteroid, at: [-5, 0], size: 1 }
+    - { type: asteroid, at: [5, -3], size: 1 }
+    - { type: asteroid, at: [-5, 3], size: 1 }
+
+player_1:
+  ships:
+    - name: "Warden"               # 3-hex, flagship, with the decoy emitter
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [0, 3] }     # just past the line; the gap toward the enemy is a legal decoy hex
+    - { ship: "Pawn A", at: [3, 4] }    # behind the Warden, not past the line
+    - { ship: "Pawn B", at: [-3, 4] }
+
+player_2:
+  ships:
+    - name: "Warden"               # missiles, no lasers: they launch at your Warden instead of shooting
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [shield, armour, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, stealth],  mounts: [shield, armour, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"               # no laser: the computer launches a missile instead of shooting
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [shield, armour, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [shield, armour, armour] }
+  deployment:
+    - { ship: "Warden", at: [0, -3] }
+    - { ship: "Pawn A", at: [3, -4] }
+    - { ship: "Pawn B", at: [-3, -4] }
