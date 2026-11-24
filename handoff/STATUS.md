@@ -1,3 +1,7 @@
+## Latest (24 Nov, gamedev chat): Lab board smaller, line movable (merged, build #65)
+- Lab board: a Warden (3-hex flagship, now with the decoy emitter) and two scouts a side (was also a Lancer, a Mirage and a third scout).
+- Experiments sheet: "The line" 2-12 rows of 15 (default 7); the rapid line/clock rows are hidden there. Handover to maps updated (handoff/to-maps.md, top).
+
 ## Latest (24 Nov, gamedev chat): me v me, computer uses experiments, pause (merged, build #64)
 - Experiments sheet: **Who plays**: Me v computer / Me v me, pass (curtain between picks) / Me v me, no curtain. Me v me: player 1 picks, player 2 picks on the board turned round (`engine/swap.js` swapSides), then the tick resolves.
 - Experiments board has **no clock** (vs computer too). Each active experiment (ram, decoy, repair, warp, hibernate) has Off / On, just me / On, computer sometimes / On, computer eager. `engine/labai.js` (labAI, chained after econAI in rapidAI); rapid option `cpuExp`.

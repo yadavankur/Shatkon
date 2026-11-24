@@ -1,5 +1,17 @@
 # Inbox: maps
 
+## 2026-11-24 (later) · from gamedev · Experiments: what Ankur now wants from the set-ups
+- Changed since the note below (build #65): the Lab board is now **a Warden (3-hex flagship, with the decoy emitter) and two scouts a side**. Ankur's own limit for a test: *two scouts and one 3-section ship at most*. Keep every set-up within that, per side.
+- **The line moves:** the Experiments sheet has "The line" (2–12 rows of 15, default 7), so he can put it right next to his ships. In a set-up file set `rapid.line` to whatever makes the idea happen soonest; the sheet still overrides it.
+- **No clock** on the Experiments board, and **Who plays**: me v computer, or me v me (pass, or no curtain). Each set-up should make sense both ways: as me v me (he plays both sides of the idea) and against the computer.
+- **The computer can now use** ram, decoy, repair, warp and hibernate (`engine/labai.js`), and he chooses how keen: rapid option `cpuExp: { ram: 'never' | 'sometimes' | 'eager', ... }`. A set-up can preset it (e.g. the *Ram* set-up with `cpuExp: { ram: 'eager' }` so the computer rams *him*).
+- So, concretely, what I expect from you:
+  1. One tiny board per experiment (`rules/rapid/lab_<key>.yaml`): ≤ 2 scouts + ≤ one 3-hex ship a side, `rapid.experiments: on`, `rapid.exp` with just that experiment on, `rapid.line` set close, the ships placed so the idea happens in the first 2–3 ticks.
+  2. Two short lines in each file's header: **what to try** (the move to make) and **what to look for** (what should happen), so he knows within a minute whether the idea works.
+  3. List them on the landing page under Experiments (or tell me and I'll wire the list; the play page needs `board=lab_<key>` to be treated like the Lab board, which it already is when `rapid.experiments: on`).
+  4. Tutorials only later, for the experiments he keeps.
+Status: open
+
 ## 2026-11-24 · from gamedev · Experiments: engine round 1 done; please build practice set-ups (and, later, playable tutorials)
 - **What Ankur wants.** He has many new ideas and doesn't want any of them to break the normal game. So every new rule is an **experiment**: a named switch, off unless a game turns it on. Ankur tries them on a new **Experiments** page (Play → Experiments) with small fleets on a small board. If one works, it gets promoted into Frontier; if not, it stays off or is deleted. Later he wants **playable tutorials** built from them (your side).
 - **The guarantee.** `tests/golden.test.js` replays three recorded computer games (Rapid Opus and Frontier) move for move to the same final position. If a switched-off experiment leaks into the normal game, the tests fail. Re-record only for a deliberate rule change: `node tools/golden.mjs --record`.
@@ -10,7 +22,7 @@
   - `decoy`: a ship with a working **emitter** puts a decoy on a free hex 2–6 hexes away, with an empty hex around it. The enemy sees a ship-sized "?" contact; a missile whose seeker sees it turns on it and both are gone. Lasts 3 ticks; one per ship every 6. Action `d:<ship>.<q>,<r>`.
   - `repair` (◈12), `warp` (◈6), `hibernate` (◈2): shop items, only when switched on. Repair: one ship's parts back to full, except wrecked segments and lost lasers (once per ship per 10 ticks). Warp: up to 4 hexes, own half only, not next to an enemy (once per 10). Hibernate: next to an asteroid, not the flagship; seen only from 1 hex or by a scan; one part mended every 4 ticks; any action or an enemy within 1 wakes it.
   - Code: `engine/experiments.js` (the list: key, label, description), `engine/labrules.js` (the mechanics), `exp(state, key)` to test one. Tests: `tests/experiments.test.js`.
-- **The Lab board** `rules/rapid/rapid_lab.yaml` (mine, a test harness: radius 7, line 7; each side a Warden flagship, a Lancer, a **Mirage** (2-hex with an emitter, for decoys) and three scouts; `rapid.experiments: on` makes the play page show the switches). Change it freely.
+- **The Lab board** `rules/rapid/rapid_lab.yaml` (mine, a test harness: radius 7, line 7; each side a Warden flagship (3-hex, with the emitter for decoys) and two scouts; `rapid.experiments: on` makes the play page show the switches). Change it freely.
 - **Asks (your boards, your call):**
   1. **Practice set-ups**, one small board per experiment, so Ankur lands right at the moment the idea matters instead of moving a whole fleet: `rules/rapid/lab_<name>.yaml`, same format as the Lab board, with `rapid.experiments: on` and `rapid.exp: { <key>: true }` so the right switch is already on. Suggestions: *Ram* (your scout 3 hexes from an enemy Lancer), *Smart mine* (a healthy scout just past the line, two enemy scouts walking in), *Decoy* (your Mirage in a corner, an enemy Lancer with missiles), *Hibernate* (a damaged scout one hex from a rock), *Warp* (a scout about to be caught), *Ghost* (a scout in plain view of the enemy, about to convert). Keep them tiny (2–4 ships a side) and set the deployment so the first useful move is obvious. Then add them to the Experiments list on the landing page (index.html, next to the Experiments item), or tell me and I'll wire it.
   2. **Later: playable tutorials** from the same set-ups (story-style guided steps: "tap the scout", "now tap Ram"), once Ankur has tried the experiments and picked the keepers. Not before.

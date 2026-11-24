@@ -39,7 +39,7 @@ test('labAI: nothing switched on, nothing changes', () => {
 test('labAI ram: a crippled scout next to a big ship rams it; never means never', () => {
   for (const k of ['sometimes', 'eager', 'never']) {
     const g = lab(['ram'], { cpuExp: { ram: k } });
-    const me = ship(g, 'Pawn A', 1), big = ship(g, 'Lancer', 0);
+    const me = ship(g, 'Pawn A', 1), big = ship(g, 'Warden', 0);
     me.pos = [big.pos[0], big.pos[1] - 2];
     me.segs[0].parts.slice(0, 3).forEach((q) => { q.hp = 0; });   // lost half its parts
     see(g);
@@ -52,7 +52,7 @@ test('labAI ram: a crippled scout next to a big ship rams it; never means never'
 
 test('labAI repair and hibernate: a damaged ship gets mended when the computer can pay', () => {
   const g = lab(['repair'], { cpuExp: { repair: 'sometimes' } });
-  const x = ship(g, 'Lancer', 1);
+  const x = ship(g, 'Warden', 1);
   let n = 0; for (const sg of x.segs) for (const q of sg.parts) if (n < 3 && q.hp > 0) { q.hp = 0; n++; }
   g.econ.purse[1] = 20;
   const a = E.labAI(g, 1, { type: 'pass' });
