@@ -41,6 +41,8 @@ export { guideView } from './guide.js';
 
 // Rapid mode: one action a side per tick, both resolved together (engine/rapid.js).
 export { STYLES, styleOf, econAI } from './econai.js';
+export { swapSides } from './swap.js';
+export { labAI, KEENNESS } from './labai.js';
 // Experiments (switched off unless a game turns them on): engine/experiments.js, engine/labrules.js
 export { EXPERIMENTS, EXP_KEYS, exp } from './experiments.js';
 export { LAB_SHOP, mineKindFor, ramRefusal, decoyRefusal, decoySpots, warpSpots, MINE_KINDS } from './labrules.js';

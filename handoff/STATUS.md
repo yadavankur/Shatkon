@@ -1,3 +1,9 @@
+## Latest (24 Nov, gamedev chat): me v me, computer uses experiments, pause (merged, build #64)
+- Experiments sheet: **Who plays**: Me v computer / Me v me, pass (curtain between picks) / Me v me, no curtain. Me v me: player 1 picks, player 2 picks on the board turned round (`engine/swap.js` swapSides), then the tick resolves.
+- Experiments board has **no clock** (vs computer too). Each active experiment (ram, decoy, repair, warp, hibernate) has Off / On, just me / On, computer sometimes / On, computer eager. `engine/labai.js` (labAI, chained after econAI in rapidAI); rapid option `cpuExp`.
+- Every clocked rapid game (Rapid Opus, Frontier): a "Ready? Start the clock" tap before the first tick (also after reloading), a pause button (top centre), and auto-pause when the page is hidden. Resume gives a fresh full tick.
+- Tool: `node tools/lab_ai.mjs 4 eager` (computer v computer with everything on). Tests: tests/selfplay.test.js. Golden replays unchanged.
+
 ## Latest (24 Nov, gamedev chat): Experiments, round 1 (merged, build #63)
 - Play → **Experiments**: the Lab board (`rules/rapid/rapid_lab.yaml`, small fleets) with on/off switches for each new idea. Off by default; `tests/golden.test.js` replays recorded games to prove a switched-off experiment changes nothing.
 - Built behind switches: ghost on conversion, mines from the ship's state (smart/close/lurker/dud), ram, decoys, repair/warp/hibernate in the shop. `engine/experiments.js`, `engine/labrules.js`, `tests/experiments.test.js`.

@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions, labWho } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -65,6 +65,12 @@ const BOARD = (() => { try { const b = new URLSearchParams(location.search).get(
 const KEYS = (k) => k + (BOARD ? '.board.' + BOARD : '');   // each board keeps its own saves
 let boardRapid = null;            // the board file's rapid: section, when this board is played in rapid mode
 const isRapidGame = () => !!(game && game.rules.rapid);
+// me v me in rapid mode (the Experiments page's "Who plays"): player 1 picks, then player 2 picks on the
+// same game seen from their side (E.swapSides), then the tick resolves. No clock.
+const selfPlay = () => isRapidGame() && (seat === 'pass' || seat === 'all');
+// the Experiments board (small, crowded, new rules to think about) never runs the countdown
+const noClock = () => selfPlay() || (isRapidGame() && game.rules.rapid.experiments === 'on');
+let held = null;                     // me v me: { real, a } — the real game and player 1's action while player 2 chooses
 export const store = { get(k) { try { return localStorage.getItem(KEYS(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(KEYS(k), v); } catch (e) {} } };
 // The old /beta/ page kept its saves under shatkon.beta.*. Beta is now the main game: once, copy those saves
 // across to the main names where the main game has nothing of its own yet (the beta copies are left alone).
@@ -121,6 +127,7 @@ function stampTimes() {
   game.updated = now;
 }
 function save() {
+  if (game && game.swapped && held) { const g = game; game = held.real; save(); game = g; return; }   // me v me: never save the swapped copy
   if (game) { stampTimes(); E.exportGame(game).then((c) => store.set('shatkon.game', c)); rememberLast(); }
   store.set('shatkon.seat', String(seat));
 }
@@ -134,7 +141,7 @@ function rememberLast() {
 export function say(text, err) { hint = text; hintErr = !!err; }
 // Whose eyes the screen shows: both, one seat, the player to move (pass and play), or you (vs computer).
 // Once a game is over everything is shown.
-const who = () => (game && game.phase === 'over' && (seat === 'cpu' || seat === 'pass') ? 'all' : seat === 'all' ? 'all' : seat === 'pass' ? turnOf() : seat === 'cpu' ? 0 : seat);
+const who = () => (isRapidGame() && seat === 'all' && game.phase === 'play' ? 0 : game && game.phase === 'over' && (seat === 'cpu' || seat === 'pass' || isRapidGame()) ? 'all' : seat === 'all' ? 'all' : seat === 'pass' ? turnOf() : seat === 'cpu' ? 0 : seat);
 const turnOf = () => game.order[game.turn];
 const myTurn = () => game && game.phase === 'play' && (seat === 'all' || seat === 'pass' || (seat === 'cpu' ? turnOf() === 0 : turnOf() === seat))
   && !(game.rules.rapid && RT.phase !== 'choose' && RT.phase !== 'auto');   // rapid mode: only while the clock runs
@@ -1659,7 +1666,7 @@ export function render() {
   seatEl.appendChild(h('span', { class: 'modename' }, modeName));
   const sfxBtn = $('#sfx');
   if (sfxBtn) { sfxBtn.textContent = sfxOn ? '\u{1F50A}' : '\u{1F507}'; sfxBtn.setAttribute('aria-label', sfxOn ? 'Sound on' : 'Sound off'); sfxBtn.setAttribute('aria-pressed', String(sfxOn)); }
-  setFlip(game && (seat === 1 || (seat === 'pass' && turnOf() === 1)) ? -1 : 1);   // your own side is always at the bottom
+  setFlip(game && (seat === 1 || (seat === 'pass' && !isRapidGame() && turnOf() === 1) || game.swapped) ? -1 : 1);   // your own side is always at the bottom
 
   // pass and play: a curtain between turns so the next player cannot see the last one's fleet
   const cur = $('#curtain');
@@ -1668,7 +1675,7 @@ export function render() {
     if (game && curtainUp() && game.phase === 'play') {
       const p = curtain;
       cur.hidden = false;
-      fill(cur, [h('div', { class: 'curtain-box who' + p }, h('div', { class: 'big' }, 'Player ' + (p + 1) + '\'s turn'),
+      fill(cur, [h('div', { class: 'curtain-box who' + p }, h('div', { class: 'big' }, 'Player ' + (p + 1) + (isRapidGame() ? ': tick ' + game.round : '\'s turn')),
         h('p', null, 'Hand the device to Player ' + (p + 1) + '. Player ' + (2 - p) + ', no peeking at the board!'),
         h('button', { class: 'btn go', onclick: () => {
           curtain = null; yourTurnPing();
@@ -1958,7 +1965,27 @@ function rapidClear() {
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
   document.body.classList.remove('rapid-auto');
 }
-function rapidReset() { rapidClear(); RT.phase = 'idle'; rapidBar(); }
+function rapidReset() { rapidClear(); RT.phase = 'idle'; RT.hold = null; const o = document.getElementById('rapidpause'); if (o) o.remove(); rapidBar(); }
+// Pause (any clocked rapid game): the clock stops; Resume gives a fresh full tick. Asked for during the
+// watch or a tick being resolved, it holds before the next pick. A new or reloaded game also waits for a
+// tap before its first clock ('start'). Switching away from the page pauses too.
+function rapidPaused(kind) {
+  rapidClear(); RT.phase = 'paused'; RT.hold = null;
+  const old = document.getElementById('rapidpause'); if (old) old.remove();
+  const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;
+  const go = () => { const o = document.getElementById('rapidpause'); if (o) o.remove(); rapidChoose(); };
+  document.body.appendChild(h('div', { id: 'rapidpause', class: 'rapidconv', role: 'dialog', 'aria-label': kind === 'start' ? 'Ready?' : 'Paused' },
+    h('b', null, kind === 'start' ? 'Ready? Tick ' + game.round : 'Paused \u00b7 tick ' + game.round),
+    h('small', null, kind === 'start' ? 'Each tick you get ' + secs + ' s to pick one action, and the computer picks at the same time. The clock starts when you tap.' : 'The clock is stopped and the computer waits. Resume gives you a fresh ' + secs + ' s.'),
+    h('button', { class: 'btn go', onclick: go }, kind === 'start' ? 'Start the clock' : 'Resume')));
+  rapidBar(); render();
+}
+function rapidPause() {
+  if (!isRapidGame() || game.phase !== 'play' || noClock() || RT.phase === 'paused' || RT.phase === 'idle') return;
+  if (RT.phase === 'choose') return rapidPaused('pause');
+  RT.hold = 'pause'; toast('Pausing', 'p0', 'after this tick');
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) rapidPause(); });
 // Each side's line across the board: a ship on the far side of it (or on it) frees its fleet.
 function rapidLines() {
   if (!isRapidGame()) return null;
@@ -1970,7 +1997,7 @@ function rapidLines() {
 }
 function newRapidGame() {
   rapidReset();
-  seat = 'cpu'; store.set('shatkon.seat', 'cpu');
+  seat = boardRapid.experiments ? labWho() : 'cpu'; store.set('shatkon.seat', String(seat)); held = null;   // the Experiments board can be me v me
   game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? expOptions() : {}) }), (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
@@ -1987,7 +2014,7 @@ function newRapidGame() {
 // Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
 function rapidEnsure() {
   if (!isRapidGame() || game.phase !== 'play') { if (RT.phase !== 'idle') rapidReset(); else rapidBar(); return; }
-  if (RT.phase === 'idle') { RT.phase = 'starting'; setTimeout(rapidChoose, 50); }
+  if (RT.phase === 'idle') { RT.phase = 'starting'; RT.hold = noClock() ? null : 'start'; setTimeout(rapidChoose, 50); }
   rapidBar();
 }
 function rapidWatch(ms) {
@@ -2001,9 +2028,12 @@ function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
   RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
+  if (RT.hold && !noClock()) return rapidPaused(RT.hold);   // paused, or a new game waiting for "Start the clock"
+  RT.hold = null;
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
-  RT.timer = setTimeout(rapidTimeout, secs * 1000);
+  if (noClock()) RT.end = RT.start;   // me v me and the Experiments board: no clock, take your time
+  else RT.timer = setTimeout(rapidTimeout, secs * 1000);
   yourTurnPing();
   render();
 }
@@ -2104,11 +2134,32 @@ function rapidAct(action, quiet, auto) {
   RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
+  if (selfPlay() && !game.swapped) return selfHandOver(a);   // me v me: player 1 has picked; now player 2
+  if (selfPlay()) {                                          // player 2 has picked: back to the real game and resolve
+    ai = a; const h1 = held; held = null; game = h1.real;
+    return rapidResolve(h1.a, ai, 1);
+  }
   try {
     ai = E.rapidAI(game, 1, aiLevel) || ai;
     if (E.rapidRefusal(game, 1, ai)) ai = E.forcedMoves(game, 1)[0] || { type: 'pass' };
     if (E.rapidRefusal(game, 1, ai)) ai = { type: 'pass' };
   } catch (err) { console.warn('AI error', err); ai = { type: 'pass' }; }
+  return rapidResolve(a, ai, 0);
+}
+// me v me: hold player 1's pick and give player 2 the board, seen from their side.
+function selfHandOver(a) {
+  held = { real: game, a };
+  const g = E.swapSides(game);
+  game = g;
+  pending = null; endArmed = false; undoStack = []; mode = 'move'; sel = null; cam.w = 0;
+  const news = g.events.filter((e) => e.seenBy.includes(0) && e.t !== 'lost').map(describe).filter((x) => x && x !== 'game_over');
+  say('Player 2: your pick for tick ' + g.round + '. ' + (news.join(' ') ? 'Last tick, from your side: ' + news.join(' ') : ''));
+  if (seat === 'pass') { curtain = 1; pendingFx = [g.events, 0, g.flight, false]; }
+  else toast('Player 2 picks', 'p1', 'the board has turned round');
+  rapidChoose();
+}
+// One tick: a is player 1's action, ai player 2's (the computer's, or the second player's in me v me).
+function rapidResolve(a, ai, _two) {
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   rapidEarnFx();
@@ -2124,7 +2175,8 @@ function rapidAct(action, quiet, auto) {
   pending = null; endArmed = false; undoStack = []; mode = 'move';
   if (sel && !game.ships.some((x) => x.id === sel && !x.dead)) sel = null;
   sfxFor(a, game.events, 0);
-  const ran = playFx(game.events, 0, game.flight, false);
+  if (selfPlay() && seat === 'pass' && game.phase === 'play') { curtain = 0; sel = null; cam.w = 0; }
+  const ran = curtainUp() ? (pendingFx = [game.events, 0, game.flight, false], 0) : playFx(game.events, 0, game.flight, false);
   report = makeReport(game.events, 0);
   const news = game.events.filter((e) => e.seenBy.includes(0) && e.t !== 'lost').map(describe).filter((x) => x && x !== 'game_over');
   say((a.type === 'pass' ? 'You passed. ' : '') + (news.join(' ') || 'Nothing you could see happened.'));
@@ -2263,13 +2315,16 @@ function rapidEarnFx() {
 // The clock: a bar across the top of the screen. Teal while you choose (red in the last 5 s), grey while you watch.
 function rapidBar() {
   let bar = document.getElementById('rapidbar');
-  if (!isRapidGame() || game.phase !== 'play' || RT.phase === 'idle') { if (bar) bar.hidden = true; cancelAnimationFrame(RT.raf); RT.raf = 0; return; }
+  if (!isRapidGame() || game.phase !== 'play' || RT.phase === 'idle') { if (bar) bar.hidden = true; const pb = document.getElementById('rapidpausebtn'); if (pb) pb.hidden = true; cancelAnimationFrame(RT.raf); RT.raf = 0; return; }
   if (!bar) {
     if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
     bar = h('div', { id: 'rapidbar', role: 'timer', 'aria-live': 'off' }, h('i'), h('span'));
     document.body.appendChild(bar);
   }
   bar.hidden = false;
+  let pb = document.getElementById('rapidpausebtn');
+  if (!pb) { pb = h('button', { id: 'rapidpausebtn', class: 'btn', 'aria-label': 'Pause the clock', title: 'Pause', onclick: (e) => { e.stopPropagation(); rapidPause(); } }, '\u23f8'); document.body.appendChild(pb); }
+  pb.hidden = noClock() || RT.phase === 'paused';
   if (!RT.raf) RT.raf = requestAnimationFrame(rapidFrame);
 }
 function rapidFrame() {
@@ -2278,6 +2333,12 @@ function rapidFrame() {
   if (!bar || !isRapidGame() || RT.phase === 'idle') return;
   const now = performance.now(), left = Math.max(0, RT.end - now), frac = RT.end > RT.start ? left / (RT.end - RT.start) : 0;
   const fillEl = bar.firstChild, text = bar.lastChild;
+  if (RT.phase === 'paused') { bar.className = 'watch'; fillEl.style.width = '0%'; text.textContent = 'Paused \u00b7 tick ' + game.round; RT.raf = requestAnimationFrame(rapidFrame); return; }
+  if (noClock() && RT.phase === 'choose') {   // no clock: just whose pick it is
+    bar.className = 'choose'; fillEl.style.width = '100%';
+    text.textContent = 'Tick ' + game.round + (selfPlay() ? ' \u00b7 Player ' + (game.swapped ? 2 : 1) + ' picks' : ' \u00b7 no clock');
+    RT.raf = requestAnimationFrame(rapidFrame); return;
+  }
   bar.className = RT.phase + (RT.phase === 'choose' && left < 5000 ? ' low' : '');
   // watching: the bar fills back up; choosing: it shrinks
   fillEl.style.width = (RT.phase === 'watch' ? 100 * (1 - frac) : RT.phase === 'busy' || RT.phase === 'starting' ? 0 : 100 * frac).toFixed(2) + '%';
@@ -2292,6 +2353,7 @@ const RAPID_CSS = `
 @keyframes earnup{0%{opacity:0;transform:translateY(4px)}12%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
 @media (prefers-reduced-motion:reduce){.earnup{animation:none}}
 #toast.wingt{border-color:#c58cff!important;box-shadow:0 0 18px rgba(197,140,255,.55)}
+#rapidpausebtn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:61;min-width:40px;min-height:32px;padding:2px 10px;font-size:16px;opacity:.85}
 #rapidbar{position:fixed;left:0;right:0;top:0;height:7px;z-index:60;background:rgba(10,20,36,.75);pointer-events:none}
 #rapidbar i{display:block;height:100%;width:0;background:#7fd8f0;box-shadow:0 0 10px rgba(127,216,240,.7);margin:0 auto}
 #rapidbar.watch i{background:#8f9cba;box-shadow:none}
@@ -2425,7 +2487,7 @@ function initExtras() {
     } catch (e) { game = null; }
   }
   // a small hook for automated tests
-  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI };
+  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI, rapid: (a) => rapidAct(a), get rt() { return RT.phase; }, pause: () => rapidPause() };
   labRoute();
   // the landing page opens the game with ?mode=: story, test, cpu (&level=easy|normal), pass, all, p1, join;
   // &new=1 starts a fresh game in that mode. The query is then dropped, so a reload continues the game.
