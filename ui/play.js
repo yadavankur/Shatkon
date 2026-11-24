@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions, labWho, labLine } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -63,7 +63,7 @@ let postShown = null;             // the battle report (ui/postgame.js) was clos
 // play.html?board=NAME plays the board in rules/boards/NAME.yaml (its own map, fleets and rule changes), with its own saves
 const BOARD = (() => { try { const b = new URLSearchParams(location.search).get('board'); return b && /^[\w-]+$/.test(b) ? b : null; } catch (e) { return null; } })();
 const KEYS = (k) => k + (BOARD ? '.board.' + BOARD : '');   // each board keeps its own saves
-let boardRapid = null;            // the board file's rapid: section, when this board is played in rapid mode
+let boardRapid = null; let boardMeta = null;            // the board file's rapid: section, when this board is played in rapid mode
 const isRapidGame = () => !!(game && game.rules.rapid);
 // me v me in rapid mode (the Experiments page's "Who plays"): player 1 picks, then player 2 picks on the
 // same game seen from their side (E.swapSides), then the tick resolves. No clock.
@@ -97,7 +97,8 @@ async function loadRules() {
   let map = named && named.map ? named : docs.find((d) => d && d.map);
   if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
     // rapid-mode boards live in rules/rapid/ (kept out of rules/boards/, which the board checks and sims walk)
-    const file = (/^rapid_/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';   // rapid_opus, and any other rapid_ board
+    // lab_* is the Experiments practice set-up convention (handoff/to-maps.md): rules/rapid/lab_<key>.yaml
+    const file = (/^(rapid_|lab_)/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';
     const r = await fetch(file + '?t=' + Date.now());
     if (!r.ok) throw new Error('could not read ' + file);
     const b = YAML.parse(await r.text());
@@ -105,7 +106,9 @@ async function loadRules() {
     for (const [k, v] of Object.entries((b.board || {}).rules || {})) { const ks = k.split('.'); let o = world; for (const x of ks.slice(0, -1)) o = o[x] = o[x] ?? {}; o[ks.at(-1)] = v; }
     map = fleets = b;
     boardRapid = b.rapid && typeof b.rapid === 'object' ? b.rapid : null;   // a rapid-mode board (engine/rapid.js)
-    if (b.board && b.board.name) document.title = b.board.name + ' · Shatkon';
+    if (BOARD && boardRapid) seedExpFromBoard(BOARD, boardRapid);   // practice boards: pre-set the experiment switches from the yaml (the sheet can still change them)
+    boardMeta = b.board && typeof b.board === 'object' ? { name: b.board.name, try: b.board.try, idea: b.board.idea } : null;
+    if (boardMeta && boardMeta.name) document.title = boardMeta.name + ' · Shatkon';
   }
   const built = E.buildRules(world, map, fleets);
   rules = built.rules; problems = built.problems;
@@ -2004,12 +2007,12 @@ function newRapidGame() {
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
-  const econ = E.econOn(game), title = econ ? 'Frontier' : 'Rapid Opus';
+  const econ = E.econOn(game), title = (r.experiments && boardMeta && boardMeta.name) || (econ ? 'Frontier' : 'Rapid Opus');
   say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
     + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
     + (econ ? ' Rekon (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
   save(); render();
-  setTimeout(() => toast(title, 'p0', econ ? 'earn rekon in the enemy\u2019s half' : 'forward until you cross the line'), 300);
+  setTimeout(() => toast(title, 'p0', (r.experiments && boardMeta && boardMeta.try) || (econ ? 'earn rekon in the enemy\u2019s half' : 'forward until you cross the line')), 300);
 }
 // Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
 function rapidEnsure() {

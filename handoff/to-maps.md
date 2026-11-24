@@ -1,5 +1,14 @@
 # Inbox: maps
 
+## 2026-11-24 (evening) · from gamedev (Game Dev Story) · maps work now sits here; Ram practice board is ready
+- Ankur has lost access to the maps bot. Game Dev Story now owns this inbox and the practice-board work that was asked of maps.
+- Built (this PR, build #66): one practice board for **Ram** only, as Ankur asked to start with just that one. File: `rules/rapid/lab_ram.yaml` (same format as `rules/rapid/rapid_lab.yaml`, loaded through the same board builder). Play → Ram, or `play.html?board=lab_ram`. Ram is pre-set; the computer rams eagerly. The line starts at 4 (the sheet can still move it).
+- What to try: Move your scout one hex closer to their Warden, then tap Ram.
+- What to look for: Your scout is gone (it became the ram). The nearest section of their Warden is wrecked; shields do not stop it. Against the computer, their scout will try to ram your Warden the same way.
+- The other experiment boards (ghost, state-based mines, decoys, repair, warp, hibernate) are not built yet.
+- Guided "tap the scout, now tap Ram" tutorials: still later, only after Ankur picks keepers. Not in this PR.
+Status: open (other practice boards still to come when he asks)
+
 ## 2026-11-24 (later) · from gamedev · Experiments: what Ankur now wants from the set-ups
 - Changed since the note below (build #65): the Lab board is now **a Warden (3-hex flagship, with the decoy emitter) and two scouts a side**. Ankur's own limit for a test: *two scouts and one 3-section ship at most*. Keep every set-up within that, per side.
 - **The line moves:** the Experiments sheet has "The line" (2–12 rows of 15, default 7), so he can put it right next to his ships. In a set-up file set `rapid.line` to whatever makes the idea happen soonest; the sheet still overrides it.
@@ -10,7 +19,7 @@
   2. Two short lines in each file's header: **what to try** (the move to make) and **what to look for** (what should happen), so he knows within a minute whether the idea works.
   3. List them on the landing page under Experiments (or tell me and I'll wire the list; the play page needs `board=lab_<key>` to be treated like the Lab board, which it already is when `rapid.experiments: on`).
   4. Tutorials only later, for the experiments he keeps.
-Status: open
+Status: done for Ram (rules/rapid/lab_ram.yaml, this PR); other boards not started — Ankur asked for Ram only first
 
 ## 2026-11-24 · from gamedev · Experiments: engine round 1 done; please build practice set-ups (and, later, playable tutorials)
 - **What Ankur wants.** He has many new ideas and doesn't want any of them to break the normal game. So every new rule is an **experiment**: a named switch, off unless a game turns it on. Ankur tries them on a new **Experiments** page (Play → Experiments) with small fleets on a small board. If one works, it gets promoted into Frontier; if not, it stays off or is deleted. Later he wants **playable tutorials** built from them (your side).
@@ -28,7 +37,7 @@ Status: open
   2. **Later: playable tutorials** from the same set-ups (story-style guided steps: "tap the scout", "now tap Ram"), once Ankur has tried the experiments and picked the keepers. Not before.
 - **Rules you can rely on in a board file:** `rapid.exp: { ghost: true, stateMines: true, ram: true, decoy: true, repair: true, warp: true, hibernate: true }` turns experiments on for that board. The extra munitions (`smart_mine`, `close_mine`, `lurker_mine`, `dud_mine`, `decoy`) exist only while some experiment is on.
 - **Also new since you last looked:** the currency is now called **rekon** on screen (the code still says salvage/econ); build number in `ui/version.js` (bump it in every PR, the service worker cache name follows it); turrets 1 hit, range 7, signature −2.
-Status: open
+Status: done for Ram (rules/rapid/lab_ram.yaml, this PR); other boards not started — Ankur asked for Ram only first
 
 ## 2026-11-21 · from gamedev · Rapid mode: a first fleet on your side of the fence
 - Ankur asked for a rapid mode (one action a tick, both sides at once). It is on branch `rapid-mode`. Its board is `rules/rapid/rapid_opus.yaml` (renamed "Rapid Opus" on 22 Nov), kept out of `rules/boards/` so your checks and sims don't run it.

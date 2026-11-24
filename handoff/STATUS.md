@@ -1,3 +1,8 @@
+## Latest (24 Nov, gamedev chat): Ram practice board (PR open, build #66)
+- Ankur has lost access to the maps bot. Game Dev Story now owns the maps inbox and the Experiments practice-board work.
+- Play → **Ram**, or `play.html?board=lab_ram`: one tiny practice board (`rules/rapid/lab_ram.yaml`, same format as the Lab board `rules/rapid/rapid_lab.yaml`). Only the Ram switch is on; the computer rams eagerly. Your scout starts 3 hexes from their Warden, so a ram is ready on the second tick. What to try / what to look for are in the file header. The other experiment boards are not built yet (Ankur asked for Ram only first). No guided tutorials.
+- The play page now also loads `lab_*` boards from `rules/rapid/`. Opening a practice board pre-sets its switches on the Experiments sheet (the sheet can still change them).
+
 ## Latest (24 Nov, gamedev chat): Lab board smaller, line movable (merged, build #65)
 - Lab board: a Warden (3-hex flagship, now with the decoy emitter) and two scouts a side (was also a Lancer, a Mirage and a third scout).
 - Experiments sheet: "The line" 2-12 rows of 15 (default 7); the rapid line/clock rows are hidden there. Handover to maps updated (handoff/to-maps.md, top).

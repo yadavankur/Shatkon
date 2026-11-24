@@ -5,7 +5,7 @@ Four workers share this repo. They don't talk to each other directly; they read 
 | Worker | Owns | Branch |
 |---|---|---|
 | **engine** (Claude Code) | engine/, ui/, play.html, tests/, docs/ | campaign-engine |
-| **maps** | campaign/ | campaign-vN |
+| **maps** (now Game Dev Story, Grok Bot — Ankur lost access to the maps bot) | campaign/, Experiments practice boards (`rules/rapid/lab_*.yaml`) | short-lived branches from main |
 | **story** | story/ | zip, or story-vN |
 | **gamedev** (Game Dev Story, Grok Bot) | ship art (ui/ships.js, ui/frigate.js, gallery), engine fixes and tools by agreement | facelift-*, engine-fixes, battle-log |
 

@@ -1,0 +1,68 @@
+# ============================================================
+#  BOARD: Ram (Experiments practice set-up)
+#
+#  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
+#  Open it at  play.html?board=lab_ram
+#
+#  What to try: Move your scout one hex closer to their Warden, then tap Ram.
+#  What to look for: Your scout is gone (it became the ram). The nearest section
+#  of their Warden is wrecked; shields do not stop it. Against the computer, their
+#  scout will try to ram your Warden the same way.
+#
+#  A Warden (3-hex flagship, with the decoy emitter) and one scout a side, within
+#  Ankur's limit of two scouts and one 3-section ship at most. Each scout starts
+#  3 hexes from the enemy Warden, so a ram is ready on the second tick. The line
+#  sits close (4) so both fleets can move freely from the start. The computer is
+#  set to ram eagerly, so it will try to ram you too. Home zones are deeper than
+#  the Lab's so these mid-board starting hexes are legal.
+# ============================================================
+
+board:
+  name: "Ram"
+  idea: "The nearest section of their Warden is wrecked (shields do not stop it), and your scout is gone. The computer's scout will try to ram your Warden the same way."
+  try: "Move your scout one hex closer to their Warden, then tap Ram."
+  rules: {}
+
+rapid:
+  line: 4                     # close to the ships, so both sides can move freely from the start (the Experiments sheet still overrides it)
+  economy: on
+  interceptHurts: on
+  experiments: on             # the play page shows the experiment switches for this board
+  exp: { ram: true }          # only Ram is on; the other experiment switches stay off
+  cpuExp: { ram: eager }      # the computer rams with any scout that gets within 2 of a bigger ship
+  econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Ram"
+  board: { shape: hexagon, radius: 7 }
+  zones:
+    player_1_home: { edge: south, depth: 10 }
+    player_2_home: { edge: north, depth: 10 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [0, 5], size: 1 }
+    - { type: asteroid, at: [0, -5], size: 1 }
+
+player_1:
+  ships:
+    - name: "Warden"               # 3-hex, flagship
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }   # emitter: decoys
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [-2, 2] }    # nearest enemy scout (mirrored) starts 3 hexes from the west wing
+    - { ship: "Pawn A", at: [6, -2] }    # 3 hexes from the enemy Warden's east wing; one step, then ram
+
+player_2:
+  copy_of: player_1
+  mirror_ships: true
+  mirror_deployment: true
