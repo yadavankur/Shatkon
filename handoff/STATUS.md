@@ -1,3 +1,8 @@
+## Latest (24 Nov, gamedev chat): Experiments, round 1 (merged, build #63)
+- Play → **Experiments**: the Lab board (`rules/rapid/rapid_lab.yaml`, small fleets) with on/off switches for each new idea. Off by default; `tests/golden.test.js` replays recorded games to prove a switched-off experiment changes nothing.
+- Built behind switches: ghost on conversion, mines from the ship's state (smart/close/lurker/dud), ram, decoys, repair/warp/hibernate in the shop. `engine/experiments.js`, `engine/labrules.js`, `tests/experiments.test.js`.
+- The currency is **rekon** on screen. Handover to maps: practice set-ups per experiment, then tutorials (handoff/to-maps.md).
+
 ## Latest (24 Nov, gamedev chat): turrets retuned; build number (merged, build #62)
 - Turrets: 1 hit a shot (was 2), range 7 (setting 5/7/9), signature -2 (was 1): hard to spot, so they usually shoot first.
 - Build number: `ui/version.js` (BUILD = the PR number; bump it in every PR). Shown on the home screen footer, in the in-game menu by the log buttons, and as `build` in both battle logs. The service worker cache is named after it (`shatkon-offline-b62`); tests/version.test.js checks they match.

@@ -18,6 +18,12 @@ function lureFor(state, o, m) {
     const d = gap(o, s);
     if (d < bd) { bd = d; best = s; }
   }
+  // experiment decoy: an enemy decoy object its seeker can see wins too
+  for (const d of state.objs) {
+    if (d.owner === o.owner || !(state.rules.munitions[d.kind] || {}).lures_missiles || gap(o, d) > num(m.seeker_range) + 2) continue;
+    const dd = gap(o, d);
+    if (dd < bd) { bd = dd; best = d; }
+  }
   return best;
 }
 
@@ -45,7 +51,7 @@ function stepObj(state, o, m, turnsLeft) {
       emit(state, { t: 'lured', obj: o.id, kind: o.kind, from: was, to: lure.id }, [p]);
     }
     if (o.lock) {
-      const t = shipById(state, o.target), src = o.src && shipById(state, o.src);
+      const t = shipById(state, o.target) || objById(state, o.target), src = o.src && shipById(state, o.src);   // (a decoy object, experiment)
       if (t && (seekerSees(state, o, m, t) || (src && networkSees(state, src, t)))) goal = nearestCell(t, o.pos);
       else { o.lock = false; o.target = null; }
     }
@@ -77,6 +83,9 @@ function stepObj(state, o, m, turnsLeft) {
   const oc0 = occ.get(k), oc = oc0 && !oc0.ship.segs[oc0.seg].wrecked ? oc0 : null;
   const passes = oc && oc.ship.owner === p && state.rules.ownMissilesPass;
   if (oc && !passes && (oc.ship.owner !== p || state.rules.friendlyFire)) { explode(state, o, { ship: oc.ship, seg: oc.seg }); return turnsLeft; }
+  // experiment decoy: a missile that reaches an enemy decoy goes off on it, and both are gone
+  const dec = state.objs.find((d) => d.owner !== o.owner && d.kind === 'decoy' && d.pos[0] === np[0] && d.pos[1] === np[1]);
+  if (dec) { removeObj(state, dec); emit(state, { t: 'decoy_hit', obj: dec.id, by: o.id, kind: o.kind, at: np.slice() }, state.players.map((_, i) => i)); o.pos = np; explode(state, o, null); return turnsLeft; }
   o.pos = np;
   return turnsLeft;
 }

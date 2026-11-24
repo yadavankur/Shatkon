@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -672,6 +672,10 @@ function eventFx(r, viewer, delay) {
     case 'stunned':   // an intercepted missile still rattles the ship that stopped it
       textFx(r.at, ['\u26a1 STUNNED'], '#ffe066', delay);
       break;
+    case 'rammed':   // experiment ram
+      boomFx(r.at, delay, true, colOf(ownerOfId(r.ship)));
+      textFx(r.at, ['RAMMED'], colOf(ownerOfId(r.ship)), delay);
+      break;
     case 'turret_fire':   // economy mode: a turret's shot
       beamFx(r.from, r.at, colOf(r.owner), delay);
       break;
@@ -788,7 +792,7 @@ export function askSetup(start, title) {
   const close = () => back.remove();
   const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
   const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
-    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (boardRapid.economy ? 'econ' : true) : false),
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (boardRapid.experiments ? 'lab' : boardRapid.economy ? 'econ' : true) : false),
       h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
   document.body.appendChild(back);
 }
@@ -930,11 +934,17 @@ function describe(e) {
     case 'turret_fire': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' fired at ' + (/^o/.test(e.target || '') ? 'a missile or turret' : e.target) + ' (' + plural(e.hits, 'hit') + ').';
     case 'turret_hit': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left).';
     case 'turret_lit': return 'A dark turret is working again.';
-    case 'turret_dark': return 'A turret went dark: not enough salvage for its upkeep.';
+    case 'turret_dark': return 'A turret went dark: not enough rekon for its upkeep.';
     case 'upkeep': return 'Turret upkeep: \u25c8 ' + e.amount + '.';
+    case 'rammed': return (e.ship[0] === '1' ? 'Your ' : 'Enemy ') + e.ship + ' rammed ' + e.target + ': its segment is wrecked.';
+    case 'decoy': return 'Decoy placed at ' + at(e.at) + ' for 3 ticks.';
+    case 'decoy_hit': return 'A ' + nice(e.kind) + ' went for a decoy at ' + at(e.at) + '.';
+    case 'decoy_gone': return 'Your decoy faded.';
+    case 'woke': return e.ship + ' woke from hibernation (' + e.why + ').';
+    case 'mended': return e.ship + ' mended its ' + nice(e.part) + ' while hibernating.';
     case 'stunned': return (e.ship[0] === '1' ? 'Your ' : 'Enemy ') + e.ship + ' stopped a ' + nice(e.kind) + ' but is stunned: it can\u2019t act next tick' + (e.kind === 'missile' ? ', and the Nuke still did 2 hits' : '') + '.';
-    case 'idle': return 'You passed: \u2212' + e.lost + ' \u25c8 and no salvage this tick' + (e.missed ? ' (you would have earned ' + e.missed + ')' : '') + '. Sitting still costs.';
-    case 'earned': return '+' + e.amount + ' salvage (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
+    case 'idle': return 'You passed: \u2212' + e.lost + ' \u25c8 and no rekon this tick' + (e.missed ? ' (you would have earned ' + e.missed + ')' : '') + '. Sitting still costs.';
+    case 'earned': return '+' + e.amount + ' rekon (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
     case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
     case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
     case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
@@ -1014,6 +1024,17 @@ function options(v) {
   const map = new Map();
   // economy mode, placing a turret: the free hexes next to the chosen ship (T)
   if (isRapidGame() && RT.pick) return map;
+  if (isRapidGame() && RT.place) {   // experiments: warp destination, decoy spot
+    for (const c of RT.place.spots) { const a = RT.place.act(c); map.set(hex.key(c), { action: a, wingAct: a, mark: 'turret', label: RT.place.label }); }
+    return map;
+  }
+  if (isRapidGame() && RT.ramFor) {   // experiment ram: enemy ships it can reach
+    for (const t of game.ships.filter((z) => z.owner === 1 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: RT.ramFor, target: z.id }))) {
+      const a = { type: 'ram', ship: RT.ramFor, target: t.id };
+      for (const c of E.footprint(t)) map.set(hex.key(c), { action: a, wingAct: a, mark: 'turret', label: 'R' });
+    }
+    return map;
+  }
   if (isRapidGame() && RT.turretFor) {
     for (const c of E.turretSpots(game, 0, RT.turretFor)) { const a = { type: 'buy', item: 'turret', ship: RT.turretFor, at: c }; map.set(hex.key(c), { action: a, wingAct: a, mark: 'turret', label: 'T' }); }
     return map;
@@ -1081,6 +1102,7 @@ function tap(c, v, opts, viaChip, t) {
     if (x) { sel = x.id; return rapidForShip(item); }
     say('Cancelled.'); return render();
   }
+  if (isRapidGame() && (RT.place || RT.ramFor)) { const w = opts.get(hex.key(c)); RT.place = RT.ramFor = null; if (w && w.wingAct) rapidAct(w.wingAct); else { say('Cancelled.'); render(); } return; }
   if (isRapidGame() && RT.turretFor) { const w = opts.get(hex.key(c)); if (w && w.wingAct) { RT.turretFor = null; rapidAct(w.wingAct); } else { RT.turretFor = null; say('Turret cancelled.'); render(); } return; }   // wingman step: a marker or nothing
   let o = opts.get(hex.key(c));
   endArmed = false;
@@ -1683,7 +1705,7 @@ export function render() {
       (k === 0 ? 'You' : 'Enemy') + (free ? ': free' : ': forward')); }) : null;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit + (R.rapid && game.rapid ? game.rapid.openTicks || 0 : 0)),   // rapid: the opening's ticks don't count
-      E.econOn(game) ? pursePill() : null,   // economy mode: your salvage (the enemy's is hidden)
+      E.econOn(game) ? pursePill() : null,   // economy mode: your rekon (the enemy's is hidden)
       R.rapid ? h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps' }, rapidChips)) :
       h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
@@ -1773,6 +1795,14 @@ export function render() {
           + r2 + ' hexes) only picks up faint contacts. ' + scanNextText(me.scan) + ' Scanning lights your ship up for a round. Press Scan now.');
         render();
       } }),
+      // experiments: ram (a one-hex ship) and decoys (a ship with an emitter)
+      isRapidGame() && E.exp(game, 'ram') && me.segs.length === 1 && !me.flagship ? ibtn({ icon: 'fire', label: 'Ram', on: RT.phase === 'choose', sub: 'into a ship within 2', onclick: () => {
+        const ok = game.ships.some((z) => z.owner === 1 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: sel, target: z.id }));
+        if (!ok) { say('Ram: no enemy ship you can see within 2 hexes of ' + sel + '.'); return render(); }
+        RT.ramFor = sel; pending = null; say('Ram: tap an enemy ship marked R. ' + sel + ' is lost; the segment it hits is wrecked.'); render(); } }) : null,
+      isRapidGame() && E.exp(game, 'decoy') && E.decoySpots(game, 0, sel).length ? ibtn({ icon: 'scan', label: 'Decoy', on: RT.phase === 'choose' && !E.decoyRefusal(game, 0, { type: 'decoy', ship: sel, at: E.decoySpots(game, 0, sel)[0] }), sub: E.decoyRefusal(game, 0, { type: 'decoy', ship: sel, at: E.decoySpots(game, 0, sel)[0] }) ? 'recharging' : 'place a fake contact', onclick: () => {
+        RT.place = { item: 'decoy', ship: sel, spots: E.decoySpots(game, 0, sel), act: (c) => ({ type: 'decoy', ship: sel, at: c }), label: 'D' }; pending = null;
+        say('Decoy: tap a marked hex (D). The enemy sees a "?" there for 3 ticks; missiles that see it go for it.'); render(); } }) : null,
       v.objs.some((o) => o.mine && R.munitions[o.kind].remote_detonate) ? btn('detonate', 'boom', 'Detonate', 'a drone', v.cp >= R.cost.detonate) : null,
       ...(v.story ? v.story.unlocked.filter((k) => k === 'graft' || k === 'dock').flatMap((k) => {
         const a = game.ships.find((z) => z.id === me.id);
@@ -1824,16 +1854,16 @@ export function render() {
   const rail = $('#rail');
   if (rail) { rail.textContent = ''; if (compact) { if (railTools && !hid) rail.appendChild(railTools); rail.appendChild(tb); } else put(tb, $('#dock')); }
   // end of turn (bottom right): always in the same place
-  if (mine && !hid && R.rapid && (RT.turretFor || RT.pick)) {
-    fill(tb, [h('button', { class: 'btn ib endb', 'aria-label': 'Cancel the turret', onclick: () => { RT.turretFor = RT.pick = null; say('Cancelled.'); render(); } },
+  if (mine && !hid && R.rapid && (RT.turretFor || RT.pick || RT.place || RT.ramFor)) {
+    fill(tb, [h('button', { class: 'btn ib endb', 'aria-label': 'Cancel', onclick: () => { RT.turretFor = RT.pick = RT.place = RT.ramFor = null; say('Cancelled.'); render(); } },
       h('span', { class: 'ibic' }, ico('x', 22)), h('span', { class: 'tl name' }, 'Cancel'), h('small', { class: 'tl' }, 'buy nothing'))]);
   } else if (mine && !hid && R.rapid && RT.wingFor) {
     fill(tb, [h('button', { class: 'btn go ib endb', 'aria-label': 'Fire with no wingman move', onclick: () => rapidAct(RT.wingFor) },
       h('span', { class: 'ibic' }, ico('end', 24)), h('span', { class: 'tl name' }, 'Fire alone'), h('small', { class: 'tl' }, 'no wingman'))]);
   } else if (mine && !hid && R.rapid) {
     const ok = RT.phase === 'choose' && E.passAllowed(game, 0);
-    const shop = E.econOn(game) ? (() => { const can = RT.phase === 'choose' && Object.keys(E.SHOP).some((k) => E.purse(game, 0) >= E.price(game, k));
-      return h('button', { class: 'btn ib buyb' + (can ? '' : ' off'), 'aria-label': 'Buy: spend salvage, using this tick', disabled: RT.phase !== 'choose', onclick: rapidShop },
+    const shop = E.econOn(game) ? (() => { const can = RT.phase === 'choose' && Object.keys(E.shopItems(game)).some((k) => E.purse(game, 0) >= E.price(game, k));
+      return h('button', { class: 'btn ib buyb' + (can ? '' : ' off'), 'aria-label': 'Buy: spend rekon, using this tick', disabled: RT.phase !== 'choose', onclick: rapidShop },
         h('span', { class: 'ibic' }, ico('buy', 22)), h('span', { class: 'tl name' }, 'Buy'), h('small', { class: 'tl' }, 'uses the tick')); })() : null;
     fill(tb, [shop, h('button', { class: 'btn go ib endb' + (ok ? '' : ' off'), disabled: !ok, 'aria-label': 'Pass: do nothing this tick',
       onclick: () => rapidAct({ type: 'pass' }) },
@@ -1920,7 +1950,7 @@ export function render() {
 //   auto   : out of time. A chosen laser, missile or scan fires on its own after a 1.5 s red Cancel
 //            button; with nothing chosen the game picks a ship and moves it forward (or passes, once free)
 // The computer picks its action the moment you pick yours, from its own view of the board.
-const RT = { pick: null, turretFor: null, phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null, convertFor: null };   // convertFor: a move waiting for "convert to?"   // wingFor: a chosen shot waiting for its wingman move
+const RT = { place: null, ramFor: null, pick: null, turretFor: null, phase: 'idle', start: 0, end: 0, timer: 0, raf: 0, wingFor: null, wingOpts: null, convertFor: null };   // convertFor: a move waiting for "convert to?"   // wingFor: a chosen shot waiting for its wingman move
 function rapidClear() {
   clearTimeout(RT.timer); RT.timer = 0;
   const cv = document.getElementById('rapidconvert'); if (cv) cv.remove();
@@ -1941,7 +1971,7 @@ function rapidLines() {
 function newRapidGame() {
   rapidReset();
   seat = 'cpu'; store.set('shatkon.seat', 'cpu');
-  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}) }), (Date.now() % 2147483647) | 0);
+  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? expOptions() : {}) }), (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
@@ -1950,9 +1980,9 @@ function newRapidGame() {
   const econ = E.econOn(game), title = econ ? 'Frontier' : 'Rapid Opus';
   say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
     + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
-    + (econ ? ' Salvage (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
+    + (econ ? ' Rekon (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
   save(); render();
-  setTimeout(() => toast(title, 'p0', econ ? 'earn salvage in the enemy\u2019s half' : 'forward until you cross the line'), 300);
+  setTimeout(() => toast(title, 'p0', econ ? 'earn rekon in the enemy\u2019s half' : 'forward until you cross the line'), 300);
 }
 // Called by render: starts the clock for a game that has none running (a new game, or one loaded from a save).
 function rapidEnsure() {
@@ -1970,7 +2000,7 @@ function rapidWatch(ms) {
 function rapidChoose() {
   if (!isRapidGame() || game.phase !== 'play') return rapidReset();
   rapidClear();
-  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = null;
+  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
   RT.timer = setTimeout(rapidTimeout, secs * 1000);
@@ -1982,7 +2012,7 @@ function rapidTimeout() {
   if (!isRapidGame() || RT.phase !== 'choose' || game.phase !== 'play') return;
   if (RT.wingFor) return rapidAct(RT.wingFor, true, true);   // out of time choosing a wingman: the shot goes alone
   if (RT.convertFor) return rapidAct(RT.convertFor, true, true);   // out of time at "convert to?": it stays a ship
-  RT.turretFor = RT.pick = null;   // out of time placing a turret or choosing a ship: nothing bought, the usual time-out applies
+  RT.turretFor = RT.pick = RT.place = RT.ramFor = null;   // out of time placing a turret or choosing a ship: nothing bought, the usual time-out applies
   // the rules card or the menu is open: the clock starts again rather than acting behind it
   if ((document.getElementById('help') && !document.getElementById('help').hidden) || drawerOpen || document.getElementById('bsheet')) return rapidChoose();
   const R = game.rules.rapid;
@@ -2071,7 +2101,7 @@ function rapidAct(action, quiet, auto) {
     say('Past the line: convert ' + a.ship + ' to a scanner buoy or a mine, or keep it a ship.');
     return render();
   }
-  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = null;
+  RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
   try {
@@ -2082,7 +2112,7 @@ function rapidAct(action, quiet, auto) {
   const wasOpening = E.inOpening(game);
   game = E.rapidTick(game, [a, ai]);
   rapidEarnFx();
-  { const idle = game.events.find((e) => e.t === 'idle' && e.player === 0); if (idle) setTimeout(() => toast('Idle: \u2212' + idle.lost + ' \u25c8', 'p1', 'passing earns nothing and costs salvage'), 120); }
+  { const idle = game.events.find((e) => e.t === 'idle' && e.player === 0); if (idle) setTimeout(() => toast('Idle: \u2212' + idle.lost + ' \u25c8', 'p1', 'passing earns nothing and costs rekon'), 120); }
   if (a.wing) {   // say what the wingman's free action did
     const w = game.events.find((e) => e.t === 'fire' && e.ship === a.wing.ship);
     setTimeout(() => toast(w ? 'Wingman fired too' : 'Wingman moved', 'p0 wingt', w ? a.wing.ship + ' added a shot of ' + plural(w.hits, 'hit') : a.wing.ship + ' moved 1 hex for free'), 150);
@@ -2115,15 +2145,15 @@ function rapidAct(action, quiet, auto) {
 function pursePill() {
   if (!document.getElementById('rapid-css')) document.head.appendChild(h('style', { id: 'rapid-css' }, RAPID_CSS));
   const n = E.purse(game, 0), last = (game.econ.perTick[0] || []).slice(-1)[0] || 0;
-  return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Salvage ' + n, title: 'Salvage: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Turrets cost ' + E.econConfig(game.rules).turretUpkeep + ' a tick each. Hidden from the enemy.' },
+  return h('span', { class: 'purse' + (RT.earnAt && Date.now() - RT.earnAt < 1800 ? ' up' : ''), role: 'img', 'aria-label': 'Rekon ' + n, title: 'Rekon: ' + n + ' (earned ' + game.econ.earned[0] + ' this game' + (last ? ', +' + last + ' last tick' : '') + '). Earn it in the enemy\u2019s half: outlined hexes 1, by an asteroid 2; first across the line 3; each ship past it 1 a tick; 2 a segment for a kill. At most ' + E.econConfig(game.rules).cap + ' a tick. Turrets cost ' + E.econConfig(game.rules).turretUpkeep + ' a tick each. Hidden from the enemy.' },
     h('i', null, '\u25c8'), h('b', null, String(n)),
     (() => { const ts = game.objs.filter((o) => o.kind === E.TURRET && o.owner === 0), c = E.econConfig(game.rules);
       if (!ts.length || !c.turretUpkeep) return null;
       const due = ts.length * c.turretUpkeep, short = E.purse(game, 0) < due;
-      return h('span', { class: 'upchip' + (short ? ' short' : ''), title: ts.length + ' turret' + (ts.length > 1 ? 's' : '') + ': upkeep \u25c8 ' + due + ' every ' + c.turretEvery + ' ticks' + (short ? '. Not enough salvage: the oldest will go dark.' : '') }, 'T' + ts.length + ' \u2212' + due + '/' + c.turretEvery + 't'); })(),
+      return h('span', { class: 'upchip' + (short ? ' short' : ''), title: ts.length + ' turret' + (ts.length > 1 ? 's' : '') + ': upkeep \u25c8 ' + due + ' every ' + c.turretEvery + ' ticks' + (short ? '. Not enough rekon: the oldest will go dark.' : '') }, 'T' + ts.length + ' \u2212' + due + '/' + c.turretEvery + 't'); })(),
     E.heatOn(game, 0) ? h('span', { class: 'heatchip', title: 'Heatmap showing: ' + plural(game.econ.heat[0] - game.round + 1, 'tick') + ' left' }, '\u25a6 ' + (game.econ.heat[0] - game.round + 1)) : null);
 }
-// The shop (economy mode): what salvage buys. Buying is the tick's whole action, like Pass.
+// The shop (economy mode): what rekon buys. Buying is the tick's whole action, like Pass.
 const SOON = [];
 // What turret upkeep costs, in words (economy mode)
 // Why the selected ship has no laser target: nothing seen, out of reach (how far vs its reach), or blocked.
@@ -2140,7 +2170,7 @@ function noShotWhy(id) {
 function upkeepWords() {
   const c = E.econConfig(game.rules);
   if (!c.turretUpkeep) return 'No upkeep.';
-  return 'Upkeep: \u25c8 ' + c.turretUpkeep + ' per turret every ' + (c.turretEvery > 1 ? c.turretEvery + ' ticks' : 'tick') + '. Can\u2019t pay? It goes dark (stops firing) until you can. Salvage never goes below 0.';
+  return 'Upkeep: \u25c8 ' + c.turretUpkeep + ' per turret every ' + (c.turretEvery > 1 ? c.turretEvery + ' ticks' : 'tick') + '. Can\u2019t pay? It goes dark (stops firing) until you can. Rekon never goes below 0.';
 }
 function rapidShop() {
   if (RT.phase !== 'choose') return;
@@ -2148,7 +2178,7 @@ function rapidShop() {
   const close = () => { const c = document.getElementById('rapidbuy'); if (c) c.remove(); };
   const purse = E.purse(game, 0);
   const forShip = sel;   // the ship selected when Buy was pressed is the one a purchase is for
-  const rows = Object.entries(E.SHOP).map(([k, it]) => {
+  const rows = Object.entries(E.shopItems(game)).map(([k, it]) => {
     const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
     const short = purse < cost;
     return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); if (forShip) sel = forShip; it.needsShip ? rapidForShip(k) : rapidAct({ type: 'buy', item: k }); } },
@@ -2168,7 +2198,18 @@ function rapidShop() {
 function rapidForShip(item) {
   if (item === 'turret') return rapidTurretStart();
   const x = sel && game.ships.find((z) => z.id === sel && z.owner === 0 && !z.dead);
-  if (!x) { RT.pick = item; pending = null; say((item === 'upgrade' ? 'Upgrade' : 'Resupply') + ': tap the ship it is for.'); return render(); }
+  if (!x) { RT.pick = item; pending = null; say(item[0].toUpperCase() + item.slice(1) + ': tap the ship it is for.'); return render(); }
+  if (item === 'warp') {   // experiment: tap where it goes
+    const spots = E.warpSpots(game, 0, x.id);
+    if (!spots.length) { say('No free spot within 4 hexes in your half for ' + x.id + '.'); return render(); }
+    RT.place = { item: 'warp', ship: x.id, spots, act: (c) => ({ type: 'buy', item: 'warp', ship: x.id, at: c }), label: 'W' };
+    say('Warp: tap a marked hex (W) for ' + x.id + '. Anything else cancels.'); return render();
+  }
+  if (item === 'repair' || item === 'hibernate') {   // experiments
+    const why = E.buyRefusal(game, 0, { type: 'buy', item, ship: x.id });
+    if (why) { say(item[0].toUpperCase() + item.slice(1) + ': ' + why + '.'); return render(); }
+    return rapidAct({ type: 'buy', item, ship: x.id });
+  }
   if (item === 'resupply') {
     const why = E.resupplyRefusal(game, 0, x.id);
     if (why) { say('Resupply: ' + why + '.'); return render(); }

@@ -343,6 +343,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     const hit = (ax, ay) => tags.some((r) => Math.abs(r[0] - ax) < (r[2] + tw) / 2 && Math.abs(r[1] - ay) < th * 1.05);
     if (hit(lx, ly)) { const up = Y(high) - S - th * 0.7; if (!hit(lx, up)) ly = up; }
     // rapid mode: a stunned ship (an intercepted missile) can't act this tick: a lightning mark over it
+    if (x.hib) g.appendChild(s('text', { x: f1(mid), y: f1(Y(high) - S * 0.9), 'font-size': fs(13), 'font-weight': 800, fill: '#9fd8ff', 'text-anchor': 'middle', 'pointer-events': 'none' }, 'zZ'));   // experiment: hibernating
     if (x.stunned) g.appendChild(s('text', { x: f1(mid), y: f1(Y(high) - S * 0.9), 'font-size': fs(16), 'font-weight': 800, fill: '#ffe066', stroke: '#1a1206', 'stroke-width': f1(2 / px), 'paint-order': 'stroke', 'text-anchor': 'middle', 'pointer-events': 'none' }, '\u26a1'));
     // rapid mode: a ship's name tag shows only while it is the tapped one (tagsOn 'tap')
     const tagged = tagsOn !== 'tap' || x.id === sel || x.id === look;
@@ -392,6 +393,12 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       tg.appendChild(s('text', { x: f1(cx), y: f1(cy + 0.9), 'font-size': 3.4, 'font-weight': 800, fill: o.dark ? tc : neon, 'text-anchor': 'middle' }, 'T'));
       for (let i = 0; i < (o.hp || 0); i++) tg.appendChild(s('circle', { cx: f1(cx - 1.6 + i * 3.2), cy: f1(cy + 4), r: 0.8, fill: tc }));
       svg.appendChild(tg);
+    } else if (o.kind === 'decoy') {
+      // experiment decoy (your own; the enemy sees only a "?"): a dashed ship outline with a D
+      const dg = s('g', { opacity: 0.75 });
+      dg.appendChild(s('path', { d: hexPath(cx, cy, 6), fill: 'none', stroke: c0, 'stroke-width': 0.8, 'stroke-dasharray': '1.6 1.2', class: 'rotor' }));
+      dg.appendChild(s('text', { x: f1(cx), y: f1(cy + 1.2), 'font-size': 4, 'font-weight': 800, fill: c0, 'text-anchor': 'middle' }, 'D'));
+      svg.appendChild(dg);
     } else if (o.kind === 'scan_buoy') {
       // rapid mode, scanner buoy: a small dish with two sweeping rings (a one-hex ship that went silent)
       const bg = s('g', { opacity: fade });
@@ -414,6 +421,9 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       for (let i = 0; i < 6; i++) { const a = (i / 6) * 2 * Math.PI; mg.appendChild(s('path', { d: `M${f1(cx + 3 * Math.cos(a))},${f1(cy + 3 * Math.sin(a))}L${f1(cx + 5.2 * Math.cos(a))},${f1(cy + 5.2 * Math.sin(a))}`, stroke: c0, 'stroke-width': 0.9, 'stroke-linecap': 'round' })); mg.appendChild(s('circle', { cx: f1(cx + 5.2 * Math.cos(a)), cy: f1(cy + 5.2 * Math.sin(a)), r: 0.7, fill: c0 })); }
       mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 3.4, fill: ink, stroke: c0, 'stroke-width': 0.8 }));
       mg.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: 1.2, fill: neon, class: 'minepulse' }));
+      // experiment stateMines: which kind (S smart, C close, L lurker), on your own mines
+      const tag = { smart_mine: 'S', close_mine: 'C', lurker_mine: 'L' }[o.kind];
+      if (tag && o.mine) mg.appendChild(s('text', { x: f1(cx), y: f1(cy - 6.4), 'font-size': 3.6, 'font-weight': 800, fill: c0, 'text-anchor': 'middle' }, tag));
       svg.appendChild(mg);
     } else if (!m.speed) {
       // contact mine: a spiked hexagon with a pulsing core
@@ -591,7 +601,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       const rc = Math.min(S * 0.62, 12 / px), g = s('g', { 'data-tap': k, class: 'turretchip' });
       g.appendChild(s('path', { d: cellPath(c, 0.94), fill: '#ffd77a', 'fill-opacity': 0.2, stroke: '#ffd77a', 'stroke-width': f1(1.5), class: 'movepulse' }));
       g.appendChild(s('circle', { cx, cy, r: f1(rc), fill: '#ffd77a', stroke: '#1a1206', 'stroke-width': f1(1.2 / px) }));
-      g.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(12), 'font-weight': 800, fill: '#1a1206' }, 'T'));
+      g.appendChild(s('text', { x: cx, y: cy, 'font-size': fs(12), 'font-weight': 800, fill: '#1a1206' }, o.label || 'T'));   // T turret, W warp, D decoy, R ram
       svg.appendChild(g);
     } else if (o.mark === 'move') {
       // The centre hex of a big ship's one-step move lies under the ship itself, so a marker there says nothing.

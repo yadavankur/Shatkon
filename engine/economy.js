@@ -1,8 +1,8 @@
 // Economy mode ("Frontier", the third rapid experiment; design: GameDev project doc
-// claude/shatkon-economy-mode-draft.md). Slice 1: earning salvage. Slice 2: the first thing to buy,
+// claude/shatkon-economy-mode-draft.md). Slice 1: earning rekon. Slice 2: the first thing to buy,
 // the threat heatmap (see "Spending" below).
 //
-// Salvage (◈) is one purse for the whole fleet, hidden from the enemy. It is earned at the end of
+// Rekon (◈) is one purse for the whole fleet, hidden from the enemy. It is earned at the end of
 // every tick (engine/rapid.js calls econTick), in this order, up to a cap a tick:
 //   - first crossing: the first time a ship of yours is on or past your line        3, once a game
 //   - kills: an enemy ship destroyed (not one that went silent)                       2 a segment
@@ -15,12 +15,14 @@
 import { cellsOf, emit, geom, footprint, num, no, occupancy, makeObj, objById, shipById, nearestCell, segHex } from './state.js';
 import { key, DIRS, add, dist, sightLine } from './hex.js';
 import { beamHitsAt } from './actions.js';
+import { exp } from './experiments.js';
+import { LAB_SHOP, labBuyRefusal, labBuy } from './labrules.js';
 import { visibleTo } from './detect.js';
 import { applyHits, removeObj } from './damage.js';
 import { pastLine, rowsForward } from './rapidrules.js';
 
 export const ECON_DEFAULTS = {
-  cap: 6,          // most salvage a side can earn in one tick
+  cap: 6,          // most rekon a side can earn in one tick
   ownHalf: false,  // does new ground in your own half pay too?
   newHex: 1,       // a hex never entered before, in the enemy's half
   asteroid: 1,     // extra when that hex is next to an asteroid
@@ -30,7 +32,7 @@ export const ECON_DEFAULTS = {
   heatmap: 6,      // the heatmap's price
   heatTicks: 2,    // how many of your next ticks it is shown for
   turret: 8,       // a turret's price
-  turretUpkeep: 1, // salvage for each turret every turretEvery ticks (from the tick after it is placed); short of it, the oldest go dark until paid again
+  turretUpkeep: 1, // rekon for each turret every turretEvery ticks (from the tick after it is placed); short of it, the oldest go dark until paid again
   turretEvery: 3,  // ticks between upkeep payments (23 Nov: every tick made turrets cost more than they gave)
   idle: 1,         // a side that passes (no ship moves or acts, nothing bought) earns nothing that tick and loses this
   turretHits: 1,   // hits a turret's shot does (24 Nov: 2 -> 1, traded for reach and stealth)
@@ -229,14 +231,17 @@ export function resupplyRefusal(state, p, shipId) {
   if (!resupplyKind(state, x)) return 'no missile to load';
   return null;
 }
-export const price = (state, item) => num(econConfig(state.rules)[item]);
+export const price = (state, item) => (LAB_SHOP[item] ? LAB_SHOP[item].price : num(econConfig(state.rules)[item]));
+// What this game's shop sells: the standard items, plus the experiments that are on (repair, warp, hibernate)
+export const shopItems = (state) => ({ ...SHOP, ...Object.fromEntries(Object.entries(LAB_SHOP).filter(([, it]) => exp(state, it.exp))) });
 
 // Why side p can't buy this now (null when it can).
 export function buyRefusal(state, p, a) {
   if (!econOn(state)) return 'there is nothing to buy in this game';
-  if (!SHOP[a.item]) return 'that is not for sale';
+  if (!SHOP[a.item] && !LAB_SHOP[a.item]) return 'that is not for sale';
   const cost = price(state, a.item);
-  if (state.econ.purse[p] < cost) return 'not enough salvage: ' + a.item + ' costs ' + cost + ', you have ' + state.econ.purse[p];
+  if (state.econ.purse[p] < cost) return 'not enough rekon: ' + a.item + ' costs ' + cost + ', you have ' + state.econ.purse[p];
+  if (LAB_SHOP[a.item]) return labBuyRefusal(state, p, a);   // experiments: repair, warp, hibernate
   if (a.item === 'upgrade') return upgradeRefusal(state, p, a.ship, a.kind);
   if (a.item === 'resupply') return resupplyRefusal(state, p, a.ship);
   if (a.item === 'turret') {
@@ -253,6 +258,7 @@ export function doBuy(s, p, a) {
   const cost = price(s, a.item), E = s.econ;
   E.purse[p] -= cost;
   E.spent[p][a.item] = (E.spent[p][a.item] || 0) + cost;
+  if (LAB_SHOP[a.item]) { emit(s, { t: 'bought', player: p, item: a.item, cost, purse: E.purse[p], ...labBuy(s, p, a) }, [p]); return; }
   // the heatmap shows on this side's next heatTicks ticks (the tick it is bought in is already spent)
   if (a.item === 'heatmap') E.heat[p] = s.round + num(econConfig(s.rules).heatTicks, 2);
   let extra = {};
@@ -348,7 +354,7 @@ export function hitObject(s, o, hits) {
 }
 // Upkeep, at the end of each tick after earnings: each turret costs its side turretUpkeep, starting the
 // tick after it was placed. Paid newest first; a turret that can't be paid is dark (doesn't fire) until a
-// later tick pays for it again, so the oldest go dark first when salvage runs short.
+// later tick pays for it again, so the oldest go dark first when rekon runs short.
 function payUpkeep(s, p, cfg) {
   const all = s.objs.filter((o) => isTurret(o) && o.owner === p).sort((a, b) => b.born - a.born || (a.id < b.id ? 1 : -1));
   if (!all.length) return;
@@ -429,5 +435,5 @@ export function threatMap(state, p) {
 }
 
 // Words for the log and the screen.
-export const BUY_WORDS = { heatmap: 'a threat heatmap', turret: 'a turret', upgrade: 'an upgrade', resupply: 'a missile' };
+export const BUY_WORDS = { heatmap: 'a threat heatmap', turret: 'a turret', upgrade: 'an upgrade', resupply: 'a missile', repair: 'a repair', warp: 'a warp', hibernate: 'hibernation' };
 export const EARN_WORDS = { cross: 'first across the line', kill: 'enemy ship destroyed', hold: 'holding past the line', ground: 'new ground', rock: 'new ground by an asteroid' };

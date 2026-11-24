@@ -41,7 +41,8 @@ export function view(state, who) {
     ships.push({
       id: s.id, owner: s.owner, mine, seen: mine || vis.has(s.id), pos: s.pos.slice(), cells: footprint(s),
       name: open ? s.name : null, flagship: open ? s.flagship : null,
-      stunned: s.stunned && s.stunned === state.round ? s.stunned : null,   // rapid mode: can't act this tick (everyone sees the flash)
+      stunned: s.stunned && s.stunned === state.round ? s.stunned : null,
+      hib: mine && s.hib ? true : null,   // experiment: hibernating (only you know)   // rapid mode: can't act this tick (everyone sees the flash)
       segs: s.segs.map((sg, i) => ({
         off: sg.off.slice(), wrecked: sg.wrecked,
         parts: open ? sg.parts.map((x) => ({ t: x.t, hp: x.hp, max: rules.parts[x.t].hp })) : intel[i] ? intel[i].parts.map((x) => ({ t: x.t, hp: x.hp, max: rules.parts[x.t].hp })) : null,
@@ -74,6 +75,7 @@ export function view(state, who) {
   for (const o of state.objs) {
     const mine = o.owner === p, open = mine || all;
     if (!open && !vis.has(o.id)) continue;
+    if (!open && o.kind === 'decoy') continue;   // experiment decoy: the enemy sees a "?" contact instead (below)
     objs.push({ id: o.id, kind: o.kind, owner: o.owner, mine, seen: mine || vis.has(o.id), pos: o.pos.slice(), dir: o.dir, last: o.last || null, fuel: open ? o.fuel : null, target: open ? o.target : null, hp: o.hp, dark: !!o.dark });
   }
   const ghosts = all ? [] : Object.keys(pl.seen).filter((id) => !vis.has(id)).map((id) => ({ id, ...pl.seen[id] }));
@@ -83,7 +85,7 @@ export function view(state, who) {
     board: { radius: rules.board.radius }, terrain: rules.terrain, zones: rules.zones,
     cp: pl.cp, income: thrustIncome(state, p),   // thrust is per ship now: see each ship's thrustNow
     ships, objs, ghosts, feed: pl.feed.slice(),
-    contacts: all ? [] : contactsFor(state, p, vis),   // fuzzy contacts: "something is roughly here"
+    contacts: all ? [] : contactsFor(state, p, vis).filter((c) => !state.objs.some((o) => o.id === c.id && o.kind === 'decoy')).concat(state.objs.filter((o) => o.kind === 'decoy' && o.owner !== p).map((o) => ({ id: o.id, at: o.pos.slice(), r: 1, kind: 'ship', src: 'sensor' }))),   // fuzzy contacts: "something is roughly here" (decoys look like one)
     news: pl.feed.filter((e) => e.n >= pl.readSeq && e.n < pl.turnSeq),   // what happened since this player's last turn
     // everything of this player's that can see, and how far: used to draw the edge of the fog
     eyes: state.ships.filter((s) => !s.dead && s.owner === p).concat(state.objs.filter((o) => o.owner === p && rules.munitions[o.kind].reports))

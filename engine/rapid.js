@@ -29,6 +29,7 @@ import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
 import { econAI, pickStyles } from './econai.js';
+import { LAB_MUNITIONS, mineKindFor, ghostUntil, ramRefusal, doRam, decoyRefusal, doDecoy, labTick, wake } from './labrules.js';
 import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig, upgradeParts } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
 
@@ -36,9 +37,11 @@ export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scan
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + (a.at ? '.' + a.at.join(',') : a.kind ? '.' + a.kind : '') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
+export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'ram' ? 'r:' + a.ship + '.' + a.target : a.type === 'decoy' ? 'd:' + a.ship + '.' + a.at.join(',') : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + (a.at ? '.' + a.at.join(',') : a.kind ? '.' + a.kind : '') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
   if (t === 'pass') return { type: 'pass' };
+  if (/^r:/.test(t)) { const [ship, target] = t.slice(2).split('.'); return { type: 'ram', ship, target }; }   // experiment: ram
+  if (/^d:/.test(t)) { const [ship, at] = t.slice(2).split('.'); return { type: 'decoy', ship, at: at.split(',').map(Number) }; }   // experiment: decoy
   if (/^b:/.test(t)) {   // economy mode: a purchase, "b:heatmap" or "b:turret.<ship>.<q>,<r>"
     const [item, ship, more] = t.slice(2).split('.');
     if (!ship) return { type: 'buy', item };
@@ -69,8 +72,11 @@ export function canConvert(state, p, a) {
   return !!y && pastLine(s, y);
 }
 function convertShip(s, x, into) {
-  const kind = into === 'mine' ? 'naval_mine' : BUOY;
-  s.objs.push(makeObj(s, kind, x.owner, x.pos, 0));
+  const kind = into === 'mine' ? mineKindFor(s, x) : BUOY;   // experiment stateMines: the mine depends on what still works
+  const o = makeObj(s, kind, x.owner, x.pos, 0);
+  const hide = ghostUntil(s);   // experiment ghost: the enemy can't see it for 2 ticks
+  if (hide) o.hidden = hide;
+  s.objs.push(o);
   x.dead = true; x.converted = into;
   emit(s, { t: 'converted', ship: x.id, into, at: x.pos.slice() }, [x.owner]);
 }
@@ -173,6 +179,7 @@ export function rapidRules(rules, opts = {}) {
   // standard sensor), one hit kills it
   // economy mode: the turret a ship can leave behind (engine/economy.js): still, seen from about 1 hex
   // further than a scout, it watches 2 hexes around itself for its side and fires on its own every tick
+  if (o.exp && Object.values(o.exp).some(Boolean)) Object.assign(munitions, LAB_MUNITIONS);   // experiments: the extra mines and the decoy
   munitions[TURRET] = { label: 'Turret', speed: 0, hits: 0, blast_radius: 0, signature: ECON_DEFAULTS.turretSig, sensor_range: 2, reports: true, setup_only: true, max_per_player: 99, cost: 0 };
   munitions[BUOY] = { label: 'Scanner buoy', speed: 0, hits: 0, blast_radius: 0, signature: -2, setup_only: true, max_per_player: 99, cost: 0 };
   return {
@@ -246,6 +253,8 @@ export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (a.type === 'buy') return buyRefusal(state, p, a);   // economy mode: buying is the tick's action
+  if (a.type === 'ram') return ramRefusal(state, p, a);   // experiments
+  if (a.type === 'decoy') return decoyRefusal(state, p, a);
   for (const id of [a.ship, a.wing && a.wing.ship]) { const x = id && shipById(state, id); if (x && stunned(state, x)) return x.id + ' is stunned this tick (an intercepted missile)'; }
   if (!DO[a.type]) return 'that is not a rapid-mode action';
   if (a.convert) {
@@ -279,6 +288,9 @@ export function rapidTick(state, acts) {
   for (const p of [0, 1]) if (acts[p] && acts[p].type === 'buy') doBuy(s, p, acts[p]);
   // 1. shots, launches, scans: hits land together afterwards
   s.deferHits = [];
+  // experiments: a hibernating ship that acts wakes up; rams and decoys go with the shots
+  for (const p of [0, 1]) { const a = acts[p], x = a && a.ship && shipById(s, a.ship); if (x && x.hib && a.type !== 'buy') wake(s, x, 'it acted'); }
+  for (const p of [0, 1]) { const a = acts[p]; if (a && a.type === 'ram') doRam(s, p, a); if (a && a.type === 'decoy') doDecoy(s, p, a); }
   for (const p of [0, 1]) {
     const a = acts[p];
     if (!a || !(a.type in FIRST) || FIRST[a.type] !== 0) continue;
@@ -324,6 +336,7 @@ export function rapidTick(state, acts) {
   // every tick, even with nothing in the air: the flight also recharges shields and reloads point defence
   if (s.phase === 'play') runFlight(s);
   if (s.phase === 'play') buoysScan(s);
+  labTick(s);   // experiments: decoys fade, hibernating ships mend or wake
   // 4. the tick ends
   econTick(s, state, acts);   // economy mode: salvage for both sides (does nothing when the economy is off)
   for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
