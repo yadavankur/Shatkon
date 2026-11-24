@@ -29,7 +29,8 @@ import { begin } from './turn.js';
 import { newGame } from './state.js';
 import { dist, step } from './hex.js';
 import { econAI, pickStyles } from './econai.js';
-import { labAI } from './labai.js';
+import { labAI, keen } from './labai.js';
+import { exp } from './experiments.js';
 import { LAB_MUNITIONS, mineKindFor, ghostUntil, ramRefusal, doRam, decoyRefusal, doDecoy, labTick, wake } from './labrules.js';
 import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig, upgradeParts } from './economy.js';
 import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
@@ -426,7 +427,8 @@ export function autoLaunch(state, p, shipId, kind, mode = 'best') {
 export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
   const a = labAI(state, p, econAI(state, p, chooseAI(state, p, level, rnd), rnd), rnd);   // economy mode: its style may buy or reroute
   // a scout that reaches the line goes silent: a scanner buoy if the side has none, a mine if an enemy is close
-  if (a && a.type === 'move' && level !== 'easy' && canConvert(state, p, a)) {
+  // (a computer eager to ram keeps its scouts as rams: it doesn't turn them into buoys or mines)
+  if (a && a.type === 'move' && level !== 'easy' && canConvert(state, p, a) && !(exp(state, 'ram') && keen(state, 'ram') === 'eager')) {
     const s = copy(state), x = shipById(s, a.ship), to = { ...x, pos: a.path.reduce((c, d) => step(c, d), x.pos) };
     if (!s.objs.some((o) => o.owner === p && o.kind === BUOY)) return { ...a, convert: 'scanner' };
     if (s.ships.some((e) => e.owner !== p && !e.dead && s.players[p].vis.includes(e.id) && gap(e, to) <= 2)) return { ...a, convert: 'mine' };

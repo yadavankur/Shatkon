@@ -19,6 +19,9 @@ export const isRapid = (state) => !!(state && state.rules && state.rules.rapid);
 export function homeSign(state, p) {
   const r = state.rapid && state.rapid.sign;
   if (r && r[p]) return r[p];
+  // the board's home zone says which edge is home (south = +1, north = -1); ships placed mid-board can't fool it
+  const z = ((state.rules && state.rules.zones) || []).find((q) => q && q.name === 'player_' + (p + 1) + '_home');
+  if (z && (z.edge === 'south' || z.edge === 'north')) return z.edge === 'south' ? 1 : -1;
   const mine = state.ships.filter((s) => s.owner === p);
   const avg = mine.reduce((n, s) => n + s.pos[1], 0) / Math.max(1, mine.length);
   return avg >= 0 ? 1 : -1;

@@ -71,3 +71,11 @@ test('with ram switched off the same move is refused: the experiment does not le
   assert.match(E.rapidRefusal(game, 0, { type: 'ram', ship: me.id, target: foe.id }), /off/);
   assert.equal(E.exp(game, 'ram'), false);
 });
+
+test('each side knows its own home edge, even with ships placed mid-board (player 2 is home north)', () => {
+  const { game } = start();
+  assert.equal(E.homeSign(game, 0), 1);
+  assert.equal(E.homeSign(game, 1), -1);
+  for (const n of ['Warden', 'Pawn A']) assert.equal(E.rowsForward(game, 1, ship(game, n, 1).pos), E.rowsForward(game, 0, ship(game, n).pos), n + ': mirrored ships are the same rows forward');
+  for (const p of [0, 1]) for (const x of game.ships.filter((s) => s.owner === p)) assert.equal(E.view(game, p).ships.find((s) => s.id === x.id).scanR === null, false, 'rapid ships always have scan radii');
+});

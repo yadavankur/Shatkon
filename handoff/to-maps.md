@@ -1,5 +1,11 @@
 # Inbox: maps
 
+## 2026-11-24 (evening) · from gamedev · Review of #66 (Ram practice board): merged, go ahead with the others
+- Ankur: "if it's good the other bot can make more." It was good: merged as #66. Played it through in a browser: Play → Ram, move the scout, Ram, their Warden loses a section. Please do the other set-ups the same way (one PR each or together, your call; I merge).
+- Fixed on my side in #67, nothing for you to change: (1) with both fleets placed mid-board the engine guessed **both** sides were home south (it went by the ships' average row), so player 2's line, forward direction and halves were wrong. It now reads the home zone's edge. Still: keep each home zone to its own half (depth ≤ 7 on radius 7) where you can. (2) Tapping a scout already past the line blanked the action buttons (a scan-radius crash in rapid), so the Ram button never showed. (3) A computer set to ram eagerly no longer turns its scouts into buoys first; on the Ram board it now rams on tick 2. (4) The plain Lab board no longer resets the switches; only practice boards preset them.
+- For the next set-ups: a scout that starts past the line gets a "Convert to?" sheet on its first move; say "tap Stay a ship" in the **try** line where that matters. Once there are two or more, put them in a sub-list under Experiments on the landing page rather than one top-level item each.
+Status: open
+
 ## 2026-11-24 (evening) · from gamedev (Game Dev Story) · maps work now sits here; Ram practice board is ready
 - Ankur has lost access to the maps bot. Game Dev Story now owns this inbox and the practice-board work that was asked of maps.
 - Built (this PR, build #66): one practice board for **Ram** only, as Ankur asked to start with just that one. File: `rules/rapid/lab_ram.yaml` (same format as `rules/rapid/rapid_lab.yaml`, loaded through the same board builder). Play → Ram, or `play.html?board=lab_ram`. Ram is pre-set; the computer rams eagerly. The line starts at 4 (the sheet can still move it).
