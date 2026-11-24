@@ -5,7 +5,7 @@
 #  Open it at  play.html?board=lab_hibernate
 #
 #  What to try: Buy → Hibernate on the scout that is already next to the rock
-#  (◈2; after a tick holding the line you can pay). If you move that scout
+#  (◈2; you start with it). If you move that scout
 #  instead, tap Stay a ship.
 #  What to look for: The scout shuts down. The enemy sees it only from 1 hex or
 #  by a scan. If it was hurt, one part comes back every 4 ticks. Any action, or
@@ -22,7 +22,7 @@
 board:
   name: "Hibernate"
   idea: "The scout shuts down. The enemy sees it only from 1 hex or by a scan. If it was hurt, one part comes back every 4 ticks. Any action, or an enemy within 1 hex, wakes it. Against the computer they will hibernate a hurt scout by a rock when they can pay."
-  try: "Buy → Hibernate on the scout that is already next to the rock (◈2; after a tick holding the line you can pay). If you move that scout instead, tap Stay a ship."
+  try: "Buy → Hibernate on the scout that is already next to the rock (◈2; you start with it). If you move that scout instead, tap Stay a ship."
   rules: {}
 
 rapid:
@@ -32,6 +32,7 @@ rapid:
   experiments: on
   exp: { hibernate: true }    # only Hibernate is on
   cpuExp: { hibernate: sometimes }
+  startRekon: 2               # both sides start with ◈2: enough to buy it on tick 1
   econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
 
 budget: 99999

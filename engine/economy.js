@@ -82,8 +82,10 @@ export const nextToAsteroid = (rules, c) => rockSide(rules).has(key(c));
 export const inEnemyHalf = (state, p, c) => rowsForward(state, p, c) > state.rules.board.radius;
 
 // Start the economy (rapidStart calls this when the economy is on).
+// A board can start both sides with some rekon (rapid.startRekon), e.g. a practice board for something you buy.
 export function econStart(s) {
-  s.econ = { purse: [0, 0], earned: [0, 0], spent: [{}, {}], crossed: [false, false], seen: [{}, {}], perTick: [[], []], heat: [0, 0] };
+  const n = Math.max(0, Math.floor(Number((s.rules.rapid || {}).startRekon) || 0));
+  s.econ = { purse: [n, n], earned: [0, 0], spent: [{}, {}], crossed: [false, false], seen: [{}, {}], perTick: [[], []], heat: [0, 0] };
   for (const x of s.ships) if (!x.dead) for (const c of cellsOf(x)) s.econ.seen[x.owner][key(c)] = 1;
 }
 

@@ -4,9 +4,9 @@
 #  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
 #  Open it at  play.html?board=lab_repair
 #
-#  What to try: Let their Warden's shot hit your front scout, then (once you have
-#  ◈12) Buy → Repair on that scout.
-#  What to look for: Every part on that scout comes back to full, except a
+#  What to try: Their Warden shoots at yours from tick 1. Once your Warden is hit,
+#  tap it, then Buy → Repair (you start with ◈12).
+#  What to look for: Every part on that ship comes back to full, except a
 #  wrecked section or a laser that was already lost. You can do this once per
 #  ship every 10 ticks. Against the computer they will repair a hurt ship of
 #  theirs when they can pay.
@@ -14,15 +14,15 @@
 #  A Warden and two scouts a side, within Ankur's limit of two scouts and one
 #  3-section ship at most. Their Warden starts in laser range of your front
 #  scout. The line sits at 4 so your fleet starts just past it and earns rekon
-#  at once (the cap is raised so ◈12 can land in one tick). Home zones stay in
+#  at once (and starts with ◈12). Home zones stay in
 #  each side's own half (depth 7). The Repair switch is on; the computer will
 #  repair when it can; the others stay off.
 # ============================================================
 
 board:
   name: "Repair"
-  idea: "Every part on that scout comes back to full, except a wrecked section or a laser that was already lost. You can do this once per ship every 10 ticks. Against the computer they will repair a hurt ship of theirs when they can pay."
-  try: "Let their Warden's shot hit your front scout, then (once you have ◈12) Buy → Repair on that scout."
+  idea: "Every part on that ship comes back to full, except a wrecked section or a laser that was already lost. You can do this once per ship every 10 ticks. Against the computer they will repair a hurt ship of theirs when they can pay."
+  try: "Their Warden shoots at yours from tick 1. Once your Warden is hit, tap it, then Buy (you start with ◈12) → Repair."
   rules: {}
 
 rapid:
@@ -32,7 +32,7 @@ rapid:
   experiments: on
   exp: { repair: true }       # only Repair is on
   cpuExp: { repair: sometimes }
-  econCap: 12                 # so one tick of holding the line can pay for Repair
+  startRekon: 12               # both sides start with ◈12: enough to buy it on tick 1
   econ: { newHex: 1, asteroid: 1, cross: 6, hold: 4, kill: 2 }
 
 budget: 99999
