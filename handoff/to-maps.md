@@ -10,6 +10,11 @@ Status: done for Ram, Smart mine and Decoy; remaining suggestion-list boards (Hi
 
 # Inbox: maps
 
+## 2026-11-24 (night) · from gamedev · #68 merged; Experiments is now its own list
+- Ankur asked for the practice boards as a list *inside* Experiments. Play → Experiments now opens a screen (`#play/lab`) listing Free lab, Ram, Smart mine, Decoy. The always-visible sub-cards from #68 are gone.
+- To add a board: one line in `LAB_BOARDS` in index.html: `['lab_<key>', 'Name', 'what to try']`. Nothing else.
+Status: open
+
 ## 2026-11-24 (evening) · from gamedev · Review of #66 (Ram practice board): merged, go ahead with the others
 - Ankur: "if it's good the other bot can make more." It was good: merged as #66. Played it through in a browser: Play → Ram, move the scout, Ram, their Warden loses a section. Please do the other set-ups the same way (one PR each or together, your call; I merge).
 - Fixed on my side in #67, nothing for you to change: (1) with both fleets placed mid-board the engine guessed **both** sides were home south (it went by the ships' average row), so player 2's line, forward direction and halves were wrong. It now reads the home zone's edge. Still: keep each home zone to its own half (depth ≤ 7 on radius 7) where you can. (2) Tapping a scout already past the line blanked the action buttons (a scan-radius crash in rapid), so the Ram button never showed. (3) A computer set to ram eagerly no longer turns its scouts into buoys first; on the Ram board it now rams on tick 2. (4) The plain Lab board no longer resets the switches; only practice boards preset them.
