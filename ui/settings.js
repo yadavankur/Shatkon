@@ -96,6 +96,49 @@ export function expOptions() {
   return { exp: Object.fromEntries(on.map((d) => [d.key, true])),
     cpuExp: Object.fromEntries(on.filter((d) => CPU_USES[d.key]).map((d) => [d.key, r[d.key] === 'mine' ? 'never' : r[d.key] === 'eager' ? 'eager' : 'sometimes'])) };
 }
+// Practice boards (rules/rapid/lab_*.yaml) name which switches start on. Seed the Experiments sheet
+// from that file once per board; the sheet can still change them before Start. A different board
+// re-seeds. 'shatkon.expBoard' remembers which board was last seeded.
+const EXP_BOARD_KEY = 'shatkon.expBoard';
+export function seedExpFromBoard(boardName, rapid) {
+  if (!boardName || !rapid || !(rapid.experiments === 'on' || rapid.experiments === true)) return;
+  let last = '';
+  try { last = localStorage.getItem(EXP_BOARD_KEY) || ''; } catch (e) {}
+  if (last === boardName) return;
+  const exp = rapid.exp || {}, cpu = rapid.cpuExp || {}, s = {};
+  for (const d of EXP_SETTINGS) {
+    if (!exp[d.key]) { s[d.key] = 'off'; continue; }
+    const k = cpu[d.key];
+    s[d.key] = k === 'eager' ? 'eager' : k === 'never' ? 'mine' : 'on';
+  }
+  const line = Number(rapid.line);
+  if (Number.isFinite(line) && line >= 2 && line <= 12) s.labLine = line;
+  try {
+    const cur = JSON.parse(localStorage.getItem(XSTORE) || '{}') || {};
+    localStorage.setItem(XSTORE, JSON.stringify({ ...cur, ...s }));
+    localStorage.setItem(EXP_BOARD_KEY, boardName);
+  } catch (e) {}
+}
+async function yamlParse(text) {
+  if (globalThis.YAML && typeof globalThis.YAML.parse === 'function') return globalThis.YAML.parse(text);
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'lib/yaml.min.js';
+    s.onload = res; s.onerror = () => rej(new Error('could not load yaml'));
+    document.head.appendChild(s);
+  });
+  return globalThis.YAML.parse(text);
+}
+// Landing-page sheet: fetch the board file and seed before the form is drawn.
+export async function seedExpBoard(boardName) {
+  if (!boardName || !/^(rapid_|lab_)/.test(boardName)) return;
+  try {
+    const r = await fetch('rules/rapid/' + boardName + '.yaml?t=' + Date.now());
+    if (!r.ok) return;
+    const b = await yamlParse(await r.text());
+    seedExpFromBoard(boardName, b && b.rapid);
+  } catch (e) {}
+}
 export function econOptions() {
   const r = econSettings();
   return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), cpuStyle: r.cpuStyle };

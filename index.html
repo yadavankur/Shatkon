@@ -428,7 +428,9 @@ function playMenu(main) {
       () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ')),
     // experiments: new rules, each switched off until you turn it on, on a small board with small fleets
     item(null, 'start', 'Experiments', 'Small fleets, a small board, and switches for new ideas. Nothing here touches the real game.',
-      () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab'))));
+      () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')),
+    item(null, 'start', 'Ram', 'Practice board: move your scout one hex closer to their Warden, then tap Ram.',
+      () => battleSheet('Ram', game({ board: 'lab_ram', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab'))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },
@@ -492,6 +494,12 @@ async function battleSheet(title, href, rapid = false) {
   const box = $('#settings');
   let S;
   try { S = await import('./ui/settings.js'); } catch (e) { location.href = href; return; }
+  if (rapid === 'lab') {
+    try {
+      const board = new URL(href, location.href).searchParams.get('board');
+      if (board && S.seedExpBoard) await S.seedExpBoard(board);
+    } catch (e) {}
+  }
   S.injectSettingsCss();
   box.textContent = '';
   box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid),
