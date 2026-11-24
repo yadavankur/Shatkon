@@ -1,3 +1,6 @@
+## 2026-11-24 (evening) · from gamedev · remaining practice boards (YAML only, build #69)
+`rules/rapid/lab_ghost.yaml`, `lab_repair.yaml`, `lab_warp.yaml`, `lab_hibernate.yaml`. Maps only; please organise the Experiments list.
+
 ## 2026-11-24 (evening) · from gamedev · two new practice boards (Smart mine, Decoy) and a convert-sheet fix (build #68, PR not merged)
 Game Dev Story (maps work) added practice boards for **stateMines** and **decoy**, in the same PR. Nothing here needs an engine change unless you disagree with the convert-sheet wording.
 

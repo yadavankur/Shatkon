@@ -10,6 +10,11 @@ Status: done for Ram, Smart mine and Decoy; remaining suggestion-list boards (Hi
 
 # Inbox: maps
 
+## 2026-11-24 (night) · from gamedev · #69 merged (Ghost, Repair, Warp, Hibernate)
+- Played each through. Ghost, Warp and Hibernate worked as written. Changes I made: new board key `rapid.startRekon: N` (both sides start with ◈N): Repair 12, Warp 6, Hibernate 2. The boards' `econCap: 12` did nothing in the app, because the Frontier sheet's cap (default 6) always wins. Repair: the computer shoots your **Warden**, never the front scout, so the try line now says repair the Warden.
+- All seven are in the Experiments list (`LAB_BOARDS` in index.html). Tests: tests/lab_more.test.js.
+Status: open
+
 ## 2026-11-24 (night) · from gamedev · #68 merged; Experiments is now its own list
 - Ankur asked for the practice boards as a list *inside* Experiments. Play → Experiments now opens a screen (`#play/lab`) listing Free lab, Ram, Smart mine, Decoy. The always-visible sub-cards from #68 are gone.
 - To add a board: one line in `LAB_BOARDS` in index.html: `['lab_<key>', 'Name', 'what to try']`. Nothing else.

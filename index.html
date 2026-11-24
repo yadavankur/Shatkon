@@ -436,6 +436,10 @@ const LAB_BOARDS = [
   ['lab_ram', 'Ram', 'Move your scout one hex closer (on Convert to?, tap Stay a ship), then tap Ram.'],
   ['lab_stateMines', 'Smart mine', 'Move your healthy scout one hex, then tap Mine, not Stay a ship.'],
   ['lab_decoy', 'Decoy', 'Tap your Warden, tap Decoy, and place it in the gap between the two fleets.'],
+  ['lab_ghost', 'Ghost', 'Move your front scout one hex toward them and convert it (Scanner buoy or Mine). They see nothing there for 2 ticks.'],
+  ['lab_repair', 'Repair', 'Their Warden shoots yours. Once it is hit, tap it, then Buy \u2192 Repair (you start with \u25c812).'],
+  ['lab_warp', 'Warp', 'Tap your front scout, then Buy \u2192 Warp and pick a hex further back in your half (you start with \u25c86).'],
+  ['lab_hibernate', 'Hibernate', 'Tap the scout next to the rock, then Buy \u2192 Hibernate (\u25c82). The enemy can\u2019t see it unless right next to it.'],
 ];
 function labMenu(main) {
   main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about]) =>
