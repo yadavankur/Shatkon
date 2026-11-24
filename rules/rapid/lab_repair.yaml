@@ -1,0 +1,91 @@
+# ============================================================
+#  BOARD: Repair (Experiments practice set-up)
+#
+#  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
+#  Open it at  play.html?board=lab_repair
+#
+#  What to try: Let their Warden's shot hit your front scout, then (once you have
+#  ◈12) Buy → Repair on that scout.
+#  What to look for: Every part on that scout comes back to full, except a
+#  wrecked section or a laser that was already lost. You can do this once per
+#  ship every 10 ticks. Against the computer they will repair a hurt ship of
+#  theirs when they can pay.
+#
+#  A Warden and two scouts a side, within Ankur's limit of two scouts and one
+#  3-section ship at most. Their Warden starts in laser range of your front
+#  scout. The line sits at 4 so your fleet starts just past it and earns rekon
+#  at once (the cap is raised so ◈12 can land in one tick). Home zones stay in
+#  each side's own half (depth 7). The Repair switch is on; the computer will
+#  repair when it can; the others stay off.
+# ============================================================
+
+board:
+  name: "Repair"
+  idea: "Every part on that scout comes back to full, except a wrecked section or a laser that was already lost. You can do this once per ship every 10 ticks. Against the computer they will repair a hurt ship of theirs when they can pay."
+  try: "Let their Warden's shot hit your front scout, then (once you have ◈12) Buy → Repair on that scout."
+  rules: {}
+
+rapid:
+  line: 4                     # the fleet starts just past it, so it earns at once (the Experiments sheet still overrides it)
+  economy: on
+  interceptHurts: on
+  experiments: on
+  exp: { repair: true }       # only Repair is on
+  cpuExp: { repair: sometimes }
+  econCap: 12                 # so one tick of holding the line can pay for Repair
+  econ: { newHex: 1, asteroid: 1, cross: 6, hold: 4, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Repair"
+  board: { shape: hexagon, radius: 7 }
+  zones:
+    player_1_home: { edge: south, depth: 7 }
+    player_2_home: { edge: north, depth: 7 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [5, 0], size: 1 }
+    - { type: asteroid, at: [-5, 0], size: 1 }
+    - { type: asteroid, at: [5, -3], size: 1 }
+    - { type: asteroid, at: [-5, 3], size: 1 }
+
+player_1:
+  ships:
+    - name: "Warden"
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"               # starts in their laser range: their shot hurts it, then you repair
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [2, 3] }    # just past the line, so the fleet earns rekon from the start
+    - { ship: "Pawn A", at: [0, 3] }   # 4 hexes from their Warden: a shot hits, the scout lives
+    - { ship: "Pawn B", at: [4, 3] }
+
+player_2:
+  ships:
+    - name: "Warden"               # lasers on, in range of your front scout
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [0, -1] }    # own half, laser range 4 to your Pawn A
+    - { ship: "Pawn A", at: [3, -4] }
+    - { ship: "Pawn B", at: [-3, -4] }

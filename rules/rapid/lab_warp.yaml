@@ -1,0 +1,91 @@
+# ============================================================
+#  BOARD: Warp (Experiments practice set-up)
+#
+#  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
+#  Open it at  play.html?board=lab_warp
+#
+#  What to try: Once you have ◈6 (after a tick holding the line), Buy → Warp on
+#  the scout that is about to be caught, and pick a free hex further back in your
+#  half. If you move that scout instead, tap Stay a ship.
+#  What to look for: The scout jumps up to 4 hexes, staying in your own half and
+#  not next to an enemy. Once per ship every 10 ticks. Against the computer they
+#  will warp a hurt ship out when they can pay.
+#
+#  A Warden and two scouts a side, within Ankur's limit of two scouts and one
+#  3-section ship at most. Your front scout starts 2 hexes from theirs, in your
+#  half. The line sits at 4 so you start just past it and earn rekon at once
+#  (the cap is raised so ◈6 can land in one tick). Home zones stay in each
+#  side's own half (depth 7). The Warp switch is on; the computer will warp when
+#  it can; the others stay off.
+# ============================================================
+
+board:
+  name: "Warp"
+  idea: "The scout jumps up to 4 hexes, staying in your own half and not next to an enemy. Once per ship every 10 ticks. Against the computer they will warp a hurt ship out when they can pay."
+  try: "Once you have ◈6 (after a tick holding the line), Buy → Warp on the scout that is about to be caught, and pick a free hex further back in your half. If you move that scout instead, tap Stay a ship."
+  rules: {}
+
+rapid:
+  line: 4                     # your front scout starts just past it (the Experiments sheet still overrides it)
+  economy: on
+  interceptHurts: on
+  experiments: on
+  exp: { warp: true }         # only Warp is on
+  cpuExp: { warp: sometimes }
+  econCap: 12                 # so one tick of holding the line can pay for Warp
+  econ: { newHex: 1, asteroid: 1, cross: 6, hold: 4, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Warp"
+  board: { shape: hexagon, radius: 7 }
+  zones:
+    player_1_home: { edge: south, depth: 7 }
+    player_2_home: { edge: north, depth: 7 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [5, 0], size: 1 }
+    - { type: asteroid, at: [-5, 0], size: 1 }
+    - { type: asteroid, at: [5, -3], size: 1 }
+    - { type: asteroid, at: [-5, 3], size: 1 }
+
+player_1:
+  ships:
+    - name: "Warden"
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"               # about to be caught: 2 hexes from their scout, room to warp back
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [-4, 5] }
+    - { ship: "Pawn A", at: [0, 1] }
+    - { ship: "Pawn B", at: [3, 3] }
+
+player_2:
+  ships:
+    - name: "Warden"
+      flagship: true
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Pawn A"               # closing in: 2 hexes from your front scout
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+  deployment:
+    - { ship: "Warden", at: [4, -5] }
+    - { ship: "Pawn A", at: [0, -1] }
+    - { ship: "Pawn B", at: [-3, -4] }
