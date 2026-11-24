@@ -1,3 +1,9 @@
+## Latest (24 Nov night, gamedev chat): from Ankur's two Ram games (merged, build #72)
+- Turrets no longer take a laser (Ankur never chose that; it came from Claude's economy draft). Setting "Turret uses a laser" (default No) keeps the old way.
+- Buy sheet says why an item can't be bought for the selected ship (on a phone the hint line is cut to one line, so "no room in a magazine" / "no laser to leave behind" were never seen).
+- Logs: a ram or decoy line broke the log's replay ("cannot read action r:…"); fixed. On a phone the log is now shared as a file (blob downloads can do nothing in the installed app); desktop still downloads.
+- Clock-free games (Experiments, me v me): no watch countdown; a "Tick n" panel lists what happened last tick and stays until the next one.
+
 ## Latest (24 Nov night, gamedev chat): Ram board stalemate fixed (merged, build #71)
 - Ankur's Ram game ended with two Wardens that could never shoot each other: the ram and lasers took both their engines, and the one rock at [0, 0] sat exactly between the two cores. Computer v computer on the old board: 10 of 10 draws at the tick cap. Rock moved to [2, 1] / [-2, -1]: 10 of 10 decided by tick 10. All eight Lab boards checked the same way: every game decided.
 

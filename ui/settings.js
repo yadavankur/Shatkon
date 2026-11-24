@@ -58,7 +58,8 @@ export const ECON_SETTINGS = [
   { key: 'cpuStyle', label: 'Computer plays', def: 'random', options: [['random', 'Random', 'The computer picks rush, boom or turtle at the start, and doesn\u2019t tell you which.'], ['rush', 'Rush', 'Buys nothing early, then missiles. Pushes forward and fights.'], ['boom', 'Boom', 'Roams your half for rekon and upgrades its ships.'], ['turtle', 'Turtle', 'Turrets on its line and heatmaps. Makes you come to it.']] },
   { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' rekon a tick, so a lead can\u2019t snowball without limit.']) },
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' rekon and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
-  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' rekon and your tick. Each turret costs 1 a tick to keep working.']) },
+  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship puts a turret next to it for ' + v + ' rekon and your tick. Turrets cost upkeep to keep working (see Turret upkeep).']) },
+  { key: 'econTurretLaser', label: 'Turret uses a laser', def: 'no', options: [['no', 'No', 'Placing a turret costs only rekon and the tick; the ship keeps all its lasers.'], ['yes', 'Yes', 'The ship gives up one of its working lasers to make the turret (a ship with no laser can\u2019t place one).']] },
   { key: 'econTurretRange', label: 'Turret range', def: '7', options: ['5', '7', '9'].map((v) => [v, v + ' hexes', 'A turret fires 1 hit at the nearest enemy it can see within ' + v + ' hexes. It is hard to spot (signature \u22122), so it usually shoots first.']) },
   { key: 'econUpkeepEvery', label: 'Turret upkeep', def: '3', options: [['0', 'None', 'Turrets cost nothing to keep.'], ['3', '1 every 3 ticks', 'Each turret costs 1 rekon every 3 ticks. If you can\u2019t pay, it goes dark until you can.'], ['1', '1 a tick', 'Each turret costs 1 rekon every tick (expensive).']] },
   { key: 'econIdle', label: 'Idle penalty', def: '1', options: [['1', '\u22121 a pass', 'A tick you pass earns no rekon and costs 1. Sitting still shouldn\u2019t pay.'], ['0', 'None', 'Passing is free.']] },
@@ -142,7 +143,7 @@ export async function seedExpBoard(boardName) {
 }
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), cpuStyle: r.cpuStyle };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), econTurretLaser: r.econTurretLaser, cpuStyle: r.cpuStyle };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the

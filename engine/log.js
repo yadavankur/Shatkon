@@ -73,6 +73,8 @@ function namer(state) {
 // One plain sentence per action, from the action itself and the state before it.
 function actionWords(prev, next, text, nm) {
   if (/^b:/.test(text)) { const it = text.slice(2).split('.')[0]; return 'bought ' + (BUY_WORDS[it] || it); }   // economy mode
+  if (/^r:/.test(text)) { const [x, t] = text.slice(2).split('.'); return nm(x) + ' rammed ' + nm(t); }   // experiment: ram
+  if (/^d:/.test(text)) { const [x, c] = text.slice(2).split('.'); return nm(x) + ' put a decoy at ' + c; }   // experiment: decoy (not "do7", a detonate)
   const a = parseAction(text), ship = a.ship && prev.ships.find((s) => s.id === a.ship);
   switch (a.type) {
     case 'move': { const to = next.ships.find((s) => s.id === a.ship); return 'moved ' + nm(a.ship) + ' ' + plural(a.path.length, 'step') + (ship ? ' from ' + at(ship.pos) : '') + (to && !to.dead ? ' to ' + at(to.pos) : ''); }
@@ -114,7 +116,7 @@ export function eventWords(e, nm, side) {
     case 'objective_scored': return side(e.player) + ' scored at the beacon (' + e.score + ' of ' + e.toWin + ')';
     case 'objective_contested': return 'the beacon is contested';
     case 'game_over': return 'game over: ' + (e.winner === 'draw' ? 'a draw' : side(e.winner) + ' won') + (e.by ? ' (' + String(e.by).replace(/_/g, ' ') + ')' : '');
-    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' rekon' + (e.item === 'turret' ? ' (' + nm(e.ship) + ' left a laser behind at ' + at(e.at) + ')' : e.item === 'upgrade' ? ' for ' + nm(e.ship) + ' (' + ((UPGRADES[e.kind] || {}).label || e.kind) + ')' : e.item === 'resupply' ? ' for ' + nm(e.ship) + ' (+1 ' + e.kind + ')' : '') + ', purse ' + e.purse;
+    case 'bought': return side(e.player) + ' bought ' + (BUY_WORDS[e.item] || e.item) + ' for ' + e.cost + ' rekon' + (e.item === 'turret' ? ' (' + nm(e.ship) + (e.laser ? ' left a laser behind' : ' put it') + ' at ' + at(e.at) + ')' : e.item === 'upgrade' ? ' for ' + nm(e.ship) + ' (' + ((UPGRADES[e.kind] || {}).label || e.kind) + ')' : e.item === 'resupply' ? ' for ' + nm(e.ship) + ' (+1 ' + e.kind + ')' : '') + ', purse ' + e.purse;
     case 'turret_fire': return 'turret ' + e.obj + ' fired at ' + (/^o/.test(e.target || '') ? 'an enemy object' : nm(e.target)) + ' at ' + at(e.at) + ' (' + plural(e.hits, 'hit') + ')';
     case 'turret_hit': return 'turret ' + e.obj + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left)';
     case 'turret_lit': return 'turret ' + e.obj + ' is working again (upkeep paid)';

@@ -242,22 +242,30 @@ function dropTurret(g, p = 0, ship = scoutOf(g, p)) {
   return { a: { type: 'buy', item: 'turret', ship: ship.id, at }, ship, at };
 }
 
-test('turret: a ship leaves a laser behind on a free hex next to it; it costs 8 and the tick', () => {
+test('turret: placed on a free hex next to the ship for 8 and the tick; the ship keeps its lasers', () => {
   let g = frontier();
   const { a, ship, at } = dropTurret(g);
   assert.ok(at, 'no free hex');
-  const lasersBefore = ship.segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
+  const lasers = (st) => st.ships.find((x) => x.id === ship.id).segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
+  const before = lasers(g);
   assert.match(E.rapidRefusal(g, 0, { ...a, at: [99, 99] }), /free hex next to the ship/);
   assert.match(E.rapidRefusal(g, 0, { ...a, ship: g.ships.find((x) => x.owner === 1).id }), /your ships/);
   assert.equal(E.rapidRefusal(g, 0, a), null);
   g = E.rapidTick(g, [a, fwd(g, 1)]);
   const t = g.objs.find((o) => o.kind === E.TURRET);
   assert.ok(t); assert.deepEqual(t.pos, at); assert.equal(t.owner, 0); assert.equal(t.hp, 2);
-  const after = g.ships.find((x) => x.id === ship.id).segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
-  assert.equal(after, lasersBefore - 1);
+  assert.equal(lasers(g), before, 'placing a turret took a laser');
   assert.equal(g.econ.spent[0].turret, 8);
-  // a scout that has dropped its only laser can't drop another
-  assert.equal(E.turretSpots(g, 0, ship.id).length, 0);
+});
+
+test('turret with the "uses a laser" setting: the ship gives up a laser, and a ship with none can\'t place one', () => {
+  let g = frontier({ econTurretLaser: 'yes' });
+  const { a, ship } = dropTurret(g);
+  const lasers = (st) => st.ships.find((x) => x.id === ship.id).segs.flatMap((sg) => sg.parts).filter((q) => q.t === 'laser' && q.hp > 0).length;
+  const before = lasers(g);
+  g = E.rapidTick(g, [a, fwd(g, 1)]);
+  assert.equal(lasers(g), before - 1);
+  if (before === 1) assert.equal(E.turretSpots(g, 0, ship.id).length, 0);
 });
 
 test('turret: fires 1 hit at the nearest enemy it can see within its range', () => {

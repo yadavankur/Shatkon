@@ -940,7 +940,7 @@ function describe(e) {
     case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
     case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
     case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
-    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + (e.item === 'turret' ? ': ' + e.ship + ' left a laser behind at ' + at(e.at) : e.item === 'upgrade' ? ' for ' + e.ship + ' (' + E.UPGRADES[e.kind].label + ')' : e.item === 'resupply' ? ' for ' + e.ship + ' (+1 ' + nice(e.kind) + ')' : '') + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
+    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + (e.item === 'turret' ? ': ' + e.ship + (e.laser ? ' left a laser behind' : ' put it') + ' at ' + at(e.at) : e.item === 'upgrade' ? ' for ' + e.ship + ' (' + E.UPGRADES[e.kind].label + ')' : e.item === 'resupply' ? ' for ' + e.ship + ' (+1 ' + nice(e.kind) + ')' : '') + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
     case 'turret_fire': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' fired at ' + (/^o/.test(e.target || '') ? 'a missile or turret' : e.target) + ' (' + plural(e.hits, 'hit') + ').';
     case 'turret_hit': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left).';
     case 'turret_lit': return 'A dark turret is working again.';
@@ -1602,6 +1602,13 @@ function battleLogFile(kind = 'short') {
 function downloadLog(kind) {
   try {
     const { name, text, log } = battleLogFile(kind === 'full' ? 'full' : 'short');
+    const file = typeof File === 'function' ? new File([text], name, { type: 'application/json' }) : null;
+    const phone = matchMedia('(display-mode: standalone)').matches || matchMedia('(pointer: coarse)').matches;
+    if (phone && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).then(() => { say('Battle log shared (' + name + ').'); render(); },
+        (e) => { if (e && e.name === 'AbortError') return; say('Could not share the log (' + (e && e.message) + '): try Copy log in the menu.', true); render(); });
+      return;
+    }
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     const a = h('a', { href: url, download: name, style: 'display:none' });
     document.body.appendChild(a); a.click(); a.remove();
@@ -1968,7 +1975,7 @@ function rapidClear() {
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
   document.body.classList.remove('rapid-auto');
 }
-function rapidReset() { rapidClear(); RT.phase = 'idle'; RT.hold = null; const o = document.getElementById('rapidpause'); if (o) o.remove(); rapidBar(); }
+function rapidReset() { rapidClear(); RT.phase = 'idle'; RT.hold = null; for (const id of ['rapidpause', 'ticknews']) { const o = document.getElementById(id); if (o) o.remove(); } rapidBar(); }
 // Pause (any clocked rapid game): the clock stops; Resume gives a fresh full tick. Asked for during the
 // watch or a tick being resolved, it holds before the next pick. A new or reloaded game also waits for a
 // tap before its first clock ('start'). Switching away from the page pauses too.
@@ -2165,8 +2172,8 @@ function selfHandOver(a) {
   const g = E.swapSides(game);
   game = g;
   pending = null; endArmed = false; undoStack = []; mode = 'move'; sel = null; cam.w = 0;
-  const news = g.events.filter((e) => e.seenBy.includes(0) && e.t !== 'lost').map(describe).filter((x) => x && x !== 'game_over');
-  say('Player 2: your pick for tick ' + g.round + '. ' + (news.join(' ') ? 'Last tick, from your side: ' + news.join(' ') : ''));
+  say('Player 2: your pick for tick ' + g.round + '.');
+  tickNews(g, 'player 2\u2019s side');
   if (seat === 'pass') { curtain = 1; pendingFx = [g.events, 0, g.flight, false]; }
   else toast('Player 2 picks', 'p1', 'the board has turned round');
   rapidChoose();
@@ -2203,8 +2210,21 @@ function rapidResolve(a, ai, _two) {
   if (wasOpening && !E.inOpening(game)) toast(game.rapid.openEnded === 'shot' ? 'First shot' : 'Contact', 'p0', 'the clock is now ' + game.rules.rapid.timer + ' s and ships move 1 hex');
   // no waiting in the opening (nothing to watch but moves); after it ends, the watch setting
   const w = E.inOpening(game) ? 0 : game.rules.rapid.watch * 1000;
-  rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
+  if (noClock()) { tickNews(); rapidWatch(Math.min(6000, ran + 300)); }   // no countdown to read against: just let the animation finish
+  else rapidWatch(w > 0 ? Math.max(w, Math.min(6000, ran + 300)) : 0);
   render();
+}
+// Clock-free games (Experiments boards, me v me): what happened last tick, in words, kept on screen
+// until the next pick so it can be read properly. Built from what player 1's side saw.
+function tickNews(g = game, who = 'You') {
+  const old = document.getElementById('ticknews'); if (old) old.remove();
+  const lines = g.events.filter((e) => e.seenBy.includes(0) && e.t !== 'lost').map(describe).filter((x) => x && x !== 'game_over');
+  if (!lines.length) return;
+  const box = h('div', { id: 'ticknews', role: 'log', 'aria-label': 'Last tick' },
+    h('div', { class: 'tn-head' }, h('b', null, 'Tick ' + (g.round - 1) + (who !== 'You' ? ' \u00b7 ' + who : '')), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => box.remove() }, '\u00d7')),
+    ...lines.map((l) => h('p', null, l)));
+  for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend']) box.addEventListener(ev, (e) => e.stopPropagation());
+  document.body.appendChild(box);
 }
 // Economy mode: the purse by the tick ring, and "+n" floating up from each ship that earned this tick.
 function pursePill() {
@@ -2244,10 +2264,17 @@ function rapidShop() {
   const purse = E.purse(game, 0);
   const forShip = sel;   // the ship selected when Buy was pressed is the one a purchase is for
   const rows = Object.entries(E.shopItems(game)).map(([k, it]) => {
-    const cost = E.price(game, k), why = E.buyRefusal(game, 0, { type: 'buy', item: k });
-    const short = purse < cost;
+    const cost = E.price(game, k);
+    // why this ship can't have it (the hint line is cut short on a phone, so say it here)
+    const ship = forShip && game.ships.find((z) => z.id === forShip && z.owner === 0 && !z.dead);
+    const no = !ship || !it.needsShip || purse < cost ? null
+      : k === 'turret' ? (E.turretSpots(game, 0, ship.id).length ? null : E.econConfig(game.rules).turretLaser && !E.droppableLaser(game, ship) ? ship.id + ' has no working laser to leave behind' : 'no free hex next to ' + ship.id)
+      : k === 'resupply' ? E.resupplyRefusal(game, 0, ship.id)
+      : k === 'upgrade' || k === 'warp' ? null
+      : E.buyRefusal(game, 0, { type: 'buy', item: k, ship: ship.id });
+    const short = purse < cost || !!no;
     return h('button', { class: 'btn go' + (short ? ' off' : ''), disabled: short, onclick: () => { close(); if (forShip) sel = forShip; it.needsShip ? rapidForShip(k) : rapidAct({ type: 'buy', item: k }); } },
-      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, short ? 'need ' + (cost - purse) + ' more' : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'resupply' ? '' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + '. ' + upkeepWords() : '')));
+      h('span', { class: 'shoprow' }, h('span', null, it.label), h('b', null, '\u25c8 ' + cost)), h('small', null, purse < cost ? 'need ' + (cost - purse) + ' more' : no ? 'not for ' + ship.id + ': ' + no : it.about + (k === 'heatmap' ? ', shown for your next ' + E.econConfig(game.rules).heatTicks + ' ticks' : k === 'resupply' ? '' : k === 'turret' ? '; ' + E.econConfig(game.rules).turretHits + ' hits a tick within ' + E.econConfig(game.rules).turretRange + '. ' + upkeepWords() : '')));
   });
   const later = SOON.map(([n, about, c]) => h('button', { class: 'btn off', disabled: true }, h('span', { class: 'shoprow' }, h('span', null, n), h('b', null, '\u25c8 ' + c)), h('small', null, about + ' (coming later)')));
   const sheet = h('div', { id: 'rapidbuy', class: 'rapidconv', role: 'dialog', 'aria-label': 'Buy' },
@@ -2296,11 +2323,12 @@ function rapidForShip(item) {
 // Buying a turret: the selected ship (or the one to tap next) shows the free hexes next to it; tap one.
 function rapidTurretStart() {
   const x = sel && game.ships.find((z) => z.id === sel && z.owner === 0 && !z.dead);
-  if (!x) { RT.pick = 'turret'; pending = null; say('Turret: tap the ship that will leave one of its lasers behind.'); return render(); }
-  if (!E.droppableLaser(game, x)) { say(x.id + ' has no working laser to leave behind.'); return render(); }
+  if (!x) { RT.pick = 'turret'; pending = null; say('Turret: tap the ship that will place it (on a free hex next to it).'); return render(); }
+  const takesLaser = E.econConfig(game.rules).turretLaser;
+  if (takesLaser && !E.droppableLaser(game, x)) { say(x.id + ' has no working laser to leave behind.'); return render(); }
   if (!E.turretSpots(game, 0, x.id).length) { say('No free hex next to ' + x.id + ' for a turret.'); return render(); }
   RT.turretFor = x.id; pending = null;
-  say('Tap a hex marked T next to ' + x.id + ' for the turret. It takes one of ' + x.id + '\u2019s lasers.');
+  say('Tap a hex marked T next to ' + x.id + ' for the turret.' + (takesLaser ? ' It takes one of ' + x.id + '\u2019s lasers.' : ''));
   render();
 }
 // The heatmap (economy mode, bought): every hex the enemy ships you can see could hit next tick.
@@ -2366,6 +2394,10 @@ const RAPID_CSS = `
 @keyframes earnup{0%{opacity:0;transform:translateY(4px)}12%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
 @media (prefers-reduced-motion:reduce){.earnup{animation:none}}
 #toast.wingt{border-color:#c58cff!important;box-shadow:0 0 18px rgba(197,140,255,.55)}
+#ticknews{position:fixed;left:8px;top:64px;z-index:59;max-width:min(46vw,380px);max-height:calc(100vh - 150px);overflow:auto;background:rgba(10,16,34,.94);border:1px solid var(--line,#2a3a66);border-radius:10px;padding:6px 10px;font-size:13px;line-height:1.35}
+#ticknews p{margin:3px 0}
+#ticknews .tn-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#ticknews .iconbtn{min-width:28px;min-height:28px;padding:0}
 #rapidpausebtn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:61;min-width:40px;min-height:32px;padding:2px 10px;font-size:16px;opacity:.85}
 #rapidbar{position:fixed;left:0;right:0;top:0;height:7px;z-index:60;background:rgba(10,20,36,.75);pointer-events:none}
 #rapidbar i{display:block;height:100%;width:0;background:#7fd8f0;box-shadow:0 0 10px rgba(127,216,240,.7);margin:0 auto}
