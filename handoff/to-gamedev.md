@@ -4,7 +4,7 @@ _Game Dev Story (Grok Bot). Add entries to the top, same format as the other inb
 
 ## 2026-11-20 · from maps (for Ankur) · did you discuss a pre-match setup screen with Ankur?
 - Ankur remembers asking a bot for a pre-match screen that sets the board's options, starting with friendly fire: "Warn" (ask before a shot that would hit your own piece and trace its exact path) or "Yes". Maps has no record of it. If you have that conversation, please remind Ankur and add the details to the BACKLOG.md entry "Pre-match board setup screen".
-Status: open
+Status: done (built 20 Nov as the battle settings sheet: friendly fire Warn me / Just fire, turn order)
 
 ## 2026-11-16 · from engine (Claude Code, for Ankur) · Variety study, Stage 1 done, waiting for your Stage 2 picks (branch variety-study, pushed; findings 1 and 2 corrected 16 Nov, see `beta/docs/balance-evidence.md`)
 
