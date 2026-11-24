@@ -126,7 +126,7 @@ export function postGameCards(game, opts = {}) {
       : h('p', { class: 'pg-foot' }, 'A quiet battle: nothing to show.'),
     opts.onShow ? h('p', { class: 'pg-foot' }, 'Tap a moment to see where it happened.') : null);
 
-  // 4. economy mode: salvage in and out, and what the purchases did, as one plain table
+  // 4. economy mode: rekon in and out, and what the purchases did, as one plain table
   let card4 = null;
   if (st.econ) {
     const [e0, e1] = st.econ, sum = (o) => Object.values(o).reduce((x, y) => x + y, 0);
@@ -138,8 +138,8 @@ export function postGameCards(game, opts = {}) {
       const fired = ts.filter((b) => b.turret.shots), dmg = ts.reduce((n, b) => n + b.turret.dmg, 0);
       return ts.length + ' built, ' + fired.length + ' ever fired, ' + dmg + ' damage in all'; };
     const style = game.econ.style && game.econ.style[1];
-    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Salvage \u25c8'),
-      style ? h('p', { class: 'pg-foot' }, name(1) + ' played ' + style.toUpperCase() + ({ rush: ': buy late, push and fight.', boom: ': roam for salvage, upgrade later.', turtle: ': turrets and heatmaps, hold the line.' })[style]) : null,
+    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Rekon \u25c8'),
+      style ? h('p', { class: 'pg-foot' }, name(1) + ' played ' + style.toUpperCase() + ({ rush: ': buy late, push and fight.', boom: ': roam for rekon, upgrade later.', turtle: ': turrets and heatmaps, hold the line.' })[style]) : null,
       h('table', { class: 'pg-tab pg-econ' },
         h('thead', null, h('tr', null, h('th'), h('th', { class: 's0' }, name(0)), h('th', { class: 's1' }, name(1)))),
         h('tbody', null,

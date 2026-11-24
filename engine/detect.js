@@ -9,6 +9,7 @@
 
 import { key, dist } from './hex.js';
 import { geom, footprint, cellsOf, workingParts, sumAttr, maxAttr, gap, num, emit, thing } from './state.js';
+import { hiddenFrom } from './labrules.js';
 import { fnv, seededRandom } from './codec.js';
 import { pastLine } from './rapidrules.js';
 
@@ -93,7 +94,10 @@ export function visibleTo(state, p) {
   const ships = state.ships.filter((s) => !s.dead);
   const mine = ships.filter((s) => s.owner === p).concat(state.objs.filter((o) => o.owner === p && state.rules.munitions[o.kind].reports));
   const theirs = ships.filter((s) => s.owner !== p).concat(state.objs.filter((o) => o.owner !== p));
-  for (const t of theirs) if (isLit(state, t) || revealed(state, p, t) || mine.some((o) => sees(state, o, t))) out.add(t.id);
+  for (const t of theirs) {
+    if (t.hidden || t.hib) { if (revealed(state, p, t) ? false : hiddenFrom(state, p, t)) continue; }   // experiments: ghost, hibernation
+    if (isLit(state, t) || revealed(state, p, t) || mine.some((o) => sees(state, o, t))) out.add(t.id);
+  }
   // a drone that spots one of your ships gives itself away to you
   const myShips = ships.filter((s) => s.owner === p);
   for (const o of state.objs) {

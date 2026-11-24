@@ -1,3 +1,4 @@
+import { EXPERIMENTS } from '../engine/experiments.js';
 // Battle settings: asked before every skirmish starts (the landing page's board picker, the in-game
 // "New game" and "Play again", and the Lab's "Play these designs"). Kept in localStorage, so the last
 // choice is the default next time. Story chapters don't ask: their script decides.
@@ -34,21 +35,23 @@ export const RAPID_SETTINGS = [
   { key: 'wingman', label: 'Formation', options: [['fire_or_move', 'Wingman fires', 'When a ship fires, one friend within 2 hexes of it (touching, or one empty hex between) fires too in the same tick, or moves 1 hex if it has nothing to shoot.'], ['move', 'Wingman moves', 'When a ship fires, one friend within 2 hexes of it may move 1 hex in the same tick.'], ['off', 'Off', 'One action a tick, nothing more.']] },
   { key: 'cap', label: 'Tick limit', def: '100', options: ['60', '100', '150'].map((v) => [v, v, 'After ' + v + ' ticks of shooting the game is a draw (the opening doesn\u2019t count).']) },
 ];
+// Experiments (engine/experiments.js): on the Lab board's sheet, one on/off switch each, all off by default.
+export const EXP_SETTINGS = EXPERIMENTS.map((e) => ({ key: e.key, label: e.label, def: 'off', options: [['off', 'Off', e.about], ['on', 'On', e.about]] }));
 // Economy mode (Frontier, rules/rapid/rapid_frontier.yaml, engine/economy.js): shown under the rapid
 // settings on boards with an economy, kept in their own store.
 export const ECON_SETTINGS = [
-  { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn salvage (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Spend it on a threat heatmap, turrets, upgrades and missiles.'], ['off', 'Off', 'Plain Rapid Opus on this board: no salvage.']] },
-  { key: 'cpuStyle', label: 'Computer plays', def: 'random', options: [['random', 'Random', 'The computer picks rush, boom or turtle at the start, and doesn\u2019t tell you which.'], ['rush', 'Rush', 'Buys nothing early, then missiles. Pushes forward and fights.'], ['boom', 'Boom', 'Roams your half for salvage and upgrades its ships.'], ['turtle', 'Turtle', 'Turrets on its line and heatmaps. Makes you come to it.']] },
-  { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' salvage a tick, so a lead can\u2019t snowball without limit.']) },
-  { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' salvage and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
-  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' salvage and your tick. Each turret costs 1 a tick to keep working.']) },
+  { key: 'economy', label: 'Economy', options: [['on', 'On', 'Ships earn rekon (\u25c8) by flying through new ground in the enemy\u2019s half (more by asteroids), crossing the line, holding it and destroying enemy ships. Spend it on a threat heatmap, turrets, upgrades and missiles.'], ['off', 'Off', 'Plain Rapid Opus on this board: no rekon.']] },
+  { key: 'cpuStyle', label: 'Computer plays', def: 'random', options: [['random', 'Random', 'The computer picks rush, boom or turtle at the start, and doesn\u2019t tell you which.'], ['rush', 'Rush', 'Buys nothing early, then missiles. Pushes forward and fights.'], ['boom', 'Boom', 'Roams your half for rekon and upgrades its ships.'], ['turtle', 'Turtle', 'Turrets on its line and heatmaps. Makes you come to it.']] },
+  { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' rekon a tick, so a lead can\u2019t snowball without limit.']) },
+  { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' rekon and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
+  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' rekon and your tick. Each turret costs 1 a tick to keep working.']) },
   { key: 'econTurretRange', label: 'Turret range', def: '7', options: ['5', '7', '9'].map((v) => [v, v + ' hexes', 'A turret fires 1 hit at the nearest enemy it can see within ' + v + ' hexes. It is hard to spot (signature \u22122), so it usually shoots first.']) },
-  { key: 'econUpkeepEvery', label: 'Turret upkeep', def: '3', options: [['0', 'None', 'Turrets cost nothing to keep.'], ['3', '1 every 3 ticks', 'Each turret costs 1 salvage every 3 ticks. If you can\u2019t pay, it goes dark until you can.'], ['1', '1 a tick', 'Each turret costs 1 salvage every tick (expensive).']] },
-  { key: 'econIdle', label: 'Idle penalty', def: '1', options: [['1', '\u22121 a pass', 'A tick you pass earns no salvage and costs 1. Sitting still shouldn\u2019t pay.'], ['0', 'None', 'Passing is free.']] },
-  { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' salvage and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
+  { key: 'econUpkeepEvery', label: 'Turret upkeep', def: '3', options: [['0', 'None', 'Turrets cost nothing to keep.'], ['3', '1 every 3 ticks', 'Each turret costs 1 rekon every 3 ticks. If you can\u2019t pay, it goes dark until you can.'], ['1', '1 a tick', 'Each turret costs 1 rekon every tick (expensive).']] },
+  { key: 'econIdle', label: 'Idle penalty', def: '1', options: [['1', '\u22121 a pass', 'A tick you pass earns no rekon and costs 1. Sitting still shouldn\u2019t pay.'], ['0', 'None', 'Passing is free.']] },
+  { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' rekon and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
-const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ';
+const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
 const okVal = (d, v) => (d.range ? Number.isFinite(Number(v)) && Number(v) >= d.range[0] && Number(v) <= d.range[1] : d.options.some((o) => o[0] === v));
 function readSet(store, list) {
@@ -72,6 +75,11 @@ export function rapidOptions() {
 }
 
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
+// The experiments switched on, as the rapid option `exp`
+export function expOptions() {
+  const r = readSet(XSTORE, EXP_SETTINGS);
+  return { exp: Object.fromEntries(EXP_SETTINGS.filter((d) => r[d.key] === 'on').map((d) => [d.key, true])) };
+}
 export function econOptions() {
   const r = econSettings();
   return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), cpuStyle: r.cpuStyle };
@@ -83,7 +91,7 @@ export function econOptions() {
 export function settingsForm(onChange, rapid = false) {
   const box = document.createElement('div');
   box.className = 'bs-form';
-  const groups = rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  const groups = rapid === 'lab' ? [[EXP_SETTINGS, XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);

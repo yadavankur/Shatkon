@@ -423,9 +423,12 @@ function playMenu(main) {
     // "Opus" is this build (Claude Opus); a Grok-built version may sit beside it for comparison.
     item(null, 'start', 'Rapid Opus', 'Vs computer. One action a tick, both sides at once, against the clock.',
       () => battleSheet('Rapid Opus', game({ board: 'rapid_opus', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), true)),
-    // economy mode (experimental, third rapid version): Rapid Opus plus salvage earned by flying through the board.
-    item(null, 'start', 'Frontier', 'Rapid Opus with an economy: earn salvage in the enemy\u2019s half. Experimental.',
-      () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ'))));
+    // economy mode (experimental, third rapid version): Rapid Opus plus rekon earned by flying through the board.
+    item(null, 'start', 'Frontier', 'Rapid Opus with an economy: earn rekon in the enemy\u2019s half. Experimental.',
+      () => battleSheet('Frontier', game({ board: 'rapid_frontier', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'econ')),
+    // experiments: new rules, each switched off until you turn it on, on a small board with small fleets
+    item(null, 'start', 'Experiments', 'Small fleets, a small board, and switches for new ideas. Nothing here touches the real game.',
+      () => battleSheet('Experiments', game({ board: 'rapid_lab', mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab'))));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

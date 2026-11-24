@@ -143,7 +143,7 @@ test('a Frontier game replays from its battle log to the same purses', () => {
   const r = E.replayLog(log);
   assert.deepEqual(r.econ.purse, g.econ.purse);
   assert.ok(log.replayable);
-  const words = log.turns.flatMap((t) => (t.actions || []).flatMap((a) => (a.events || []).map((e) => e.say))).filter((w) => /salvage/.test(w || ''));
+  const words = log.turns.flatMap((t) => (t.actions || []).flatMap((a) => (a.events || []).map((e) => e.say))).filter((w) => /rekon/.test(w || ''));
   assert.ok(words.length > 0, 'no salvage lines in the log');
 });
 
@@ -170,7 +170,7 @@ function withEnemyInView(seed = 5) {
 
 test('heatmap: costs its price and the whole tick; refused without the salvage', () => {
   let g = frontier();
-  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'heatmap' }), /not enough salvage/);
+  assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'heatmap' }), /not enough rekon/);
   assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'lunch' }), /not for sale/);
   g.econ.purse[0] = 9;
   assert.equal(E.rapidRefusal(g, 0, { type: 'buy', item: 'heatmap' }), null);
