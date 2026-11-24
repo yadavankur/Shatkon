@@ -1,3 +1,6 @@
+## Latest (24 Nov night, gamedev chat): Ram board stalemate fixed (merged, build #71)
+- Ankur's Ram game ended with two Wardens that could never shoot each other: the ram and lasers took both their engines, and the one rock at [0, 0] sat exactly between the two cores. Computer v computer on the old board: 10 of 10 draws at the tick cap. Rock moved to [2, 1] / [-2, -1]: 10 of 10 decided by tick 10. All eight Lab boards checked the same way: every game decided.
+
 ## Latest (24 Nov night, gamedev chat): chapter 4A save fixed; backlog cleaned (merged, build #70)
 - ui/campaign.js: the chapter result is saved the moment the game ends (was: after the closing scenes, which could never finish, so ch4A's win was lost and ch5 stayed shut). Headless Chrome ch4A → ch5: 3 of 3.
 - BACKLOG.md: resolved items moved to Done (decisions of 24 Nov: story first, computer later; upgrade prices stay; converted pieces just work; mine laser-pass per board; first mover locked).
