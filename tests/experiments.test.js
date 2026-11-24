@@ -109,7 +109,7 @@ test('ram: a scout within 2 of a seen enemy wrecks its nearest segment and is go
 
 test('decoy: a ship with an emitter places one 2–6 hexes away; it fades after 3 ticks; once every 6', () => {
   let g = lab(['decoy']);
-  const m = ship(g, 'Mirage');
+  const m = ship(g, 'Warden');
   const spots = E.decoySpots(g, 0, m.id);
   assert.ok(spots.length > 5);
   assert.match(E.rapidRefusal(g, 0, { type: 'decoy', ship: ship(g, 'Pawn A').id, at: spots[0] }), /emitter/);
@@ -123,7 +123,7 @@ test('decoy: a ship with an emitter places one 2–6 hexes away; it fades after 
   assert.ok(!g.objs.some((o) => o.kind === 'decoy'), 'still there after 3 ticks');
   // the enemy sees it as a ship-sized "?", not as a decoy
   let h = lab(['decoy']);
-  const hm = ship(h, 'Mirage');
+  const hm = ship(h, 'Warden');
   h = E.rapidTick(h, [{ type: 'decoy', ship: hm.id, at: E.decoySpots(h, 0, hm.id)[0] }, PASS]);
   const v = E.view(h, 1);
   assert.ok(!v.objs.some((o) => o.kind === 'decoy'));
@@ -152,7 +152,7 @@ test('repair, warp and hibernate are for sale only when switched on, and do what
   g = E.rapidTick(g, [{ type: 'buy', item: 'warp', ship: w.id, at: spots[0] }, PASS]);
   assert.deepEqual(g.ships.find((x) => x.id === w.id).pos, spots[0]);
   // hibernate: only next to an asteroid; hidden; mends a part every 4 ticks
-  const hb = ship(g, 'Pawn C');
+  const hb = ship(g, 'Pawn A');
   assert.match(E.rapidRefusal(g, 0, { type: 'buy', item: 'hibernate', ship: hb.id }) || '', /asteroid/);
   hb.pos = [-3, 3];   // next to the rock at [-3, 2]
   hb.segs[0].parts.find((q) => q.t === 'armour').hp = 0;
@@ -171,7 +171,7 @@ test('repair, warp and hibernate are for sale only when switched on, and do what
 test('an experiments game replays from its log', () => {
   let g = lab(['ghost', 'stateMines', 'ram', 'decoy', 'repair', 'warp', 'hibernate'], { unlock: 'hold' }, 9, false);
   let r = 9; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
-  const m = ship(g, 'Mirage');
+  const m = ship(g, 'Warden');
   g = E.rapidTick(g, [{ type: 'decoy', ship: m.id, at: E.decoySpots(g, 0, m.id)[0] }, fwd(g, 1)]);
   for (let i = 0; i < 30 && g.phase === 'play'; i++) g = E.rapidTick(g, [0, 1].map((p) => { const a = E.rapidAI(g, p, 'normal', rnd); return E.rapidRefusal(g, p, a) ? fwd(g, p) : a; }));
   const log = E.battleLog(g, { seat: 'cpu' });

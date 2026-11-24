@@ -3,8 +3,8 @@
 #
 #  A small board for trying the experiments (engine/experiments.js) without playing a whole game:
 #  Frontier's rules (rekon economy, intercepted missiles stun) on a radius-7 board with small fleets.
-#  Each side: a Warden (flagship), a Lancer, a Mirage (a 2-hex ship with a decoy emitter) and
-#  three scouts. The experiments themselves are switched on from the Experiments page.
+#  Each side: a Warden (3-hex flagship, with the decoy emitter) and two scouts, at most what
+#  Ankur wants on the board to test one idea (24 Nov 2026). The line is set on the Experiments sheet. The experiments themselves are switched on from the Experiments page.
 #
 #  The maps/story bot is welcome to add practice set-ups next to this one (rules/rapid/lab_*.yaml):
 #  see handoff/to-maps.md.
@@ -18,7 +18,7 @@ board:
   rules: {}
 
 rapid:
-  line: 7                     # halfway on this radius-7 board
+  line: 7                     # halfway on this radius-7 board (the Experiments sheet moves it)
   economy: on
   interceptHurts: on
   experiments: on             # the play page shows the experiment switches for this board
@@ -47,33 +47,18 @@ player_1:
       load: { missile_basic: 3, missile_advanced: 3 }
       hull:
         - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
-        - { at: [-1, 0],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }   # emitter: decoys
         - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
-    - name: "Lancer"               # 2-hex missile boat
-      load: { missile_basic: 2, missile: 1 }
-      hull:
-        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
-        - { at: [1, 0],   bays: [coupling, magazine, engine], mounts: [launcher, laser, armour] }
-    - name: "Mirage"               # 2-hex decoy maker: the emitter makes decoys (experiment) and draws missiles
-      hull:
-        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
-        - { at: [1, 0],   bays: [coupling, emitter, engine],  mounts: [laser, shield, armour] }
     - name: "Pawn A"
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
     - name: "Pawn B"
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
-    - name: "Pawn C"
-      hull:
-        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
   deployment:
     - { ship: "Warden", at: [0, 7] }
-    - { ship: "Lancer", at: [2, 4] }
-    - { ship: "Mirage", at: [-5, 7] }
     - { ship: "Pawn A", at: [-2, 4] }
     - { ship: "Pawn B", at: [-1, 5] }
-    - { ship: "Pawn C", at: [-4, 5] }
 
 player_2:
   copy_of: player_1

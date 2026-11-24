@@ -47,8 +47,10 @@ export const EXP_SETTINGS = EXPERIMENTS.map((e) => ({ key: e.key, label: e.label
 export const LAB_PLAY = [{ key: 'who', label: 'Who plays', def: 'cpu', options: [
   ['cpu', 'Me v computer', 'You are player 1; the computer is player 2 and uses the experiments as set below.'],
   ['pass', 'Me v me, pass', 'You pick player 1\u2019s action, then a curtain, then player 2\u2019s on the board turned round; then the tick happens. No clock. Hand the phone over or play both.'],
-  ['all', 'Me v me, no curtain', 'Like pass, but no curtain between the two picks. Each side still only sees what its own ships see.']] }];
+  ['all', 'Me v me, no curtain', 'Like pass, but no curtain between the two picks. Each side still only sees what its own ships see.']] },
+  { key: 'labLine', label: 'The line', range: [2, 12, 1], def: 7, why: (v) => v + ' rows from your own edge, of 15 on this board' + (v < 7 ? ': close to your ships, quick to cross' : v > 7 ? ': deep in their half' : ' (halfway)') + '. A ship on or past it frees your fleet; both sides get the same.' }];
 export const labWho = () => readSet(XSTORE, LAB_PLAY).who;
+export const labLine = () => Number(readSet(XSTORE, LAB_PLAY).labLine);
 // Economy mode (Frontier, rules/rapid/rapid_frontier.yaml, engine/economy.js): shown under the rapid
 // settings on boards with an economy, kept in their own store.
 export const ECON_SETTINGS = [
@@ -105,7 +107,8 @@ export function econOptions() {
 export function settingsForm(onChange, rapid = false) {
   const box = document.createElement('div');
   box.className = 'bs-form';
-  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  // the Lab has its own line and no clock
+  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);
