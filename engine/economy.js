@@ -39,6 +39,7 @@ export const ECON_DEFAULTS = {
   turretRange: 7,  // how far a turret shoots (4, then 6: turrets were picked off from out of reach)
   turretSig: -2,   // a turret's signature: seen from about 2 hexes closer than a scout (was 1)
   turretHp: 2,     // hits a turret takes before it is destroyed
+  turretLaser: false, // does placing a turret use up one of the ship's lasers? (24 Nov: Ankur never chose that; off unless the setting says so)
   upgrade: 10,     // one upgrade for one ship (once per ship)
   resupply: 5,     // +1 missile for a ship with a working magazine and room
 };
@@ -58,6 +59,7 @@ export function econConfig(rules) {
   if (o.econTurretRange != null && o.econTurretRange !== '') c.turretRange = Number(o.econTurretRange);
   if (o.econUpkeepEvery != null && o.econUpkeepEvery !== '') { const v = Number(o.econUpkeepEvery); c.turretEvery = v > 0 ? v : 1; if (v === 0) c.turretUpkeep = 0; }
   if (o.econIdle != null && o.econIdle !== '') c.idle = Number(o.econIdle);
+  if (o.econTurretLaser != null) c.turretLaser = o.econTurretLaser === true || o.econTurretLaser === 'yes';
   return c;
 }
 
@@ -160,7 +162,7 @@ export function newGround(state, p) {
 // so this tick's earnings can't pay for it. The enemy sees nothing of it.
 export const SHOP = {
   heatmap: { label: 'Heatmap', about: 'where the enemy ships you know of could hit next tick' },
-  turret: { label: 'Turret', about: 'the selected ship leaves one laser behind as a turret on a free hex next to it', needsShip: true },
+  turret: { label: 'Turret', about: 'the selected ship puts a turret on a free hex next to it', needsShip: true },
   upgrade: { label: 'Upgrade', about: 'one ship, once: +1 laser range, faster shields, +1 sensor or +1 armour', needsShip: true },
   resupply: { label: 'Resupply', about: '+1 missile for a ship with a working magazine and room', needsShip: true },
 };
@@ -249,7 +251,7 @@ export function buyRefusal(state, p, a) {
   if (a.item === 'turret') {
     const x = shipById(state, a.ship);
     if (!x || x.owner !== p) return 'choose one of your ships to leave the turret';
-    if (!droppableLaser(state, x)) return 'that ship has no working laser to leave behind';
+    if (econConfig(state.rules).turretLaser && !droppableLaser(state, x)) return 'that ship has no working laser to leave behind';
     if (!Array.isArray(a.at) || !turretSpots(state, p, a.ship).some((c) => c[0] === a.at[0] && c[1] === a.at[1])) return 'a turret goes on a free hex next to the ship';
   }
   return null;
@@ -265,12 +267,13 @@ export function doBuy(s, p, a) {
   if (a.item === 'heatmap') E.heat[p] = s.round + num(econConfig(s.rules).heatTicks, 2);
   let extra = {};
   if (a.item === 'turret') {
-    // the ship gives up one working laser (the one nearest the turret's hex) and the turret appears there
-    const x = shipById(s, a.ship), las = droppableLaser(s, x, a.at);
-    las.p.hp = 0; las.p.dropped = true;
+    // the turret appears next to the ship; with the turretLaser setting the ship also gives up one
+    // working laser (the one nearest the turret's hex)
+    const x = shipById(s, a.ship), lose = econConfig(s.rules).turretLaser, las = lose && droppableLaser(s, x, a.at);
+    if (las) { las.p.hp = 0; las.p.dropped = true; }
     const o = makeObj(s, TURRET, p, a.at, 0, { hp: num(econConfig(s.rules).turretHp, 2), born: s.round, from: x.id });
     s.objs.push(o);
-    extra = { ship: x.id, at: a.at.slice(), obj: o.id };
+    extra = { ship: x.id, at: a.at.slice(), obj: o.id, ...(las ? { laser: true } : {}) };
   }
   if (a.item === 'upgrade') {
     const x = shipById(s, a.ship);
@@ -304,7 +307,7 @@ export function droppableLaser(state, x, near) {
 // Free hexes next to the ship where its turret could go: on the board, no asteroid, no ship, no object.
 export function turretSpots(state, p, shipId) {
   const x = shipById(state, shipId);
-  if (!x || x.owner !== p || !droppableLaser(state, x)) return [];
+  if (!x || x.owner !== p || x.dead || (econConfig(state.rules).turretLaser && !droppableLaser(state, x))) return [];
   const g = geom(state.rules), occ = occupancy(state), taken = new Set(state.objs.map((o) => key(o.pos))), out = new Map();
   for (const c of footprint(x)) for (const d of DIRS) {
     const n = add(c, d), k = key(n);
