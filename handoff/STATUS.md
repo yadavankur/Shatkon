@@ -1,3 +1,8 @@
+## Latest (24 Nov night, gamedev chat): chapter 4A save fixed; backlog cleaned (merged, build #70)
+- ui/campaign.js: the chapter result is saved the moment the game ends (was: after the closing scenes, which could never finish, so ch4A's win was lost and ch5 stayed shut). Headless Chrome ch4A → ch5: 3 of 3.
+- BACKLOG.md: resolved items moved to Done (decisions of 24 Nov: story first, computer later; upgrade prices stay; converted pieces just work; mine laser-pass per board; first mover locked).
+- Branch clean-up: Claude's session can't delete GitHub branches (blocked); Ankur to do it on GitHub.
+
 ## Latest (24 Nov evening, gamedev chat): Smart mine and Decoy practice boards (PR open, build #68)
 - Play → Experiments, then the Practice boards sub-list: **Smart mine** (`play.html?board=lab_stateMines`) and **Decoy** (`play.html?board=lab_decoy`), plus the existing **Ram**. Same format as the Lab board. Each board has only its own experiment on. No guided tutorials. Ghost, repair, warp and hibernate are not built yet.
 - Smart mine: your healthy scout starts just past the line; convert it to a smart mine (S). Enemy scouts walk in and set it off at 3 hexes, wrecking a section. Vs the computer this happens on the first tick.

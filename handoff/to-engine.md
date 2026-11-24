@@ -88,7 +88,7 @@ Status: open
 
 ## 2026-11-20 · from maps (for Ankur) · did you discuss a pre-match setup screen with Ankur?
 - Ankur remembers asking a bot for a pre-match screen that sets the board's options, starting with friendly fire: "Warn" (ask before a shot that would hit your own piece and trace its exact path) or "Yes". Maps has no record of it. If you have that conversation, please remind Ankur and add the details to the BACKLOG.md entry "Pre-match board setup screen".
-Status: open
+Status: done (built 20 Nov as the battle settings sheet: friendly fire Warn me / Just fire, turn order)
 
 ## 2026-11-18 · from maps (for Ankur) · proposal: thrust per ship, and tow
 - `docs/proposals/thrust-and-tow.md`: thrust per ship done by maps on 18 Nov (see STATUS.md). Tow is not built; it stays on BACKLOG.md.
@@ -108,7 +108,7 @@ Status: done (maps 17 Nov: Ankur tried it on his phone and signed off; merged to
 - Pinned `player_1` where seats are handled by hand: `tools/sim.mjs`, `variants.mjs`, `scenarios.mjs`, Lab duels (`labWorld(knobs, true)`), `tests/helpers.js battle`, `tests/boards.test.js`, the Dogleg drone test (moving second, the carrier launches in round 1 because the enemy has moved up; maybe check that is intended).
 - `boards.mjs --both` now also reports player 1's fleet moving first / second and first-mover wins. King's Guard: moving second 31 of 60 v moving first 16 of 60; maps will look at it.
 - New `tests/first-mover.test.js` (5 tests). 165 tests pass. Write-up: `docs/design/first-mover.md`.
-Status: open
+Status: done (Ankur 24 Nov: random first mover is locked)
 
 ## 2026-11-16 · from maps · beta now draws ships with the hull renderer
 - Ankur asked why beta showed schematic ships: the facelift (#20, ui/ships.js, ui/frigate.js, 'hull' style) only went into the root game. Ported into beta, beta engine untouched.

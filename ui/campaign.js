@@ -161,7 +161,11 @@ export function storyEvents(game) {
     else if (e.t === 'bark') bark(e.id);
     else if (e.t === 'objective') objective = e.text;
   }
-  if (game.phase === 'over') queue.push({ end: game });
+  // Save the result the moment the chapter ends, not after the closing scenes: if a scene never
+  // finishes (the page re-rendered under it, or the player left for the map), the win was lost and the
+  // next chapter never opened (the chapter 4A -> 5 bug). chapterOver is safe to call twice: once a
+  // chapter is in progress.completed, the second call saves nothing new.
+  if (game.phase === 'over') { chapterOver(game); queue.push({ end: game }); }
   pump();
 }
 

@@ -244,4 +244,4 @@ Your binary: everything can work in campaign; the question is what's also right 
 - How often mines and snares trigger: it depends on where fleets go.
 - Whether volleys of two plus flares make missile fights fun or a stalemate.
 - Whether the jammer's "line without a distance" is readable on a phone.
-- Whether "unlocked while you hold the line" makes the centre a meat grinder (good) or makes the first crossing decide the game (bad).
+- ~~Whether "unlocked while you hold the line"…~~ Dropped (Ankur, 24 Nov): converted pieces just work.
