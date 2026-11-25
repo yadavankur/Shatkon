@@ -27,7 +27,7 @@ import { hashState, actionText } from './codec.js';
 import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './query.js';
 import { begin } from './turn.js';
 import { newGame } from './state.js';
-import { dist, step } from './hex.js';
+import { dist, step, HOME_POINT } from './hex.js';
 import { econAI, pickStyles } from './econai.js';
 import { labAI, keen } from './labai.js';
 import { exp } from './experiments.js';
@@ -498,6 +498,7 @@ function chooseAI(state, p, level, rnd) {
   // 4. move
   const free = unlocked(s, p);
   const enemies = s.ships.filter((x) => x.owner !== p && !x.dead && s.players[p].vis.includes(x.id));
+  if (free && manySides(s)) return hunt(s, state, p, mine, enemies, rnd) || { type: 'pass' };   // three players
   if (free) {
     // free: close on what it can see with an armed escort; with nothing in view, keep pushing forward
     if (!enemies.length) return advance(s, state, p, mine, enemies, forcedMoves(state, p), level, rnd) || { type: 'pass' };
@@ -514,6 +515,41 @@ function chooseAI(state, p, level, rnd) {
     return best || { type: 'pass' };
   }
   return advance(s, state, p, mine, enemies, forcedMoves(state, p), level, rnd) || { type: 'pass' };
+}
+
+// Three players, free to move (26 Nov 2026): "forward" past the centre only leads to the empty edge
+// between the two enemies, and a flagship that never moves leaves the last two flagships waiting out the
+// clock. So: close on what it can see to about 3 hexes (escorts first, the flagship too once it is alone
+// or nothing else can go); with nothing in view, head for the nearest enemy home still in the game.
+function hunt(s, state, p, mine, enemies, rnd) {
+  const R = s.rules.board.radius, others = mine.filter((x) => !x.flagship).length;
+  const homes = sidesIn(s).filter((q) => q !== p).map((q) => homePoint(s, q)).filter(Boolean);
+  let best = null, bv = Infinity;
+  for (const a of legalMoves(state, p)) {
+    const x = shipById(s, a.ship), moved = { ...x, pos: a.path.reduce((c, d) => step(c, d), x.pos) };
+    let v;
+    if (enemies.length) {
+      const d0 = Math.min(...enemies.map((e) => gap(e, x))), d = Math.min(...enemies.map((e) => gap(e, moved)));
+      if (d < 3 || d >= d0) continue;   // only moves that close in, and never closer than 3
+      v = d;
+    } else {
+      if (!homes.length) continue;
+      const near = (c) => Math.min(...homes.map((h) => dist(c, h)));
+      if (near(moved.pos) >= near(x.pos)) continue;
+      v = near(moved.pos) - R;
+    }
+    if (x.flagship && others) v += 6;   // escorts go first
+    v += rnd() * 0.5;
+    if (v < bv) { bv = v; best = a; }
+  }
+  return best;
+}
+// The middle of side q's home (its zone's edge or corner), in whole hexes.
+function homePoint(s, q) {
+  const z = ((s.rules && s.rules.zones) || []).find((t) => t && t.name === 'player_' + (q + 1) + '_home');
+  if (!z || !HOME_POINT[z.edge]) return null;
+  const c = HOME_POINT[z.edge](s.rules.board.radius);
+  return [Math.round(c[0]), Math.round(c[1])];
 }
 
 function advance(s, state, p, mine, enemies, moves, level, rnd) {

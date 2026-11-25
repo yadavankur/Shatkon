@@ -981,7 +981,7 @@ function describe(e) {
     case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
     case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
     case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
-      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.') : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
+      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : (threeP() ? 'The tick limit was reached: ' + (e.winner === 0 && seat === 'cpu' ? 'you win' : seat === 'cpu' ? cpuName(e.winner) + ' wins' : 'player ' + (e.winner + 1) + ' wins') + ' with the most of its fleet left.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.')) : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
   return e.t;
 }
@@ -1851,7 +1851,7 @@ export function render() {
       const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
       ctx.className = 'who' + (v.winner === 'draw' ? turn : v.winner);
       fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? (threeP() ? 'Victory! Last flagship standing.' : 'Victory! The enemy flagship is destroyed.') : threeP() ? 'Defeat. ' + cpuName(v.winner) + ' wins.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
-        h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
+        h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => (threeP() && seat === 'cpu' ? (k === 0 ? 'You' : cpuName(k)) : 'Player ' + (k + 1)) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
         h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => askSetup(newGame) }, 'Play again'), h('button', { class: 'btn', onclick: () => { postShown = null; render(); } }, 'Battle report'), logButtons())]);
     }
     showReport();
