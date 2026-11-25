@@ -59,4 +59,15 @@ Most of the engine is already N-player: `newGame` loops over fleets, `detect.js`
 - **Corner starts** put a fleet's wings closer to the other two homes than its middle. The zone depth on that board must keep ships out of the other homes' first rows.
 
 ## Findings
-(Parts 2 to 4 add theirs here.)
+
+### Part 2: code (26 Nov, ~3:15am)
+- Engine: `rowsForward` now measures from any edge or corner (`engine/rapidrules.js` farHome; north/south boards take the old sum, so two-player numbers are untouched). `pastLine` uses the centre ring when the game has 3 sides. Board files take `player_3`, `copy_of` with `turn: 120 / 240`, and corner zones (`corner_e`, `corner_sw`, ...).
+- Knock-outs and the bounty live in `engine/damage.js` (checkOut). Who-hit-whom: `state.lastHit`, set from lasers, missiles, mines, turrets and rams (three-player games only).
+- Kill pay goes only to the side that made the kill (three players only; two-player pay unchanged).
+- Tick limit with 3 sides: most whole segments left wins (`pointsWinner`); a tie is a draw.
+- Computer: shoots back at whoever hit it last (+1.5 to a shot's score) and goes for a flagship that is half wrecked (+3).
+- Play screen: amber third team, the centre ring drawn dashed, chips You / C1 / C2 (": out" when knocked out), toasts for knock-outs and bounties, "Computer 2 wins". When you are out, your ticks pass by themselves and you watch the other two.
+- Draft board `rules/rapid/three_edges.yaml` (finished in part 4). Open `play.html?board=three_edges`.
+- First runs, three computers on the draft board: 3 of 3 games reached the 100-tick cap, one side knocked out in each (ticks 47, 91, 97). **Games are long**: part 3 looks at why.
+- Not done: me v me v me, the end-screen economy table (still shows 2 columns), the Experiments menu entry (part 4).
+
