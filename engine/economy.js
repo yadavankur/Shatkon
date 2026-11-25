@@ -87,7 +87,8 @@ export const inEnemyHalf = (state, p, c) => rowsForward(state, p, c) > state.rul
 // A board can start both sides with some rekon (rapid.startRekon), e.g. a practice board for something you buy.
 export function econStart(s) {
   const n = Math.max(0, Math.floor(Number((s.rules.rapid || {}).startRekon) || 0));
-  s.econ = { purse: [n, n], earned: [0, 0], spent: [{}, {}], crossed: [false, false], seen: [{}, {}], perTick: [[], []], heat: [0, 0] };
+  const all = (f) => s.players.map(f);   // one entry per side (2 or 3)
+  s.econ = { purse: all(() => n), earned: all(() => 0), spent: all(() => ({})), crossed: all(() => false), seen: all(() => ({})), perTick: all(() => []), heat: all(() => 0) };
   for (const x of s.ships) if (!x.dead) for (const c of cellsOf(x)) s.econ.seen[x.owner][key(c)] = 1;
 }
 
@@ -102,12 +103,13 @@ export function econTick(s, before, acts = []) {
   if (!econOn(s)) return;
   const cfg = econConfig(s.rules), E = s.econ;
   const wasAlive = new Set(before.ships.filter((x) => !x.dead).map((x) => x.id));
-  for (const p of [0, 1]) {
+  for (let p = 0; p < s.players.length; p++) {
+    if (s.out && s.out[p]) continue;   // three players: a side that is out earns nothing
     const items = [];   // { ship, why, n, at }
     const mine = s.ships.filter((x) => x.owner === p && !x.dead);
     const past = mine.filter((x) => pastLine(s, x));
     if (past.length && !E.crossed[p]) { E.crossed[p] = true; if (cfg.cross) items.push({ ship: past[0].id, why: 'cross', n: cfg.cross, at: past[0].pos.slice() }); }
-    for (const x of s.ships) if (x.owner !== p && x.dead && !x.converted && wasAlive.has(x.id) && cfg.kill) items.push({ ship: x.id, why: 'kill', n: cfg.kill * x.segs.length, at: x.pos.slice() });
+    for (const x of s.ships) if (x.owner !== p && x.dead && !x.converted && !x.scuttled && wasAlive.has(x.id) && cfg.kill && (!s.lastHit || s.lastHit[x.id] === p)) items.push({ ship: x.id, why: 'kill', n: cfg.kill * x.segs.length, at: x.pos.slice() });
     if (cfg.hold) for (const x of past) items.push({ ship: x.id, why: 'hold', n: cfg.hold, at: x.pos.slice() });
     for (const x of mine) for (const c of cellsOf(x)) {
       const k = key(c);

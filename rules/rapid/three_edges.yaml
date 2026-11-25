@@ -1,0 +1,94 @@
+# ============================================================
+#  BOARD: Three Edges (three-player experiment; built by Claude Opus, 26 Nov 2026)
+#
+#  Three fleets, free for all, on a radius-12 board. Each fleet starts on a flat edge, every other
+#  edge of the hexagon (south, north-west, north-east). Forward is towards the centre.
+#  The line is the centre ring: a ship within `ring` hexes of the centre (or beyond it) is past it.
+#  Lose your flagship and you are out: your other ships scuttle. Whoever lands the killing hit takes
+#  your rekon plus the bounty. Last flagship standing wins. Design: docs/design/three-player.md
+#  Open it at  play.html?board=three_edges
+# ============================================================
+
+board:
+  name: "Three Edges"
+  idea: "Three fleets on alternate edges of the hexagon, free for all. Last flagship standing wins."
+  try: "Let the other two fight, but not for too long: the killing hit on a flagship takes that side's rekon and a bounty."
+  rules: {}
+
+rapid:
+  ring: 3                     # the centre ring: past the line within 3 hexes of the centre (or beyond it)
+  bounty: 10                  # rekon for the killing hit on a flagship, on top of the dead side's purse
+  economy: on
+  interceptHurts: on
+  econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Three Edges"
+  board: { shape: hexagon, radius: 12 }
+  zones:
+    player_1_home: { edge: south, depth: 5 }
+    player_2_home: { edge: north_west, depth: 5 }
+    player_3_home: { edge: north_east, depth: 5 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [-2, 5], size: 1 }
+    - { type: asteroid, at: [-3, -2], size: 1 }
+    - { type: asteroid, at: [5, -3], size: 1 }
+    - { type: asteroid, at: [3, 3], size: 1 }
+    - { type: asteroid, at: [-6, 3], size: 1 }
+    - { type: asteroid, at: [3, -6], size: 1 }
+
+player_1:
+  ships:
+    - name: "Throne"               # 7-hex flower, flagship
+      flagship: true
+      load: { missile: 2, missile_advanced: 3, missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, comms],        mounts: [laser, shield, point_defence] }
+        - { at: [1, 0],   bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [-1, 0],  bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, stealth, magazine], mounts: [launcher, shield, armour] }
+        - { at: [1, -1],  bays: [coupling, stealth, engine],  mounts: [laser, shield, point_defence] }
+        - { at: [0, 1],   bays: [coupling, engine, stealth],  mounts: [launcher, armour, armour] }
+        - { at: [-1, 1],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+    - name: "Warden"               # 3-hex triangle
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Lancer"               # 2-hex
+      load: { missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
+        - { at: [1, 0],   bays: [coupling, magazine, engine], mounts: [launcher, laser, armour] }
+    - name: "Pawn A"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn B"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn C"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn D"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn E"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+  deployment:
+    - { ship: "Throne", at: [-6, 11] }
+    - { ship: "Warden", at: [-2, 12] }
+    - { ship: "Lancer", at: [-11, 12] }
+    - { ship: "Pawn A", at: [-6, 8] }
+    - { ship: "Pawn B", at: [-4, 8] }
+    - { ship: "Pawn C", at: [-8, 9] }
+    - { ship: "Pawn D", at: [-2, 9] }
+    - { ship: "Pawn E", at: [-10, 10] }
+
+player_2:                     # the same fleet, turned 120 degrees (north-west edge)
+  copy_of: player_1
+  turn: 120
+
+player_3:                     # turned 240 degrees (north-east edge)
+  copy_of: player_1
+  turn: 240

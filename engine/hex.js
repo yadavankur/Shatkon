@@ -91,7 +91,29 @@ export const EDGE = {
   south_west: (c, R) => c[0] + R,
   north_west: (c, R) => R + c[0] + c[1],
   south_east: (c, R) => R - c[0] - c[1],
+  // the six corners (three-player boards start fleets in alternate corners): rows = hexes from the corner hex
+  corner_e: (c, R) => dist(c, [R, 0]),
+  corner_ne: (c, R) => dist(c, [R, -R]),
+  corner_nw: (c, R) => dist(c, [0, -R]),
+  corner_w: (c, R) => dist(c, [-R, 0]),
+  corner_sw: (c, R) => dist(c, [-R, R]),
+  corner_se: (c, R) => dist(c, [0, R]),
 };
+// The point a home zone is measured from, in axial [q, r] (fractions for an edge's middle), so a side's
+// progress towards the centre can be worked out the same way for edges and corners.
+export const HOME_POINT = {
+  north: (R) => [R / 2, -R], south: (R) => [-R / 2, R],
+  north_east: (R) => [R, -R / 2], south_west: (R) => [-R, R / 2],
+  north_west: (R) => [-R / 2, -R / 2], south_east: (R) => [R / 2, R / 2],
+  corner_e: (R) => [R, 0], corner_ne: (R) => [R, -R], corner_nw: (R) => [0, -R],
+  corner_w: (R) => [-R, 0], corner_sw: (R) => [-R, R], corner_se: (R) => [0, R],
+};
+// Turn a hex 60 degrees clockwise around the centre, k times (k may be negative).
+export function rotate(c, k = 1) {
+  let q = c[0], r = c[1];
+  for (let i = 0; i < ((k % 6) + 6) % 6; i++) { const s = -q - r; [q, r] = [-r, -s]; }
+  return [q || 0, r || 0];
+}
 
 export function connected(cells) {
   if (!cells.length) return true;

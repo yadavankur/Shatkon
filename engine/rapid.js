@@ -33,9 +33,9 @@ import { labAI, keen } from './labai.js';
 import { exp } from './experiments.js';
 import { LAB_MUNITIONS, mineKindFor, ghostUntil, ramRefusal, doRam, decoyRefusal, doDecoy, labTick, wake } from './labrules.js';
 import { econStart, econTick, ECON_DEFAULTS, buyRefusal, doBuy, turretsFire, TURRET, econConfig, upgradeParts } from './economy.js';
-import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap } from './rapidrules.js';
+import { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, wingGap, manySides, isOut, sidesIn, ringOf } from './rapidrules.js';
 
-export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange };
+export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, shootRange, manySides, isOut, sidesIn, ringOf };
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
@@ -201,6 +201,7 @@ export function rapidRules(rules, opts = {}) {
 export function rapidStart(rules, seed = 1) {
   const s = begin(newGame(rules, seed));
   s.rapid = { sign: [homeSign(s, 0), homeSign(s, 1)], ever: [false, false], ticks: [], opening: true, openTicks: 0 };
+  if (manySides(s)) { s.rapid.sign = s.players.map(() => 0); s.rapid.ever = s.players.map(() => false); }   // three players: homes come from the board's zones
   if (rules.rapid.economy === 'on') { econStart(s); pickStyles(s); }
   rest(s);
   s.pre = hashState(s);
@@ -209,7 +210,7 @@ export function rapidStart(rules, seed = 1) {
 
 // Make player p the one to act, with one point.
 function asCurrent(s, p) {
-  s.order = p === 0 ? [0, 1] : [1, 0];
+  s.order = s.players.length > 2 ? [p, ...s.players.map((_, i) => i).filter((i) => i !== p)] : p === 0 ? [0, 1] : [1, 0];
   s.turn = 0;
   s.players[p].cp = 1;
 }
@@ -247,12 +248,14 @@ export function forcedMoves(state, p, prefer) {
 }
 // May side p do nothing this tick? Once free, yes. Before that only when it has no move at all.
 export function passAllowed(state, p) {
+  if (isOut(state, p)) return true;
   return unlocked(state, p) || !legalMoves(state, p).length;
 }
 
 // Would this action be accepted for side p right now? (null when fine, else the reason)
 export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
+  if (isOut(state, p)) return !a || a.type === 'pass' || a.type === 'end' ? null : 'that side is out of the game';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (a.type === 'buy') return buyRefusal(state, p, a);   // economy mode: buying is the tick's action
   if (a.type === 'ram') return ramRefusal(state, p, a);   // experiments
@@ -281,19 +284,21 @@ const FIRST = { fire: 0, launch: 0, scan: 0, detonate: 0, move: 1 };
 
 // Resolve one tick. acts[p] is side p's action ({ type: 'pass' } to do nothing).
 export function rapidTick(state, acts) {
-  for (const p of [0, 1]) { const why = rapidRefusal(state, p, acts[p]); if (why) no((p === 0 ? '' : 'player 2: ') + why); }
+  const SIDES = state.players.map((_, i) => i);   // 2 sides, or 3
+  if (SIDES.length > 2) acts = SIDES.map((p) => (isOut(state, p) ? { type: 'pass' } : acts[p] || { type: 'pass' }));
+  for (const p of SIDES) { const why = rapidRefusal(state, p, acts[p]); if (why) no((p === 0 ? '' : 'player ' + (p + 1) + ': ') + why); }
   const s = copy(state);
   s.events = []; s.flight = null;
   const texts = acts.map((a) => tickText(a));   // what each side chose, even if the game ends before it happens
   const start = new Map(s.ships.map((x) => [x.id, x.pos.join()]));
   // 0. purchases (economy mode): paid before anything else, so this tick's earnings can't pay for them
-  for (const p of [0, 1]) if (acts[p] && acts[p].type === 'buy') doBuy(s, p, acts[p]);
+  for (const p of SIDES) if (acts[p] && acts[p].type === 'buy') doBuy(s, p, acts[p]);
   // 1. shots, launches, scans: hits land together afterwards
   s.deferHits = [];
   // experiments: a hibernating ship that acts wakes up; rams and decoys go with the shots
-  for (const p of [0, 1]) { const a = acts[p], x = a && a.ship && shipById(s, a.ship); if (x && x.hib && a.type !== 'buy') wake(s, x, 'it acted'); }
-  for (const p of [0, 1]) { const a = acts[p]; if (a && a.type === 'ram') doRam(s, p, a); if (a && a.type === 'decoy') doDecoy(s, p, a); }
-  for (const p of [0, 1]) {
+  for (const p of SIDES) { const a = acts[p], x = a && a.ship && shipById(s, a.ship); if (x && x.hib && a.type !== 'buy') wake(s, x, 'it acted'); }
+  for (const p of SIDES) { const a = acts[p]; if (a && a.type === 'ram') doRam(s, p, a); if (a && a.type === 'decoy') doDecoy(s, p, a); }
+  for (const p of SIDES) {
     const a = acts[p];
     if (!a || !(a.type in FIRST) || FIRST[a.type] !== 0) continue;
     asCurrent(s, p);
@@ -308,12 +313,14 @@ export function rapidTick(state, acts) {
   for (const h of held) {
     const ship = shipById(s, h.ship);
     const n0 = s.events.length;
+    if (s.lastHit) { const by = h.by && (shipById(s, h.by) || s.objs.find((o) => o.id === h.by)); s.attacker = h.owner != null ? h.owner : by ? by.owner : null; }   // three players: who did it
     if (ship) applyHits(s, ship, h.seg, h.hits, h.cause);
+    if (s.lastHit) s.attacker = null;
     if (h.by) for (const e of s.events.slice(n0)) if (e.t === 'damage') e.by = h.by;   // a turret's hits: which turret
   }
   refreshSight(s); checkWin(s);
   // 2. moves
-  for (const p of [0, 1]) {
+  for (const p of SIDES) {
     const a = acts[p];
     if (s.phase !== 'play' || !a || a.type !== 'move') continue;
     texts[p] = tickText(a);
@@ -324,7 +331,7 @@ export function rapidTick(state, acts) {
     if (x && x.segs.length === 1 && pastLine(s, x)) convertShip(s, x, a.convert);
   }
   // 2b. wingman moves: the friend of a ship that fired this tick
-  for (const p of [0, 1]) {
+  for (const p of SIDES) {
     const w = acts[p] && acts[p].wing;
     if (s.phase !== 'play' || !w || w.type !== 'move' || !shipById(s, w.ship)) continue;
     asCurrent(s, p);
@@ -341,7 +348,7 @@ export function rapidTick(state, acts) {
   labTick(s);   // experiments: decoys fade, hibernating ships mend or wake
   // 4. the tick ends
   econTick(s, state, acts);   // economy mode: salvage for both sides (does nothing when the economy is off)
-  for (const p of [0, 1]) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
+  for (const p of SIDES) if (shipsPast(s, p).length) s.rapid.ever[p] = true;
   // the opening ends at the first sighting (either side has a contact on the other) or, if that comes
   // sooner, the first laser shot or missile launch; its ticks don't count towards the limit
   if (s.rapid.opening) {
@@ -350,19 +357,18 @@ export function rapidTick(state, acts) {
     const sighted = s.rules.rapid.openEnd !== 'shot' && firstContact(s);
     if (shot || sighted) { s.rapid.opening = false; s.rapid.openEnded = shot ? 'shot' : 'sighting'; }
   }
-  for (const p of [0, 1]) if (acts[p] && acts[p].type === 'scan') { s.rapid.lastScan = s.rapid.lastScan || [0, 0]; s.rapid.lastScan[p] = s.round; }
+  for (const p of SIDES) if (acts[p] && acts[p].type === 'scan') { s.rapid.lastScan = s.rapid.lastScan || SIDES.map(() => 0); s.rapid.lastScan[p] = s.round; }
   const rec = { round: s.round, acts: texts };
   s.rapid.ticks.push(rec);
-  s.history.push({ round: s.round, player: 0, actions: [rec.acts[0]], pre: state.pre, rapid: true });
-  s.history.push({ round: s.round, player: 1, actions: [rec.acts[1]], pre: state.pre, rapid: true });
+  for (const p of SIDES) s.history.push({ round: s.round, player: p, actions: [rec.acts[p]], pre: state.pre, rapid: true });
   if (s.phase === 'play') {
     s.round++;
     for (const x of s.ships) x.flares = x.flares.filter((f) => f.until >= s.round);
     for (const id of Object.keys(s.lit)) if (s.lit[id] < s.round) delete s.lit[id];
     if (s.round - (s.rapid.openTicks || 0) > s.rules.turnLimit) {
       s.phase = 'over';
-      s.winner = limitWinner(s);
-      emit(s, { t: 'game_over', winner: s.winner, by: 'turn_limit' }, [0, 1]);
+      s.winner = SIDES.length > 2 ? pointsWinner(s) : limitWinner(s);
+      emit(s, { t: 'game_over', winner: s.winner, by: 'turn_limit' }, SIDES);
     }
   }
   rest(s);
@@ -373,8 +379,16 @@ export function rapidTick(state, acts) {
 }
 
 // Has either side any contact on the other: a ship or munition in view, or a fuzzy contact just out of range?
+// Three players at the tick limit: of the sides still in, the one with the most hull left (whole
+// segments of every ship it still has) wins; a tie is a draw.
+export function pointsWinner(s) {
+  const score = (p) => s.ships.filter((x) => x.owner === p && !x.dead).reduce((n, x) => n + x.segs.filter((g) => !g.wrecked).length, 0);
+  const left = sidesIn(s).map((p) => [p, score(p)]).sort((a, b) => b[1] - a[1]);
+  if (!left.length || (left[1] && left[1][1] === left[0][1])) return 'draw';
+  return left[0][0];
+}
 function firstContact(s) {
-  for (const p of [0, 1]) {
+  for (let p = 0; p < s.players.length; p++) {
     const vis = visibleTo(s, p);
     if (vis.size || contactsFor(s, p, vis).length) return true;
   }
@@ -388,11 +402,21 @@ function firstContact(s) {
 // incoming missile that is close to one of our ships.
 function shotScore(s, p, t) {
   const tgt = shipById(s, t.target);
+  if (tgt && s.lastHit) return t.hits * (tgt.flagship ? 3 : 1) + (tgt.segs.length === 1 ? 1 : 0) + manyScore(s, p, tgt);
   if (tgt) return t.hits * (tgt.flagship ? 3 : 1) + (tgt.segs.length === 1 ? 1 : 0);
   const o = s.objs.find((x) => x.id === t.target);
   if (!o) return 0;
   const near = s.ships.some((x) => x.owner === p && !x.dead && gap(x, o) <= 4);
   return near ? 2.5 : 0.2;
+}
+// Three players: which enemy to go for. Shoot back at whoever hurt us last; finish off a side that
+// is nearly beaten (its flagship low), since its killer takes its rekon and the bounty.
+function manyScore(s, p, tgt) {
+  let v = 0;
+  if (s.ships.some((x) => x.owner === p && s.lastHit[x.id] === tgt.owner)) v += 1.5;
+  const flag = s.ships.find((x) => x.owner === tgt.owner && x.flagship && !x.dead);
+  if (flag) { const whole = flag.segs.filter((g) => !g.wrecked).length / flag.segs.length; if (whole <= 0.5) v += tgt.flagship ? 3 : 0.5; }
+  return v;
 }
 // The shot a chosen laser ship takes at time-out ('best': highest score, 'nearest': closest target).
 export function autoFire(state, p, shipId, mode = 'best') {
@@ -425,6 +449,7 @@ export function autoLaunch(state, p, shipId, kind, mode = 'best') {
 // One action for side p, chosen on its own view of the board. level 'easy' takes the first shot it
 // finds and otherwise advances at random.
 export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
+  if (isOut(state, p)) return { type: 'pass' };
   const a = labAI(state, p, econAI(state, p, chooseAI(state, p, level, rnd), rnd), rnd);   // economy mode: its style may buy or reroute
   // a scout that reaches the line goes silent: a scanner buoy if the side has none, a mine if an enemy is close
   // (a computer eager to ram keeps its scouts as rams: it doesn't turn them into buoys or mines)

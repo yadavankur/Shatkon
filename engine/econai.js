@@ -28,6 +28,7 @@ export function pickStyles(s) {
   const o = s.rules.rapid || {};
   const pick = (v, salt) => (STYLES.includes(v) ? v : STYLES[(Math.abs(Number(s.seed) || 0) + salt) % 3]);
   s.econ.style = [pick(o.cpuStyle0, 1), pick(o.cpuStyle, 0)];
+  if (s.players.length > 2) s.econ.style.push(pick(o.cpuStyle2, 2));   // three players: the second computer's style
 }
 
 const gapTo = (a, b) => Math.min(...footprint(a).flatMap((c) => footprint(b).map((d) => dist(c, d))));
