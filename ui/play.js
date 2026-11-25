@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, threeOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -805,7 +805,7 @@ export function askSetup(start, title) {
   const close = () => back.remove();
   const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
   const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
-    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (boardRapid.experiments ? 'lab' : boardRapid.economy ? 'econ' : true) : false),
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (threeBoard() ? 'three' : boardRapid.experiments ? 'lab' : boardRapid.economy ? 'econ' : true) : false),
       h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
   document.body.appendChild(back);
 }
@@ -2013,7 +2013,7 @@ function rapidLines() {
 function newRapidGame() {
   rapidReset();
   seat = boardRapid.experiments && !threeBoard() ? labWho() : 'cpu'; store.set('shatkon.seat', String(seat)); held = null;   // the Experiments board can be me v me
-  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? { ...expOptions(), line: labLine() } : {}) }), (Date.now() % 2147483647) | 0);
+  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? { ...expOptions(), line: labLine() } : {}), ...(threeBoard() ? { ...threeOptions(), economy: 'on', unlock: boardRapid.unlock || 'holding' } : {}) }), (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;

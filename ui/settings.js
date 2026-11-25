@@ -66,7 +66,13 @@ export const ECON_SETTINGS = [
   { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' rekon and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
-const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp';
+// Three-player boards (rules/rapid/three_*.yaml, docs/design/three-player.md): their own two rows.
+const THREE_SETTINGS = [
+  { key: 'ring', label: 'Centre ring', def: '3', options: ['2', '3', '4'].map((v) => [v, v + ' hexes', 'A ship within ' + v + ' hexes of the centre (or beyond it) frees your fleet: move any way, pass, scan.']) },
+  { key: 'bounty', label: 'Flagship bounty', def: '10', options: [['0', 'None', 'Killing a flagship pays only the usual kill rekon.'], ['10', '\u25c8 10', 'The killing hit on a flagship takes that side\u2019s rekon plus 10.'], ['20', '\u25c8 20', 'The killing hit on a flagship takes that side\u2019s rekon plus 20.']] },
+  { key: 'cpuStyle2', label: 'Computer 2 plays', def: 'random', options: [['random', 'Random', 'Computer 2 picks rush, boom or turtle at the start.'], ['rush', 'Rush', 'Buys nothing early, then missiles.'], ['boom', 'Boom', 'Roams for rekon and upgrades.'], ['turtle', 'Turtle', 'Turrets and heatmaps.']] },
+];
+const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp', TSTORE = 'shatkon.three';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
 const okVal = (d, v) => (d.range ? Number.isFinite(Number(v)) && Number(v) >= d.range[0] && Number(v) <= d.range[1] : d.options.some((o) => o[0] === v));
 function readSet(store, list) {
@@ -141,6 +147,10 @@ export async function seedExpBoard(boardName) {
     seedExpFromBoard(boardName, b && b.rapid);
   } catch (e) {}
 }
+export function threeOptions() {
+  const r = readSet(TSTORE, THREE_SETTINGS);
+  return { ring: Number(r.ring), bounty: Number(r.bounty), cpuStyle2: r.cpuStyle2 };
+}
 export function econOptions() {
   const r = econSettings();
   return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), econTurretLaser: r.econTurretLaser, cpuStyle: r.cpuStyle };
@@ -153,7 +163,7 @@ export function settingsForm(onChange, rapid = false) {
   const box = document.createElement('div');
   box.className = 'bs-form';
   // the Lab has its own line and no clock
-  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'three' ? [[THREE_SETTINGS, TSTORE], [ECON_SETTINGS.filter((d) => d.key !== 'economy'), ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'unlock'].includes(d.key)), RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);

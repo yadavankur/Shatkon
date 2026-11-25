@@ -1,3 +1,11 @@
+## Latest (26 Nov early morning, gamedev chat): three players, experimental (merged, build #74)
+- Play → Experiments → **Three players: edges** (`play.html?board=three_edges`) or **Three players: corners** (`three_corners`). You and two computers, free for all, Frontier rules (rekon on), on the clock.
+- Each fleet: Throne (7-hex flagship), Warden (3), Lancer (2), five scouts. Player 2 and 3 are player 1's fleet turned 120 and 240 degrees (`copy_of` + `turn:` in the board file).
+- Forward = towards the centre (2 directions from an edge, 3 from a corner). The line is the **centre ring** (setting 2/3/4 hexes): a ship inside it, or beyond the centre, frees its fleet.
+- Lose your flagship and you are out: your other ships scuttle, your mines/turrets/missiles go. The killing hit takes your rekon plus a **bounty** (setting 0/10/20). Kill pay only to the side that made the kill. Last flagship standing wins; at the tick cap, the most whole segments left.
+- Engine: `engine/rapidrules.js` (homes on any edge or corner, ring), `engine/damage.js` checkOut, `state.lastHit` (who hit whom), corner zones and `hex.rotate` in `engine/hex.js`. Two-player games unchanged (golden replays pass). Design and findings: [docs/design/three-player.md](../docs/design/three-player.md). Tests: tests/three-player.test.js.
+- Computer x3, 90 games: most decided (Edges 26/30, Corners 50/60); seat wins about even. Games are long (most run to the cap); so are two-player Frontier computer games (6/6 draws), so that is the computer, not three players.
+
 ## Latest (24 Nov night, gamedev chat): from Ankur's two Ram games (merged, build #72)
 - Turrets no longer take a laser (Ankur never chose that; it came from Claude's economy draft). Setting "Turret uses a laser" (default No) keeps the old way.
 - Buy sheet says why an item can't be bought for the selected ship (on a phone the hint line is cut to one line, so "no room in a magazine" / "no laser to leave behind" were never seen).
