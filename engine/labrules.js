@@ -67,8 +67,8 @@ export function doRam(s, p, a) {
   const all = t.segs[si].parts.reduce((n, q) => n + Math.max(0, q.hp), 0) + 1;
   x.dead = true; x.converted = 'ram';
   emit(s, { t: 'rammed', ship: x.id, target: t.id, seg: si, at: segHex(t, si) }, s.players.map((_, i) => i));
-  if (s.deferHits) s.deferHits.push({ ship: t.id, seg: si, hits: all, cause: 'ram' });
-  else applyHits(s, t, si, all, 'ram');
+  if (s.deferHits) s.deferHits.push({ ship: t.id, seg: si, hits: all, cause: 'ram', owner: p });
+  else if (s.lastHit) { const was = s.attacker; s.attacker = p; applyHits(s, t, si, all, 'ram'); s.attacker = was; } else applyHits(s, t, si, all, 'ram');
 }
 
 // ---------- decoys ----------

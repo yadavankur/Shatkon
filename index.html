@@ -440,11 +440,14 @@ const LAB_BOARDS = [
   ['lab_repair', 'Repair', 'Their Warden shoots yours. Once it is hit, tap it, then Buy \u2192 Repair (you start with \u25c812).'],
   ['lab_warp', 'Warp', 'Tap your front scout, then Buy \u2192 Warp and pick a hex further back in your half (you start with \u25c86).'],
   ['lab_hibernate', 'Hibernate', 'Tap the scout next to the rock, then Buy \u2192 Hibernate (\u25c82). The enemy can\u2019t see it unless right next to it.'],
+  // three players (docs/design/three-player.md): you and two computers, free for all, Frontier rules
+  ['three_edges', 'Three players: edges', 'You and two computers, free for all. Fleets start on alternate edges. Reach the centre ring to be free; last flagship standing wins.', 'three'],
+  ['three_corners', 'Three players: corners', 'The same, but the fleets start in alternate corners (3 ways forward instead of 2).', 'three'],
 ];
 function labMenu(main) {
-  main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about]) =>
-    item(null, 'start', name, about, () => battleSheet(name === 'Free lab' ? 'Experiments' : name, game({ board, mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')))));
-  main.append(h('p', { class: 'muted' }, 'Practice boards start with just their idea switched on and the ships set up for it. No clock on any of them.'));
+  main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about, kind]) =>
+    item(null, 'start', name, about, () => battleSheet(name === 'Free lab' ? 'Experiments' : name, game({ board, mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), kind || 'lab')))));
+  main.append(h('p', { class: 'muted' }, 'Practice boards start with just their idea switched on and the ships set up for it. No clock on any of them. The three-player boards are full games, on the clock.'));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },

@@ -5,7 +5,7 @@ import * as E from '../engine/index.js';
 import { computerMove } from '../engine/ai.js';
 import { drawBoard, partLooks, S, W, FL, setFlip, X, Y, f1, s as svgEl, setModels, modelFor } from './board.js';
 import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
-import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
+import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, threeOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
@@ -98,7 +98,7 @@ async function loadRules() {
   if (BOARD) {   // one file holds the board's map, both fleets, and the world numbers it changes
     // rapid-mode boards live in rules/rapid/ (kept out of rules/boards/, which the board checks and sims walk)
     // lab_* is the Experiments practice set-up convention (handoff/to-maps.md): rules/rapid/lab_<key>.yaml
-    const file = (/^(rapid_|lab_)/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';
+    const file = (/^(rapid_|lab_|three_)/.test(BOARD) ? 'rules/rapid/' : 'rules/boards/') + BOARD + '.yaml';
     const r = await fetch(file + '?t=' + Date.now());
     if (!r.ok) throw new Error('could not read ' + file);
     const b = YAML.parse(await r.text());
@@ -334,8 +334,11 @@ function fxTick(now) {
   fxRaf = fxList.length ? requestAnimationFrame(fxTick) : 0;
   if (!fxRaf) x.clearRect(0, 0, cw, ch);
 }
-const colOf = (p) => (p === 0 ? '#7fd8f0' : '#ff8bd8');   // team colours (ui/ships.js TEAM)
-const col2Of = (p) => (p === 0 ? '#3a8dff' : '#c46bff');  // second team tone: blue / violet
+const colOf = (p) => (p === 0 ? '#7fd8f0' : p === 2 ? '#ffc35c' : '#ff8bd8');   // team colours (ui/ships.js TEAM); amber for a third player
+const col2Of = (p) => (p === 0 ? '#3a8dff' : p === 2 ? '#ff8a2e' : '#c46bff');  // second team tone: blue / violet / orange
+const threeP = () => !!(game && game.players && game.players.length > 2);   // a three-player board (docs/design/three-player.md)
+const threeBoard = () => !!(rules && rules.fleets && rules.fleets.length > 2);
+const cpuName = (p) => (threeP() ? 'Computer ' + p : 'The computer');
 const WARN = '#e0a84a';                                     // muted amber: warnings only (your ship hurt)
 const rgbaOf = (hx, a) => 'rgba(' + [1, 3, 5].map((i) => parseInt(hx.slice(i, i + 2), 16)).join(',') + ',' + a + ')';
 const ownerOfId = (id) => Number(String(id)[0]) - 1;
@@ -802,7 +805,7 @@ export function askSetup(start, title) {
   const close = () => back.remove();
   const name = title || document.title.replace(/ · Shatkon$/, '') || 'Battle';
   const back = h('div', { id: 'bsheet', class: 'bsheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Battle settings', onclick: (ev) => { if (ev.target === back) close(); } },
-    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (boardRapid.experiments ? 'lab' : boardRapid.economy ? 'econ' : true) : false),
+    h('div', { class: 'bsbox' }, h('h2', null, name === 'Shatkon' ? 'New battle' : name), h('p', { class: 'muted' }, boardRapid ? 'Rapid mode settings' : 'Battle settings'), settingsForm(null, boardRapid ? (threeBoard() ? 'three' : boardRapid.experiments ? 'lab' : boardRapid.economy ? 'econ' : true) : false),
       h('div', { class: 'row bsbtns' }, h('button', { class: 'btn', onclick: close }, 'Back'), h('button', { class: 'btn go', onclick: () => { close(); start(); } }, 'Start battle'))));
   document.body.appendChild(back);
 }
@@ -978,7 +981,7 @@ function describe(e) {
     case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
     case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
     case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
-      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.') : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
+      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : (threeP() ? 'The tick limit was reached: ' + (e.winner === 0 && seat === 'cpu' ? 'you win' : seat === 'cpu' ? cpuName(e.winner) + ' wins' : 'player ' + (e.winner + 1) + ' wins') + ' with the most of its fleet left.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.')) : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
   return e.t;
 }
@@ -1039,7 +1042,7 @@ function options(v) {
     return map;
   }
   if (isRapidGame() && RT.ramFor) {   // experiment ram: enemy ships it can reach
-    for (const t of game.ships.filter((z) => z.owner === 1 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: RT.ramFor, target: z.id }))) {
+    for (const t of game.ships.filter((z) => z.owner !== 0 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: RT.ramFor, target: z.id }))) {
       const a = { type: 'ram', ship: RT.ramFor, target: t.id };
       for (const c of E.footprint(t)) map.set(hex.key(c), { action: a, wingAct: a, mark: 'turret', label: 'R' });
     }
@@ -1627,7 +1630,7 @@ function copyLog() {
 let logBox = null, shareCode = null;   // shareCode: a new two-phone game's code, shown in the menu until it is closed
 // The battle report at the end of a skirmish: three swipe cards (ui/postgame.js), shown once per finished game.
 const gameKey = () => game.seed + ':' + game.round + ':' + game.winner;
-const sideName = (k) => seat === 'cpu' ? (k === 0 ? 'You' : 'Computer') : isCodes() ? (k === seat ? 'You' : 'Opponent') : 'Player ' + (k + 1);
+const sideName = (k) => seat === 'cpu' ? (k === 0 ? 'You' : threeP() ? 'Computer ' + k : 'Computer') : isCodes() ? (k === seat ? 'You' : 'Opponent') : 'Player ' + (k + 1);
 function showReport() {
   const old = document.getElementById('postgame');
   if (postShown === gameKey() || game.rules.campaign) { if (old) old.remove(); return; }
@@ -1714,12 +1717,13 @@ export function render() {
   const seatName = (p) => seat === 'cpu' ? (p === 0 ? 'You' : 'Enemy') : isCodes() ? (p === seat ? 'You' : 'Them') : 'P' + (p + 1);
   const stepNames = game.order.map(seatName).concat('Missiles fly');
   const nextFirst = R.firstPlayer === 'fixed' ? game.order[0] : game.order[game.order.length - 1];
-  const title = game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : 'The computer wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
+  const title = game.phase === 'over' ? (v.winner === 'draw' ? 'The game is a draw' : seat === 'cpu' ? (v.winner === 0 ? 'You win!' : cpuName(v.winner) + ' wins') : isCodes() && v.winner === seat ? 'You win!' : 'Player ' + (v.winner + 1) + ' wins')
     : R.rapid ? ({ choose: 'Your move', auto: 'Out of time', watch: 'Watch' }[RT.phase] || 'Both sides act\u2026')
     : mine ? (seat === 'all' || seat === 'pass' ? 'Player ' + (turn + 1) + '\'s turn' : 'Your turn') : aiTurn() ? 'The computer is thinking\u2026' : 'Waiting for player ' + (turn + 1);
-  const rapidChips = R.rapid && game.phase === 'play' ? [0, 1].map((k) => { const free = E.unlocked(game, k), past = E.shipsPast(game, k).length;
-    return h('span', { class: 'stepchip s' + k + (free ? ' now' : ''), title: (k === 0 ? 'You' : 'Enemy') + ': ' + (free ? 'free to stop, turn back, pass and scan' + (past ? ' (' + plural(past, 'ship') + ' past the line)' : '') : 'forward only until a ship is on or past the line') },
-      (k === 0 ? 'You' : 'Enemy') + (free ? ': free' : ': forward')); }) : null;
+  const chipName = (k) => (k === 0 ? 'You' : threeP() ? 'C' + k : 'Enemy');
+  const rapidChips = R.rapid && game.phase === 'play' ? game.players.map((_, k) => k).map((k) => { const free = E.unlocked(game, k), past = E.shipsPast(game, k).length, out = threeP() && E.isOut(game, k);
+    return h('span', { class: 'stepchip s' + Math.min(k, 1) + (free && !out ? ' now' : ''), style: threeP() ? 'color:' + colOf(k) : null, title: chipName(k) + ': ' + (out ? 'out of the game' : free ? 'free to stop, turn back, pass and scan' + (past ? ' (' + plural(past, 'ship') + ' past the line)' : '') : 'forward only until a ship is on or past the line') },
+      chipName(k) + (out ? ': out' : free ? ': free' : ': forward')); }) : null;
   fill(bar, [h('div', { class: 'line top' },
       roundRing(v.round, R.turnLimit + (R.rapid && game.rapid ? game.rapid.openTicks || 0 : 0)),   // rapid: the opening's ticks don't count
       E.econOn(game) ? pursePill() : null,   // economy mode: your rekon (the enemy's is hidden)
@@ -1814,7 +1818,7 @@ export function render() {
       } }),
       // experiments: ram (a one-hex ship) and decoys (a ship with an emitter)
       isRapidGame() && E.exp(game, 'ram') && me.segs.length === 1 && !me.flagship ? ibtn({ icon: 'fire', label: 'Ram', on: RT.phase === 'choose', sub: 'into a ship within 2', onclick: () => {
-        const ok = game.ships.some((z) => z.owner === 1 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: sel, target: z.id }));
+        const ok = game.ships.some((z) => z.owner !== 0 && !z.dead && !E.ramRefusal(game, 0, { type: 'ram', ship: sel, target: z.id }));
         if (!ok) { say('Ram: no enemy ship you can see within 2 hexes of ' + sel + '.'); return render(); }
         RT.ramFor = sel; pending = null; say('Ram: tap an enemy ship marked R. ' + sel + ' is lost; the segment it hits is wrecked.'); render(); } }) : null,
       isRapidGame() && E.exp(game, 'decoy') && E.decoySpots(game, 0, sel).length ? ibtn({ icon: 'scan', label: 'Decoy', on: RT.phase === 'choose' && !E.decoyRefusal(game, 0, { type: 'decoy', ship: sel, at: E.decoySpots(game, 0, sel)[0] }), sub: E.decoyRefusal(game, 0, { type: 'decoy', ship: sel, at: E.decoySpots(game, 0, sel)[0] }) ? 'recharging' : 'place a fake contact', onclick: () => {
@@ -1846,8 +1850,8 @@ export function render() {
     } else {
       const lost = (k) => game.ships.filter((z) => z.owner === k && z.dead).length + '/' + game.ships.filter((z) => z.owner === k).length;
       ctx.className = 'who' + (v.winner === 'draw' ? turn : v.winner);
-      fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? 'Victory! The enemy flagship is destroyed.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
-        h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => 'Player ' + (k + 1) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
+      fill(ctx, [h('div', { class: 'ctx-head' }, h('h2', null, v.winner === 'draw' ? 'Draw' : seat === 'cpu' ? (v.winner === 0 ? (threeP() ? 'Victory! Last flagship standing.' : 'Victory! The enemy flagship is destroyed.') : threeP() ? 'Defeat. ' + cpuName(v.winner) + ' wins.' : 'Defeat. Your flagship was destroyed.') : 'Player ' + (v.winner + 1) + ' wins')),
+        h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => (threeP() && seat === 'cpu' ? (k === 0 ? 'You' : cpuName(k)) : 'Player ' + (k + 1)) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
         h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => askSetup(newGame) }, 'Play again'), h('button', { class: 'btn', onclick: () => { postShown = null; render(); } }, 'Battle report'), logButtons())]);
     }
     showReport();
@@ -2000,6 +2004,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) rapid
 function rapidLines() {
   if (!isRapidGame()) return null;
   const R = game.rules, L = R.rapid.line, B = R.board.radius;
+  if (threeP()) return [{ ring: E.ringOf(game), side: 0, col: '#cfd8e8', label: 'centre ring' }];   // three players: one line for everyone, the centre ring
   return [0, 1].map((k) => {
     const hs = E.homeSign(game, k);
     return { row: hs > 0 ? B - L + 0.5 : -(B - L) - 0.5, side: k, col: k === 0 ? '#7fd8f0' : '#ff8bd8', label: k === 0 ? 'your line' : 'enemy line' };
@@ -2007,15 +2012,16 @@ function rapidLines() {
 }
 function newRapidGame() {
   rapidReset();
-  seat = boardRapid.experiments ? labWho() : 'cpu'; store.set('shatkon.seat', String(seat)); held = null;   // the Experiments board can be me v me
-  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? { ...expOptions(), line: labLine() } : {}) }), (Date.now() % 2147483647) | 0);
+  seat = boardRapid.experiments && !threeBoard() ? labWho() : 'cpu'; store.set('shatkon.seat', String(seat)); held = null;   // the Experiments board can be me v me
+  game = E.rapidStart(E.rapidRules(rules, { ...boardRapid, ...rapidOptions(), ...(boardRapid.economy ? econOptions() : {}), ...(boardRapid.experiments ? { ...expOptions(), line: labLine() } : {}), ...(threeBoard() ? { ...threeOptions(), economy: 'on', unlock: boardRapid.unlock || 'holding' } : {}) }), (Date.now() % 2147483647) | 0);
   game.started = new Date().toISOString(); stampFrom = 0;
   looks = partLooks(game.rules);
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
   const econ = E.econOn(game), title = (r.experiments && boardMeta && boardMeta.name) || (econ ? 'Frontier' : 'Rapid Opus');
-  say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
+  if (threeP()) say((boardMeta && boardMeta.name || 'Three players') + ': you and two computers, free for all. Each side picks ONE action a tick and they all happen at once. Forward (towards the centre) only until one of your ships reaches the centre ring (dashed). Lose your flagship and you are out; whoever lands the killing hit takes your rekon plus a bounty of ' + (r.bounty ?? 10) + '. Last flagship standing wins.');
+  else say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
     + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
     + (econ ? ' Rekon (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
   save(); render();
@@ -2040,6 +2046,7 @@ function rapidChoose() {
   RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
   if (RT.hold && !noClock()) return rapidPaused(RT.hold);   // paused, or a new game waiting for "Start the clock"
   RT.hold = null;
+  if (threeP() && E.isOut(game, 0)) { RT.phase = 'busy'; return setTimeout(() => rapidAct({ type: 'pass' }, true, true), 700); }   // three players: you are out, the other two play on while you watch
   const secs = E.inOpening(game) ? game.rules.rapid.openTimer || 10 : game.rules.rapid.timer;   // the opening runs on a shorter clock
   RT.phase = 'choose'; RT.start = performance.now(); RT.end = RT.start + secs * 1000;
   if (noClock()) RT.end = RT.start;   // me v me and the Experiments board: no clock, take your time
@@ -2159,11 +2166,17 @@ function rapidAct(action, quiet, auto) {
     ai = a; const h1 = held; held = null; game = h1.real;
     return rapidResolve(h1.a, ai, 1);
   }
-  try {
-    ai = E.rapidAI(game, 1, aiLevel) || ai;
-    if (E.rapidRefusal(game, 1, ai)) ai = E.forcedMoves(game, 1)[0] || { type: 'pass' };
-    if (E.rapidRefusal(game, 1, ai)) ai = { type: 'pass' };
-  } catch (err) { console.warn('AI error', err); ai = { type: 'pass' }; }
+  const cpu = (p) => {
+    let x = { type: 'pass' };
+    try {
+      x = E.rapidAI(game, p, aiLevel) || x;
+      if (E.rapidRefusal(game, p, x)) x = E.forcedMoves(game, p)[0] || { type: 'pass' };
+      if (E.rapidRefusal(game, p, x)) x = { type: 'pass' };
+    } catch (err) { console.warn('AI error', err); x = { type: 'pass' }; }
+    return x;
+  };
+  if (threeP()) return rapidResolve(a, game.players.slice(1).map((_, i) => cpu(i + 1)), 0);   // three players: both computers pick
+  ai = cpu(1);
   return rapidResolve(a, ai, 0);
 }
 // me v me: hold player 1's pick and give player 2 the board, seen from their side.
@@ -2181,7 +2194,8 @@ function selfHandOver(a) {
 // One tick: a is player 1's action, ai player 2's (the computer's, or the second player's in me v me).
 function rapidResolve(a, ai, _two) {
   const wasOpening = E.inOpening(game);
-  game = E.rapidTick(game, [a, ai]);
+  game = E.rapidTick(game, Array.isArray(ai) ? [a, ...ai] : [a, ai]);   // ai: one action, or (three players) one per computer
+  if (threeP()) for (const e of game.events.filter((x) => x.t === 'knocked_out')) setTimeout(() => toast(e.player === 0 ? 'You are out' : cpuName(e.player) + ' is out', 'p' + Math.min(e.player, 1), e.player === 0 ? 'your flagship is gone: watch the other two finish' : 'flagship gone' + (e.by === 0 ? ': you took the bounty (+' + e.bounty + ' \u25c8)' : e.by != null ? ': ' + cpuName(e.by) + ' took the bounty' : '')), 400);
   rapidEarnFx();
   { const idle = game.events.find((e) => e.t === 'idle' && e.player === 0); if (idle) setTimeout(() => toast('Idle: \u2212' + idle.lost + ' \u25c8', 'p1', 'passing earns nothing and costs rekon'), 120); }
   if (a.wing) {   // say what the wingman's free action did

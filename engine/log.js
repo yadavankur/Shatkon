@@ -53,7 +53,7 @@ function turnsOf(state) {
 
 export function sideNames(state, seat) {
   return state.players.map((pl, p) => {
-    if (seat === 'cpu') return p === 0 ? 'You' : 'The computer';
+    if (seat === 'cpu') return p === 0 ? 'You' : state.players.length > 2 ? 'Computer ' + p : 'The computer';
     if (seat === 0 || seat === 1) return p === seat ? 'You' : 'Your opponent';
     return 'Player ' + (p + 1);
   });
@@ -99,6 +99,7 @@ export function eventWords(e, nm, side) {
     case 'damage': return nm(e.ship) + ' took ' + plural(e.hits, 'hit') + ' on segment ' + (e.seg + 1) + ' from ' + e.cause + (e.lost.length ? ' (' + e.lost.join(', ') + ')' : '') + '; hull now ' + e.hull + '%';
     case 'hit': return nm(e.ship) + ' was hit ' + plural(e.hits, 'time') + ' on segment ' + (e.seg + 1) + (e.wrecked ? ', segment wrecked' : '') + '; hull now ' + e.hull + '%';
     case 'destroyed': return nm(e.ship) + ' (' + side(e.owner) + ') was destroyed' + (e.cause ? ' by ' + e.cause : '');
+    case 'knocked_out': return side(e.player) + ' is out: its flagship is gone and its other ships scuttled' + (e.by != null ? '. ' + side(e.by) + ' took the bounty' + (e.bounty ? ' (' + e.bounty + ' rekon)' : '') : '');
     case 'sighted': return (e.seenBy ? side(e.seenBy[0]) + ' spotted ' : 'spotted ') + (e.kind === 'ship' ? nm(e.id) : 'a ' + e.kind) + ' at ' + at(e.at) + (e.why && e.why.scanned ? ' (scan)' : e.why && e.why.lit ? ' (lit up by a blast)' : e.why && e.why.by ? ' (seen by ' + nm(e.why.by) + ' at range ' + e.why.d + ')' : '');
     case 'lost': return (e.seenBy ? side(e.seenBy[0]) + ' lost sight of ' : 'lost sight of ') + nm(e.id);
     case 'launch': return 'a ' + e.kind + ' (' + e.obj + ') is away';
@@ -247,7 +248,8 @@ function rapidLog(state, log, full, viewer, side, nm) {
       const prev = s;
       s = rapidTick(s, k.acts.map(parse));
       const evs = s.events.filter(visible).map((e) => ({ ...clean(e), say: eventWords(e, nm, side) })).filter((e) => e.say);
-      for (const p of [0, 1]) {
+      const SIDES = s.players.map((_, i) => i), lastP = SIDES.length - 1;   // 2 sides, or 3
+      for (const p of SIDES) {
         const mine = full || p === viewer;
         const t0 = k.acts[p].split('+');
         const rec = mine ? { text: k.acts[p], say: k.acts[p] === 'pass' ? 'passed' : t0.map((x) => actionWords(prev, s, x, nm)).join(', and its wingman ') } : {};
@@ -256,13 +258,13 @@ function rapidLog(state, log, full, viewer, side, nm) {
         // where every ship is: every 10th tick, the tick a ship is lost, and the last tick
         // (a full copy every tick made a 120-tick log almost 1 MB)
         const lost = s.events.some((e) => e.t === 'destroyed' || e.t === 'converted');
-        if (p === 1 && (k.round % 10 === 1 || lost || k === ticks[ticks.length - 1])) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
+        if (p === lastP && (k.round % 10 === 1 || lost || k === ticks[ticks.length - 1])) { const seen = full ? null : visibleTo(s, viewer); t.ships = snapshot(s, (x) => full || x.owner === viewer || (seen.has(x.id) && !x.dead)); }
         log.turns.push(t);
       }
     }
   } catch (e) {
     log.note = 'Rapid mode: the replay did not match this game (' + e.message + '), so results are missing. Please report this.';
-    log.turns = ticks.flatMap((k) => [0, 1].map((p) => ({ round: k.round, player: p, side: side(p), actions: full || p === viewer ? [{ text: k.acts[p] }] : [] })));
+    log.turns = ticks.flatMap((k) => k.acts.map((_, p) => p).map((p) => ({ round: k.round, player: p, side: side(p), actions: full || p === viewer ? [{ text: k.acts[p] }] : [] })));
     log.summary = analyse(log).text;
     return log;
   }
@@ -325,7 +327,7 @@ function focusOf(log) {
   if (log.viewer !== 'all') return [log.viewer];
   if (log.seat === 'cpu') return [0];
   if (log.seat === 0 || log.seat === 1) return [log.seat];
-  return [0, 1];
+  return (log.sides || [0, 1]).map((_, i) => i);
 }
 
 export function analyse(log) {
@@ -405,7 +407,7 @@ export function analyse(log) {
   if (log.note) lines.push('Note: ' + log.note);
   lines.push('');
   lines.push('KEY MOMENTS');
-  for (const p of [0, 1]) {
+  for (const p of (log.sides || [0, 1]).map((_, i) => i)) {
     const f = moments.firstSight[p];
     if (f) lines.push('- First sighting: ' + side(p) + ' spotted ' + nm(f.id) + ' in round ' + f.round + ' at [' + f.at + '], through ' + f.how + '.');
     else if (log.viewer === 'all' || log.viewer === p) lines.push('- ' + side(p) + ' never got an exact fix on an enemy ship.');
@@ -431,7 +433,7 @@ export function analyse(log) {
     if (bad.length) { tips++; lines.push('- Shots that did not reach the target: ' + bad.slice(0, 6).map((x) => 'round ' + x.round + ' at [' + x.at + ']' + (x.blocked ? ', blocked by ' + x.by + ' at [' + x.end + ']' : ', no damage')).join('; ') + '. A mine, drone or other ship on the line of fire soaks the shot.'); }
     const took = moments.bigHits.filter((h) => h.owner === p).reduce((n, h) => n + h.hits, 0), gave = moments.bigHits.filter((h) => h.owner !== p).reduce((n, h) => n + h.hits, 0);
     if (log.viewer === 'all') lines.push('- Hits: ' + side(p) + ' dealt ' + gave + ' and took ' + took + '.');
-    const first = moments.firstSight[p], theirs = moments.firstSight[1 - p];
+    const first = moments.firstSight[p], theirs = (log.sides || [0, 1]).map((_, i) => moments.firstSight[i]).filter((f, i) => f && i !== p).sort((a, b) => a.round - b.round)[0];
     if (theirs && (!first || theirs.round < first.round)) { tips++; lines.push('- The enemy found you first (round ' + theirs.round + (first ? ', you found them in round ' + first.round : '') + '). Scans and keeping your engines quiet help you win the hide-and-seek.'); }
   }
   if (!tips) lines.push('- Nothing obvious: no thrown-away points, no ships left in view after moving, no wasted missiles.');

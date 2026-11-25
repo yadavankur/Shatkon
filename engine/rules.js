@@ -2,7 +2,7 @@
 // "rules" object the engine can use, and lists every problem it finds on the way:
 // unknown parts, overfull segments, missing couplings, budget, bad placements.
 
-import { key, add, dist, disc, inHexagon, EDGE, connected, symmetry } from './hex.js';
+import { key, add, dist, disc, inHexagon, EDGE, connected, symmetry, rotate } from './hex.js';
 
 const num = (v, d) => (typeof v === 'number' ? v : d);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -97,11 +97,14 @@ export function buildRules(world, mapFile, fleetsFile) {
 
   // ---- fleets ----
   const names = Object.keys(f).filter((k) => isObj(f[k]) && (f[k].ships || f[k].copy_of));
-  if (names.length !== 2) problems.push(`The fleets file should describe exactly 2 players; it has ${names.length}.`);
+  // 2 players, or 3 (three-player boards, 26 Nov 2026)
+  if (names.length !== 2 && names.length !== 3) problems.push(`The fleets file should describe 2 or 3 players; it has ${names.length}.`);
   for (const name of names) {
-    let src = f[name], mirrorShips = false, mirrorDeploy = false;
+    let src = f[name], mirrorShips = false, mirrorDeploy = false, turnK = 0;
     if (src.copy_of) {
       mirrorShips = src.mirror_ships === true; mirrorDeploy = src.mirror_deployment === true;
+      // turn: 120 or 240 (degrees clockwise): the copy's hulls and starting spots turned round the centre
+      if (typeof src.turn === 'number') { if (src.turn % 60) problems.push(`${name}: turn must be a multiple of 60 degrees.`); else turnK = src.turn / 60; }
       const from = f[src.copy_of];
       if (!isObj(from) || !from.ships) { problems.push(`${name}: copy_of "${src.copy_of}" does not point at a player with ships.`); continue; }
       src = from;
@@ -128,7 +131,7 @@ export function buildRules(world, mapFile, fleetsFile) {
           if (p.launches) launchers++;
           holds += num(p.holds, 0);
         }
-        ship.segs.push({ off: mirrorShips ? neg(hx.at) : hx.at.slice(), parts: list });
+        ship.segs.push({ off: turnK ? rotate(hx.at, turnK) : mirrorShips ? neg(hx.at) : hx.at.slice(), parts: list });
         ship.cost += rules.seg.cost;
       }
       const n = ship.segs.length;
@@ -168,7 +171,7 @@ export function buildRules(world, mapFile, fleetsFile) {
       if (typeof d.ship === 'string' && Array.isArray(d.at)) {
         const ship = fleet.ships.find((s) => s.name === d.ship);
         if (!ship) { problems.push(`${name}: deployment mentions unknown ship "${d.ship}".`); continue; }
-        const at = mirrorDeploy ? neg(d.at) : d.at.slice();
+        const at = turnK ? rotate(d.at, turnK) : mirrorDeploy ? neg(d.at) : d.at.slice();
         fleet.deployment.push({ ship: ship.name, at });
         for (const sg of ship.segs) {
           const c = add(at, sg.off), k = key(c);
@@ -181,7 +184,7 @@ export function buildRules(world, mapFile, fleetsFile) {
       } else {
         const kind = Object.keys(d).find((k) => munitions[k] && Array.isArray(d[k]));
         if (!kind) { problems.push(`${name}: cannot read deployment entry ${JSON.stringify(d)}.`); continue; }
-        const at = mirrorDeploy ? neg(d[kind]) : d[kind].slice();
+        const at = turnK ? rotate(d[kind], turnK) : mirrorDeploy ? neg(d[kind]) : d[kind].slice();
         fleet.deployment.push({ munition: kind, at });
         fleet.cost += munitions[kind].cost; counts[kind] = (counts[kind] || 0) + 1;
         if (!inHexagon(at, R)) problems.push(`${name}: ${kind} at [${at}] is off the board.`);
