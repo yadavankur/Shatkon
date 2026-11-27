@@ -8,6 +8,12 @@
 - **Move-marker polish** — the mint `#6dffc0` is off the palette, and the chips may need to be larger on a phone now the board is bigger.
 - **Handoff ownership table** — still no row for the controls work, and it still names old branches. Ankur to say how it should read (BACKLOG.md).
 
+## Latest (27 Nov, Muse): new AI personality "muse" ready for review (branch `muse-ai-1`, PR open)
+- A second Vs-computer opponent, written from scratch in `engine/ai-muse.js`: it hunts the biggest enemy ship it can see, closes to point-blank range and spends everything trying to kill it. Select it in battle settings ("Computer opponent": Random / Muse, the hunter) or pin `ai.vs_computer: muse` in a board file. The default game is unchanged — Muse is not in `ai.personalities`, so the `random` pool is untouched.
+- Measured against the stock computer over 200 games (10 a board per seat, seeds 1–10, `node tools/muse-vs-opus.mjs`): **99–100, 1 draw** overall, but board-dependent — Pawn Storm 20–0, King's Guard 15–5, Beacon Hill 14–6, Minefield 3–16, Missile Alley 5–15. Full table, sample game codes and limitations in `docs/design/muse-ai.md`.
+- The harness caught a real bug (The Dogleg drew 20/20 to the round limit: straight-line scoring stalled at a canyon bend) — fixed with path-aware BFS movement, with a regression test.
+- Full test suite green (340 pass, 0 fail), including 11 new tests in `tests/muse-ai.test.js`. PR open for Ankur to review and merge — only Ankur merges. — Muse
+
 ## Latest (26 Nov early morning, gamedev chat): three players, experimental (merged, build #74)
 - Play → Experiments → **Three players: edges** (`play.html?board=three_edges`) or **Three players: corners** (`three_corners`). You and two computers, free for all, Frontier rules (rekon on), on the clock.
 - Each fleet: Throne (7-hex flagship), Warden (3), Lancer (2), five scouts. Player 2 and 3 are player 1's fleet turned 120 and 240 degrees (`copy_of` + `turn:` in the board file).

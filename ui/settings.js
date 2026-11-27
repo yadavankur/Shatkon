@@ -14,6 +14,9 @@ export const SETTINGS = [
   { key: 'ff', label: 'Friendly fire', options: [
     ['warn', 'Warn me', 'If a laser shot would hit your own mine, missile or drone, the board traces the beam and asks again.'],
     ['free', 'Just fire', 'Shots go as aimed, no question. Your own mines and missiles in the way still take the hit.']] },
+  { key: 'opponent', label: 'Computer opponent', options: [
+    ['random', 'Random', 'The computer plays one of the three personalities — aggressive, balanced or defensive — picked fresh each game.'],
+    ['muse', 'Muse, the hunter', 'A different computer, written from scratch: it hunts your flagship, closes to point-blank range and takes risks the others will not.']] },
 ];
 // Rapid mode (rules/rapid/rapid_opus.yaml, engine/rapid.js): its own sheet. A row with `range`
 // is a slider; the others are buttons. The first option (or `def`) is the default.
@@ -159,11 +162,12 @@ export function econOptions() {
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
 // landing page and the play screen can use it.
 // rapid: false (battle settings), true (rapid mode) or 'econ' (rapid mode with the economy rows first).
-export function settingsForm(onChange, rapid = false) {
+export function settingsForm(onChange, rapid = false, cpu = true) {
+  // cpu false (same phone, open board): no computer, so no 'Computer opponent' row
   const box = document.createElement('div');
   box.className = 'bs-form';
   // the Lab has its own line and no clock
-  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'three' ? [[THREE_SETTINGS, TSTORE], [ECON_SETTINGS.filter((d) => d.key !== 'economy'), ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'unlock'].includes(d.key)), RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'three' ? [[THREE_SETTINGS, TSTORE], [ECON_SETTINGS.filter((d) => d.key !== 'economy'), ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'unlock'].includes(d.key)), RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS.filter((d) => cpu || d.key !== 'opponent'), rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);
