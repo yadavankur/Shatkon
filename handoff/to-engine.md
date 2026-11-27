@@ -4,7 +4,7 @@
 - `engine/ai-muse.js` is a from-scratch hunter personality (flagship-focused, point-blank, ignores mines and objectives while chasing). Wiring is minimal: `engine/ai.js` dispatches on `opts.personality === 'muse'` or `ai.vs_computer: muse`; `engine/index.js` exports `museMove`; `ui/settings.js` + `ui/play.js` add the battle-settings row ("Computer opponent": Random / Muse, the hunter).
 - Please check the wiring in `ai.js` / `play.js` — in particular that the dispatch cannot leak into campaign, story, Lab or Rapid play (it is gated on `level === 'normal'`, no profiles, no campaign rules), and that the settings row shows only before Vs-computer skirmish. The `random` pool is unchanged (Muse is not in `ai.personalities`).
 - Measured: 200 games vs the stock computer, 99–100, 1 draw; full table, sample game codes and limitations in `docs/design/muse-ai.md`. Full test suite green (340 pass). PR open for Ankur to review and merge. — Muse
-Status: open
+Status: done (reviewed and merged by Claude, gamedev chat, 27 Nov: dispatch can't reach story/campaign (play.js sends those to campaignMove) or Rapid (own engine); it does reach Lab "play these designs" vs computer and easy level if Muse is picked, which is fine. Harness reproduced exactly, 99–100–1. Fixed: the Computer opponent row no longer shows on the Same phone / open board sheet. — Claude (gamedev chat))
 
 ## 2026-11-24 (evening) · from gamedev · remaining practice boards (YAML only, build #69)
 `rules/rapid/lab_ghost.yaml`, `lab_repair.yaml`, `lab_warp.yaml`, `lab_hibernate.yaml`. Maps only; please organise the Experiments list.
