@@ -21,6 +21,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { loadBoard, boardNames } from './boards.mjs';
 import * as H from '../engine/hex.js';
 
@@ -30,9 +31,9 @@ const PICK = Number(opt('pick', 12)), SAMPLES = Number(opt('samples', 200000)), 
 const FILTER = opt('filter', 'apart'), EXACT_CAP = 5e6;
 const boards = opt('board') ? [opt('board')] : boardNames();
 
-function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+export function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 
-function sideSetup(rules, p) {
+export function sideSetup(rules, p) {
   const R = rules.board.radius, fleet = rules.fleets[p];
   const zone = rules.zones.find((z) => z.name.indexOf(fleet.name) === 0);
   const blocked = new Set();
@@ -58,7 +59,7 @@ function sideSetup(rules, p) {
 }
 
 const NB = (k) => { const c = H.unkey(k); return H.DIRS.map((d) => H.key(H.add(c, d))); };
-function fits(placed, cand, filter, isFlag) {
+export function fits(placed, cand, filter, isFlag) {
   if (filter === 'apart+back' && isFlag && cand.front) return false;
   for (const k of cand.keys) {
     if (placed.has(k)) return false;
@@ -68,7 +69,7 @@ function fits(placed, cand, filter, isFlag) {
 }
 
 // exact count, stopping at EXACT_CAP
-function countExact(list, filter) {
+export function countExact(list, filter) {
   let n = 0, capped = false;
   const placed = new Set();
   const go = (i, minIdx) => {
@@ -88,7 +89,7 @@ function countExact(list, filter) {
   return { n, exact: !capped };
 }
 // estimate: share of fully random choices that pass, times all combinations, over the copies' orderings
-function countEstimate(list, filter, rand) {
+export function countEstimate(list, filter, rand) {
   let hit = 0;
   for (let t = 0; t < SAMPLES; t++) {
     const placed = new Set(); let good = true;
@@ -104,7 +105,7 @@ function countEstimate(list, filter, rand) {
   return { n: hit ? combos * hit / SAMPLES / dup : 0, hits: hit, upper: combos / dup };
 }
 // one random layout that passes the filter (random order, backtracking), or null
-function randomLayout(list, filter, rand) {
+export function randomLayout(list, filter, rand) {
   const placed = new Set(), out = [];
   let steps = 0;
   const go = (i) => {
@@ -124,7 +125,7 @@ function randomLayout(list, filter, rand) {
   return go(0) ? out.slice() : null;
 }
 // distance between two layouts: the same ship's spots, flagship x3; copies matched in the cheaper order (greedy)
-function layoutDist(list, a, b) {
+export function layoutDist(list, a, b) {
   let d = 0;
   for (let i = 0; i < list.length;) {
     let j = i + 1; while (j < list.length && list[j].sameAsPrev) j++;
@@ -140,7 +141,7 @@ function layoutDist(list, a, b) {
   return d;
 }
 
-function pickSpread(list, filter, rand) {
+export function pickSpread(list, filter, rand, pick = PICK) {
   const own = list.map((s) => s.own);
   const pool = []; const seen = new Set([JSON.stringify(own)]);
   for (let t = 0; t < 3000 && pool.length < 1500; t++) {
@@ -148,7 +149,7 @@ function pickSpread(list, filter, rand) {
     const k = JSON.stringify(L); if (!seen.has(k)) { seen.add(k); pool.push(L); }
   }
   const picked = [own];
-  while (picked.length < PICK && pool.length) {
+  while (picked.length < pick && pool.length) {
     let bi = -1, bv = -1;
     pool.forEach((L, i) => { const v = Math.min(...picked.map((P) => layoutDist(list, L, P))); if (v > bv) { bv = v; bi = i; } });
     picked.push(pool.splice(bi, 1)[0]);
@@ -166,6 +167,8 @@ function pickSpread(list, filter, rand) {
 const fmt = (c) => (c.exact ? String(c.n) : c.n === 0 ? `0 of ${SAMPLES} samples (upper bound ${sci(c.upper)})` : '~' + sci(c.n));
 function sci(x) { if (x < 1e4) return String(Math.round(x)); const e = Math.floor(Math.log10(x)); return (x / 10 ** e).toFixed(1) + 'e' + e; }
 
+// run as a command (not when another tool imports the counting functions)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 const rows = [], jsonOut = {};
 for (const b of boards) {
   const { rules, problems } = loadBoard(b);
@@ -200,4 +203,5 @@ if (opt('md')) {
   const line = (r) => `| ${r.board} | ${r.side} | ${r.ships} | ${r.zone} | ${fmt(r.counts.legal)} | ${fmt(r.counts.apart)} | ${fmt(r.counts['apart+back'])} | ${r.flagCand} (${r.flagBack}) | ${r.ownApart ? 'yes' : 'no'} | ${r.flagSpots} of ${r.picked.length} |`;
   const md = `| Board | Side | Ships | Home zone | Legal | Apart | Apart + flagship back | Flagship spots (off front row) | Today's start is apart | Flagship spots in the 12 picks |\n|---|---|---|---|---|---|---|---|---|---|\n` + rows.map(line).join('\n') + '\n';
   fs.writeFileSync(opt('md') + '.table', md);
+}
 }
