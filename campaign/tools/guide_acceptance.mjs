@@ -148,7 +148,9 @@ const r1 = rulesFor('ch1');
   const { g } = play(r2, 1);
   const rep = events(g, 'guide_clear').filter((e) => e.why === 'replaced');
   const after = events(g, 'guide').filter((e) => e.id === 'b_dead');
-  check(13, 'replacement: a second guide for Kestrel replaces the first (guide_clear why: replaced)', rep.length === 1 && rep[0].id === 'a_dead' && after.length > 0, `cleared ${rep.map((e) => e.id + ':' + e.why)}`);
+  // The opening "Hold between the lanes" guide is also replaced when a_dead starts; what this
+  // test cares about is a_dead's finish guide being replaced by b_dead's.
+  check(13, 'replacement: a second guide for Kestrel replaces the first (guide_clear why: replaced)', rep.some((e) => e.id === 'a_dead') && after.length > 0, `cleared ${rep.map((e) => e.id + ':' + e.why)}`);
 }
 // ---------------------------------------------------------------- forced fallbacks with the new options
 {

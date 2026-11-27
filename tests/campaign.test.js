@@ -622,3 +622,21 @@ test('takeChapterWin does nothing if they can still hurt you', () => {
   takeChapterWin(g);
   assert.equal(g.phase, 'play');
 });
+
+test('cannotLose: a second enemy that can still shoot blocks the win, even if the flagship is a sitting duck', () => {
+  const g = start(load(chapter({
+    enemy: { ships: ['seed', 'tern'], deployment: [{ ship: 'seed', at: [0, -7] }, { ship: 'tern', at: [2, -6] }] },
+  })), 3);
+  clearHazards(g);
+  const off = (s) => {
+    for (const sg of s.segs) for (const p of sg.parts) {
+      if (['engine', 'laser', 'launcher'].includes(p.t) && !g.rules.parts[p.t].required) p.off = true;
+    }
+  };
+  off(ship(g, 'seed'));
+  const escort = g.ships.find((s) => s.owner === 1 && !s.flagship);
+  assert.ok(escort, 'the chapter loaded an escort');
+  assert.equal(cannotLose(g, 0), false, 'the escort still has a laser');
+  off(escort);
+  assert.equal(cannotLose(g, 0), true, 'once every gun is gone, Rule B holds');
+});
