@@ -8,6 +8,12 @@
 - **Move-marker polish** — the mint `#6dffc0` is off the palette, and the chips may need to be larger on a phone now the board is bigger.
 - **Handoff ownership table** — still no row for the controls work, and it still names old branches. Ankur to say how it should read (BACKLOG.md).
 
+## Latest (28 Nov, gamedev chat): free castle (build #83)
+- Once, before its first action, a side may secretly move its flagship anywhere legal in its home zone (a ship in the way swaps). Free and secret. Refused once the enemy has seen the flagship. Turn-based: an action in round 1. Rapid: rides with the first tick. Design and balance table: `docs/design/castle.md`.
+- On/off: world file `modes:` master defaults (skirmish on, rapid on, story off, experiments off). A board can set `map: castle: true|false`.
+- Board check, castling off → on (P1 fleet wins of 40): Minefield 12→16, Dogleg 14→21, King's Guard 24→11, Missile Alley 4→10, Gambit 23→18; all ten in 10–30.
+- Can't castle at the start (flagship already in enemy view): First Light both sides; P2 on Minefield, Pawn Storm, Fog Bank. — Claude (gamedev chat)
+
 ## Latest (28 Nov, gamedev chat): secret starts, step 1, counting only (no game code)
 - Ankur: fixed, public starts make the enemy easy to find. Before building secret numbered starts, `tools/starts.mjs` counted the legal starting layouts per side, per board, and picked 12 spread-out ones (`docs/design/starts/*.json`). Write-up with the full table and the rerun command: `docs/design/secret-starts-count.md`.
 - No side has only a dozen: First Light's 2 ships already have 201 legal layouts, and the big fleets have millions or more. The flagship is the real secret: it fits in only 8 to 21 spots in a depth-3 zone. On Dogleg, Missile Alley (P1) and Fog Bank (P2) it can't stay off the front row. Only 4 of the 10 boards are exact mirrors, but all ten have one fixed start.

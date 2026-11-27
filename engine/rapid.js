@@ -26,6 +26,8 @@ import { limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
 import { reach, beamTargets, launchOptions, aimLaunch, shipStatus } from './query.js';
 import { begin } from './turn.js';
+import { doCastle, castleRefusal } from './castle.js';
+import { aiCastle } from './ai.js';
 import { newGame } from './state.js';
 import { dist, step, HOME_POINT } from './hex.js';
 import { econAI, pickStyles } from './econai.js';
@@ -39,8 +41,10 @@ export { homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scan
 
 // A tick's action as text, and back: a shot with a wingman shot or move is "<fire>+<fire>" or "<fire>+<move>".
 // A move that converts the ship is "<move>~scanner" or "<move>~mine".
-export const tickText = (a) => (!a || a.type === 'pass' ? 'pass' : a.type === 'ram' ? 'r:' + a.ship + '.' + a.target : a.type === 'decoy' ? 'd:' + a.ship + '.' + a.at.join(',') : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + (a.at ? '.' + a.at.join(',') : a.kind ? '.' + a.kind : '') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
+// The first tick's action may carry a free castle: "c:<q>,<r>|<action>" (engine/castle.js).
+export const tickText = (a) => (a && a.castle ? 'c:' + a.castle.join(',') + '|' + tickText({ ...a, castle: undefined }) : null) || (!a || a.type === 'pass' ? 'pass' : a.type === 'ram' ? 'r:' + a.ship + '.' + a.target : a.type === 'decoy' ? 'd:' + a.ship + '.' + a.at.join(',') : a.type === 'buy' ? 'b:' + a.item + (a.ship ? '.' + a.ship + (a.at ? '.' + a.at.join(',') : a.kind ? '.' + a.kind : '') : '') : actionText(a) + (a.wing ? '+' + actionText(a.wing) : '') + (a.convert ? '~' + a.convert : ''));
 export function parseTick(t) {
+  if (/^c:/.test(t)) { const i = t.indexOf('|'); return { ...parseTick(t.slice(i + 1)), castle: t.slice(2, i).split(',').map(Number) }; }
   if (t === 'pass') return { type: 'pass' };
   if (/^r:/.test(t)) { const [ship, target] = t.slice(2).split('.'); return { type: 'ram', ship, target }; }   // experiment: ram
   if (/^d:/.test(t)) { const [ship, at] = t.slice(2).split('.'); return { type: 'decoy', ship, at: at.split(',').map(Number) }; }   // experiment: decoy
@@ -255,6 +259,12 @@ export function passAllowed(state, p) {
 // Would this action be accepted for side p right now? (null when fine, else the reason)
 export function rapidRefusal(state, p, a) {
   if (state.phase !== 'play') return 'the game is over';
+  if (a && a.castle) {   // the free castle happens first; the rest of the action is judged from the new spot
+    const why = castleRefusal(state, p, a.castle);
+    if (why) return why;
+    const s = copy(state); doCastle(s, p, a.castle); state = s;
+    a = { ...a }; delete a.castle;
+  }
   if (isOut(state, p)) return !a || a.type === 'pass' || a.type === 'end' ? null : 'that side is out of the game';
   if (!a || a.type === 'pass' || a.type === 'end') return passAllowed(state, p) ? null : 'you must act: move a ship forward, fire or launch. Passing is allowed once one of your ships is past the line';
   if (a.type === 'buy') return buyRefusal(state, p, a);   // economy mode: buying is the tick's action
@@ -290,6 +300,8 @@ export function rapidTick(state, acts) {
   const s = copy(state);
   s.events = []; s.flight = null;
   const texts = acts.map((a) => tickText(a));   // what each side chose, even if the game ends before it happens
+  // the free castle (first tick only): both sides at once, before anything else
+  for (const p of SIDES) if (acts[p] && acts[p].castle) doCastle(s, p, acts[p].castle);
   const start = new Map(s.ships.map((x) => [x.id, x.pos.join()]));
   // 0. purchases (economy mode): paid before anything else, so this tick's earnings can't pay for them
   for (const p of SIDES) if (acts[p] && acts[p].type === 'buy') doBuy(s, p, acts[p]);
@@ -450,6 +462,9 @@ export function autoLaunch(state, p, shipId, kind, mode = 'best') {
 // finds and otherwise advances at random.
 export function rapidAI(state, p = 1, level = 'normal', rnd = Math.random) {
   if (isOut(state, p)) return { type: 'pass' };
+  // the free castle (first tick): pick a spot, then choose the tick's action from there
+  const castle = aiCastle(state, p, level);
+  if (castle) { const s = copy(state); doCastle(s, p, castle.at); return { ...rapidAI(s, p, level, rnd), castle: castle.at }; }
   const a = labAI(state, p, econAI(state, p, chooseAI(state, p, level, rnd), rnd), rnd);   // economy mode: its style may buy or reroute
   // a scout that reaches the line goes silent: a scanner buoy if the side has none, a mine if an enemy is close
   // (a computer eager to ram keeps its scouts as rams: it doesn't turn them into buoys or mines)

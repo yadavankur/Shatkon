@@ -485,10 +485,15 @@ test('boom earns more from new ground than rush, and buys only upgrades', () => 
 });
 
 test('turtle buys turrets and heatmaps, never passes while it can move', () => {
-  const { g, buys } = cpuGame('turtle', 'rush', 80);
-  const items = new Set(buys[0].map((b) => b.item));
+  // over a few seeds (one seed alone is luck: some 80-tick games never get to a buy)
+  const items = new Set();
+  for (const seed of [31, 32, 33, 34]) {
+    const { g, buys } = cpuGame('turtle', 'rush', 80, seed);
+    buys[0].forEach((b) => items.add(b.item));
+    assert.ok(!(g.econ.spent[0].idle > 0), 'turtle paid the idle penalty (seed ' + seed + ')');
+  }
   assert.ok(items.has('heatmap') || items.has('turret'), 'turtle bought ' + [...items]);
-  assert.ok(!(g.econ.spent[0].idle > 0), 'turtle paid the idle penalty');
+  for (const it of items) assert.ok(['heatmap', 'turret'].includes(it), 'turtle bought ' + it);
 });
 
 test('a computer-v-computer Frontier game with styles replays from its log', () => {

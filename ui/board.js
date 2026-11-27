@@ -632,7 +632,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     } else if (o.mark === 'move') {
       // The centre hex of a big ship's one-step move lies under the ship itself, so a marker there says nothing.
       // Those get their chip and an arrow on the ship's outer edge, on the side it would move towards.
-      const path = o.action.path, own = mover && mover.cells.some((x) => hex.same(x, c));
+      const path = o.action.path || [], own = mover   // a castle marker has no path && mover.cells.some((x) => hex.same(x, c));
       const chosen = pending && pending.type === 'move' && pending.ship === sel && pending.path.length === path.length && pending.path.every((d, i) => d === path[i]);
       const rc = Math.min(S * 0.62, (chosen ? 14 : 12) / px), green = chosen ? '#ffffff' : '#6dffc0';
       let qx = X(c), qy = Y(c), ux = 0, uy = 0;

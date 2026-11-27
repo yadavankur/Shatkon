@@ -74,6 +74,7 @@ function namer(state) {
 function actionWords(prev, next, text, nm) {
   if (/^b:/.test(text)) { const it = text.slice(2).split('.')[0]; return 'bought ' + (BUY_WORDS[it] || it); }   // economy mode
   if (/^r:/.test(text)) { const [x, t] = text.slice(2).split('.'); return nm(x) + ' rammed ' + nm(t); }   // experiment: ram
+  if (/^c:/.test(text)) { const i = text.indexOf('|'); return 'castled the flagship to ' + text.slice(2, i) + '; ' + actionWords(prev, next, text.slice(i + 1), nm); }   // rapid: free castle with the first tick
   if (/^d:/.test(text)) { const [x, c] = text.slice(2).split('.'); return nm(x) + ' put a decoy at ' + c; }   // experiment: decoy (not "do7", a detonate)
   const a = parseAction(text), ship = a.ship && prev.ships.find((s) => s.id === a.ship);
   switch (a.type) {
@@ -85,6 +86,7 @@ function actionWords(prev, next, text, nm) {
     case 'graft': return nm(a.ship) + ' grafted onto ' + nm(a.with);
     case 'dock': return nm(a.ship) + ' docked with ' + nm(a.with);
     case 'end': return 'ended the turn';
+    case 'castle': return 'castled the flagship to ' + at(a.at);
   }
   return text;
 }
@@ -93,6 +95,7 @@ function actionWords(prev, next, text, nm) {
 export function eventWords(e, nm, side) {
   switch (e.t) {
     case 'move': return nm(e.ship) + ' moved to ' + at(e.to);
+    case 'castle': return nm(e.ship) + ' castled to ' + at(e.to) + (e.swap ? ', swapping places with ' + nm(e.swap) : '');
     case 'bump': return nm(e.ship) + ' bumped into ' + nm(e.into) + ' and stopped';
     case 'fire': return 'laser shot at ' + at(e.at) + (e.end && (e.end[0] !== e.at[0] || e.end[1] !== e.at[1]) ? ' struck something in the way at ' + at(e.end) + ' first' : '') + ': ' + (e.hits ? plural(e.hits, 'hit') : 'no damage');
     case 'enemy_fire': return nm(e.ship) + ' fired a laser' + (e.hits ? ' and hit' : '');

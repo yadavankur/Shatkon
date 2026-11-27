@@ -51,6 +51,7 @@ export function actionText(a) {
     case 'graft': return 'g' + a.ship + '.' + a.with;
     case 'dock': return 'k' + a.ship + '.' + a.with;
     case 'end': return 'e';
+    case 'castle': return 'c' + a.at.join(',');
   }
   throw new Error('unknown action type: ' + a.type);
 }
@@ -67,6 +68,7 @@ export function parseAction(text) {
     case 'g': return { type: 'graft', ship: f[0], with: f[1] };
     case 'k': return { type: 'dock', ship: f[0], with: f[1] };
     case 'e': return { type: 'end' };
+    case 'c': return { type: 'castle', at: coord(f[0]) };
   }
   throw new Error('cannot read action "' + text + '"');
 }

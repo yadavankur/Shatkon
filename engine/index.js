@@ -40,6 +40,7 @@ export { cannotLose, skipChapterGuides, takeChapterWin } from './script.js';
 export { campaignMove } from './ai.js';
 export { museMove } from './ai-muse.js';
 export { guideView } from './guide.js';
+export { castleOn, castleSpots, castleBlocked, castleRefusal, castlePick, castledCopy, modeOf } from './castle.js';
 
 // Rapid mode: one action a side per tick, both resolved together (engine/rapid.js).
 export { STYLES, styleOf, econAI } from './econai.js';

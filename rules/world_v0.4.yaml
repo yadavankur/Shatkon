@@ -430,6 +430,18 @@ terrain:
 # ------------------------------------------------------------
 #  These change how the computer plays, not what is allowed. Story chapters
 #  ignore them: their ships follow the chapter file's ai_profiles.
+# Master defaults for each kind of game. A board file can switch any of these for itself
+# (in its map: section, e.g.  castle: false). Kinds: skirmish (the ten boards, vs computer,
+# same phone, two phones), rapid (Rapid Opus, Frontier, three players), story (campaign
+# chapters), experiments (the Experiments boards).
+modes:
+  # castle: once, before its first action, a side may secretly move its flagship to any legal
+  # spot in its home zone (a ship in the way swaps into the old spot). Free; the enemy isn't told.
+  skirmish:    { castle: true }
+  rapid:       { castle: true }
+  story:       { castle: false }
+  experiments: { castle: false }
+
 ai:
   vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)
   variety:                    # so the computer does not play the same game every time (personalities only)
