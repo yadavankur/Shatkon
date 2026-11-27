@@ -1,3 +1,5 @@
+> Older done entries (14–16 Nov) are in [archive/to-maps-2026-11-14-to-16.md](archive/to-maps-2026-11-14-to-16.md). Nothing was deleted, only moved, 27 Nov 2026. Every open entry stays here, even the old ones.
+
 ## 2026-11-24 (evening) · from gamedev · Smart mine and Decoy practice boards are ready (build #68)
 - Next two items on the suggestion list, one PR: **Smart mine** (`rules/rapid/lab_stateMines.yaml`, Play → Experiments → Practice boards → Smart mine, or `play.html?board=lab_stateMines`) and **Decoy** (`rules/rapid/lab_decoy.yaml`, same list, or `play.html?board=lab_decoy`). Both use the Lab board format. Only that experiment is on. Ram stays in the same sub-list. Ghost, Hibernate, Warp are not started.
 - Smart mine — What to try: Move your healthy scout one hex (it starts past the line). On Convert to?, tap Mine — not Stay a ship. If you move the other scout, tap Stay a ship. What to look for: The scout becomes a smart mine (S). When an enemy scout comes within 3 hexes, the mine goes off and wrecks a section. Against the computer they walk in; if you play both sides, walk one of theirs one hex toward the mine.
@@ -77,42 +79,6 @@ Status: open
 - Engine side (branch `ux-clarity`): Fire mode now shows every hex a laser reaches with its hits, a red ring on move markers that a visible enemy could shoot, enemy missile paths, a round strip (You ▸ Enemy ▸ Missiles fly ▸ You again), and a pop-up before ending a turn with nothing done. No rule changes.
 Status: open
 
-## 2026-11-16 · from engine · computer plays the new pieces; post-merge review; numbers; asks for you
-- **Summary (last engine session for a while).** Did two of Ankur's four: (1) smarter computer for the new pieces, (2) post-merge review. Also ran (3) the mine rule both ways and (4) the campaign check, since both were cheap. Full write-up: `docs/design/ai-pieces.md`. Raw output: `docs/design/logs/ai-pieces/`. No board file changed.
-- **Win rates** (`boards.mjs --both --games 20`, player 1 of 40, was → now): First Light 20 → 25 · Minefield 13 → 21 · Cat and Mouse 15 → 19 · Dogleg 23 → 18 · King's Guard 19 → 11 (47 of 120 over 60 seeds) · Pawn Storm 22 → 23 · Beacon Hill 21 → 20 · Missile Alley 18 → 14 · Fog Bank 10 → 17 · Gambit 22 → 25. Games to the round limit 32 → 14 of 400. `--codes` ok on all ten. 160 tests pass; check.mjs, guide_acceptance 15/15 and engine_check pass.
-- **What the computer does now** (all switches under `ai.tricks` in the world file; a board can set one in `rules:`): keeps clear of a known mine's whole trigger ring and remembers mines; never fires across its own mines; scans as it goes once it knows you have mines; aims missiles with the flight forecast and launches only when they land the same round (16% → 42% of missiles go off); shoots a known decoy with lasers first and spends one missile on it, not a salvo; flies one Comet at a time and keeps scouts near its guns; holds drones until the enemy is 12 hexes off; works round a rock for a shot.
-- **Engine fixes players will notice:** a mine's last-seen mark stays on the board when you come near it (it used to vanish); a laser no longer stops on a Comet it cannot hit (a Comet on the line was an unbreakable shield); the battle log has words for Comets, sleepers and decoys.
-- **Asks (your boards, your call):**
-  - **Cat and Mouse:** the Hounds move 1 hex a turn. The fleet has 8 engines for 9 segments (Comets do not count), so the cap is 1. That is why games run long. One more engine (I tried `[core, sensor, engine]` on Bloodhound) gives 2 hexes a turn: still 19 of 40, 19 rounds instead of 24, 5 to the round limit instead of 7.
-  - **Beacon Hill:** decided by who moves first, 32 of 40 (98 of 120). As written the person moves first and wins 16 of 20. Six one-hex boats a side means the first shot wins. Something that breaks the symmetry of the opening would help; or ask Ankur about a rule that picks the first player from the game's seed.
-  - **Pawn Storm** as written is 16-4 for player 1 (7-13 swapped). The skiffs now get missiles that land.
-  - **King's Guard** leans to the second mover (67 against 38 of 120).
-  - **The Gambit:** half of all missiles are still lured (42 of 85). The computer only avoids a decoy once it knows which ship it is.
-- **Mine rule (Ankur's decision, not applied):** contact and proximity mines with `beams_pass` like sleepers. 80 games a row: Minefield 34 → 26 of 80 for player 1, Fog Bank 36 → 35. Proximity mines shot away on The Minefield 93 → 28. If Ankur says yes, The Minefield gets about 4 of 40 harder for the person.
-- **Left undone:** the Comet "fly past and out again" path and the death flash on purpose (King's Guard pass_reveal fell 128 → 8: Comets live longer but do less); a sweeper leading the fleet (built, changed no computer-v-computer game, removed).
-Status: done (maps 2026-11-16: reviewed your seven commits: 160 tests, check.mjs, guide_acceptance 15/15, engine_check pass; play.html, boards.html, docs/ and three ?board= pages load in Chrome with no console errors. Boards: Cat and Mouse Tom swaps sensor for engine (Hounds 2 a turn, 17-19 rounds, 21 of 40); Pawn Storm radius 12 + core laser on the Leviathan (21 v 20 by seat over 80); Beacon Hill radius 9, ships 2 rows back (first mover 98 → 64 of 120; it was the missile salvo, not the beacon, so no seed rule needed); King's Guard left (47 of 120). Details in docs/design/maps-rework.md.)
-
-## 2026-11-16 · from engine · maps-rework reviewed: what I built, what I changed, new win rates
-- Branch `maps-rework-engine` (from `maps-rework` 03b3fc1 + main), PR #28 to main. Full write-up with every command: `beta/docs/maps-rework-engine.md`. Raw output: `beta/docs/logs/maps-rework-engine/`. 148 tests pass; all ten boards load and pass `--codes`.
-- **Lopsided mirrors: it was the computer's tie-breaking, as you thought, plus an engine bug.** King's Guard turned 12 ways gave 10-0 or 0-10 by facing alone. A seeded tie-break took it from 40 to 20 of 40 and The Dogleg from 2 to 18. Also: 2% to 7% of sight lines were not the same as their mirror image (a line along a rock edge always fell the same way). Fixed (`hex.sightLine`). Now: First Light 20, Dogleg 23, King's Guard 19, Beacon Hill 21 of 40.
-- **Built as asked:** `reveals_on_pass`, `burn_turns`/`burnt_move`, `max_per_fleet`, `holds_objective: false` (also on the courier's sprint drive; such a ship does not contest either), `scan_resist`, `wrecks_segments` + `ignores_shields`, `drift`/`drift_sense`/`prefers`, the `emitter` part, and the AI list: real home edge, drones, shoots mines it sees, unarmed escorts as bait, seeded variety and opening lanes.
-- **Changed from your spec, on purpose:** (1) the mine's second segment is the nearest one that is *not* the core's, so one mine cannot sink a three-hex flagship from the end; (2) a mine that creeps and does not go off gives its target a faint contact (`drift_quiet: false`), otherwise there is no turn to react; (3) a scan gives no faint contact on a sleeper beyond 2 hexes either.
-- **Rejected:** mine-baiting as a default for the computer. It stalls against a player who also waits (two existing tests failed). It is `ai.tricks.mines_as_bait_rounds`, 0 in the world file.
-- **I touched your board files, as little as I could. Please check and keep or undo:**
-  - 02, 03, 05, 09: removed the board-level `bay_parts.afterburner` / `munitions.sleeper_mine` lines. Both parts (and `emitter`) are now in `world_v0.4.yaml` with the new numbers; a board copy would hide them.
-  - 03 Cat and Mouse: **Comet 3 removed** (the cap of 2 a fleet; correction from maps: that cap was maps' suggestion, not Ankur's). The "never spend all three" lesson needs rewording; the cat may need something back (18 of 40 now).
-  - 10 The Gambit: the three Lures carry `emitter`.
-  - 02 and 09: `ai.tricks.mines_as_bait_rounds: 8`.
-- **Bug that was hiding your mines:** any laser crossing a mine's hex destroyed it unseen, mostly the layer's own guns (37 sleepers swept against 7 that went off, in 20 games). Sleepers now have `beams_pass: true`. Contact and proximity mines still have it (world rule; Ankur to decide).
-- **Asks for you (your boards, your call):**
-  - **Pawn Storm:** all six skiffs start 6 hexes from the Leviathan with a clear line (42 shots on turn 1), and the Leviathan's centre can only ever reach 7 hexes. It was 20-0 / 0-20 by who moved first. Start the skiffs out of sight; say on the board if the cage is meant.
-  - **Missile Alley:** 3 of 40 for the missile fleet once the computer stops replaying one game. Partly the computer's missile-boat flying. Please play it by hand.
-  - **Pawn Storm, Fog Bank:** a very deep home zone also changes scan strength (it goes by rows from the home edge).
-  - **maps-rework.md** still says three Comets and describes the mine and scout as asks.
-- **New win rates** (`node tools/boards.mjs --both --games 20`, player 1's fleet of 40, was → now): 1 First Light 20 → 20 · 2 Minefield 16 → 13 · 3 Cat and Mouse 15 → 18 · 4 Dogleg 2 → 23 · 5 King's Guard 40 → 19 · 6 Pawn Storm 20 → 10 · 7 Beacon Hill 23 → 21 · 8 Missile Alley 25 → 3 · 9 Fog Bank 11 → 10 · 10 Gambit 13 → 22. Under about 6 of 40 is noise. Switch-by-switch table in the doc: drift is what makes the mine bite (Minefield 22 without it, 13 with); the emitter works through its signature (plain Lure 13, emitter 22), not by drawing missiles.
-- New tool options: `--both`, `--turned`, `--events`, `--set path=value`.
-Status: done (maps 2026-11-16: Pawn Storm rebuilt, Missile Alley retuned, Cat and Mouse third Comet back via board override, maps-rework.md updated; PR #28 merged)
-
 ## 2026-11-15 · from engine (for Ankur) · Playtest fixes made in beta/campaign: please take them over
 - Ankur playtested ch1 and asked for these. They were made directly in `beta/` on branch `feature-campaign-fixes`, so **port them to your branch** or the next beta refresh will undo them.
 - **ch1 deployment:** escorts now hold row 1 (wren [-2,1], finch [-1,1], kite [0,1]), Kestrel [-2,4], Seed [1,-6]. They start 7 hexes from the Seed instead of 10, so the hurl is a short run. engine_check 40 games: 40 wins, 5 to 7 rounds (was 9), every beat natural, no fallback.
@@ -134,22 +100,6 @@ Status: open
 - Overlay off switch for §11 test 10: open `play.html?guides=off`, or set localStorage `shatkon.guides` (`shatkon.beta.guides` on /beta/) to `off`. Add it to `--guide-ui` if you want test 10 automated.
 - "Should the AI move to get a shot when every shot is blocked?" Parked for now (low priority); your `twin_a_adrift` fix covers ch3.
 Status: open
-
-## 2026-11-14 · from engine · v2 final merged, guides checked
-- campaign-v2 (91a512f) is merged into campaign-engine (781a5a1) and on /beta/. check.mjs passes; engine_check 40 games: every chapter finishes, no script_unknown.
-- Guides run in ch1 (`crippled`), ch2 and ch4A (`rails`, `gift`), with no errors from `guideView`.
-- One engine change from your data: `move_to: { zone }` now offers anchors where **any cell** of the ship is in the zone (same rule as `reached`). Before, the 3-hex Kestrel couldn't fit the ch4A outpost ring and showed as blocked.
-- ch3: 6 of 40 games run to round 21 (the rest end at 8). Worth a look if that's not the doom fallback you meant.
-- Next for you: remove the `objective:` lines on guided beats (the banner is already hidden while a guide is up) and any workarounds for the fixed gaps (1–6, 8). Branch from campaign-engine and push as campaign-v3.
-Status: done (campaign-v3 b83263a)
-
-## 2026-11-14 · from engine · Gaps fixed, guides live
-- MANIFEST gaps 1–6, 8, 9 are fixed on campaign-engine (8c9d910). Gap 7 needs nothing. You can remove the workarounds.
-  - New options: `ram: { ..., seg: n }`, `orders: { ..., append: true }`, `lock: { ..., reason: "..." }`, world `munitions.mine.strikes`.
-- GUIDE_PROPOSAL.md is implemented as written. Please add the `guide:` data to ch1, ch2 and ch4A, and remove the `objective:` lines on guided beats (the banner is hidden while a guide is up anyway).
-- Check it with: `node campaign/tools/engine_check.mjs --engine . --games 40`, and `guideView(state, 0)` from engine/index.js for the acceptance tests in §11.
-- Branch from campaign-engine (it has everything) and push as campaign-v3.
-Status: done (guide data landed in campaign-v2 91a512f)
 
 ## 20 Nov, from gamedev chat: skirmishes now default to a fixed turn order
 - The new battle settings sheet (before every skirmish) defaults to **Fixed** turn order (Ankur approved 19 Nov in "Fable's double tap delay fix"); players can still pick "Swap each round". The world file still says `first_player: alternate`, so `tools/boards.mjs` sims run the old way unless you pass `--set first_player=fixed` (or however your tool sets it).

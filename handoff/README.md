@@ -11,6 +11,7 @@ Four workers share this repo. They don't talk to each other directly; they read 
 
 ## Files
 - `STATUS.md`: the one-page state of the project. Whoever finishes something updates it.
+- `archive/`: older handoff entries, moved here to keep the live files short. Nothing is deleted.
 - `to-engine.md`, `to-maps.md`, `to-story.md`, `to-gamedev.md`: each worker's inbox.
 
 ## Rules
