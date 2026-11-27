@@ -10,6 +10,7 @@ import { scoreObjective, markObjective, limitWinner } from './objective.js';
 import { hashState, actionText } from './codec.js';
 import { reach } from './query.js';
 import { afterAction, onTurnStart, checkLocked, doJoin } from './script.js';
+import { doCastle } from './castle.js';
 
 export function startTurn(state) {
   const p = current(state), pl = state.players[p], R = state.rules;
@@ -82,7 +83,7 @@ const DO = { move: doMove, fire: doFire, launch: doLaunch, scan: doScan, detonat
 
 export function apply(state, action) {
   if (state.phase !== 'play') no('the game is over');
-  if (!action || (action.type !== 'end' && !DO[action.type])) no('unknown action');
+  if (!action || (action.type !== 'end' && action.type !== 'castle' && !DO[action.type])) no('unknown action');
   const { rules, ...rest } = state;
   const s = structuredClone(rest);
   s.rules = rules;
@@ -90,9 +91,11 @@ export function apply(state, action) {
   s.flight = null;   // the flight replay, filled in by the flight phase
   const rec = { round: s.round, player: current(s), pre: s.pre };
   if (s.script) checkLocked(s, action);
-  if (rules.move.minMove && action.type !== 'move' && moveOwed(s) > 0 && (action.type === 'end' || s.players[current(s)].cp - (rules.cost[action.type] || 0) < rules.cost.move))
+  // free castle (engine/castle.js): costs nothing, only before the side's first action
+  if (action.type === 'castle') doCastle(s, current(s), action.at);
+  if (rules.move.minMove && action.type !== 'move' && action.type !== 'castle' && moveOwed(s) > 0 && (action.type === 'end' || s.players[current(s)].cp - (rules.cost[action.type] || 0) < rules.cost.move))
     no('your fleet must move first: the rules make every fleet move each turn');
-  if (action.type !== 'end') DO[action.type](s, action);
+  if (action.type !== 'end' && action.type !== 'castle') DO[action.type](s, action);
   s.pending.push(actionText(action));
   refreshSight(s);
   if (s.script && action.type !== 'end') afterAction(s);

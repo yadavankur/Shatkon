@@ -57,7 +57,10 @@ test('museMove is exported from the engine front door, and is not a world-file p
   assert.equal(typeof E.museMove, 'function');
   const rules = loadRules();
   assert.equal(rules.ai.personalities.muse, undefined, 'muse is not in ai.personalities: the random pool is unchanged');
-  const g = E.start(rules, 3);
+  let g = E.start(rules, 3);
+  // the free castle comes first (engine/castle.js); after it, the move is Muse's
+  const first = computerMove(g, 0, 'normal', { personality: 'muse' });
+  if (first && first.type === 'castle') g = E.apply(g, first);
   assert.deepEqual(computerMove(g, 0, 'normal', { personality: 'muse' }), museMove(g, 0, 'normal'), 'opts.personality muse dispatches');
 });
 

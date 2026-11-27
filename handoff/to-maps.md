@@ -1,5 +1,10 @@
 > Older done entries (14–16 Nov) are in [archive/to-maps-2026-11-14-to-16.md](archive/to-maps-2026-11-14-to-16.md). Nothing was deleted, only moved, 27 Nov 2026. Every open entry stays here, even the old ones.
 
+## 2026-11-28 · from Claude (gamedev chat) · free castle is in: one new board switch, four starts to look at
+- New rule (docs/design/castle.md): before its first action a side may secretly move its flagship anywhere legal in its home zone. Boards can switch it with `castle: true|false` in their `map:` section; the default comes from the world file's `modes:`.
+- These sides can't castle because the enemy sees their flagship from the start: First Light (both), and player 2 on The Minefield, Pawn Storm and Fog Bank. If that isn't intended, moving the starts apart (or deepening the zones) would give them the choice. No change made to your boards. — Claude (gamedev chat)
+Status: open
+
 ## 2026-11-24 (evening) · from gamedev · Smart mine and Decoy practice boards are ready (build #68)
 - Next two items on the suggestion list, one PR: **Smart mine** (`rules/rapid/lab_stateMines.yaml`, Play → Experiments → Practice boards → Smart mine, or `play.html?board=lab_stateMines`) and **Decoy** (`rules/rapid/lab_decoy.yaml`, same list, or `play.html?board=lab_decoy`). Both use the Lab board format. Only that experiment is on. Ram stays in the same sub-list. Ghost, Hibernate, Warp are not started.
 - Smart mine — What to try: Move your healthy scout one hex (it starts past the line). On Convert to?, tap Mine — not Stay a ship. If you move the other scout, tap Stay a ship. What to look for: The scout becomes a smart mine (S). When an enemy scout comes within 3 hexes, the mine goes off and wrecks a section. Against the computer they walk in; if you play both sides, walk one of theirs one hex toward the mine.

@@ -131,6 +131,7 @@ function stampTimes() {
 }
 function save() {
   if (game && game.swapped && held) { const g = game; game = held.real; save(); game = g; return; }   // me v me: never save the swapped copy
+  if (game && RT.castleBase) { const g = game; game = RT.castleBase; save(); game = g; return; }   // rapid: never save the castled preview
   if (game) { stampTimes(); E.exportGame(game).then((c) => store.set('shatkon.game', c)); rememberLast(); }
   store.set('shatkon.seat', String(seat));
 }
@@ -146,6 +147,10 @@ export function say(text, err) { hint = text; hintErr = !!err; }
 // Once a game is over everything is shown.
 const who = () => (isRapidGame() && seat === 'all' && game.phase === 'play' ? 0 : game && game.phase === 'over' && (seat === 'cpu' || seat === 'pass' || isRapidGame()) ? 'all' : seat === 'all' ? 'all' : seat === 'pass' ? turnOf() : seat === 'cpu' ? 0 : seat);
 const turnOf = () => game.order[game.turn];
+// free castle (engine/castle.js): the side the screen is choosing for, and whether it may castle now
+const castleSide = () => (isRapidGame() ? 0 : turnOf());
+const castleHint = () => (game && E.castleOn(game.rules) && !E.castleBlocked(game, 0) ? ' Free castle: before your first action you may secretly move your flagship (\u2605): tap it, then Castle.' : '');
+const canCastle = () => !!game && game.phase === 'play' && (isRapidGame() ? RT.phase === 'choose' && !RT.castleBase : myTurn()) && !E.castleBlocked(game, castleSide());
 const myTurn = () => game && game.phase === 'play' && (seat === 'all' || seat === 'pass' || (seat === 'cpu' ? turnOf() === 0 : turnOf() === seat))
   && !(game.rules.rapid && RT.phase !== 'choose' && RT.phase !== 'auto');   // rapid mode: only while the clock runs
 const isCodes = () => seat === 0 || seat === 1;
@@ -804,7 +809,7 @@ export function newGame() {
   const first = turnOf(), swaps = fixed ? ' The same side moves first every round.' : ' The first move swaps every round.';
   say(seat === 'cpu'
     ? 'New game against the computer. You are Player 1 (teal). Find the enemy flagship (\u2605) and destroy it. ' +
-      (first === 0 ? 'You move first this game.' + swaps + ' Tap one of your ships to begin.' : 'The enemy moves first this game.' + swaps + ' Watch where it goes.')
+      (first === 0 ? 'You move first this game.' + swaps + ' Tap one of your ships to begin.' : 'The enemy moves first this game.' + swaps + ' Watch where it goes.') + castleHint()
     : 'New game. Find the enemy flagship (\u2605) and destroy it. Player ' + (first + 1) + ' moves first this game.' + swaps);
   save(); render();
   setTimeout(() => toast(seat === 'cpu' ? (first === 0 ? 'You move first' : 'The enemy moves first') : 'Player ' + (first + 1) + ' moves first', 'p' + first), 300);
@@ -846,6 +851,7 @@ export function startStoryGame(chRules, title) {
 }
 
 function act(action, quiet, byAI) {
+  if (isRapidGame() && action && action.type === 'castle') return rapidCastle(action.at);
   if (isRapidGame()) return rapidAct(action, quiet, false);
   const p = turnOf(), prev = game;
   endArmed = false;
@@ -853,6 +859,7 @@ function act(action, quiet, byAI) {
   const r = E.attempt(game, action);
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
   game = r.state; pending = null;
+  if (action.type === 'castle') { mode = 'move'; sel = null; }
   const mine = game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost').map(describe);
   // an action can be undone only if it told the player nothing new: no news for them and no change
   // to what they know (a sighting, a lost contact, a fuzzy contact, a ghost clearing, a hit...)
@@ -942,6 +949,7 @@ function describe(e) {
       target: e.t === 'launch' ? N(e.target) : e.target, ships: Array.isArray(e.ships) ? e.ships.map(N) : e.ships };
   }
   switch (e.t) {
+    case 'castle': return 'Castled: your flagship now starts at ' + at(e.to) + (e.swap ? ', and ' + e.swap + ' took its old spot' : '') + '. The enemy was not told.';
     case 'move': return e.ship + ' moved ' + plural(e.steps, 'hex') + '.';
     case 'sighted': return 'Spotted ' + (e.kind === 'ship' ? 'enemy ship ' + e.id : 'a ' + nice(e.kind)) + ' at ' + at(e.at) + '. ' + whyText(e.why);
     case 'lost': return 'Lost sight of ' + e.id + (e.faded ? ': its flare faded.' : ': it is out of sensor range now.') + ' A "?" marks where it was last seen.';
@@ -1082,6 +1090,7 @@ function options(v) {
     return map;
   }
   if (!myTurn() || (pending && !['move', 'fire', 'detonate'].includes(pending.type)) || (!sel && mode !== 'scan' && mode !== 'detonate')) return map;
+  if (mode === 'castle') { if (canCastle()) for (const c of E.castleSpots(game, castleSide())) map.set(hex.key(c.at), { action: { type: 'castle', at: c.at }, mark: 'move', label: c.swap ? '\u21C4' : '\u265C' }); return map; }
   if (mode === 'move') for (const r of E.reach(game, sel)) map.set(hex.key(r.at), { action: { type: 'move', ship: sel, path: r.path }, mark: 'move', label: r.path.length });
   if (mode === 'fire') for (const t of E.beamTargets(game, sel)) {
     const k = hex.key(t.at);
@@ -1141,6 +1150,13 @@ function tap(c, v, opts, viaChip, t) {
     // a one-hex move of a big ship ends on its own hull: only its chip stands for that move, the hull is the ship
     if (o && o.action && o.action.type === 'move' && under && under.id === sel) o = null;
   } else lastTap = { id: null, t: 0 };
+  if (o && o.action && o.action.type === 'castle') {    // free castle: first tap shows the flagship there, second tap castles
+    if (pending && pending.type === 'castle' && hex.same(pending.at, o.action.at)) return act(pending);
+    pending = o.action;
+    const sw = E.castleSpots(game, castleSide()).find((z) => hex.same(z.at, o.action.at));
+    say('The dashed outline shows your flagship\u2019s new start' + (sw && sw.swap ? '; ' + sw.swap + ' would take its old spot' : '') + '. Tap it again or press Castle here. Free and secret, but only once.');
+    return render();
+  }
   if (o && o.action && o.action.type === 'move') {      // first tap shows where the ship would end up; second tap goes
     if (pending && pending.type === 'move' && pending.path.join('') === o.action.path.join('')) return act(pending);
     pending = o.action;
@@ -1781,6 +1797,10 @@ export function render() {
   const opts = options(v);
   const plan = pending && pending.type === 'launch' ? E.forecast(game, pending) : null;
   let ghost = null;
+  if (pending && pending.type === 'castle') {
+    const ship = v.ships.find((x) => x.mine && x.flagship), to = pending.at;
+    if (ship) ghost = { from: ship.pos, to, route: [to], cells: ship.segs.map((sg) => [to[0] + sg.off[0], to[1] + sg.off[1]]), owner: ship.owner };
+  }
   if (pending && pending.type === 'move') {
     const ship = v.ships.find((x) => x.id === pending.ship), to = pending.path.reduce((c, d) => hex.step(c, d), ship.pos);
     const route = pending.path.reduce((a, d) => a.concat([hex.step(a[a.length - 1], d)]), [ship.pos]);
@@ -1819,7 +1839,7 @@ export function render() {
   const shown = hid ? null : v.ships.find((x) => x.id === (look || sel));
   const tools = h('div', { id: 'tools' });
   if (mine && pending) {
-    fill(tools, [h('button', { class: 'btn go' + (pending.warn ? ' warnfire' : ''), onclick: () => act(bare(pending)) }, pending.warn ? 'Fire anyway' : ({ move: 'Move here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + munName(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
+    fill(tools, [h('button', { class: 'btn go' + (pending.warn ? ' warnfire' : ''), onclick: () => act(bare(pending)) }, pending.warn ? 'Fire anyway' : ({ move: 'Move here', castle: 'Castle here', scan: 'Scan now', fire: 'Fire', detonate: 'Detonate', graft: 'Graft', dock: 'Dock' })[pending.type] || 'Launch ' + munName(pending.kind)), h('button', { class: 'btn', onclick: () => { pending = null; say('Cancelled.'); render(); } }, 'Cancel')]);
   } else if (mine && sel) {
     const me = v.ships.find((x) => x.id === sel), st = E.shipStatus(game, sel), lo = E.launchOptions(game, sel);
     const shots = E.beamTargets(game, sel);
@@ -1838,6 +1858,9 @@ export function render() {
     const meStunned = !!me.stunned;
     const scanLocked = !st.scanReady && st.scanMoved < 1 && !(me.used && me.used.scan);
     fill(tools, [
+      // free castle: only on your flagship, only before your first action (engine/castle.js)
+      me.flagship && canCastle() ? ibtn({ icon: 'move', label: 'Castle', sub: 'free, secret', on: true, pressed: mode === 'castle', title: 'Once, before your first action: move your flagship to any marked spot in your home zone. The enemy is not told.',
+        onclick: () => { mode = 'castle'; pending = null; say('Free castle: tap a marked spot to move your flagship\u2019s start there (\u21C4 swaps with the ship already there). Free and secret, once, before your first action.'); render(); } }) : null,
       btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0),
       // the laser's damage close up and far away is the point: closer hits harder
       // always shown, so "why can't I fire?" has an answer: no laser left, out of reach, blocked, nothing seen
@@ -2020,7 +2043,7 @@ function rapidClear() {
   const c = document.getElementById('rapidcancel'); if (c) c.remove();
   document.body.classList.remove('rapid-auto');
 }
-function rapidReset() { rapidClear(); RT.phase = 'idle'; RT.hold = null; for (const id of ['rapidpause', 'ticknews']) { const o = document.getElementById(id); if (o) o.remove(); } rapidBar(); }
+function rapidReset() { rapidClear(); RT.phase = 'idle'; RT.hold = null; RT.castleBase = RT.castleAt = null; for (const id of ['rapidpause', 'ticknews']) { const o = document.getElementById(id); if (o) o.remove(); } rapidBar(); }
 // Pause (any clocked rapid game): the clock stops; Resume gives a fresh full tick. Asked for during the
 // watch or a tick being resolved, it holds before the next pick. A new or reloaded game also waits for a
 // tap before its first clock ('start'). Switching away from the page pauses too.
@@ -2061,10 +2084,10 @@ function newRapidGame() {
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   const r = game.rules.rapid;
   const econ = E.econOn(game), title = (r.experiments && boardMeta && boardMeta.name) || (econ ? 'Frontier' : 'Rapid Opus');
-  if (threeP()) say((boardMeta && boardMeta.name || 'Three players') + ': you and two computers, free for all. Each side picks ONE action a tick and they all happen at once. Forward (towards the centre) only until one of your ships reaches the centre ring (dashed). Lose your flagship and you are out; whoever lands the killing hit takes your rekon plus a bounty of ' + (r.bounty ?? 10) + '. Last flagship standing wins.');
+  if (threeP()) say((boardMeta && boardMeta.name || 'Three players') + ': you and two computers, free for all. Each side picks ONE action a tick and they all happen at once. Forward (towards the centre) only until one of your ships reaches the centre ring (dashed). Lose your flagship and you are out; whoever lands the killing hit takes your rekon plus a bounty of ' + (r.bounty ?? 10) + '. Last flagship standing wins.' + castleHint());
   else say(title + ': you and the computer each pick ONE action a tick, and both happen at once. Forward only until one of your ships is on or past your line (dashed). '
     + (r.stride === 'off' ? '' : 'Until the first contact' + (r.openEnd === 'shot' ? ' (the first shot)' : '') + ', ships move 2 hexes and you get ' + (r.openTimer || 10) + ' s. ') + 'Then ' + r.timer + ' s a tick: run out and a chosen laser or missile fires by itself, or the game moves a ship forward for you (the one you tapped, if any).'
-    + (econ ? ' Rekon (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : ''));
+    + (econ ? ' Rekon (\u25c8): fly through the outlined hexes in the enemy\u2019s half (2 by an asteroid), be first across the line (3), hold ships past it (1 each a tick), destroy enemy ships (2 a segment). At most ' + E.econConfig(game.rules).cap + ' a tick. Buy (bottom right): a threat heatmap for \u25c8 ' + E.price(game, 'heatmap') + ' shows where the enemy ships you can see could hit, for your next 2 ticks. Buying uses your tick.' : '') + castleHint());
   save(); render();
   setTimeout(() => toast(title, 'p0', (r.experiments && boardMeta && boardMeta.try) || (econ ? 'earn rekon in the enemy\u2019s half' : 'forward until you cross the line')), 300);
 }
@@ -2153,6 +2176,17 @@ function rapidForced() {
   spin();
 }
 // One tick: your action and the computer's, together.
+// Rapid: castling is shown at once (the board is a castled copy) but happens with the first tick's
+// action, together with the computer's own castle, so neither side's choice can see the other's.
+function rapidCastle(at) {
+  const why = E.castleRefusal(game, 0, at);
+  if (why) { say('Not allowed: ' + why + '.', true); return render(); }
+  RT.castleBase = game; RT.castleAt = at.slice();
+  game = E.castledCopy(game, 0, at);
+  pending = null; mode = 'move'; sel = null;
+  say('Castled. Your flagship starts at its new spot; the enemy is not told. Now pick your first action.');
+  render();
+}
 function rapidAct(action, quiet, auto) {
   if (!isRapidGame() || game.phase !== 'play') return;
   if (!auto && RT.phase !== 'choose') { say('Watch first: the controls wake up when the bar at the top refills.'); return render(); }
@@ -2202,6 +2236,9 @@ function rapidAct(action, quiet, auto) {
   RT.wingFor = RT.wingOpts = RT.convertFor = RT.turretFor = RT.pick = RT.place = RT.ramFor = null;
   rapidClear(); RT.phase = 'busy';
   let ai = { type: 'pass' };
+  // a castle chosen this tick: back to the real game, and the castle rides with this action
+  let a2 = a;
+  if (RT.castleBase) { game = RT.castleBase; a2 = { ...a, castle: RT.castleAt }; RT.castleBase = RT.castleAt = null; }
   if (selfPlay() && !game.swapped) return selfHandOver(a);   // me v me: player 1 has picked; now player 2
   if (selfPlay()) {                                          // player 2 has picked: back to the real game and resolve
     ai = a; const h1 = held; held = null; game = h1.real;
@@ -2216,9 +2253,9 @@ function rapidAct(action, quiet, auto) {
     } catch (err) { console.warn('AI error', err); x = { type: 'pass' }; }
     return x;
   };
-  if (threeP()) return rapidResolve(a, game.players.slice(1).map((_, i) => cpu(i + 1)), 0);   // three players: both computers pick
+  if (threeP()) return rapidResolve(a2, game.players.slice(1).map((_, i) => cpu(i + 1)), 0);   // three players: both computers pick
   ai = cpu(1);
-  return rapidResolve(a, ai, 0);
+  return rapidResolve(a2, ai, 0);
 }
 // me v me: hold player 1's pick and give player 2 the board, seen from their side.
 function selfHandOver(a) {

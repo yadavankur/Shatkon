@@ -7,12 +7,26 @@
 import * as E from './index.js';
 import { beamHitsAt } from './actions.js';
 import { museMove } from './ai-muse.js';
+import { castleBlocked, castlePick } from './castle.js';
+
+// The computer's free castle (engine/castle.js), asked before its first action. The same game always
+// castles the same way (seeded from the game). Aggressive and Muse lean forward, defensive leans back.
+export function aiCastle(state, seat, level = 'normal', opts = {}) {
+  if (castleBlocked(state, seat)) return null;
+  const AI = state.rules.ai || {}, names = Object.keys(AI.personalities || {});
+  const name = opts.personality || (AI.vs_computer === 'random' && names.length ? names[Math.abs(state.fzSalt | 0) % names.length] : AI.vs_computer);
+  const style = level === 'easy' ? 'any' : name === 'muse' || name === 'aggressive' ? 'forward' : name === 'defensive' ? 'back' : 'any';
+  const at = castlePick(state, seat, style, E.seededRandom(E.fnv((state.fzSalt | 0) + '|castle|' + seat)));
+  return at ? { type: 'castle', at } : null;
+}
 
 // opts (story campaigns, see campaignMove): profiles { shipId: profile }, rand (seeded),
 // nameOf(id), via { shipName: true } (already went through its path_via zone), hitsSoFar.
 // opts.personality: a name from the world file's `ai.personalities` (aggressive, defensive, balanced).
 // A "normal" skirmish game with no personality given plays the world file's `ai.vs_computer`.
 export function computerMove(state, seat, level = 'normal', opts = {}) {
+  const castle = opts.profiles ? null : aiCastle(state, seat, level, opts);
+  if (castle) return castle;
   // 'muse' is a different computer, written from scratch (engine/ai-muse.js): it plays by its
   // own rules, not by the world file's personality numbers. Picked by name — opts.personality,
   // or the world file's ai.vs_computer. Everything else below is untouched by it.
