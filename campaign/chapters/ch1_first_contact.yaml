@@ -225,9 +225,9 @@ chapter:
             done: { destroyed: seed }          # waits for the player; no auto-timeout
     - id: finish_fallback
       fallback_for: win
-      # Only if the player pressed "I'll do this myself": otherwise the Seed stays until they fire,
-      # or they take the "Win now" prompt. After Skip, the old 4-round safety net comes back.
-      when: { all: [ { flag: guides_skipped }, { after: { beat: crippled, rounds: 4 } }, { alive: seed } ] }
+      # After "I'll do this myself", the old 4-round safety net. Otherwise the Seed stays until they fire,
+      # or they take the "Win now" prompt, with a long 10-round net so the chapter always ends.
+      when: { all: [ { any: [ { all: [ { flag: guides_skipped }, { after: { beat: crippled, rounds: 4 } } ] }, { after: { beat: crippled, rounds: 10 } } ] }, { alive: seed } ] }
       do:
         - damage: { ship: seed, seg: 0, hits: 3, cause: scripted }   # the core burns out
 
