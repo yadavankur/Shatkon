@@ -61,6 +61,29 @@ Mirror check (`mirrorOf` in `tools/boards.mjs`): only First Light, The Dogleg, B
 4. **Half of today's starts have ships touching.** On Minefield (player 1), Cat and Mouse (player 1), King's Guard, Beacon Hill, Missile Alley and Gambit, the board file's own start has ships side by side. That's fine, since boards are allowed to do it. But if "apart" became the rule for new layouts, layout 1 (today's start) would be the only one with ships touching.
 5. **Pawn Storm's player 2 is a single ship** in a 15-row zone, so it already has 173 spots, one per hex. That side was never guessable in this way.
 
+## Step 1b (28 Nov): how long should the list be?
+
+`node tools/starts-how-many.mjs` (seed 1, about 30 seconds). For lists of 1, 3, 6, 12, 24 and 48 layouts per side, picked as above, it assumes the opponent knows the whole list and that each layout is equally likely. It then measures how well the flagship stays hidden: before any sighting, and after one or two of the other ships are seen at their starting spot. "Any" means 600 random legal layouts, a stand-in for having no list at all. Only exact sightings are counted, and not seeing a ship somewhere gives a little away too, so real play leaks slightly more than this.
+
+Typical numbers, from Beacon Hill player 1 (the other boards follow the same pattern; full output by rerunning the tool):
+
+| Layouts in the list | Flagship spots | Flagship found in one guess | Best aim is off by | Flagship certain after 1 ship seen | after 2 ships seen |
+|---|---|---|---|---|---|
+| 1 (today) | 1 | 100% | 0 hexes | 100% | 100% |
+| 6 | 6 | 17% | 2.8 | 57% | 93% |
+| 12 | 11 | 17% | 2.5 | 35% | 95% |
+| 24 | 14 | 13% | 2.7 | 21% | 86% |
+| 48 | 18 | 10% | 2.5 | 3% | 72% |
+| any | 19 | 8% | 2.7 | 0% | 7% |
+
+Across all 20 sides:
+
+1. **Before any sighting, length barely matters past about 6.** The best single aim is 2 to 4 hexes off at every length, including "any", because home zones are only 3 or 4 rows deep. The zone, not the list, sets how hidden a fleet can be at the start.
+2. **After a sighting, length is everything.** With 12 layouts, seeing one other ship pins the flagship's exact spot about 35 to 55% of the time, and seeing two pins it about 90%. With 48, one sighting pins it under about 15% of the time. With no list, one sighting almost never does.
+3. **A short list mostly helps whoever has memorised it.** No human will learn 12 layouts for each side of 10 boards (240 in all), but the computer could. So a short list makes the computer better at deduction than people are.
+
+**Recommendation:** don't keep a list. Generate the start from each side's seed at game time: any layout that passes the filters, the same every time for the same seed (so replays and two-phone codes still work). Use rule filters instead of hand-picking (ships apart, flagship back where the zone allows it, every ship has a way out), with the maps bot able to deepen a zone or ban a hex. If Ankur wants deduction to be part of the game, a published list of 24 to 48 keeps one sighting meaningful without giving the game away.
+
 ## Open questions for Ankur
 
 - **Which filter?** Should picked layouts keep ships apart? Should the flagship stay off the front row, which means deepening three zones?
