@@ -4,34 +4,33 @@
 #  Same format as rules/rapid/rapid_lab.yaml (the Experiments Lab board).
 #  Open it at  play.html?board=lab_ram
 #
-#  What to try: Move your scout one hex closer to their Warden (it starts past
-#  the line: on Convert to?, tap Stay a ship), then tap Ram.
+#  What to try: Tap a scout, then tap Ram.
 #  What to look for: Your scout is gone (it became the ram). The nearest section
-#  of their Warden is wrecked; shields do not stop it. Against the computer, their
-#  scout will try to ram your Warden the same way.
+#  of their Warden is wrecked; shields do not stop it. You have a second scout
+#  for another try. Their Warden is a dummy: it does not shoot or ram back.
 #
-#  A Warden (3-hex flagship, with the decoy emitter) and one scout a side, within
-#  Ankur's limit of two scouts and one 3-section ship at most. Each scout starts
-#  3 hexes from the enemy Warden, so a ram is ready on the second tick. The line
-#  sits close (4) so both fleets can move freely from the start. The computer is
-#  set to ram eagerly, so it will try to ram you too. Home zones are deeper than
-#  the Lab's so these mid-board starting hexes are legal.
+#  A Warden and two scouts on your side, and a harmless Warden on theirs, within
+#  Ankur's limit of two scouts and one 3-section ship at most. Both of your
+#  scouts start on your side of the line (so no Convert to? sheet) and already
+#  within 2 hexes of their Warden, so Ram is ready on the first tick. The line
+#  sits at 7 (halfway). The computer is set never to ram, and their Warden has
+#  no lasers, no launcher and no scout. Economy is off. Home zones stay in each
+#  side's own half (depth 7).
 # ============================================================
 
 board:
   name: "Ram"
-  idea: "The nearest section of their Warden is wrecked (shields do not stop it), and your scout is gone. The computer's scout will try to ram your Warden the same way."
-  try: "Move your scout one hex closer to their Warden (it starts past the line: on Convert to?, tap Stay a ship), then tap Ram."
+  idea: "Your scout is gone (it became the ram). The nearest section of their Warden is wrecked; shields do not stop it. You have a second scout for another try. Their Warden is a dummy: it does not shoot or ram back."
+  try: "Tap a scout, then tap Ram."
   rules: {}
 
 rapid:
-  line: 4                     # close to the ships, so both sides can move freely from the start (the Experiments sheet still overrides it)
-  economy: on
+  line: 7                     # halfway: your scouts at r 1 stay on your side of the line (the Experiments sheet still overrides it)
+  economy: off                # no turret / heatmap / rekon to distract
   interceptHurts: on
   experiments: on             # the play page shows the experiment switches for this board
   exp: { ram: true }          # only Ram is on; the other experiment switches stay off
-  cpuExp: { ram: eager }      # the computer rams with any scout that gets within 2 of a bigger ship
-  econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
+  cpuExp: { ram: never }      # the dummy does not ram back
 
 budget: 99999
 
@@ -39,32 +38,43 @@ map:
   name: "Ram"
   board: { shape: hexagon, radius: 7 }
   zones:
-    player_1_home: { edge: south, depth: 10 }
-    player_2_home: { edge: north, depth: 10 }
+    player_1_home: { edge: south, depth: 7 }
+    player_2_home: { edge: north, depth: 7 }
     no_mans_land:  { everything_else: true }
   terrain:
-    - { type: asteroid, at: [2, 1], size: 1 }     # was one rock at [0, 0]: right between the two Wardens, so once both
-    - { type: asteroid, at: [-2, -1], size: 1 }   # lost their engines neither could ever shoot the other (Ankur's game, 24 Nov)
-    - { type: asteroid, at: [0, 5], size: 1 }
-    - { type: asteroid, at: [0, -5], size: 1 }
+    - { type: asteroid, at: [5, 0], size: 1 }
+    - { type: asteroid, at: [-5, 0], size: 1 }
+    - { type: asteroid, at: [5, -3], size: 1 }
+    - { type: asteroid, at: [-5, 3], size: 1 }
 
 player_1:
   ships:
-    - name: "Warden"               # 3-hex, flagship
+    - name: "Warden"               # 3-hex, flagship, kept back
       flagship: true
       load: { missile_basic: 3, missile_advanced: 3 }
       hull:
         - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
-        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }   # emitter: decoys
+        - { at: [-1, 0],  bays: [coupling, engine, emitter],  mounts: [laser, shield, armour] }
         - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
     - name: "Pawn A"
       hull:
         - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
+    - name: "Pawn B"
+      hull:
+        - { at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }
   deployment:
-    - { ship: "Warden", at: [-2, 2] }    # nearest enemy scout (mirrored) starts 3 hexes from the west wing
-    - { ship: "Pawn A", at: [6, -2] }    # 3 hexes from the enemy Warden's east wing; one step, then ram
+    - { ship: "Warden", at: [-4, 5] }    # back in your half, out of the way
+    - { ship: "Pawn A", at: [0, 1] }    # your side of the line; already 2 hexes from their Warden
+    - { ship: "Pawn B", at: [-1, 1] }   # a second try, also already in ram range
 
 player_2:
-  copy_of: player_1
-  mirror_ships: true
-  mirror_deployment: true
+  ships:
+    - name: "Warden"               # dummy: no lasers, no launcher, no scout
+      flagship: true
+      hull:
+        # core sits on the far side, so a ram wrecks a wing and the dummy stays up for a second try
+        - { at: [0, 0],   bays: [coupling, engine, stealth],  mounts: [shield, armour, armour] }
+        - { at: [-1, 0],  bays: [coupling, magazine, engine], mounts: [shield, armour, armour] }
+        - { at: [0, -1],  bays: [core, sensor, magazine],     mounts: [shield, armour, armour] }
+  deployment:
+    - { ship: "Warden", at: [0, -1] }    # their half, already within 2 hexes of both of your scouts
