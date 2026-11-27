@@ -1216,12 +1216,13 @@ function tap(c, v, opts, viaChip, t) {
   render();
 }
 
-// Chapter 1 trial: when Rule B holds (their flagship is a sitting duck, and nothing else can hurt you),
-// offer to take the win now or keep playing. Shown once. Keep playing just closes the prompt.
+// Chapters 1 and 2: when Rule B holds (every enemy flagship is a sitting duck, and nothing else
+// can hurt you), offer to take the win now or keep playing. Shown once. Never on a power gap alone.
 let winNowShown = false;
+const WIN_NOW_CHAPTERS = { ch1: true, ch2: true };
 function maybeWinNow() {
   if (winNowShown || !game || game.phase !== 'play' || !game.rules.campaign) return;
-  if (game.rules.campaign.id !== 'ch1') return;   // this slice is chapter 1 only
+  if (!WIN_NOW_CHAPTERS[game.rules.campaign.id]) return;
   if (storyBusy() || storyWait > 0) return;
   if (document.getElementById('winnow') || document.getElementById('help') && !document.getElementById('help').hidden) return;
   if (!E.cannotLose(game, 0)) return;
@@ -1231,7 +1232,7 @@ function maybeWinNow() {
   const box = h('div', { id: 'winnow', class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'You cannot lose', onclick: (e) => { if (e.target.id === 'winnow') close(); } },
     h('div', { class: 'card modal-box winnow' },
       h('h2', null, "They can't hurt you any more."),
-      h('p', null, 'The Seed has no working engines, lasers or launchers, and nothing else on their side can still reach you. Take the win, or keep playing?'),
+      h('p', null, 'No working engines, lasers or launchers, and nothing else on their side can still reach you. Take the win, or keep playing?'),
       h('div', { class: 'row' },
         h('button', { class: 'btn go', onclick: take }, 'Take the win'),
         h('button', { class: 'btn', onclick: close }, 'Keep playing'))));
