@@ -2,7 +2,7 @@
 // Uses a small fixture campaign written here, not the real chapters (those come later).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { guideView, start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame } from '../engine/index.js';
+import { guideView, start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame, cannotLose, skipChapterGuides, takeChapterWin } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
 import { shippedFiles } from './helpers.js';
 
@@ -544,4 +544,81 @@ test('story orders: a refused order waits quietly, a real bug is reported as scr
   let k = start(load(ok), 3); const ev = [];
   for (let i = 0; i < 8 && k.phase === 'play'; i++) { k = apply(k, { type: 'end' }); ev.push(...k.events); }
   assert.ok(!ev.some((e) => e.t === 'script_failed'));
+});
+
+
+// ---- chapter 1 slice: cannot-lose (Rule B), skip guides, no auto-finish unless skipped
+function disarm(g, name) {
+  const s = ship(g, name);
+  for (const sg of s.segs) for (const p of sg.parts) {
+    if (['engine', 'laser', 'launcher'].includes(p.t) && !g.rules.parts[p.t].required) p.off = true;
+  }
+}
+// Fixture maps can place setup mines. Rule B counts those, so clear them when the test is about the Seed alone.
+function clearHazards(g) { g.objs = []; }
+
+test('cannotLose (Rule B): true only when the flagship is a sitting duck and nothing else can hurt you', () => {
+  let g = start(load(chapter()), 3);
+  clearHazards(g);
+  assert.equal(cannotLose(g, 0), false, 'a healthy Seed can still shoot and move');
+  disarm(g, 'seed');
+  assert.equal(cannotLose(g, 0), true, 'engines, lasers and launchers off, nothing else in play');
+  g = start(load(chapter()), 3);
+  clearHazards(g);
+  disarm(g, 'seed');
+  g.objs.push({ id: 'm1', kind: 'missile_basic', owner: 1, pos: [0, 0], dir: 0, fuel: 3 });
+  assert.equal(cannotLose(g, 0), false, 'a missile in flight blocks the win');
+  g = start(load(chapter()), 3);
+  clearHazards(g);
+  disarm(g, 'seed');
+  g.objs.push({ id: 'n1', kind: 'naval_mine', owner: 1, pos: [1, 0] });
+  assert.equal(cannotLose(g, 0), false, 'a mine blocks the win');
+});
+
+test('cannotLose: a working laser on the flagship blocks the win', () => {
+  const g = start(load(chapter()), 3);
+  clearHazards(g);
+  const s = ship(g, 'seed');
+  for (const sg of s.segs) for (const p of sg.parts) {
+    if (['engine', 'launcher'].includes(p.t) && !g.rules.parts[p.t].required) p.off = true;
+  }
+  assert.equal(cannotLose(g, 0), false, 'a sitting-duck Seed that can still shoot is not a win');
+});
+
+test('skipChapterGuides hides the hand and is required before the 4-round auto-finish', () => {
+  const ch = chapter({ script: [
+    { id: 'go', when: 'start', guide: { ship: 'kestrel', steps: [{ move_to: [0, 4], label: 'Go' }, { fire_at: 'seed', label: 'Shoot', done: { destroyed: 'seed' } }] } },
+    { id: 'crippled', when: 'start', do: [] },
+    { id: 'finish_fallback', when: { all: [{ flag: 'guides_skipped' }, { after: { beat: 'crippled', rounds: 4 } }, { alive: 'seed' }] }, do: [{ damage: { ship: 'seed', seg: 0, hits: 20, cause: 'scripted' } }] },
+  ] });
+  let g = start(load(ch), 3);
+  assert.ok(guideView(g, 0), 'the guide is up');
+  assert.equal(guideView(g, 0).label, 'Go');
+  g = ends(g, 16);
+  assert.equal(g.phase, 'play', 'without Skip, the Seed is not auto-finished');
+  assert.ok(ship(g, 'seed') && !ship(g, 'seed').dead);
+  skipChapterGuides(g);
+  assert.equal(guideView(g, 0), null);
+  assert.equal(g.script.flags.guides_skipped, true);
+  g = ends(g, 8);
+  assert.equal(g.phase, 'over', 'after Skip, the 4-round fallback may finish the Seed');
+  assert.equal(g.winner, 0);
+});
+
+test('takeChapterWin ends the chapter as a normal win when Rule B holds', () => {
+  const g = start(load(chapter({ scenes: { win: ['ch1_victory'] } })), 3);
+  clearHazards(g);
+  disarm(g, 'seed');
+  assert.equal(cannotLose(g, 0), true);
+  takeChapterWin(g);
+  assert.equal(g.phase, 'over');
+  assert.equal(g.winner, 0);
+  assert.equal(g.script.result, 'win');
+  assert.ok(g.events.some((e) => e.t === 'scene' && e.id === 'ch1_victory') || g.events.some((e) => e.t === 'game_over' && e.by === 'cannot_lose'));
+});
+
+test('takeChapterWin does nothing if they can still hurt you', () => {
+  const g = start(load(chapter()), 3);
+  takeChapterWin(g);
+  assert.equal(g.phase, 'play');
 });

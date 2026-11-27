@@ -559,6 +559,28 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       gl.appendChild(s('rect', { x: f1(lx - w / 2), y: f1(ly - hgt / 2), width: f1(w), height: f1(hgt), rx: f1(hgt / 2), fill: '#06202a', 'fill-opacity': 0.92, stroke: gc, 'stroke-width': f1(1 / px) }));
       gl.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': f1(fpx), 'font-weight': 700, fill: gc }, txt));
     }
+    // A small teal hand that bobs toward the hex this step is asking for: the move hex,
+    // or the fire reticle once that is the step. It leaves when the step advances or the guide clears.
+    const aim = (guide.reticle && !guide.best) ? guide.reticle.at : (guide.best || guide.anchor);
+    if (aim) {
+      const ax = X(aim), ay = Y(aim);
+      const ang = Math.PI / 3;                         // sit just outside the hex, south-east
+      const hx = ax + Math.cos(ang) * S * 1.45, hy = ay + Math.sin(ang) * S * 1.45;
+      const rot = Math.atan2(ay - hy, ax - hx) * 180 / Math.PI;
+      const hold = s('g', { transform: 'translate(' + f1(hx) + ',' + f1(hy) + ') rotate(' + f1(rot) + ')', 'pointer-events': 'none' });
+      const sc = (36 / px) / 90;                       // the path is ~90 units long; keep the hand about 36px on screen
+      // Three groups so the bob animation cannot overwrite the scale, and the scale cannot overwrite the position.
+      const bob = s('g', { class: reduce ? '' : 'guidehand' });
+      const finger = s('g', { transform: 'scale(' + sc.toFixed(4) + ')' });
+      // Pointing hand, finger along +x (toward the hex after the rotate). Teal, to match the player's colour.
+      finger.appendChild(s('path', {
+        d: 'M-6 -10 h34 v-16 c2 -10 20 -10 22 0 l40 24 c8 6 8 16 0 22 l-40 24 c-2 10 -20 10 -22 0 v-16 h-22 v18 c0 8 -10 10 -16 4 l-10 -10 c-6 -8 0 -16 10 -16 h16 v-18z',
+        fill: '#7fd8f0', stroke: '#06202a', 'stroke-width': 5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+      }));
+      bob.appendChild(finger);
+      hold.appendChild(bob);
+      gl.appendChild(hold);
+    }
     svg.appendChild(gl);
   }
 
