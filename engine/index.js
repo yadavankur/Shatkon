@@ -36,7 +36,9 @@ export function start(rules, seed = 1) {
 
 // Story campaigns: build a chapter's rules, run its script, carry results to the next chapter.
 export { buildChapter, applyResult, nextNodes, newCampaign, shipToHull } from './chapter.js';
+export { cannotLose, skipChapterGuides, takeChapterWin } from './script.js';
 export { campaignMove } from './ai.js';
+export { museMove } from './ai-muse.js';
 export { guideView } from './guide.js';
 
 // Rapid mode: one action a side per tick, both resolved together (engine/rapid.js).
@@ -48,7 +50,7 @@ export { EXPERIMENTS, EXP_KEYS, exp } from './experiments.js';
 export { LAB_SHOP, mineKindFor, ramRefusal, decoyRefusal, decoySpots, warpSpots, MINE_KINDS } from './labrules.js';
 // Economy mode (Frontier): salvage earned by flying through the board (engine/economy.js).
 export { shopItems, UPGRADES, upgradeRefusal, resupplyRefusal, magazineRoom, TURRET, turretSpots, hitObject, droppableLaser, isTurret, turretLive, SHOP, price, buyRefusal, heatOn, threatMap, BUY_WORDS, ECON_DEFAULTS, econOn, econTick, econConfig, purse, newGround, hexValue, inEnemyHalf, nextToAsteroid, EARN_WORDS } from './economy.js';
-export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, wingMoves, wingShots, tickText, parseTick, canConvert } from './rapid.js';
+export { rapidRules, rapidStart, rapidTick, rapidAI, rapidRefusal, legalMoves, forcedMoves, passAllowed, autoFire, autoLaunch, RAPID_DEFAULTS, homeSign, forwardDirs, pastLine, shipsPast, unlocked, rowsForward, scanAllowed, inOpening, stride, wingMoves, wingShots, tickText, parseTick, canConvert, manySides, isOut, sidesIn, ringOf, pointsWinner } from './rapid.js';
 
 // Battle logs: replay a saved game turn by turn, and a plain-English recap of it.
 export { battleLog, replayLog, shortLog, replayShort, SHORT_FORMAT, analyse, recapText, LOG_FORMAT } from './log.js';

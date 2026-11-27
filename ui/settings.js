@@ -14,6 +14,9 @@ export const SETTINGS = [
   { key: 'ff', label: 'Friendly fire', options: [
     ['warn', 'Warn me', 'If a laser shot would hit your own mine, missile or drone, the board traces the beam and asks again.'],
     ['free', 'Just fire', 'Shots go as aimed, no question. Your own mines and missiles in the way still take the hit.']] },
+  { key: 'opponent', label: 'Computer opponent', options: [
+    ['random', 'Random', 'The computer plays one of the three personalities — aggressive, balanced or defensive — picked fresh each game.'],
+    ['muse', 'Muse, the hunter', 'A different computer, written from scratch: it hunts your flagship, closes to point-blank range and takes risks the others will not.']] },
 ];
 // Rapid mode (rules/rapid/rapid_opus.yaml, engine/rapid.js): its own sheet. A row with `range`
 // is a slider; the others are buttons. The first option (or `def`) is the default.
@@ -58,14 +61,21 @@ export const ECON_SETTINGS = [
   { key: 'cpuStyle', label: 'Computer plays', def: 'random', options: [['random', 'Random', 'The computer picks rush, boom or turtle at the start, and doesn\u2019t tell you which.'], ['rush', 'Rush', 'Buys nothing early, then missiles. Pushes forward and fights.'], ['boom', 'Boom', 'Roams your half for rekon and upgrades its ships.'], ['turtle', 'Turtle', 'Turrets on its line and heatmaps. Makes you come to it.']] },
   { key: 'econCap', label: 'Income cap', def: '6', options: ['4', '6', '10'].map((v) => [v, v + ' a tick', 'A side earns at most ' + v + ' rekon a tick, so a lead can\u2019t snowball without limit.']) },
   { key: 'econHeatmap', label: 'Heatmap cost', def: '6', options: ['4', '6', '8'].map((v) => [v, '\u25c8 ' + v, 'The threat heatmap costs ' + v + ' rekon and your action for that tick. It shows where the enemy ships you can see could hit, for your next 2 ticks.']) },
-  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship leaves one of its lasers behind as a turret for ' + v + ' rekon and your tick. Each turret costs 1 a tick to keep working.']) },
+  { key: 'econTurret', label: 'Turret cost', def: '8', options: ['6', '8', '10'].map((v) => [v, '\u25c8 ' + v, 'A ship puts a turret next to it for ' + v + ' rekon and your tick. Turrets cost upkeep to keep working (see Turret upkeep).']) },
+  { key: 'econTurretLaser', label: 'Turret uses a laser', def: 'no', options: [['no', 'No', 'Placing a turret costs only rekon and the tick; the ship keeps all its lasers.'], ['yes', 'Yes', 'The ship gives up one of its working lasers to make the turret (a ship with no laser can\u2019t place one).']] },
   { key: 'econTurretRange', label: 'Turret range', def: '7', options: ['5', '7', '9'].map((v) => [v, v + ' hexes', 'A turret fires 1 hit at the nearest enemy it can see within ' + v + ' hexes. It is hard to spot (signature \u22122), so it usually shoots first.']) },
   { key: 'econUpkeepEvery', label: 'Turret upkeep', def: '3', options: [['0', 'None', 'Turrets cost nothing to keep.'], ['3', '1 every 3 ticks', 'Each turret costs 1 rekon every 3 ticks. If you can\u2019t pay, it goes dark until you can.'], ['1', '1 a tick', 'Each turret costs 1 rekon every tick (expensive).']] },
   { key: 'econIdle', label: 'Idle penalty', def: '1', options: [['1', '\u22121 a pass', 'A tick you pass earns no rekon and costs 1. Sitting still shouldn\u2019t pay.'], ['0', 'None', 'Passing is free.']] },
   { key: 'econUpgrade', label: 'Upgrade cost', def: '10', options: ['8', '10', '12'].map((v) => [v, '\u25c8 ' + v, 'One upgrade per ship for ' + v + ' rekon and your tick: +1 laser range, faster shields, +1 sensor or +1 armour.']) },
   { key: 'econOwnHalf', label: 'Earn at home', options: [['no', 'No', 'New ground pays only in the enemy\u2019s half: no farming at home.'], ['yes', 'Yes', 'New ground pays in your own half too.']] },
 ];
-const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp';
+// Three-player boards (rules/rapid/three_*.yaml, docs/design/three-player.md): their own two rows.
+const THREE_SETTINGS = [
+  { key: 'ring', label: 'Centre ring', def: '3', options: ['2', '3', '4'].map((v) => [v, v + ' hexes', 'A ship within ' + v + ' hexes of the centre (or beyond it) frees your fleet: move any way, pass, scan.']) },
+  { key: 'bounty', label: 'Flagship bounty', def: '10', options: [['0', 'None', 'Killing a flagship pays only the usual kill rekon.'], ['10', '\u25c8 10', 'The killing hit on a flagship takes that side\u2019s rekon plus 10.'], ['20', '\u25c8 20', 'The killing hit on a flagship takes that side\u2019s rekon plus 20.']] },
+  { key: 'cpuStyle2', label: 'Computer 2 plays', def: 'random', options: [['random', 'Random', 'Computer 2 picks rush, boom or turtle at the start.'], ['rush', 'Rush', 'Buys nothing early, then missiles.'], ['boom', 'Boom', 'Roams for rekon and upgrades.'], ['turtle', 'Turtle', 'Turrets and heatmaps.']] },
+];
+const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp', TSTORE = 'shatkon.three';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
 const okVal = (d, v) => (d.range ? Number.isFinite(Number(v)) && Number(v) >= d.range[0] && Number(v) <= d.range[1] : d.options.some((o) => o[0] === v));
 function readSet(store, list) {
@@ -140,19 +150,24 @@ export async function seedExpBoard(boardName) {
     seedExpFromBoard(boardName, b && b.rapid);
   } catch (e) {}
 }
+export function threeOptions() {
+  const r = readSet(TSTORE, THREE_SETTINGS);
+  return { ring: Number(r.ring), bounty: Number(r.bounty), cpuStyle2: r.cpuStyle2 };
+}
 export function econOptions() {
   const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), cpuStyle: r.cpuStyle };
+  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), econTurretLaser: r.econTurretLaser, cpuStyle: r.cpuStyle };
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
 // landing page and the play screen can use it.
 // rapid: false (battle settings), true (rapid mode) or 'econ' (rapid mode with the economy rows first).
-export function settingsForm(onChange, rapid = false) {
+export function settingsForm(onChange, rapid = false, cpu = true) {
+  // cpu false (same phone, open board): no computer, so no 'Computer opponent' row
   const box = document.createElement('div');
   box.className = 'bs-form';
   // the Lab has its own line and no clock
-  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS, rapid ? RSTORE : STORE]];
+  const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'three' ? [[THREE_SETTINGS, TSTORE], [ECON_SETTINGS.filter((d) => d.key !== 'economy'), ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'unlock'].includes(d.key)), RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS.filter((d) => cpu || d.key !== 'opponent'), rapid ? RSTORE : STORE]];
   const draw = () => {
     box.textContent = '';
     for (const [list, store] of groups) drawGroup(list, store);

@@ -31,8 +31,10 @@ function el(tag, attrs, ...kids) {
 export const TEAM = [
   { main: '#7fd8f0', neon: '#5ff7ff', accent: '#2fe0b0', hi: '#3d84a6', mid: '#163a56', lo: '#08182a', ink: '#04101c' },
   { main: '#ff8bd8', neon: '#ff5fc8', accent: '#b48bff', hi: '#8a4aa6', mid: '#3c1a52', lo: '#160a26', ink: '#0d0517' },
+  { main: '#ffc35c', neon: '#ffb02e', accent: '#ff7a3d', hi: '#a6702a', mid: '#523312', lo: '#26170a', ink: '#170d05' },   // three players: amber
 ];
-export const teamOf = (o) => TEAM[o === 1 ? 1 : 0];
+export const teamIx = (o) => (o === 1 || o === 2 ? o : 0);
+export const teamOf = (o) => TEAM[teamIx(o)];
 
 // ---------- what a part is, worked out from what it does (names are only a hint) ----------
 export function partKind(name, c) {
@@ -192,7 +194,7 @@ export function bowFor(P, S, forward) {
 //   flagship, id (for clip ids), seen }
 let clipN = 0;
 export function drawShip(o) {
-  const S = o.S, T = teamOf(o.owner), ti = o.owner === 1 ? 1 : 0, cells = o.cells, n = cells.length;
+  const S = o.S, T = teamOf(o.owner), ti = teamIx(o.owner), cells = o.cells, n = cells.length;
   const P = cells.map(o.xy);
   const cls = shapeClass(cells.map((c) => [c[0] - cells[0][0], c[1] - cells[0][1]]));
   const look = cls || { id: 'custom', name: 'Hull', round: 0.22, taper: 0.18, deco: 'keel' };

@@ -2,7 +2,7 @@
 // slots, missiles with their expected paths, and whatever can be tapped.
 
 import { hex } from '../engine/index.js';
-import { drawShip, shipDefs, TEAM } from './ships.js';
+import { drawShip, shipDefs, TEAM, teamOf, teamIx } from './ships.js';
 import { drawFrigate, frigateDefs } from './frigate.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -117,7 +117,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   const svg = s('svg', { viewBox: [cam.x - vw / 2, cam.y - vh / 2, vw, vh].map(f1).join(' '), role: 'img', 'aria-label': 'Game board' });
   const px = box.clientWidth / vw;              // screen pixels per drawing unit
   const detailed = S * 2 * px >= 30;            // big enough to show the slots inside each segment
-  const col = (o) => (o === 0 ? TEAM[0].main : TEAM[1].main);
+  const col = (o) => teamOf(o).main;
   const fs = (pxSize) => f1(pxSize / px);       // a font size that stays readable at any zoom
 
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -382,7 +382,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   for (const o of v.objs) {
     const cx = X(o.pos), cy = Y(o.pos), m = rules.munitions[o.kind] || { speed: 1 }, c0 = col(o.owner), fade = o.seen ? null : 0.4;
     if (o.last && !hex.same(o.last, o.pos)) svg.appendChild(s('line', { x1: f1(X(o.last)), y1: f1(Y(o.last)), x2: f1(cx), y2: f1(cy), stroke: c0, 'stroke-width': 1, 'stroke-opacity': 0.35, 'stroke-linecap': 'round' }));
-    const ink = '#050a14', neon = o.owner === 1 ? TEAM[1].neon : TEAM[0].neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
+    const ink = '#050a14', neon = teamOf(o.owner).neon, rot = -60 * o.dir + (FL < 0 ? 180 : 0);
     if (o.kind === 'turret') {
       // economy mode, turret: a squat hex base with a barrel and a T; grey when dark; a pip per hit point left
       const tg = s('g', { opacity: o.dark ? 0.5 : fade, transform: `translate(${f1(cx)},${f1(cy)}) scale(1.5) translate(${f1(-cx)},${f1(-cy)})` });
@@ -445,7 +445,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     } else {
       // missile: a slim dart with fins and a hot exhaust
       const g = s('g', { transform: `translate(${f1(cx)},${f1(cy)}) rotate(${rot})`, opacity: fade });
-      g.appendChild(s('ellipse', { cx: -7.5, cy: 0, rx: 3.6, ry: 1.3, fill: `url(#skg${o.owner === 1 ? 1 : 0})`, class: 'thrust' }));
+      g.appendChild(s('ellipse', { cx: -7.5, cy: 0, rx: 3.6, ry: 1.3, fill: `url(#skg${teamIx(o.owner)})`, class: 'thrust' }));
       g.appendChild(s('path', { d: 'M-4.5,0L-6.5,2.8L-3,1.2ZM-4.5,0L-6.5,-2.8L-3,-1.2Z', fill: c0, 'fill-opacity': 0.8 }));
       g.appendChild(s('path', { d: 'M7,0Q4,1.7 0,1.7L-5,1.4L-5,-1.4L0,-1.7Q4,-1.7 7,0Z', fill: ink, stroke: c0, 'stroke-width': 0.7, 'stroke-linejoin': 'round' }));
       g.appendChild(s('path', { d: 'M6.2,0Q4.6,0.8 3.4,0.8L3.4,-0.8Q4.6,-0.8 6.2,0Z', fill: neon }));
@@ -509,6 +509,10 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
   if (lines && lines.length) {
     const lg = s('g', { 'pointer-events': 'none', class: 'rapidlines' });
     for (const ln of lines) {
+      if (ln.ring != null) {   // three players: the centre ring (a ship inside it, or beyond the centre, is past the line)
+        lg.appendChild(s('path', { d: outlinePath(hex.disc([0, 0], ln.ring)), fill: ln.col, 'fill-opacity': 0.04, stroke: ln.col, 'stroke-width': 0.9, 'stroke-dasharray': '3 2', 'stroke-opacity': 0.85 }));
+        continue;
+      }
       const r0 = Math.floor(ln.row), r1 = Math.ceil(ln.row);
       const lo = Math.max(-R, -R - r0, -R - r1), hi = Math.min(R, R - r0, R - r1);
       const a = [lo - 0.5, ln.row], b = [hi + 0.5, ln.row];
@@ -554,6 +558,28 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       const lx = X(guide.anchor), ly = Y(guide.anchor) - FL * (S * 1.2) - hgt / 2;
       gl.appendChild(s('rect', { x: f1(lx - w / 2), y: f1(ly - hgt / 2), width: f1(w), height: f1(hgt), rx: f1(hgt / 2), fill: '#06202a', 'fill-opacity': 0.92, stroke: gc, 'stroke-width': f1(1 / px) }));
       gl.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': f1(fpx), 'font-weight': 700, fill: gc }, txt));
+    }
+    // A small teal hand that bobs toward the hex this step is asking for: the move hex,
+    // or the fire reticle once that is the step. It leaves when the step advances or the guide clears.
+    const aim = (guide.reticle && !guide.best) ? guide.reticle.at : (guide.best || guide.anchor);
+    if (aim) {
+      const ax = X(aim), ay = Y(aim);
+      const ang = Math.PI / 3;                         // sit just outside the hex, south-east
+      const hx = ax + Math.cos(ang) * S * 1.45, hy = ay + Math.sin(ang) * S * 1.45;
+      const rot = Math.atan2(ay - hy, ax - hx) * 180 / Math.PI;
+      const hold = s('g', { transform: 'translate(' + f1(hx) + ',' + f1(hy) + ') rotate(' + f1(rot) + ')', 'pointer-events': 'none' });
+      const sc = (36 / px) / 90;                       // the path is ~90 units long; keep the hand about 36px on screen
+      // Three groups so the bob animation cannot overwrite the scale, and the scale cannot overwrite the position.
+      const bob = s('g', { class: reduce ? '' : 'guidehand' });
+      const finger = s('g', { transform: 'scale(' + sc.toFixed(4) + ')' });
+      // Pointing hand, finger along +x (toward the hex after the rotate). Teal, to match the player's colour.
+      finger.appendChild(s('path', {
+        d: 'M-6 -10 h34 v-16 c2 -10 20 -10 22 0 l40 24 c8 6 8 16 0 22 l-40 24 c-2 10 -20 10 -22 0 v-16 h-22 v18 c0 8 -10 10 -16 4 l-10 -10 c-6 -8 0 -16 10 -16 h16 v-18z',
+        fill: '#7fd8f0', stroke: '#06202a', 'stroke-width': 5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+      }));
+      bob.appendChild(finger);
+      hold.appendChild(bob);
+      gl.appendChild(hold);
     }
     svg.appendChild(gl);
   }

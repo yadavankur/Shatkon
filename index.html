@@ -418,8 +418,8 @@ function playMenu(main) {
     item('#play/cpu', 'cpu', 'Vs computer', 'Pick a board and how hard the computer plays.'),
     item('#play/same', 'phone', 'Same phone', 'Two players take turns on this phone. Each sees only their own fleet.'),
     item('#play/two', 'phones', 'Two phones', 'Play a friend on their own phone by swapping short codes.'),
-    // rapid mode, Grok build (rapid-grok.html, rules/rapid-grok/): one action each, 15 s to act, 5 s to watch.
-    item('rapid-grok.html', 'start', 'Rapid Grok', 'Vs computer. One action each: 15 seconds to act, 5 to watch the reply.'),
+    // rapid mode, Grok build (rapid-grok.html, rules/rapid-grok/): one action each, 15 s to act, 3 s to watch.
+    item('rapid-grok.html', 'start', 'Rapid Grok', 'Vs computer. One action each: 15 seconds to act, 3 to watch the reply.'),
     // rapid mode (experimental, rules/rapid/): one action a tick, both sides at once, against the clock.
     // "Opus" is this build (Claude Opus); a Grok-built version may sit beside it for comparison.
     item(null, 'start', 'Rapid Opus', 'Vs computer. One action a tick, both sides at once, against the clock.',
@@ -440,11 +440,14 @@ const LAB_BOARDS = [
   ['lab_repair', 'Repair', 'Their Warden shoots yours. Once it is hit, tap it, then Buy \u2192 Repair (you start with \u25c812).'],
   ['lab_warp', 'Warp', 'Tap your front scout, then Buy \u2192 Warp and pick a hex further back in your half (you start with \u25c86).'],
   ['lab_hibernate', 'Hibernate', 'Tap the scout next to the rock, then Buy \u2192 Hibernate (\u25c82). The enemy can\u2019t see it unless right next to it.'],
+  // three players (docs/design/three-player.md): you and two computers, free for all, Frontier rules
+  ['three_edges', 'Three players: edges', 'You and two computers, free for all. Fleets start on alternate edges. Reach the centre ring to be free; last flagship standing wins.', 'three'],
+  ['three_corners', 'Three players: corners', 'The same, but the fleets start in alternate corners (3 ways forward instead of 2).', 'three'],
 ];
 function labMenu(main) {
-  main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about]) =>
-    item(null, 'start', name, about, () => battleSheet(name === 'Free lab' ? 'Experiments' : name, game({ board, mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), 'lab')))));
-  main.append(h('p', { class: 'muted' }, 'Practice boards start with just their idea switched on and the ships set up for it. No clock on any of them.'));
+  main.append(h('div', { class: 'list' }, ...LAB_BOARDS.map(([board, name, about, kind]) =>
+    item(null, 'start', name, about, () => battleSheet(name === 'Free lab' ? 'Experiments' : name, game({ board, mode: 'cpu', new: '1', level: ls.get('shatkon.ai') === 'easy' ? 'easy' : 'normal' }), kind || 'lab')))));
+  main.append(h('p', { class: 'muted' }, 'Practice boards start with just their idea switched on and the ships set up for it. No clock on any of them. The three-player boards are full games, on the clock.'));
 }
 function twoPhones(main) {
   main.append(h('div', { class: 'list' },
@@ -496,7 +499,7 @@ async function boardPicker(mode) {
     const cardKids = [];
     if (b.preview) cardKids.push(h('img', { class: 'preview', src: b.preview, alt: '', 'aria-hidden': 'true' }));
     cardKids.push(h('span', { class: 'meta' }, ...meta));
-    list.append(h('button', { class: 'item board-card', 'data-difficulty': b.level || false, 'data-step': String(step), style: '--i:' + i, onclick: () => { const p = { board: b.id, mode, new: '1' }; if (mode === 'cpu') p.level = level; battleSheet(b.name, game(p)); } },
+    list.append(h('button', { class: 'item board-card', 'data-difficulty': b.level || false, 'data-step': String(step), style: '--i:' + i, onclick: () => { const p = { board: b.id, mode, new: '1' }; if (mode === 'cpu') p.level = level; battleSheet(b.name, game(p), false, mode === 'cpu'); } },
       h('span', { class: 'step', 'aria-hidden': 'true' }, h('span', { class: 'n' }, String(step))),
       h('span', { class: 'card' }, ...cardKids)));
   });
@@ -504,7 +507,7 @@ async function boardPicker(mode) {
 
 // ---------- settings: the player's own, shared with the game ----------
 // Battle settings, asked before every skirmish (the form lives in ui/settings.js; the play page uses it too)
-async function battleSheet(title, href, rapid = false) {
+async function battleSheet(title, href, rapid = false, cpu = true) {
   const box = $('#settings');
   let S;
   try { S = await import('./ui/settings.js'); } catch (e) { location.href = href; return; }
@@ -516,7 +519,7 @@ async function battleSheet(title, href, rapid = false) {
   }
   S.injectSettingsCss();
   box.textContent = '';
-  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid),
+  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid, cpu),
     h('div', { class: 'row' }, h('button', { class: 'ghostbtn', onclick: () => { box.hidden = true; } }, 'Back'), h('button', { class: 'done', onclick: () => { location.href = href; } }, 'Start battle'))));
   box.hidden = false;
   box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };

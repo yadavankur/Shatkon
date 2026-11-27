@@ -66,6 +66,8 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
   const mx = state.rules.magazineExplodes, boom = mx > 0 && !guard && !opts.chain && lost.includes('magazine destroyed') && Object.values(ship.load || {}).some((k) => k > 0);
   if (boom && !sg.wrecked) { sg.wrecked = true; for (const p of sg.parts) p.hp = 0; lost.push('magazine exploded: segment wrecked'); }
   const hull = hullPct(state, ship), at = segHex(ship, si);
+  // three players: remember which side last hurt this ship (kill pay and the flagship bounty go to it)
+  if (state.lastHit && state.attacker != null && state.attacker !== ship.owner) state.lastHit[ship.id] = state.attacker;
   clampLoad(state, ship);
   emit(state, { t: 'damage', ship: ship.id, seg: si, hits: n, lost, cause, hull, at }, [ship.owner]);
   // the shooter sees what the hit knocked off
@@ -84,6 +86,11 @@ export function applyHits(state, ship, si, n, cause, opts = {}) {
 
 // An object blows up. "struck" is the ship segment it ran into, if any.
 export function explode(state, obj, struck) {
+  const was = state.attacker;
+  if (state.lastHit) state.attacker = obj.owner;
+  try { blow(state, obj, struck); } finally { if (state.lastHit) state.attacker = was; }
+}
+function blow(state, obj, struck) {
   const m = state.rules.munitions[obj.kind], everyone = state.players.map((_, i) => i);
   const center = struck ? segHex(struck.ship, struck.seg) : obj.pos.slice();
   let sparesShip = null;
@@ -152,6 +159,7 @@ export function strikeEngines(state, struck, n, cause) {
 
 export function checkWin(state) {
   if (state.phase !== 'play' || state.script) return;   // story chapters decide the result in engine/script.js
+  if (state.out) return checkOut(state);
   const lost = state.players.map((_, p) => {
     const mine = state.ships.filter((s) => s.owner === p);
     const flag = mine.filter((s) => s.flagship);
@@ -188,3 +196,32 @@ function nearestSeg(ship, at) {
 }
 // Is this ship stunned this tick (rapid mode)?
 export const stunned = (state, x) => !!(x && x.stunned && x.stunned === state.round);
+
+// Three players (26 Nov 2026): a side whose flagship is gone is out. Its other ships scuttle where they
+// are (they don't count as kills), its mines, buoys, turrets and missiles go with them, and the side
+// that landed the killing hit takes its rekon plus a bounty. The game ends when one side is left.
+function checkOut(state) {
+  const everyone = state.players.map((_, i) => i);
+  for (let p = 0; p < state.players.length; p++) {
+    if (state.out[p]) continue;
+    const mine = state.ships.filter((s) => s.owner === p), flag = mine.filter((s) => s.flagship);
+    if (!(flag.length ? flag.every((s) => s.dead) : mine.every((s) => s.dead))) continue;
+    state.out[p] = true;
+    const by = flag.length ? state.lastHit[flag[0].id] : undefined;
+    for (const s of mine) if (!s.dead) { s.dead = true; s.scuttled = true; for (const pl of state.players) delete pl.seen[s.id]; }
+    for (const o of state.objs.filter((o) => o.owner === p)) removeObj(state, o);
+    let bounty = 0;
+    const E = state.econ;
+    if (E && by != null && !state.out[by]) {
+      bounty = E.purse[p] + Math.max(0, num((state.rules.rapid || {}).bounty, 10));
+      E.purse[by] += bounty; E.earned[by] += bounty; E.purse[p] = 0;
+      E.bounty = E.bounty || state.players.map(() => 0); E.bounty[by] += bounty;
+    }
+    emit(state, { t: 'knocked_out', player: p, by: by == null ? null : by, bounty }, everyone);
+  }
+  const left = everyone.filter((p) => !state.out[p]);
+  if (left.length > 1) return;
+  state.phase = 'over';
+  state.winner = left.length ? left[0] : 'draw';
+  emit(state, { t: 'game_over', winner: state.winner }, everyone);
+}

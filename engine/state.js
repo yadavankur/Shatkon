@@ -172,5 +172,7 @@ export function newGame(rules, seed = 1) {
     });
     for (const d of fl.deployment) if (d.munition) state.objs.push(makeObj(state, d.munition, p, d.at, dirToward(d.at, [0, 0])));
   });
+  // three players: every seat in the turn order, and who is out (flagship gone)
+  if (state.players.length > 2) { state.order = state.players.map((_, i) => i); state.out = state.players.map(() => false); state.lastHit = {}; }
   return state;
 }

@@ -203,6 +203,7 @@ for (const node of campaign.nodes) {
   const profiles = Object.keys(ch.ai_profiles || {});
   const flagsSet = new Set();
   for (const e of ch.script) for (const a of actionsOf(e)) if (a.flag) flagsSet.add(a.flag);
+  flagsSet.add('guides_skipped');   // set by the engine (skipChapterGuides, the "I'll do this myself" button)
   const byId = Object.fromEntries(ch.script.map((e) => [e.id, e]));
   const dooms = new Map();
   const checkShip = (id, where) => { if (id && !allIds.has(id)) fail(`${where}: unknown ship ${id}`); };

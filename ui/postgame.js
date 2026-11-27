@@ -25,7 +25,7 @@ const ownerOf = (id) => { const m = /^(\d)/.exec(id || ''); return m ? Number(m[
 export function battleStats(game, opts = {}) {
   const log = E.battleLog(game, { seat: opts.seat ?? null });
   const { moments } = E.analyse(log);
-  const sides = [0, 1].map((k) => {
+  const sides = (game.players.length > 2 ? game.players : [0, 1]).map((_, k) => {   // one per side (three players: 3)
     const ships = game.ships.filter((z) => z.owner === k);
     return { ships: ships.length, lost: ships.filter((z) => z.dead && !z.converted).length,   // a ship that went silent (rapid mode) isn't lost
       converted: ships.filter((z) => z.converted).length,   // ...but it is gone from the fleet, so it is counted on its own
@@ -35,7 +35,7 @@ export function battleStats(game, opts = {}) {
   const evs = [];
   for (const t of log.turns) for (const a of t.actions || []) for (const e of a.events || []) evs.push({ e, round: t.round, player: t.player });
   for (const { e } of evs) {
-    if (e.t === 'damage') { const vic = ownerOf(e.ship); if (vic != null && sides[1 - vic]) sides[1 - vic].dealt += e.hits; }
+    if (e.t === 'damage') { const vic = ownerOf(e.ship); if (sides.length > 2) { const by = e.by && ownerOf(e.by); if (by != null && by !== vic && sides[by]) sides[by].dealt += e.hits; } else if (vic != null && sides[1 - vic]) sides[1 - vic].dealt += e.hits; }
     if (e.t === 'fire') {
       const p = ownerOf(e.ship), sd = sides[p]; if (!sd) continue;
       const d = e.from ? E.hex.dist(e.from, e.at) : 1, band = d <= 4 ? 0 : d <= 8 ? 1 : 2;
@@ -73,7 +73,7 @@ export function battleStats(game, opts = {}) {
 
 // Economy mode (Frontier): what each side earned, what it bought and what the purchases did.
 function econStats(game, evs) {
-  const E2 = game.econ, out = [0, 1].map((p) => ({ earned: E2.earned[p], purse: E2.purse[p], spent: { ...E2.spent[p] }, perTick: E2.perTick[p].slice(), from: {}, buys: [] }));
+  const E2 = game.econ, out = (game.players.length > 2 ? game.players : [0, 1]).map((_, p) => ({ earned: E2.earned[p], purse: E2.purse[p], spent: { ...E2.spent[p] }, perTick: E2.perTick[p].slice(), from: {}, buys: [] }));
   const turrets = new Map();   // obj id -> { side, round, shots, dmg, gone }
   for (const { e, round } of evs) {
     if (e.t === 'earned') for (const it of e.items || []) out[e.player].from[it.why] = (out[e.player].from[it.why] || 0) + it.n;
@@ -94,6 +94,9 @@ export function postGameCards(game, opts = {}) {
   const st = battleStats(game, opts);
   const name = opts.sideName || ((k) => 'Player ' + (k + 1));
   const [a, b] = st.sides;
+  const many = st.sides.length > 2, K = st.sides.map((_, k) => k);   // three players: tables with a column per side instead of head-to-head bars
+  const grid = (label, rows) => h('table', { class: 'pg-tab' }, h('thead', null, h('tr', null, h('th', null, label), K.map((k) => h('th', { class: 's' + Math.min(k, 1), style: k === 2 ? 'color:#ffc35c' : null }, name(k))))),
+    h('tbody', null, rows.map(([l, f]) => h('tr', null, h('th', null, l), K.map((k) => h('td', null, String(f(k))))))));
   const bar = (label, va, vb, fmt = (x) => x) => {
     const max = Math.max(va, vb, 1);
     return h('div', { class: 'pg-h2h' },
@@ -102,7 +105,10 @@ export function postGameCards(game, opts = {}) {
       h('div', { class: 'pg-bar r' }, h('i', { class: 's1', style: 'width:' + (100 * vb) / max + '%' })), h('span', { class: 'pg-v s1' }, fmt(vb)));
   };
   const head = h('div', { class: 'pg-sides' }, h('b', { class: 's0' }, name(0)), h('b', { class: 's1' }, name(1)));
-  const card1 = h('section', { class: 'pg-card', 'aria-label': 'Head to head' }, h('h3', null, 'Head to head'), head,
+  const card1 = many ? h('section', { class: 'pg-card', 'aria-label': 'Head to head' }, h('h3', null, 'All three'),
+    grid('', [['Hull left', (k) => st.sides[k].hull + '%'], ['Damage done', (k) => st.sides[k].dealt], ['Ships lost', (k) => st.sides[k].lost], ['Went silent', (k) => st.sides[k].converted], ['Laser shots', (k) => st.sides[k].shots]]),
+    h('p', { class: 'pg-foot' }, 'Finished in round ' + st.rounds + '.'))
+  : h('section', { class: 'pg-card', 'aria-label': 'Head to head' }, h('h3', null, 'Head to head'), head,
     bar('Hull left', a.hull, b.hull, (x) => x + '%'), bar('Damage done', a.dealt, b.dealt), bar('Ships lost', a.lost, b.lost, (x) => x),
     a.converted || b.converted ? bar('Went silent', a.converted, b.converted, (x) => x) : null,
     bar('Laser shots', a.shots, b.shots), bar('Moves wasted', a.unused, b.unused),
@@ -115,8 +121,8 @@ export function postGameCards(game, opts = {}) {
   const card2 = h('section', { class: 'pg-card', 'aria-label': 'Shots' }, h('h3', null, 'Laser shots by range'),
     h('table', { class: 'pg-tab' },
       h('thead', null, h('tr', null, h('th'), h('th', null, 'Close', h('small', null, '1–4')), h('th', null, 'Medium', h('small', null, '5–8')), h('th', null, 'Far', h('small', null, '9+')))),
-      h('tbody', null, [0, 1].map((k) => h('tr', { class: 's' + k }, h('th', null, name(k)), [0, 1, 2].map((i) => rateCell(st.sides[k], i)))))),
-    h('div', { class: 'pg-msl' }, [0, 1].map((k) => h('div', { class: 's' + k }, h('b', null, name(k) + ' missiles: ' + st.sides[k].missiles.fired), h('span', null, msl(st.sides[k]))))));
+      h('tbody', null, K.map((k) => h('tr', { class: 's' + Math.min(k, 1) }, h('th', null, name(k)), [0, 1, 2].map((i) => rateCell(st.sides[k], i)))))),
+    h('div', { class: 'pg-msl' }, K.map((k) => h('div', { class: 's' + Math.min(k, 1) }, h('b', null, name(k) + ' missiles: ' + st.sides[k].missiles.fired), h('span', null, msl(st.sides[k]))))));
 
   const icon = { sight: '\u{1F441}', hit: '✸', lost: '✖', flag: '★', conv: '◌' };
   const card3 = h('section', { class: 'pg-card', 'aria-label': 'Key moments' }, h('h3', null, 'Key moments'),
@@ -128,7 +134,14 @@ export function postGameCards(game, opts = {}) {
 
   // 4. economy mode: rekon in and out, and what the purchases did, as one plain table
   let card4 = null;
-  if (st.econ) {
+  if (st.econ && many) {
+    const e = st.econ, sum = (o) => Object.values(o).reduce((x, y) => x + y, 0);
+    card4 = h('section', { class: 'pg-card', 'aria-label': 'Economy' }, h('h3', null, 'Rekon \u25c8'),
+      grid('', [['Earned', (k) => e[k].earned], ['Spent', (k) => sum(e[k].spent)], ['Left at the end', (k) => e[k].purse],
+        ['New ground', (k) => (e[k].from.ground || 0) + (e[k].from.rock || 0)], ['Holding the line', (k) => e[k].from.hold || 0], ['Kills', (k) => e[k].from.kill || 0],
+        ['Bounty', (k) => (game.econ.bounty || [])[k] || 0], ['Lost by passing', (k) => e[k].spent.idle || 0]]),
+      game.econ.style ? h('p', { class: 'pg-foot' }, K.slice(1).map((k) => name(k) + ' played ' + String(game.econ.style[k] || '').toUpperCase()).join('; ') + '.') : null);
+  } else if (st.econ) {
     const [e0, e1] = st.econ, sum = (o) => Object.values(o).reduce((x, y) => x + y, 0);
     const row = (label, a0, a1, cls = '') => (a0 || a1 || cls === 'tot') ? h('tr', { class: cls }, h('th', null, label), h('td', { class: 's0' }, a0 || '\u2013'), h('td', { class: 's1' }, a1 || '\u2013')) : null;
     const sec = (label) => h('tr', { class: 'sec' }, h('th', { colspan: 3 }, label));

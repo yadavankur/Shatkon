@@ -28,6 +28,7 @@ export function pickStyles(s) {
   const o = s.rules.rapid || {};
   const pick = (v, salt) => (STYLES.includes(v) ? v : STYLES[(Math.abs(Number(s.seed) || 0) + salt) % 3]);
   s.econ.style = [pick(o.cpuStyle0, 1), pick(o.cpuStyle, 0)];
+  if (s.players.length > 2) s.econ.style.push(pick(o.cpuStyle2, 2));   // three players: the second computer's style
 }
 
 const gapTo = (a, b) => Math.min(...footprint(a).flatMap((c) => footprint(b).map((d) => dist(c, d))));
@@ -95,7 +96,7 @@ export function econAI(state, p, a, rnd = Math.random) {
     // turrets from ships on the line, up to 3 working, keeping enough for upkeep
     const live = state.objs.filter((o) => isTurret(o) && o.owner === p && !o.dark).length;
     if (live < 3 && purse >= price(state, 'turret') + live * cfg.turretUpkeep + 1) {
-      for (const z of mine.filter((q) => pastLine(state, q) && !q.flagship && droppableLaser(state, q))) {
+      for (const z of mine.filter((q) => pastLine(state, q) && !q.flagship && turretSpots(state, p, q.id).length)) {
         const spots = turretSpots(state, p, z.id);
         if (!spots.length) continue;
         // the spot that faces the enemy most

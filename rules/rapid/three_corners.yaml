@@ -1,0 +1,94 @@
+# ============================================================
+#  BOARD: Three Corners (three-player experiment; built by Claude Opus, 26 Nov 2026)
+#
+#  Three fleets, free for all, on a radius-12 board. Each fleet starts in a corner, every other
+#  corner of the hexagon (south-west, north-west, east). Forward from a corner is 3 directions, not 2. Forward is towards the centre.
+#  The line is the centre ring: a ship within `ring` hexes of the centre (or beyond it) is past it.
+#  Lose your flagship and you are out: your other ships scuttle. Whoever lands the killing hit takes
+#  your rekon plus the bounty. Last flagship standing wins. Design: docs/design/three-player.md
+#  Open it at  play.html?board=three_corners
+# ============================================================
+
+board:
+  name: "Three Corners"
+  idea: "Three fleets in alternate corners of the hexagon, free for all. Last flagship standing wins."
+  try: "Let the other two fight, but not for too long: the killing hit on a flagship takes that side's rekon and a bounty."
+  rules: {}
+
+rapid:
+  ring: 3                     # the centre ring: past the line within 3 hexes of the centre (or beyond it)
+  bounty: 10                  # rekon for the killing hit on a flagship, on top of the dead side's purse
+  economy: on
+  interceptHurts: on
+  econ: { newHex: 1, asteroid: 1, cross: 3, hold: 1, kill: 2 }
+
+budget: 99999
+
+map:
+  name: "Three Corners"
+  board: { shape: hexagon, radius: 12 }
+  zones:
+    player_1_home: { edge: corner_sw, depth: 8 }   # hexes from the corner
+    player_2_home: { edge: corner_nw, depth: 8 }
+    player_3_home: { edge: corner_e, depth: 8 }
+    no_mans_land:  { everything_else: true }
+  terrain:
+    - { type: asteroid, at: [0, 0], size: 1 }
+    - { type: asteroid, at: [-4, 4], size: 1 }      # one on each corner's road to the centre
+    - { type: asteroid, at: [0, -4], size: 1 }
+    - { type: asteroid, at: [4, 0], size: 1 }
+    - { type: asteroid, at: [-1, 6], size: 1 }      # and one off to the side of each
+    - { type: asteroid, at: [-5, -1], size: 1 }
+    - { type: asteroid, at: [6, -5], size: 1 }
+
+player_1:
+  ships:
+    - name: "Throne"               # 7-hex flower, flagship
+      flagship: true
+      load: { missile: 2, missile_advanced: 3, missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, comms],        mounts: [laser, shield, point_defence] }
+        - { at: [1, 0],   bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [-1, 0],  bays: [coupling, engine, magazine], mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, stealth, magazine], mounts: [launcher, shield, armour] }
+        - { at: [1, -1],  bays: [coupling, stealth, engine],  mounts: [laser, shield, point_defence] }
+        - { at: [0, 1],   bays: [coupling, engine, stealth],  mounts: [launcher, armour, armour] }
+        - { at: [-1, 1],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+    - name: "Warden"               # 3-hex triangle
+      load: { missile_basic: 3, missile_advanced: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, sensor, magazine],     mounts: [laser, shield, point_defence] }
+        - { at: [-1, 0],  bays: [coupling, engine, stealth],  mounts: [laser, shield, armour] }
+        - { at: [0, -1],  bays: [coupling, magazine, engine], mounts: [launcher, shield, armour] }
+    - name: "Lancer"               # 2-hex
+      load: { missile_basic: 3 }
+      hull:
+        - { at: [0, 0],   bays: [core, engine, sensor],       mounts: [laser, shield, armour] }
+        - { at: [1, 0],   bays: [coupling, magazine, engine], mounts: [launcher, laser, armour] }
+    - name: "Pawn A"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn B"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn C"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn D"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+    - name: "Pawn E"
+      hull: [{ at: [0, 0], bays: [core, engine, sensor], mounts: [laser, shield, armour] }]
+  deployment:
+    - { ship: "Throne", at: [-9, 9] }
+    - { ship: "Warden", at: [-11, 8] }
+    - { ship: "Lancer", at: [-8, 12] }
+    - { ship: "Pawn A", at: [-6, 8] }
+    - { ship: "Pawn B", at: [-8, 6] }
+    - { ship: "Pawn C", at: [-10, 5] }
+    - { ship: "Pawn D", at: [-5, 10] }
+    - { ship: "Pawn E", at: [-6, 6] }
+
+player_2:                     # the same fleet, turned 120 degrees (north-west corner)
+  copy_of: player_1
+  turn: 120
+
+player_3:                     # turned 240 degrees (east corner)
+  copy_of: player_1
+  turn: 240
