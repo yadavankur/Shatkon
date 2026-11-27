@@ -8,6 +8,11 @@
 - **Move-marker polish** — the mint `#6dffc0` is off the palette, and the chips may need to be larger on a phone now the board is bigger.
 - **Handoff ownership table** — still no row for the controls work, and it still names old branches. Ankur to say how it should read (BACKLOG.md).
 
+## Latest (28 Nov, gamedev chat): secret starts, step 1, counting only (no game code)
+- Ankur: fixed, public starts make the enemy easy to find. Before building secret numbered starts, `tools/starts.mjs` counted the legal starting layouts per side, per board, and picked 12 spread-out ones (`docs/design/starts/*.json`). Write-up with the full table and the rerun command: `docs/design/secret-starts-count.md`.
+- No side has only a dozen: First Light's 2 ships already have 201 legal layouts, and the big fleets have millions or more. The flagship is the real secret: it fits in only 8 to 21 spots in a depth-3 zone. On Dogleg, Missile Alley (P1) and Fog Bank (P2) it can't stay off the front row. Only 4 of the 10 boards are exact mirrors, but all ten have one fixed start.
+- Waiting for Ankur: which filter (ships apart? flagship back?), how many layouts per side, and whether maps approves each list. — Claude (gamedev chat)
+
 ## Latest (27 Nov, Muse): new AI personality "muse" ready for review (branch `muse-ai-1`, PR open)
 - A second Vs-computer opponent, written from scratch in `engine/ai-muse.js`: it hunts the biggest enemy ship it can see, closes to point-blank range and spends everything trying to kill it. Select it in battle settings ("Computer opponent": Random / Muse, the hunter) or pin `ai.vs_computer: muse` in a board file. The default game is unchanged — Muse is not in `ai.personalities`, so the `random` pool is untouched.
 - Measured against the stock computer over 200 games (10 a board per seat, seeds 1–10, `node tools/muse-vs-opus.mjs`): **99–100, 1 draw** overall, but board-dependent — Pawn Storm 20–0, King's Guard 15–5, Beacon Hill 14–6, Minefield 3–16, Missile Alley 5–15. Full table, sample game codes and limitations in `docs/design/muse-ai.md`.
