@@ -465,6 +465,8 @@ function impactFx(r, delay, mine) {
         w.classList.add('shake');
       }
     }, delay || 0);
+  // textFx lasts 1900ms (heavy hits also have a 900ms second ring). Story lines wait on fxBusyUntil.
+  fxBusyUntil = Math.max(fxBusyUntil, performance.now() + (delay || 0) + (heavy ? 2000 : 800));
 }
 function scanFx(r, delay) {
   const own = ownerOfId(r.ship), c1 = colOf(own), c2 = col2Of(own);
@@ -723,11 +725,16 @@ function playFx(evs, viewer, flight, roundEnded) {
 // Cutscenes wait for the animation that caused them (the missile lands, then the scene plays).
 let storyAt = 0, storyWait = 0;
 function storyLater(g, dur) {
-  const now = performance.now(), wants = g.events.some((e) => e.t === 'scene') || g.phase === 'over';
-  const at = Math.max(storyAt, now + (wants ? Math.min(dur || 0, 6000) : 0));
-  if (at <= now + 5 && !storyWait) return storyEvents(g);
+  // Board animations first (missile flight, the hit), then barks and cutscenes — in every chapter.
+  // Barks used to skip the wait, so lines about a hit could play while the missile was still flying.
+  const now = performance.now();
+  const talk = g.events.some((e) => e.t === 'scene' || e.t === 'bark') || g.phase === 'over';
+  const animLeft = Math.max(0, (dur || 0), fxBusyUntil - now);
+  const wait = talk ? Math.min(animLeft + 400, 8000) : 0;
+  const at = Math.max(storyAt, now + wait);
+  if (at <= now + 5 && !storyWait) { storyEvents(g); maybeWinNow(); return; }
   storyAt = at; storyWait++;
-  setTimeout(() => { storyWait--; storyEvents(g); }, Math.max(0, at - now));
+  setTimeout(() => { storyWait--; storyEvents(g); maybeWinNow(); }, Math.max(0, at - now));
 }
 // The phase banner: a band right across the board whenever the phase changes (your turn, enemy turn, flight).
 function toast(text, cls, sub) {
@@ -833,6 +840,7 @@ export function startStoryGame(chRules, title) {
   sel = look = pending = null; mode = 'move'; code = ''; cam.w = 0;
   undoStack = []; curtain = null; aiSteps = 0; report = null; pendingFx = null; moveAnims = [];
   say(title + '. Tap a ship with a white rim to give it orders. Double-tap it to zoom in, and again to zoom back out.');
+  winNowShown = false;
   save(); render();
   storyEvents(game);
 }
@@ -1190,6 +1198,29 @@ function tap(c, v, opts, viaChip, t) {
     if (!obj && !gh) { sel = null; look = null; mode = 'move'; }
   }
   render();
+}
+
+// Chapter 1 trial: when Rule B holds (their flagship is a sitting duck, and nothing else can hurt you),
+// offer to take the win now or keep playing. Shown once. Keep playing just closes the prompt.
+let winNowShown = false;
+function maybeWinNow() {
+  if (winNowShown || !game || game.phase !== 'play' || !game.rules.campaign) return;
+  if (game.rules.campaign.id !== 'ch1') return;   // this slice is chapter 1 only
+  if (storyBusy() || storyWait > 0) return;
+  if (document.getElementById('winnow') || document.getElementById('help') && !document.getElementById('help').hidden) return;
+  if (!E.cannotLose(game, 0)) return;
+  winNowShown = true;
+  const close = () => { const m = document.getElementById('winnow'); if (m) m.remove(); };
+  const take = () => { close(); E.takeChapterWin(game); say('Chapter complete.'); storyLater(game, 0); save(); render(); };
+  const box = h('div', { id: 'winnow', class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'You cannot lose', onclick: (e) => { if (e.target.id === 'winnow') close(); } },
+    h('div', { class: 'card modal-box winnow' },
+      h('h2', null, "They can't hurt you any more."),
+      h('p', null, 'The Seed has no working engines, lasers or launchers, and nothing else on their side can still reach you. Take the win, or keep playing?'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn go', onclick: take }, 'Take the win'),
+        h('button', { class: 'btn', onclick: close }, 'Keep playing'))));
+  document.body.appendChild(box);
+  box.querySelector('.btn.go').focus();
 }
 
 // the move guide for whoever is looking at the board (story chapters only)
@@ -1770,7 +1801,11 @@ export function render() {
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
     halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn, heat, heatLabels: labelsOn, tagsOn: isRapidGame() ? 'tap' : 'all', look }));
+  if (guide && !hid) wrap.appendChild(h('button', { id: 'guideskip', class: 'guideskip', type: 'button', title: 'Hide the pointing hand for the rest of this chapter', onclick: () => {
+    E.skipChapterGuides(game); say("I'll leave you to it. The pointing hand is off for the rest of this chapter."); save(); render(); maybeWinNow();
+  } }, "I'll do this myself"));
   drawMini(v, guide, hid);
+  maybeWinNow();
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
     compact && !(cam.max && cam.w < cam.max * 0.98) ? null : h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
@@ -2552,7 +2587,13 @@ function initExtras() {
     } catch (e) { game = null; }
   }
   // a small hook for automated tests
-  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI, rapid: (a) => rapidAct(a), get rt() { return RT.phase; }, pause: () => rapidPause() };
+  window.__shatkon = { get game() { return game; }, act: (a) => act(a, true), select: (id) => { const v = E.view(game, who()), x = v.ships.find((z) => z.id === id); if (canCommand(x, v)) { selectShip(id, v); render(); return true; } return false; }, get sel() { return sel; }, get camBusy() { return performance.now() < camUntil; }, get flip() { return FL; }, E, lab: labAPI, rapid: (a) => rapidAct(a), get rt() { return RT.phase; }, pause: () => rapidPause(),
+    skipGuides: () => { E.skipChapterGuides(game); save(); render(); },
+    takeWin: () => { E.takeChapterWin(game); storyLater(game, 0); save(); render(); },
+    cannotLose: () => E.cannotLose(game, 0),
+    get guide() { return guideNow(); },
+    get fxBusyUntil() { return fxBusyUntil; },
+    get storyWait() { return storyWait; } };
   labRoute();
   // the landing page opens the game with ?mode=: story, test, cpu (&level=easy|normal), pass, all, p1, join;
   // &new=1 starts a fresh game in that mode. The query is then dropped, so a reload continues the game.

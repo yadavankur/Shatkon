@@ -10,7 +10,8 @@
 // Player actions added here: dock, graft (see doJoin).
 
 import { add, key, dist, step } from './hex.js';
-import { Illegal, no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater } from './state.js';
+import { Illegal, no, num, emit, current, footprint, gap, hullPct, geom, occupancy, shipById, deadInWater, workingParts } from './state.js';
+import { exp } from './experiments.js';
 import { visibleTo, refreshSight } from './detect.js';
 import { applyHits, removeObj, strikeEngines } from './damage.js';
 import { doMove, doFire, doLaunch, shipIncome } from './actions.js';
@@ -597,6 +598,65 @@ function evalGuides(state) {
     }
     if (moved && sc.guides.includes(gd)) emit(state, { t: 'guide', id: gd.id, ship: gd.ship, step: gd.i + 1, steps: gd.steps.length }, [gd.owner]);
   }
+}
+
+
+// A working laser (hits + range) or a launcher that still has something to fire.
+function canShoot(state, s) {
+  const load = s.load || {};
+  const ammo = Object.values(load).some((n) => n > 0);
+  for (const w of workingParts(state, s)) {
+    if (num(w.c.hits) > 0 && num(w.c.range) > 0) return true;
+    if (w.p.t === 'launcher' && ammo) return true;
+  }
+  return false;
+}
+function isEnemyHazard(state, o, player) {
+  if (o.owner === player) return false;
+  if (o.kind === 'turret') return true;
+  const mun = (state.rules.munitions || {})[o.kind] || {};
+  if (mun.speed) return true;                 // a missile or drone still in the air
+  if (mun.family === 'mine' || /mine/.test(String(o.kind))) return true;
+  return false;
+}
+// Rule B: every enemy flagship is disarmed and dead in the water, and nothing else
+// on their side can still hurt you (guns, missiles in flight, mines, turrets, or a ram).
+// Hidden mines and unseen missiles still count: the check must be honest.
+export function cannotLose(state, player = 0) {
+  if (!state || state.phase !== 'play') return false;
+  const foe = state.ships.filter((s) => s.owner !== player && !s.dead);
+  const flags = foe.filter((s) => s.flagship);
+  if (!flags.length) return false;
+  for (const f of flags) {
+    if (!deadInWater(state, f) || canShoot(state, f)) return false;
+  }
+  for (const s of foe) if (canShoot(state, s)) return false;
+  for (const o of state.objs || []) if (isEnemyHazard(state, o, player)) return false;
+  if (exp(state, 'ram')) {
+    const mine = state.ships.filter((s) => s.owner === player && !s.dead);
+    for (const x of foe) {
+      if (x.flagship || x.segs.length !== 1) continue;
+      if (mine.some((t) => gap(x, t) <= 2)) return false;     // already in ram reach, even with no engines
+      if (!deadInWater(state, x)) return false;               // can still close in
+    }
+  }
+  return true;
+}
+// Hide the chapter's move guide for the rest of the game (the "I'll do this myself" button).
+export function skipChapterGuides(state) {
+  const sc = state.script;
+  if (!sc) return state;
+  sc.flags = sc.flags || {};
+  sc.flags.guides_skipped = true;
+  for (const gd of sc.guides || []) emit(state, { t: 'guide_clear', id: gd.id, ship: gd.ship, why: 'skipped' }, [gd.owner]);
+  sc.guides = [];
+  return state;
+}
+// The "Take the win" button: the chapter ends as a normal win, with the usual closing scenes.
+export function takeChapterWin(state) {
+  if (!cannotLose(state, 0) || state.phase !== 'play') return state;
+  finish(state, 'win', 'cannot_lose');
+  return state;
 }
 
 // ---------------------------------------------------------------- the end

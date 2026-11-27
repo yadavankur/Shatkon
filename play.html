@@ -235,7 +235,12 @@ svg text{font-family:var(--mono);text-anchor:middle;dominant-baseline:central;po
 .scanprev{animation:scanprev 1.6s ease-in-out infinite}
 .guidepulse{animation:guidepulse 1.8s ease-in-out infinite}
 @keyframes guidepulse{0%,100%{stroke-opacity:.45}50%{stroke-opacity:1}}
-@media (prefers-reduced-motion:reduce){.guidepulse{animation:none}}
+.guidehand{animation:guidehand 1.05s ease-in-out infinite}
+@keyframes guidehand{0%,100%{transform:translate(0,0)}50%{transform:translate(7px,0)}}
+@media (prefers-reduced-motion:reduce){.guidepulse,.guidehand{animation:none}}
+.guideskip{position:absolute;left:12px;bottom:52px;z-index:7;border:1px solid #2a6a7a;background:rgba(6,20,34,.92);color:#cfeef4;border-radius:10px;padding:8px 12px;font:600 13px system-ui,sans-serif;cursor:pointer;min-height:40px}
+.guideskip:hover{border-color:#7fd8f0;color:#7fd8f0}
+#winnow .winnow{max-width:420px} #winnow .row{display:flex;justify-content:space-between;gap:12px;margin-top:14px} #winnow .btn{flex:1}
 .movepulse{animation:movepulse 1.5s ease-in-out infinite}
 @keyframes movepulse{0%,100%{fill-opacity:.14;stroke-opacity:.6}50%{fill-opacity:.36;stroke-opacity:1}}
 .moveping{animation:moveping 1.5s ease-out infinite;transform-box:fill-box;transform-origin:center}
