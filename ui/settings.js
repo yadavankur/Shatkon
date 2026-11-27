@@ -14,6 +14,9 @@ export const SETTINGS = [
   { key: 'ff', label: 'Friendly fire', options: [
     ['warn', 'Warn me', 'If a laser shot would hit your own mine, missile or drone, the board traces the beam and asks again.'],
     ['free', 'Just fire', 'Shots go as aimed, no question. Your own mines and missiles in the way still take the hit.']] },
+  { key: 'opponent', label: 'Computer opponent', options: [
+    ['random', 'Random', 'The computer plays one of the three personalities — aggressive, balanced or defensive — picked fresh each game.'],
+    ['muse', 'Muse, the hunter', 'A different computer, written from scratch: it hunts your flagship, closes to point-blank range and takes risks the others will not.']] },
 ];
 // Rapid mode (rules/rapid/rapid_opus.yaml, engine/rapid.js): its own sheet. A row with `range`
 // is a slider; the others are buttons. The first option (or `def`) is the default.

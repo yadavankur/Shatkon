@@ -760,6 +760,12 @@ function anyAction() {
         E.shipStatus(game, ship.id).scanReady)
   );
 }
+// the battle settings' computer opponent: nothing for Random (the world file picks
+// the personality), a personality name otherwise — 'muse' is the hunter
+function aiPersonality() {
+  const o = battleSettings().opponent;
+  return o && o !== 'random' ? { personality: o } : undefined;
+}
 // the computer plays Player 2, one action at a time
 function aiStep() {
   aiTimer = null;
@@ -768,7 +774,7 @@ function aiStep() {
   if (storyBusy() || storyWait > 0 || helpUp) { aiTimer = setTimeout(aiStep, 400); return; }   // a cutscene is playing, or about to
   let a;
   try {
-    a = aiSteps++ > 30 ? { type: 'end' } : (game.rules.campaign ? E.campaignMove(game, 1) : computerMove(game, 1, aiLevel)) || { type: 'end' };
+    a = aiSteps++ > 30 ? { type: 'end' } : (game.rules.campaign ? E.campaignMove(game, 1) : computerMove(game, 1, aiLevel, aiPersonality())) || { type: 'end' };
   } catch (err) {
     console.warn('AI error', err);
     a = { type: 'end' };
