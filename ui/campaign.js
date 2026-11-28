@@ -128,6 +128,22 @@ async function pickNode(n) {
   startChapter(n.id);
 }
 
+// Mid-battle scenes (ch1_hurl) used to be fetched the moment they fired, often during board FX.
+// A failed or cached-HTML response made playScene throw and the fallback text card appear, even
+// when earlier scenes had played pictured. Prefetch every scene the chapter names at start.
+function chapterSceneIds(id) {
+  const doc = data && data.chapters[id];
+  const ids = [];
+  const walk = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    if (typeof x.scene === 'string') ids.push(x.scene);
+    for (const v of Object.values(x)) walk(v);
+  };
+  walk(doc);
+  return [...new Set(ids)];
+}
+
 export function startChapter(id, test = false) {
   store.set(KEY + '.test', test ? '1' : '');
   const chapter = tweaked(id), ch = chapter.chapter || chapter;
@@ -147,6 +163,7 @@ export function startChapter(id, test = false) {
   objective = null;
   store.set(KEY + '.playing', id);
   closeCampaign();
+  if (player && player.preloadScenes) player.preloadScenes(chapterSceneIds(id)).catch((e) => console.warn('preload scenes', e));
   hooks.startStoryGame(rules, (test ? 'Test: ' : '') + (ch.title || id));
   const n = Object.keys(knobs()).length + Object.keys(tweaks()[id] || {}).length;
   if (test || n) hooks.toast([test ? 'Test run' : '', n ? n + ' change' + (n === 1 ? '' : 's') : ''].filter(Boolean).join(' · '), 'info');
@@ -186,7 +203,10 @@ async function playScenes(ids) {
   for (const id of ids) {
     const mount = sceneMount();
     const opts = { captain: settings().captain || 'captain_a', textSpeed: 'normal', skippable: true };
-    const once = async () => (player ? player.playScene(id, mount, opts) : fallbackScene(id, mount, true));
+    const once = async () => {
+      mount.replaceChildren();
+      return player ? player.playScene(id, mount, opts) : fallbackScene(id, mount, true);
+    };
     try {
       last = await once();
     } catch (e) {
@@ -209,9 +229,18 @@ function sceneMount() {
 // If playScene cannot run: show one line at a time, with a placeholder portrait. Never dump the whole scene.
 async function fallbackScene(id, mount, oneAtATime) {
   const { h } = hooks;
-  let scene = null;
+  let scene = null, chars = (player && player._state && player._state.characters) || null;
   try { scene = JSON.parse(await text(STORY_DIR + 'scenes/' + id + '.json')); } catch (e) { scene = null; }
-  const lines = scene ? (scene.lines || []).filter((l) => l.text).map((l) => ({ who: l.speaker ? l.speaker.replace(/_/g, ' ') : '', text: l.text })) : [];
+  if (!chars) { try { chars = JSON.parse(await text(STORY_DIR + 'characters.json')); } catch (e) { chars = {}; } }
+  const whoOf = (speaker) => {
+    if (!speaker || speaker === 'narrator') return '';
+    if (speaker === 'weave') return (chars.weave && (chars.weave.name || chars.weave.short)) || 'The Weave';
+    const cid = speaker === 'captain' ? (settings().captain || 'captain_a') : speaker;
+    const c = (chars && chars[cid]) || (speaker === 'captain' && chars.captain_a);
+    if (c && (c.name || c.short)) return c.name || c.short;
+    return speaker.replace(/_/g, ' ').replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
+  };
+  const lines = scene ? (scene.lines || []).filter((l) => l.text).map((l) => ({ who: whoOf(l.speaker), text: l.text })) : [];
   return new Promise((resolve) => {
     const finish = (choice) => resolve({ choice: choice || null });
     const opts = scene && scene.choice ? scene.choice.options : null;

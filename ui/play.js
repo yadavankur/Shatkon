@@ -1047,7 +1047,7 @@ function confirmEmptyTurn(cp) {
   const box = h('div', { id: 'endask', class: 'modal', role: 'dialog', 'aria-modal': 'true', onclick: (e) => { if (e.target.id === 'endask') close(); } },
     h('div', { class: 'card modal-box endask' },
       h('h2', null, 'End your turn without doing anything?'),
-      h('p', null, 'You have ' + plural(cp, 'command point') + ' and at least one ship that can still move, fire, launch or scan. '
+      h('p', null, 'You have ' + plural(cp, 'command point') + ' and at least one ship that can still move, fire or launch' + (isCh1() ? '' : ' or scan') + '. '
         + (bank ? 'Unspent points are kept for next turn, up to ' + bank + '.' : 'Unspent points are lost.')),
       h('div', { class: 'row' }, end, keep)));
   document.body.appendChild(box);
@@ -1278,6 +1278,8 @@ function ch1HudCoach() {
   if (myTurn() && game.round >= 2 && !f['taught:ring']) return { ui: 'ring', flag: 'taught:ring', text: 'The number is the round. The ring fills as the chapter\u2019s rounds go by (this chapter has ' + game.rules.turnLimit + ').' };
   if (myTurn() && game.round >= 2 && f['taught:ring'] && !f['taught:plus']) return { ui: 'plus', flag: 'taught:plus', text: 'The + opens more detail about the turn, your ship, and the rules.' };
   if (gv && /fire|finish/i.test(gv.label || '') && !f['taught:laser']) return { ui: 'fire', flag: 'taught:laser', text: 'The lightning button is your laser. The number is how many targets you can shoot; the little bars are how many shots it still has this turn.' };
+  // Round 3 (and any later fire): the red overlay is a good moment to explain reach, blocking, and the hit numbers.
+  if (myTurn() && mode === 'fire' && !f['taught:reach']) return { ui: 'fire', flag: 'taught:reach', text: 'The numbers on the hexes are hits by distance: 3 close in, 2 farther out (one more if you already moved). A ship in the beam\u2019s path blocks it \u2014 those hexes stay dark.' };
   return null;
 }
 function placeCoach(attr, text, flag) {
@@ -1817,6 +1819,7 @@ export function render() {
   if (sel && !canCommand(v.ships.find((x) => x.id === sel), v)) sel = null;
   if (pending || (look && !v.ships.some((x) => x.id === look))) look = null;
   syncGuideUi();
+  if (isCh1() && (mode === 'scan' || (pending && pending.type === 'scan'))) { mode = 'move'; pending = null; }
 
   // turn bar (top left): whose turn, where we are in the round, what is left to spend
   bar.className = 'who' + (game.phase === 'over' && v.winner !== 'draw' ? v.winner : turn);
@@ -1937,8 +1940,9 @@ export function render() {
       // one button per missile kind the ship carries, weakest first (basic, advanced, Nuke)
       ...E.missileKinds(game.rules, Object.fromEntries(Object.keys(st.ammo).map((k) => [k, 1])), true).filter(has).map((k) => btn(k, 'missile', munName(k), launchWhy(k), !!lo && lo.kinds.includes(k), { pips: ammoPips(k), pipCls: 'amber' })),
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
-      // a scan pings everything around the ship; it needs the ship to have moved this turn
-      ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
+      // a scan pings everything around the ship; it needs the ship to have moved this turn.
+      // Chapter 1 has no scan path: hide the button and do not offer "Scan now".
+      isCh1() ? null : ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
         sub: st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : R.rapid ? (R.rapid.scan === 'past_line' ? 'past the line only' : 'after crossing') : st.scanMoved < 1 ? 'move first' : 'not now',
         title: scanLocked && v.cp ? 'Move this ship first, then scan ' + me.scan.r[0] + ' / ' + me.scan.r[1] : null, onclick: () => {
         mode = 'scan'; pending = { type: 'scan', ship: sel };

@@ -260,6 +260,10 @@ export async function playScene(sceneId, mountEl, opts = {}) {
   async function runLines(lines) {
     for (const ln of lines || []) {
       if (skipped) return;
+      // Effect-only beats (ch1_hurl opens with a shake) must not leave an empty dialogue box:
+      // that looks broken, and a Skip in those 450ms would drop the rest of the scene.
+      const spoken = !!(ln.speaker || ln.show_ship || ln.text);
+      box.classList.toggle('sk-quiet', !spoken);
       if (ln.stage) { setStage(ln.stage); hideShip(); if (typeof o.onLine === 'function') o.onLine(ln); await pause(420); continue; }
       if (ln.effect) { if (typeof o.onLine === 'function') o.onLine(ln); await effect(ln.effect); continue; }
       if (ln.show_ship) {
