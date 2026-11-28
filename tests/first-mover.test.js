@@ -71,7 +71,11 @@ test('story chapters keep their scripted order: the player moves first', () => {
     const world = readYaml(path.join(root, 'rules', chDoc.chapter.world || 'world_v0.4.yaml'));
     const { rules } = E.buildChapter({ world, map: camp(chDoc.chapter.map), ships: shipsDoc, chapter: chDoc, campaign: campaignDoc, progress });
     assert.equal(rules.firstMover, 'player_1', chDoc.chapter.id);
-    for (let seed = 1; seed <= 12; seed++) assert.equal(E.start(rules, seed).order[0], 0, chDoc.chapter.id + ' seed ' + seed);
+    assert.equal(rules.firstPlayer, 'fixed', chDoc.chapter.id);
+    for (let seed = 1; seed <= 12; seed++) {
+      const g = E.start(rules, seed);
+      assert.equal(g.order[0], 0, chDoc.chapter.id + ' seed ' + seed);
+    }
     progress = E.applyResult(progress, chDoc, { script: { result: 'win', flags: {} }, ships: [], winner: 0 });
     n++;
   }

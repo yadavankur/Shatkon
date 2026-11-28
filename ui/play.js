@@ -1218,18 +1218,21 @@ function tap(c, v, opts, viaChip, t) {
 }
 
 // Chapters 1 and 2: when Rule B holds (every enemy flagship is a sitting duck, and nothing else
-// can hurt you), offer to take the win now or keep playing. Shown once. Never on a power gap alone.
-let winNowShown = false;
+// can hurt you), offer to take the win now or keep playing. Shown once, then once more if the late net sets offer_win. Never on a power gap alone.
+let winNowShown = false;   // false | true (first offer) | 'again' (late net)
 const WIN_NOW_CHAPTERS = { ch1: true, ch2: true };
 function maybeWinNow() {
-  if (winNowShown || !game || game.phase !== 'play' || !game.rules.campaign) return;
+  if (!game || game.phase !== 'play' || !game.rules.campaign) return;
   if (!WIN_NOW_CHAPTERS[game.rules.campaign.id]) return;
   if (storyBusy() || storyWait > 0) return;
   if (document.getElementById('winnow') || document.getElementById('help') && !document.getElementById('help').hidden) return;
+  const again = !!(game.script && game.script.flags.offer_win);
+  if (winNowShown && !(again && winNowShown !== 'again')) return;
   const gv = guideNow();
-  if (gv && gv.blocksWin) return;   // a walk / teach step is still up; Skip clears it
+  // The first offer waits if a walk/teach step is up; the late offer can show even if the guide is stuck.
+  if (gv && gv.blocksWin && !again) return;
   if (!E.cannotLose(game, 0)) return;
-  winNowShown = true;
+  winNowShown = again ? 'again' : true;
   const close = () => { const m = document.getElementById('winnow'); if (m) m.remove(); };
   const take = () => { close(); E.takeChapterWin(game); say('Chapter complete.'); storyLater(game, 0); save(); render(); };
   const box = h('div', { id: 'winnow', class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'You cannot lose', onclick: (e) => { if (e.target.id === 'winnow') close(); } },
@@ -1274,7 +1277,7 @@ function ch1HudCoach() {
   const gv = guideNow();
   if (gv && (gv.aimShip || (gv.ui && gv.ui !== 'fire'))) return null;
   const f = game.script.flags || {};
-  if (turnOf() === 1 && !f['taught:order']) return { ui: 'order', flag: 'taught:order', text: 'These coloured bars are the order of this round \u2014 enemy, you, then missiles fly. They are not your ships. They swap around because who moves first changes every round.' };
+  if (turnOf() === 1 && !f['taught:order']) return { ui: 'order', flag: 'taught:order', text: 'These coloured bars are the order of this round \u2014 you, the enemy, then missiles fly. They are not your ships.' };
   if (myTurn() && game.round >= 2 && !f['taught:ring']) return { ui: 'ring', flag: 'taught:ring', text: 'The number is the round. The ring fills as the chapter\u2019s rounds go by (this chapter has ' + game.rules.turnLimit + ').' };
   if (myTurn() && game.round >= 2 && f['taught:ring'] && !f['taught:plus']) return { ui: 'plus', flag: 'taught:plus', text: 'The + opens more detail about the turn, your ship, and the rules.' };
   if (gv && /fire|finish/i.test(gv.label || '') && !f['taught:laser']) return { ui: 'fire', flag: 'taught:laser', text: 'The lightning button is your laser. The number is how many targets you can shoot; the little bars are how many shots it still has this turn.' };

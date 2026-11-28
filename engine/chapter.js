@@ -84,6 +84,7 @@ export function buildChapter({ world, map, ships, chapter, campaign, progress })
   const fleets = { budget: 99999, player_1: side('player', 0), player_2: side('enemy', 1) };
   const built = buildRules(w, m, fleets);
   built.rules.firstMover = 'player_1';   // story chapters keep their scripted order: the player moves first
+  built.rules.firstPlayer = 'fixed';     // same as 1v1: the player stays first every round (no back-to-back enemy turns)
   problems.push(...built.problems.filter((p) => !/budget/.test(p)));
   const enemyAi = (ch.enemy || {}).ai || {}, playerAi = (ch.player || {}).ai || {};
   const ai = { sides: [playerAi.default || null, enemyAi.default || null] };

@@ -177,21 +177,29 @@ chapter:
           - label: "Hold between the lanes"
             move_to: [0, 3]
             done: { any: [a_dead, b_dead] }
+    # This guide only starts if the player finishes one sitting duck before the other mine.
+    # Round 9 is when the remaining Seed is guaranteed dead in the water.
+    - id: wait_for_other_fallback
+      fallback_for: wait_for_other
+      when: { round: 9 }
+      do: []
 
     - id: both_dead_in_water
       when: { all: [ a_dead, b_dead ] }
       do: []                                  # the second Seed's guide is up (no objective line)
 
-    # Safety net: the chapter cannot be lost on time (limit 20). After Skip, the old round-17
-    # net. Without Skip, the Seeds stay until the player finishes them or takes "Win now",
-    # with a late net at round 19 so a stalled game still ends as a win.
+    # Late net: never script-kill the Seeds. If the player dismissed "Take the win" and stalls,
+    # offer it again, then end the chapter as their win so it cannot be lost on time (limit 20).
+    - id: offer_win
+      flavor: true
+      when: { all: [ both_dead_in_water, { round: 17 } ] }
+      do:
+        - flag: offer_win
     - id: finish_fallback
       fallback_for: win
-      # Only after Skip: never auto-kill the Seeds while a hold/close/fire guide is still up.
-      when: { all: [ { flag: guides_skipped }, { round: 17 } ] }
+      when: { round: 19 }
       do:
-        - damage: { ship: seed_a, seg: 0, hits: 12, cause: scripted }
-        - damage: { ship: seed_b, seg: 0, hits: 12, cause: scripted }
+        - end: { result: win }
 
   win:  [ { all: [ { destroyed: seed_a }, { destroyed: seed_b } ] } ]
   lose: [ { destroyed: kestrel } ]

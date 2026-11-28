@@ -246,12 +246,18 @@ chapter:
           - label: "Fire on the Seed"
             fire_at: seed
             done: { destroyed: seed }          # waits for the player; no auto-timeout
+    # Late net: never script-kill the Seed. If the player dismissed "Take the win" and stalls
+    # (or the guide is stuck), offer it again, then end the chapter as their win.
+    - id: offer_win
+      flavor: true
+      when: { all: [ { after: { beat: crippled, rounds: 8 } }, { alive: seed } ] }
+      do:
+        - flag: offer_win
     - id: finish_fallback
       fallback_for: win
-      # Only after "I'll do this myself": never auto-kill the Seed while a walk/fire guide is still up.
-      when: { all: [ { flag: guides_skipped }, { after: { beat: crippled, rounds: 4 } }, { alive: seed } ] }
+      when: { all: [ { after: { beat: crippled, rounds: 10 } }, { alive: seed } ] }
       do:
-        - damage: { ship: seed, seg: 0, hits: 3, cause: scripted }   # the core burns out
+        - end: { result: win }
 
   win:  [ { destroyed: seed } ]
   lose: [ { destroyed: kestrel } ]  # unreachable (protected) but kept, with a retry scene
