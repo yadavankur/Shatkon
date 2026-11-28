@@ -511,15 +511,15 @@ async function battleSheet(title, href, rapid = false, cpu = true) {
   const box = $('#settings');
   let S;
   try { S = await import('./ui/settings.js'); } catch (e) { location.href = href; return; }
-  if (rapid === 'lab') {
-    try {
-      const board = new URL(href, location.href).searchParams.get('board');
-      if (board && S.seedExpBoard) await S.seedExpBoard(board);
-    } catch (e) {}
-  }
+  let boardRapid = null;
+  try {
+    const board = new URL(href, location.href).searchParams.get('board');
+    if (rapid === 'lab' && board && S.seedExpBoard) await S.seedExpBoard(board);
+    if (rapid && board && S.boardRapidOf) boardRapid = await S.boardRapidOf(board);   // untouched rows show the board's own values
+  } catch (e) {}
   S.injectSettingsCss();
   box.textContent = '';
-  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid, cpu),
+  box.append(h('div', { class: 'box' }, h('h2', { id: 'sett' }, String(title || 'Battle').replace(/^\d+\.\s*/, '')), h('p', { class: 'muted' }, rapid ? 'Rapid mode settings' : 'Battle settings'), S.settingsForm(null, rapid, cpu, boardRapid),
     h('div', { class: 'row' }, h('button', { class: 'ghostbtn', onclick: () => { box.hidden = true; } }, 'Back'), h('button', { class: 'done', onclick: () => { location.href = href; } }, 'Start battle'))));
   box.hidden = false;
   box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };

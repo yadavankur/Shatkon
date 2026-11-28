@@ -168,6 +168,8 @@ export const RAPID_DEFAULTS = {
 // Rapid rules from a board's ordinary rules. Nothing in the world file changes; only this game's copy.
 export function rapidRules(rules, opts = {}) {
   const o = { ...RAPID_DEFAULTS, ...(rules.rapid || {}), ...opts };
+  // board files write on/off switches as true/false; the engine compares with 'on'/'off'
+  for (const key of ['economy', 'interceptHurts']) if (typeof o[key] === 'boolean') o[key] = o[key] ? 'on' : 'off';
   const k = Math.max(1, num(o.scale, 3));
   const munitions = {};
   let fastest = 1;
