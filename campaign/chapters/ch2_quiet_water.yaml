@@ -38,6 +38,8 @@ chapter:
     "munitions.mine.hits": 5             # a charge: 5 hits (world default 4)
     "munitions.mine.strikes": engines    # Combat v2: each charge hit lands on the nearest working engine
     "damage.beams_pass_mines": true      # lasers fly over the charges, so nobody shoots them by accident
+  switches:
+    win_now: true                   # offer "Take the win" once both Seeds can no longer hurt you
   map: maps/ch2_quiet_water.yaml
 
   player:
@@ -84,6 +86,16 @@ chapter:
         - reveal: { ship: kestrel, to: enemy, rounds: 30 }
         - bark: b2_mines_set
         - objective: "Hold between the lanes. Let them come to the charges."
+      # The charges are invisible. A new player often chases a Seed up a lane and misses the trap.
+      # The hand points at the mouth between the lanes until the first Seed is dead in the water
+      # (the finish guide then takes over). Already being here does not auto-clear the step.
+      guide:
+        ship: kestrel
+        clear: { any: [a_dead, b_dead] }
+        steps:
+          - label: "Hold between the lanes"
+            move_to: [0, 3]
+            done: { any: [a_dead, b_dead] }
 
     - id: contact
       when: { any: [ { sees: { side: player, ship: seed_a } }, { sees: { side: player, ship: seed_b } }, { round: 3 } ] }
@@ -114,7 +126,7 @@ chapter:
             done: reached
           - label: "Finish it"
             fire_at: seed_a
-            done: { destroyed: seed_a }
+            done: { destroyed: seed_a }          # waits for the player; no auto-timeout
     - id: b_dead
       when: { engines_out: seed_b }
       do:
@@ -128,7 +140,7 @@ chapter:
             done: reached
           - label: "Finish it"
             fire_at: seed_b
-            done: { destroyed: seed_b }
+            done: { destroyed: seed_b }          # waits for the player; no auto-timeout
 
     # Fallback, per Seed: round 9 and still under way -> a charge goes off under it anyway (a
     # scripted blast that uses up the nearest charge and, like a real one, strikes the engines).
@@ -156,17 +168,40 @@ chapter:
       do:
         - bark: b2_second_seed
 
+    # After the first sitting duck is finished, point Kestrel back between the lanes until the other Seed hits a charge.
+    # Must not start at first_mine (that would replace the "Finish it" guide).
+    - id: wait_for_other
+      when: { all: [ first_mine, { any: [ { destroyed: seed_a }, { destroyed: seed_b } ] }, { not: { all: [ a_dead, b_dead ] } } ] }
+      guide:
+        ship: kestrel
+        clear: { any: [a_dead, b_dead] }
+        steps:
+          - label: "Hold between the lanes"
+            move_to: [0, 3]
+            done: { any: [a_dead, b_dead] }
+    # This guide only starts if the player finishes one sitting duck before the other mine.
+    # Round 9 is when the remaining Seed is guaranteed dead in the water.
+    - id: wait_for_other_fallback
+      fallback_for: wait_for_other
+      when: { round: 9 }
+      do: []
+
     - id: both_dead_in_water
       when: { all: [ a_dead, b_dead ] }
       do: []                                  # the second Seed's guide is up (no objective line)
 
-    # Safety net: the chapter cannot be lost on time.
+    # Late net: never script-kill the Seeds. If the player dismissed "Take the win" and stalls,
+    # offer it again, then end the chapter as their win so it cannot be lost on time (limit 20).
+    - id: offer_win
+      flavor: true
+      when: { all: [ both_dead_in_water, { round: 17 } ] }
+      do:
+        - flag: offer_win
     - id: finish_fallback
       fallback_for: win
-      when: { round: 17 }
+      when: { round: 19 }
       do:
-        - damage: { ship: seed_a, seg: 0, hits: 12, cause: scripted }
-        - damage: { ship: seed_b, seg: 0, hits: 12, cause: scripted }
+        - end: { result: win }
 
   win:  [ { all: [ { destroyed: seed_a }, { destroyed: seed_b } ] } ]
   lose: [ { destroyed: kestrel } ]

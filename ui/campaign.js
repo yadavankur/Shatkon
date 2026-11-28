@@ -128,6 +128,22 @@ async function pickNode(n) {
   startChapter(n.id);
 }
 
+// Mid-battle scenes (ch1_hurl) used to be fetched the moment they fired, often during board FX.
+// A failed or cached-HTML response made playScene throw and the fallback text card appear, even
+// when earlier scenes had played pictured. Prefetch every scene the chapter names at start.
+function chapterSceneIds(id) {
+  const doc = data && data.chapters[id];
+  const ids = [];
+  const walk = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    if (typeof x.scene === 'string') ids.push(x.scene);
+    for (const v of Object.values(x)) walk(v);
+  };
+  walk(doc);
+  return [...new Set(ids)];
+}
+
 export function startChapter(id, test = false) {
   store.set(KEY + '.test', test ? '1' : '');
   const chapter = tweaked(id), ch = chapter.chapter || chapter;
@@ -147,6 +163,7 @@ export function startChapter(id, test = false) {
   objective = null;
   store.set(KEY + '.playing', id);
   closeCampaign();
+  if (player && player.preloadScenes) player.preloadScenes(chapterSceneIds(id)).catch((e) => console.warn('preload scenes', e));
   hooks.startStoryGame(rules, (test ? 'Test: ' : '') + (ch.title || id));
   const n = Object.keys(knobs()).length + Object.keys(tweaks()[id] || {}).length;
   if (test || n) hooks.toast([test ? 'Test run' : '', n ? n + ' change' + (n === 1 ? '' : 's') : ''].filter(Boolean).join(' · '), 'info');
@@ -185,9 +202,18 @@ async function playScenes(ids) {
   let last = null;
   for (const id of ids) {
     const mount = sceneMount();
+    const opts = { captain: settings().captain || 'captain_a', textSpeed: 'normal', skippable: true };
+    const once = async () => {
+      mount.replaceChildren();
+      return player ? player.playScene(id, mount, opts) : fallbackScene(id, mount, true);
+    };
     try {
-      last = player ? await player.playScene(id, mount, { captain: settings().captain || 'captain_a', textSpeed: 'normal', skippable: true }) : await fallbackScene(id, mount);
-    } catch (e) { console.warn('scene ' + id, e); last = await fallbackScene(id, mount); }
+      last = await once();
+    } catch (e) {
+      console.warn('scene ' + id, e);
+      try { last = await once(); }
+      catch (e2) { console.warn('scene retry ' + id, e2); last = await fallbackScene(id, mount, true); }
+    }
     mount.remove();
   }
   return last;
@@ -200,22 +226,59 @@ function sceneMount() {
   return m;
 }
 
-// No story/player.js yet: show the scene's lines as text, or just its id.
-async function fallbackScene(id, mount) {
+// If playScene cannot run: show one line at a time, with a placeholder portrait. Never dump the whole scene.
+async function fallbackScene(id, mount, oneAtATime) {
   const { h } = hooks;
-  let scene = null;
+  let scene = null, chars = (player && player._state && player._state.characters) || null;
   try { scene = JSON.parse(await text(STORY_DIR + 'scenes/' + id + '.json')); } catch (e) { scene = null; }
-  const lines = scene ? (scene.lines || []).filter((l) => l.text).map((l) => (l.speaker ? l.speaker.replace(/_/g, ' ') + ': ' : '') + l.text) : [];
+  if (!chars) { try { chars = JSON.parse(await text(STORY_DIR + 'characters.json')); } catch (e) { chars = {}; } }
+  const whoOf = (speaker) => {
+    if (!speaker || speaker === 'narrator') return '';
+    if (speaker === 'weave') return (chars.weave && (chars.weave.name || chars.weave.short)) || 'The Weave';
+    const cid = speaker === 'captain' ? (settings().captain || 'captain_a') : speaker;
+    const c = (chars && chars[cid]) || (speaker === 'captain' && chars.captain_a);
+    if (c && (c.name || c.short)) return c.name || c.short;
+    return speaker.replace(/_/g, ' ').replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
+  };
+  const lines = scene ? (scene.lines || []).filter((l) => l.text).map((l) => ({ who: whoOf(l.speaker), text: l.text })) : [];
   return new Promise((resolve) => {
     const finish = (choice) => resolve({ choice: choice || null });
     const opts = scene && scene.choice ? scene.choice.options : null;
-    mount.appendChild(h('div', { class: 'story-card' },
-      h('div', { class: 'muted' }, 'Scene · ' + id),
-      lines.length ? h('div', { class: 'story-lines' }, lines.map((l) => h('p', null, l))) : h('p', { class: 'muted' }, 'The cutscene for this moment will play here.'),
-      opts ? h('div', { class: 'row' }, opts.map((o) => h('button', { class: 'btn', onclick: () => finish(o.id) }, o.label || o.id)))
-        : id === 'ch4_fork' ? h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => finish('ch4a') }, 'Answer the distress call'), h('button', { class: 'btn', disabled: true }, 'The Long Dark · signal lost'))
-          : h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => finish(null) }, 'Continue'))));
-    mount.querySelector('button:not([disabled])').focus();
+    const card = h('div', { class: 'story-card story-fallback' });
+    mount.appendChild(card);
+    const draw = (i) => {
+      card.textContent = '';
+      const ln = lines[i];
+      const more = oneAtATime !== false;
+      if (ln) {
+        card.appendChild(h('div', { class: 'fallback-por', 'aria-hidden': 'true' }));
+        if (ln.who) card.appendChild(h('div', { class: 'sk-name' }, ln.who));
+        card.appendChild(h('p', null, ln.text));
+        const next = i + 1 < lines.length;
+        card.appendChild(h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => { if (next) draw(i + 1); else afterLines(); } }, next ? 'Continue' : (opts ? 'Choose' : 'Continue'))));
+      } else afterLines();
+      const b = card.querySelector('button:not([disabled])'); if (b) b.focus();
+    };
+    const afterLines = () => {
+      if (opts) {
+        card.textContent = '';
+        card.appendChild(h('div', { class: 'row' }, opts.map((o) => h('button', { class: 'btn', onclick: () => finish(o.id) }, o.label || o.id))));
+        const b = card.querySelector('button:not([disabled])'); if (b) b.focus();
+        return;
+      }
+      if (id === 'ch4_fork') {
+        card.textContent = '';
+        card.appendChild(h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => finish('ch4a') }, 'Answer the distress call'), h('button', { class: 'btn', disabled: true }, 'The Long Dark · signal lost')));
+        card.querySelector('button:not([disabled])').focus();
+        return;
+      }
+      finish(null);
+    };
+    if (!lines.length) {
+      card.appendChild(h('p', { class: 'muted' }, 'The cutscene for this moment will play here.'));
+      card.appendChild(h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => afterLines() }, 'Continue')));
+      card.querySelector('button').focus();
+    } else draw(0);
   });
 }
 

@@ -175,6 +175,10 @@ function noteEvents(state) {
       if (ev.t === 'fire' && st.fire_at && tgt && tgt.name === st.fire_at) gd.fired = true;
       if (ev.t === 'launch' && st.launch_at) gd.launched = true;
     }
+    if (ev.t === 'move' && sc.guides) for (const gd of sc.guides) {
+      const by = state.ships.find((s) => s.id === ev.ship);
+      if (by && by.name === gd.ship) gd.moved = true;
+    }
     if (ev.t === 'damage') {
       const s = state.ships.find((x) => x.id === ev.ship);
       if (s && /mine/.test(String(ev.cause))) sc.mineHit[s.owner]++;
@@ -552,7 +556,7 @@ function startGuide(state, e) {
   if (!s || !Array.isArray(g.steps) || !g.steps.length) return;
   for (const old of sc.guides.filter((x) => x.ship === g.ship)) emit(state, { t: 'guide_clear', id: old.id, ship: old.ship, why: 'replaced' }, [old.owner]);
   sc.guides = sc.guides.filter((x) => x.ship !== g.ship);
-  const gd = { id: g.id || e.id, ship: g.ship, owner: s.owner, steps: structuredClone(g.steps), clear: g.clear || null, i: 0, stepFrom: state.round, fired: false, launched: false };
+  const gd = { id: g.id || e.id, ship: g.ship, owner: s.owner, steps: structuredClone(g.steps), clear: g.clear || null, i: 0, stepFrom: state.round, fired: false, launched: false, moved: false };
   sc.guides.push(gd);
   emit(state, { t: 'guide', id: gd.id, ship: gd.ship, step: 1, steps: gd.steps.length }, [gd.owner]);
 }
@@ -568,11 +572,25 @@ export function guideReached(state, s, mv) {
   return false;
 }
 
+// True if the guided ship can already land a useful laser hit on the named target (any range the gun still has).
+function inUsefulFireRange(state, s, name) {
+  const t = live(state, name);
+  if (!t) return true;
+  const range = Math.max(0, ...workingParts(state, s).filter((w) => num(w.c.hits)).map((w) => num(w.c.range)));
+  if (!range) return false;
+  return gap(s, t) <= range;
+}
+
 function stepDone(state, gd, st, s) {
+  const sc = state.script;
+  if (st.select) return !!sc.flags['guide_select:' + st.select];
+  if (st.press) return !!sc.flags['guide_press:' + st.press];
+  if (st.teach) return !!sc.flags['guide_teach:' + st.teach];
   const tgtName = st.fire_at || (typeof st.launch_at === 'string' && st.launch_at) || st.graft || st.dock || (st.move_to && st.move_to.near);
   if (tgtName && !live(state, tgtName) && !(st.graft || st.dock)) return true;          // the target is gone
   const d = st.done !== undefined ? st.done : st.fire_at ? 'fired' : st.launch_at ? 'launched' : st.graft ? 'grafted' : st.dock ? 'docked' : 'reached';
-  if (d === 'reached') return guideReached(state, s, st.move_to);
+  if (d === 'moved') return !!gd.moved;
+  if (d === 'reached') return guideReached(state, s, st.move_to) || (st.move_to && st.move_to.near && inUsefulFireRange(state, s, st.move_to.near));
   if (d === 'fired') return gd.fired;
   if (d === 'launched') return gd.launched;
   if (d === 'grafted' || d === 'docked') return !!state.script.flags[d + ':' + [gd.ship, st[d === 'grafted' ? 'graft' : 'dock']].sort().join('+')];
@@ -593,7 +611,7 @@ function evalGuides(state) {
       if (!st) break;
       const timedOut = st.timeout && state.round - gd.stepFrom >= num(st.timeout.rounds, 99);
       if (!stepDone(state, gd, st, s) && !timedOut) break;
-      gd.i++; gd.stepFrom = state.round; gd.fired = false; gd.launched = false; moved = true;
+      gd.i++; gd.stepFrom = state.round; gd.fired = false; gd.launched = false; gd.moved = false; moved = true;
       if (gd.i >= gd.steps.length) { end(timedOut ? 'timeout' : 'done'); break; }
     }
     if (moved && sc.guides.includes(gd)) emit(state, { t: 'guide', id: gd.id, ship: gd.ship, step: gd.i + 1, steps: gd.steps.length }, [gd.owner]);
@@ -643,6 +661,17 @@ export function cannotLose(state, player = 0) {
   return true;
 }
 // Hide the chapter's move guide for the rest of the game (the "I'll do this myself" button).
+// The play screen reports a tap, a button press, or a "Got it" on a teach step.
+export function noteGuideUi(state, ev) {
+  const sc = state.script;
+  if (!sc || state.phase !== 'play') return state;
+  sc.flags = sc.flags || {};
+  if (ev.select) sc.flags['guide_select:' + ev.select] = true;
+  if (ev.press) sc.flags['guide_press:' + ev.press] = true;
+  if (ev.teach) sc.flags['guide_teach:' + ev.teach] = true;
+  evalGuides(state);
+  return state;
+}
 export function skipChapterGuides(state) {
   const sc = state.script;
   if (!sc) return state;

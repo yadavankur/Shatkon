@@ -18,6 +18,10 @@ function container(mountEl) {
 }
 
 async function present(bark, barkId, mountEl, captain) {
+  // A later line in the queue must not appear while a new missile flight or hit is still playing.
+  const sk = typeof window !== 'undefined' && window.__shatkon;
+  const wait = sk && sk.fxBusyUntil ? Math.min(Math.max(0, sk.fxBusyUntil - performance.now() + 80), 8000) : 0;
+  if (wait) await sleep(wait);
   const id = charId(bark.speaker, captain);
   const c = character(id);
   const wrap = container(mountEl);

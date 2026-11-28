@@ -336,7 +336,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     // name tag under the ship (above it when another tag is already there)
     const low = x.cells.reduce((a, c) => (Y(c) > Y(a) || (Y(c) === Y(a) && Math.abs(X(c) - X(x.pos)) < Math.abs(X(a) - X(x.pos))) ? c : a), x.cells[0]);
     const high = x.cells.reduce((a, c) => (Y(c) < Y(a) ? c : a), x.cells[0]);
-    const roomy = W * px >= 44 || x.id === sel, nm = nameOf && roomy ? nameOf(x) : null;
+    const nm = nameOf ? nameOf(x) : null;
     const label = (x.flagship ? '★ ' : '') + (nm || x.id) + (x.mine || v.me === 'all' ? '' : x.tier >= 3 ? ' ▣' : ' ◆'), tw = (label.length * 7.2 + 8) / px, th = 15 / px;
     const mid = x.cells.reduce((n, c) => n + X(c), 0) / x.cells.length, quiet = idle && idle.has(x.id);
     let lx = mid, ly = Y(low) + S + th * 0.7;
@@ -532,16 +532,22 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     }
     if (guide.dest.length) gl.appendChild(s('path', { d: guide.dest.map((c) => cellPath(c, 0.88)).join(''), fill: gc, 'fill-opacity': 0.06, stroke: gc, 'stroke-width': 0.9, class: 'guidepulse' }));
     const gs = v.ships.find((x) => x.id === guide.ship);
-    if (guide.best) {
-      if (gs && gs.segs.length > 1) gl.appendChild(s('path', { d: gs.segs.map((sg) => cellPath([guide.best[0] + sg.off[0], guide.best[1] + sg.off[1]], 0.9)).join(''), fill: gc, 'fill-opacity': 0.08, stroke: gc, 'stroke-opacity': 0.4, 'stroke-width': 0.6, 'stroke-dasharray': '2 1.5' }));
-      gl.appendChild(s('path', { d: cellPath(guide.best, 0.88), fill: gc, 'fill-opacity': 0.28, stroke: gc, 'stroke-width': 1.4 }));
+    const far = guide.best, near = guide.turnEnd && far && !hex.same(guide.turnEnd, far) ? guide.turnEnd : null;
+    const glowAt = near || far;
+    if (far && near) {
+      // faint mark on the final destination; the strong glow is on this turn's reachable hex
+      if (gs && gs.segs.length > 1) gl.appendChild(s('path', { d: gs.segs.map((sg) => cellPath([far[0] + sg.off[0], far[1] + sg.off[1]], 0.9)).join(''), fill: gc, 'fill-opacity': 0.05, stroke: gc, 'stroke-opacity': 0.25, 'stroke-width': 0.5, 'stroke-dasharray': '2 1.5' }));
+      gl.appendChild(s('path', { d: cellPath(far, 0.88), fill: gc, 'fill-opacity': 0.08, stroke: gc, 'stroke-width': 0.7, 'stroke-opacity': 0.45, 'stroke-dasharray': '2 1.5' }));
+    }
+    if (glowAt) {
+      if (gs && gs.segs.length > 1) gl.appendChild(s('path', { d: gs.segs.map((sg) => cellPath([glowAt[0] + sg.off[0], glowAt[1] + sg.off[1]], 0.9)).join(''), fill: gc, 'fill-opacity': 0.08, stroke: gc, 'stroke-opacity': 0.4, 'stroke-width': 0.6, 'stroke-dasharray': '2 1.5' }));
+      gl.appendChild(s('path', { d: cellPath(glowAt, 0.88), fill: gc, 'fill-opacity': 0.28, stroke: gc, 'stroke-width': 1.4 }));
     }
     if (guide.route.length > 1) {
       const cut = guide.turnEnd ? guide.route.findIndex((c) => hex.same(c, guide.turnEnd)) : 0;
       const pts = (a, b) => guide.route.slice(a, b).map((c) => f1(X(c)) + ',' + f1(Y(c))).join(' ');
       if (cut > 0) gl.appendChild(s('polyline', { points: pts(0, cut + 1), fill: 'none', stroke: gc, 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-opacity': 0.9 }));
       if (cut < guide.route.length - 1) gl.appendChild(s('polyline', { points: pts(Math.max(0, cut), guide.route.length), fill: 'none', stroke: gc, 'stroke-width': 1.3, 'stroke-dasharray': '0.1 3.2', 'stroke-linecap': 'round', 'stroke-opacity': 0.8 }));
-      if (guide.turnEnd) gl.appendChild(s('circle', { cx: f1(X(guide.turnEnd)), cy: f1(Y(guide.turnEnd)), r: 2.2, fill: '#060a14', stroke: gc, 'stroke-width': 1.2 }));
     }
     if (guide.join) {
       const [a, b] = guide.join.cells;
@@ -554,14 +560,16 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       gl.appendChild(s('path', { d: `M${f1(cx - r * 1.3)},${f1(cy)}H${f1(cx - r * 0.45)}M${f1(cx + r * 0.45)},${f1(cy)}H${f1(cx + r * 1.3)}M${f1(cx)},${f1(cy - r * 1.3)}V${f1(cy - r * 0.45)}M${f1(cx)},${f1(cy + r * 0.45)}V${f1(cy + r * 1.3)}`, stroke: gc, 'stroke-width': 1.1 }));
     }
     if (guide.label) {
-      const txt = guide.label + (guide.of > 1 ? '  ' + guide.step + '/' + guide.of : ''), fpx = 11 / px, w = (txt.length * 6.3 + 14) / px, hgt = 20 / px;
+      const shown = guide.closer ? 'Move closer, this way' : guide.label;
+      const numbered = guide.of > 1 && !guide.closer && shown.length < 22;
+      const txt = shown + (numbered ? '  ' + guide.step + '/' + guide.of : ''), fpx = 11 / px, w = (txt.length * 6.3 + 14) / px, hgt = 20 / px;
       const lx = X(guide.anchor), ly = Y(guide.anchor) - FL * (S * 1.2) - hgt / 2;
       gl.appendChild(s('rect', { x: f1(lx - w / 2), y: f1(ly - hgt / 2), width: f1(w), height: f1(hgt), rx: f1(hgt / 2), fill: '#06202a', 'fill-opacity': 0.92, stroke: gc, 'stroke-width': f1(1 / px) }));
       gl.appendChild(s('text', { x: f1(lx), y: f1(ly), 'font-size': f1(fpx), 'font-weight': 700, fill: gc }, txt));
     }
-    // A small teal hand that bobs toward the hex this step is asking for: the move hex,
-    // or the fire reticle once that is the step. It leaves when the step advances or the guide clears.
-    const aim = (guide.reticle && !guide.best) ? guide.reticle.at : (guide.best || guide.anchor);
+    // A small teal hand that bobs toward the hex this step is asking for this turn
+    // (turnEnd when the final dest is farther away), or at the ship / fire reticle.
+    const aim = guide.aimShip ? (gs && gs.pos) : (guide.reticle && !guide.turnEnd && !guide.best) ? guide.reticle.at : (guide.turnEnd || guide.best || guide.anchor);
     if (aim) {
       const ax = X(aim), ay = Y(aim);
       const ang = Math.PI / 3;                         // sit just outside the hex, south-east

@@ -258,7 +258,8 @@ for (const node of campaign.nodes) {
   };
   // guide: on-map move guides (campaign/GUIDE_PROPOSAL.md). The engine's script runner reads only
   // `when` and `do`, so it ignores them; this is the format lint.
-  const GUIDE_TARGETS = ['fire_at', 'launch_at', 'graft', 'dock'], GUIDE_DONE = ['reached', 'fired', 'launched', 'grafted', 'docked'];
+  const GUIDE_TARGETS = ['fire_at', 'launch_at', 'graft', 'dock'], GUIDE_UI = ['select', 'press', 'teach'];
+  const GUIDE_DONE = ['reached', 'fired', 'launched', 'grafted', 'docked', 'moved'];
   const commanded = new Set((ch.player.ships || []).filter((x) => typeof x === 'string' || !x.helm).map((x) => (typeof x === 'string' ? x : x.id)));
   const checkGuide = (g, where) => {
     const w = `${where}: guide`;
@@ -271,11 +272,17 @@ for (const node of campaign.nodes) {
     const open = (c) => H.inHexagon(c, R) && !ast.has(H.key(c));
     g.steps.forEach((st, i) => {
       const ws = `${w} step ${i + 1}`;
-      for (const k of Object.keys(st)) if (!['label', 'move_to', 'path', 'done', 'timeout', ...GUIDE_TARGETS].includes(k)) fail(`${ws}: unknown field ${k}`);
-      if (typeof st.label !== 'string' || !st.label || st.label.length > 24) fail(`${ws}: label must be text of 1-24 characters`);
+      for (const k of Object.keys(st)) if (!['label', 'move_to', 'path', 'done', 'timeout', ...GUIDE_TARGETS, ...GUIDE_UI].includes(k)) fail(`${ws}: unknown field ${k}`);
+      // Teach steps may be a short sentence (chapter 1's command-point and End-turn lines).
+      if (typeof st.label !== 'string' || !st.label || st.label.length > 80) fail(`${ws}: label must be text of 1-80 characters`);
       const tg = GUIDE_TARGETS.filter((k) => k in st);
+      const ui = GUIDE_UI.filter((k) => k in st);
       if (tg.length > 1) fail(`${ws}: one target part at most (${tg.join(', ')})`);
-      if (!tg.length && st.move_to === undefined) fail(`${ws}: needs move_to or a target part`);
+      if (ui.length > 1) fail(`${ws}: one of select, press or teach at a time (${ui.join(', ')})`);
+      if (!tg.length && !ui.length && st.move_to === undefined) fail(`${ws}: needs move_to, a target part, or select/press/teach`);
+      if ('select' in st) { if (typeof st.select !== 'string') fail(`${ws}: select needs a ship`); else checkShip(st.select, ws); }
+      if ('press' in st && (typeof st.press !== 'string' || !st.press)) fail(`${ws}: press needs a control name`);
+      if ('teach' in st && (typeof st.teach !== 'string' || !st.teach)) fail(`${ws}: teach needs a control name`);
       const m = st.move_to;
       if (m !== undefined) {
         if (hex(m)) { if (!open(m)) fail(`${ws}: move_to hex ${m} is off the open map`); }
@@ -287,7 +294,7 @@ for (const node of campaign.nodes) {
       if (st.path !== undefined && !(Array.isArray(st.path) && st.path.length && st.path.every((c) => hex(c) && open(c)))) fail(`${ws}: path must be open hexes`);
       for (const k of ['fire_at', 'graft', 'dock']) if (k in st) { if (typeof st[k] !== 'string') fail(`${ws}: ${k} needs a ship`); else checkShip(st[k], ws); }
       if ('launch_at' in st && !(typeof st.launch_at === 'string' ? allIds.has(st.launch_at) : hex(st.launch_at))) fail(`${ws}: launch_at needs a ship or a hex`);
-      if (st.done !== undefined) { if (typeof st.done === 'string' && GUIDE_DONE.includes(st.done)) { if (st.done === 'reached' && m === undefined) fail(`${ws}: done: reached needs move_to`); if (st.done !== 'reached' && !(({ fired: 'fire_at', launched: 'launch_at', grafted: 'graft', docked: 'dock' })[st.done] in st)) fail(`${ws}: done: ${st.done} needs its target part`); } else walk(st.done, ws); }
+      if (st.done !== undefined) { if (typeof st.done === 'string' && GUIDE_DONE.includes(st.done)) { if (st.done === 'reached' && m === undefined) fail(`${ws}: done: reached needs move_to`); if (st.done !== 'reached' && st.done !== 'moved' && !(({ fired: 'fire_at', launched: 'launch_at', grafted: 'graft', docked: 'dock' })[st.done] in st)) fail(`${ws}: done: ${st.done} needs its target part`); } else walk(st.done, ws); }
       if (st.timeout !== undefined && !(st.timeout && Number.isInteger(st.timeout.rounds) && st.timeout.rounds > 0)) fail(`${ws}: timeout is { rounds: n }`);
     });
   };

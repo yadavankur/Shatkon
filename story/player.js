@@ -260,6 +260,10 @@ export async function playScene(sceneId, mountEl, opts = {}) {
   async function runLines(lines) {
     for (const ln of lines || []) {
       if (skipped) return;
+      // Effect-only beats (ch1_hurl opens with a shake) must not leave an empty dialogue box:
+      // that looks broken, and a Skip in those 450ms would drop the rest of the scene.
+      const spoken = !!(ln.speaker || ln.show_ship || ln.text);
+      box.classList.toggle('sk-quiet', !spoken);
       if (ln.stage) { setStage(ln.stage); hideShip(); if (typeof o.onLine === 'function') o.onLine(ln); await pause(420); continue; }
       if (ln.effect) { if (typeof o.onLine === 'function') o.onLine(ln); await effect(ln.effect); continue; }
       if (ln.show_ship) {
@@ -267,8 +271,14 @@ export async function playScene(sceneId, mountEl, opts = {}) {
         shipImg.src = info.img; shipCap.textContent = info.name;
         ship.classList.toggle('sk-weave', info.side === 'weave');
         ship.classList.add('sk-shown');
+        const cap = ln.text || info.name || '';
+        nameEl.textContent = '';
+        textEl.textContent = cap;
+        box.classList.add('sk-done');
+        announce('', cap);
         if (typeof o.onLine === 'function') o.onLine(ln);
-        await pause(500); continue;
+        await waitAdvance();
+        continue;
       }
       if (ln.hide_ship) { hideShip(); continue; }
       if (ln.speaker) { await sayLine(ln); continue; }

@@ -12,12 +12,22 @@ export function resolveUrl(path) {
 }
 
 async function fetchJSON(path, optional = false) {
-  const res = await fetch(resolveUrl(path));
-  if (!res.ok) {
+  const load = async (cacheBust) => {
+    const url = resolveUrl(path);
+    const res = await fetch(cacheBust ? url + (url.includes('?') ? '&' : '?') + 't=' + Date.now() : url);
+    if (!res.ok) {
+      if (optional) return null;
+      throw new Error(`[sk-story] could not load ${path} (${res.status})`);
+    }
+    const raw = await res.text();
+    try { return JSON.parse(raw); }
+    catch (e) { throw new Error(`[sk-story] invalid JSON for ${path}`); }
+  };
+  try { return await load(false); }
+  catch (e) {
     if (optional) return null;
-    throw new Error(`[sk-story] could not load ${path} (${res.status})`);
+    return load(true);
   }
-  return res.json();
 }
 
 export function loadStory(baseUrl = 'story/') {
@@ -180,6 +190,7 @@ const CSS = `
 .sk-story .sk-box.sk-narration{border-left-color:var(--sk-muted);background:rgba(7,11,22,.86)}
 .sk-story .sk-box.sk-narration .sk-text{font-style:italic;color:#c8d1e6}
 .sk-story .sk-box.sk-glyphline .sk-text{font-style:italic;color:#ffc2d6;letter-spacing:.02em}
+.sk-story .sk-box.sk-quiet{opacity:0;pointer-events:none}
 .sk-story .sk-next{position:absolute;right:14px;bottom:8px;color:var(--sk-gold);opacity:0;font-size:14px}
 .sk-story .sk-box.sk-done .sk-next{opacity:1;animation:sk-nudge 1s ease-in-out infinite}
 @keyframes sk-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}}

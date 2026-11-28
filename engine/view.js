@@ -41,7 +41,7 @@ export function view(state, who) {
     const intel = pl.intel[s.id] || {};
     ships.push({
       id: s.id, owner: s.owner, mine, seen: mine || vis.has(s.id), pos: s.pos.slice(), cells: footprint(s),
-      name: open ? s.name : null, flagship: open ? s.flagship : null,
+      name: (open || rules.campaign) ? s.name : null, flagship: open ? s.flagship : null,
       stunned: s.stunned && s.stunned === state.round ? s.stunned : null,
       hib: mine && s.hib ? true : null,   // experiment: hibernating (only you know)   // rapid mode: can't act this tick (everyone sees the flash)
       segs: s.segs.map((sg, i) => ({

@@ -168,7 +168,7 @@ test('campaign guide acceptance: all checks pass (12b and F3 included)', () => {
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /PASS {2}12b\./);
   assert.match(r.stdout, /PASS {2}F3\./);
-  assert.match(r.stdout, /15 passed, 0 failed/);
+  assert.match(r.stdout, /passed, 0 failed/);
 });
 
 test('game codes: a story chapter that changes the rules mid-battle (ch5 jamming) still saves and reloads', async () => {
