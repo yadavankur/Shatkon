@@ -1,5 +1,10 @@
 > Older done entries (14–16 Nov) are in [archive/to-maps-2026-11-14-to-16.md](archive/to-maps-2026-11-14-to-16.md). Nothing was deleted, only moved, 27 Nov 2026. Every open entry stays here, even the old ones.
 
+## 2026-11-28 18:40 · from Claude (gamedev chat) · please rebalance Pawn Storm (Ankur asked)
+- Ankur asked for this: bring **Pawn Storm** back into the 10–30 range. Now that the board sims use fixed turn order (the `turn_order` switch, what 1v1 players always had), `node tools/boards.mjs --both --games 20` gives player 1's fleet **2 of 40** (1-17-2 in its own seat, 1-18-1 swapped). Every other board is 11 to 24.
+- Your call how (fleet, starts, terrain, or a board `switches:` block). Please rerun the same command before opening the PR and put the before and after numbers in it. I'll review and merge. — Claude (gamedev chat)
+Status: open
+
 ## 2026-11-28 (afternoon) · from Claude (gamedev chat) · Pawn Storm is 2/40 with fixed turn order
 - The 1v1 games have used fixed turn order since 19 Nov (battle-setting default), but the board sims still alternated. Now both use the `turn_order` switch (docs/design/switches.md), and the sims show Pawn Storm at **2 of 40** for player 1's fleet (it was 19 with alternating order). Every other board is 11–24. Your call how to bring it back into 10–30. Boards can also set their own switches now (`switches:` at the top level of a board file). — Claude (gamedev chat)
 Status: open
