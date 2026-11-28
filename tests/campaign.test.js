@@ -1,8 +1,9 @@
 // Story campaign engine: chapter loading, script triggers and actions, new mechanics.
 // Uses a small fixture campaign written here, not the real chapters (those come later).
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { guideView, start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame, cannotLose, skipChapterGuides, takeChapterWin } from '../engine/index.js';
+import { guideView, start, apply, attempt, buildChapter, applyResult, newCampaign, nextNodes, campaignMove, importGame, exportGame, cannotLose, skipChapterGuides, takeChapterWin, noteGuideUi, gap } from '../engine/index.js';
 import { applyHits } from '../engine/damage.js';
 import { shippedFiles } from './helpers.js';
 
@@ -639,4 +640,60 @@ test('cannotLose: a second enemy that can still shoot blocks the win, even if th
   assert.equal(cannotLose(g, 0), false, 'the escort still has a laser');
   off(escort);
   assert.equal(cannotLose(g, 0), true, 'once every gun is gone, Rule B holds');
+});
+
+
+test('guide: a close-to-N step is done once the ship is in useful laser range', () => {
+  const ch = chapter({ script: [{ id: 'go', when: 'start', do: [{ reveal: { ship: 'seed', to: 'player', rounds: 9 } }],
+    guide: { ship: 'kestrel', clear: { destroyed: 'seed' }, steps: [
+      { label: 'Close', move_to: { near: 'seed', within: 4 }, done: 'reached' },
+      { label: 'Shoot', fire_at: 'seed' },
+    ] } }] });
+  let g = start(load(ch), 3);
+  assert.equal(guideView(g, 0).label, 'Close');
+  ship(g, 'seed').pos = [0, 1];
+  g = noteGuideUi(g, {});
+  const d = gap(ship(g, 'kestrel'), ship(g, 'seed'));
+  assert.ok(d > 4 && d <= 9, 'premise: in laser range but not within 4 (gap ' + d + ')');
+  assert.equal(guideView(g, 0).label, 'Shoot');
+});
+
+test('guide: the view is gone once the target is destroyed', () => {
+  const ch = chapter({ script: [{ id: 'go', when: 'start', do: [{ reveal: { ship: 'seed', to: 'player', rounds: 9 } }],
+    guide: { ship: 'kestrel', clear: { destroyed: 'seed' }, steps: [{ label: 'Close', move_to: { near: 'seed', within: 4 } }] } }] });
+  let g = start(load(ch), 3);
+  assert.ok(guideView(g, 0));
+  const seed = ship(g, 'seed');
+  for (const sg of seed.segs) for (const p of sg.parts) { p.hp = 0; }
+  seed.dead = true;
+  g = apply(g, { type: 'end' });
+  assert.equal(guideView(g, 0), null);
+});
+
+test('guide: done: moved advances after any move, and select waits for the play screen', () => {
+  const ch = chapter({ script: [{ id: 'go', when: 'start', guide: { ship: 'kestrel', steps: [
+    { label: 'Tap', select: 'kestrel' },
+    { label: 'Go', move_to: [0, 4], done: 'moved' },
+    { label: 'Next', fire_at: 'seed' },
+  ] } }] });
+  let g = start(load(ch), 3);
+  assert.equal(guideView(g, 0).label, 'Tap');
+  assert.equal(guideView(g, 0).aimShip, true);
+  g = noteGuideUi(g, { select: 'kestrel' });
+  assert.equal(guideView(g, 0).label, 'Go');
+  const k = ship(g, 'kestrel');
+  g = apply(g, { type: 'move', ship: k.id, path: [2] });
+  assert.notDeepEqual(ship(g, 'kestrel').pos, [0, 4]);
+  assert.equal(guideView(g, 0).label, 'Next');
+});
+
+test('ch1 and ch2 finish_fallback only run after the player skips the guide', () => {
+  const ch1 = readFileSync(new URL('../campaign/chapters/ch1_first_contact.yaml', import.meta.url), 'utf8');
+  const ch2 = readFileSync(new URL('../campaign/chapters/ch2_quiet_water.yaml', import.meta.url), 'utf8');
+  const block = (src) => src.split('id: finish_fallback')[1].split(/\n  win:/)[0];
+  const a = block(ch1), b = block(ch2);
+  assert.match(a, /flag: guides_skipped/);
+  assert.equal(/after: \{ beat: crippled, rounds: 10 \}/.test(a), false);
+  assert.match(b, /flag: guides_skipped/);
+  assert.equal(/round: 19/.test(b), false);
 });

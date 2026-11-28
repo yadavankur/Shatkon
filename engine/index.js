@@ -36,7 +36,7 @@ export function start(rules, seed = 1) {
 
 // Story campaigns: build a chapter's rules, run its script, carry results to the next chapter.
 export { buildChapter, applyResult, nextNodes, newCampaign, shipToHull } from './chapter.js';
-export { cannotLose, skipChapterGuides, takeChapterWin } from './script.js';
+export { cannotLose, skipChapterGuides, takeChapterWin, noteGuideUi } from './script.js';
 export { campaignMove } from './ai.js';
 export { museMove } from './ai-muse.js';
 export { guideView } from './guide.js';

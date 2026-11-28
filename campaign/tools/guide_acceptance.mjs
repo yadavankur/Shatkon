@@ -70,9 +70,9 @@ const keys = (l) => l.map((c) => H.key(c)).sort().join(' ');
 // ---------------------------------------------------------------- ch1
 const r1 = rulesFor('ch1');
 {
-  let before = true, sawEarly = false;
-  const { g, prev } = play(r1, 1, (p, g) => { if (!beat(g, 'crippled') && E.guideView(g, 0)) sawEarly = true; return beat(g, 'crippled'); });
-  check(2, 'ch1: no guide before `crippled`', !sawEarly);
+  let sawEarly = false, earlyId = null;
+  const { g, prev } = play(r1, 1, (p, g) => { if (!beat(g, 'crippled') && E.guideView(g, 0)) { sawEarly = true; earlyId = E.guideView(g, 0).id; } return beat(g, 'crippled'); });
+  check(2, 'ch1: first_steps guide is up before `crippled`', sawEarly && earlyId === 'first_steps', earlyId || 'no early guide');
   const v = E.guideView(g, 0), k = ship(g, 'kestrel'), sd = ship(g, 'seed');
   const startedAt2 = v && v.step === 2;
   if (startedAt2) check(3, 'ch1: guide starts on the beat', true, 'Kestrel was already within 4: opened on step 2 (see test 5)');
@@ -98,7 +98,7 @@ const r1 = rulesFor('ch1');
     const { g: g6 } = play(r1, 1, (p, gg) => { const v6 = E.guideView(gg, 0); if (v6 && v6.step === 2 && !at6) { at6 = v6; return true; } return false; },
       (gg, seat) => { if (seat !== 0) return null; const v6 = E.guideView(gg, 0); if (!v6 || v6.step !== 1) return null; const kk = ship(gg, 'kestrel'); const go = E.reach(gg, kk.id).find((x) => v6.turnEnd && H.same(x.at, v6.turnEnd)); return go && !gg.players[0].movedThisTurn ? { type: 'move', ship: kk.id, path: go.path } : { type: 'end' }; });   // hold fire while closing: Kestrel now starts near enough for a long shot to end the chapter first
     const kk = ship(g6, 'kestrel'), ss = ship(g6, 'seed');
-    check(6, 'ch1: step 2 after Kestrel comes within 4, reticle solid on the Seed', !!at6 && at6.label === 'Fire on the Seed' && at6.reticle && at6.reticle.kind === 'fire' && !at6.reticle.dashed && E.gap(kk, ss) <= 4, at6 ? `gap ${E.gap(kk, ss)}, dashed ${at6.reticle && at6.reticle.dashed}` : 'never reached step 2');
+    check(6, 'ch1: fire step after close (within 4, or already in laser range)', !!at6 && at6.label === 'Fire on the Seed' && at6.reticle && at6.reticle.kind === 'fire', at6 ? `gap ${E.gap(kk, ss)}, dashed ${at6.reticle && at6.reticle.dashed}` : 'never reached step 2');
   }
   // 7. clears when the Seed dies; nothing after the win
   {

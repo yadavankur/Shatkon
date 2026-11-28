@@ -267,8 +267,14 @@ export async function playScene(sceneId, mountEl, opts = {}) {
         shipImg.src = info.img; shipCap.textContent = info.name;
         ship.classList.toggle('sk-weave', info.side === 'weave');
         ship.classList.add('sk-shown');
+        const cap = ln.text || info.name || '';
+        nameEl.textContent = '';
+        textEl.textContent = cap;
+        box.classList.add('sk-done');
+        announce('', cap);
         if (typeof o.onLine === 'function') o.onLine(ln);
-        await pause(500); continue;
+        await waitAdvance();
+        continue;
       }
       if (ln.hide_ship) { hideShip(); continue; }
       if (ln.speaker) { await sayLine(ln); continue; }

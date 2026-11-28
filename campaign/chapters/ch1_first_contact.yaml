@@ -90,6 +90,29 @@ chapter:
         - orders: { ship: kite,  do: [ { hold: true }, { fire_at: seed } ] }
         - bark: b1_scouts_ahead
 
+    # Teach one beat at a time, like Antiyoy: tap the ship, press Move, take a step, then the diamonds.
+    # Kestrel cannot pass the escort screen yet; the hand points at this turn's reachable hex.
+    - id: first_steps
+      when: start
+      guide:
+        ship: kestrel
+        clear: { any: [crippled, { destroyed: seed }] }
+        steps:
+          - label: "Tap Kestrel, your ship"
+            select: kestrel
+          - label: "Now press Move"
+            press: move
+          - label: "Move closer, this way"
+            move_to: [-2, 2]                 # a hex in front of Kestrel; the Seed is still out of sight
+            done: moved
+          - label: "Each diamond is a command point. One is spent when you give an order."
+            teach: cp
+          - label: "When you are done, press End turn. There is no rush."
+            teach: end
+          - label: "Move closer, this way"
+            move_to: { near: seed, within: 8 }
+            done: reached
+
     - id: contact
       when: { any: [ { sees: { side: player, ship: seed } }, { round: 2 } ] }
       do:
@@ -225,9 +248,8 @@ chapter:
             done: { destroyed: seed }          # waits for the player; no auto-timeout
     - id: finish_fallback
       fallback_for: win
-      # After "I'll do this myself", the old 4-round safety net. Otherwise the Seed stays until they fire,
-      # or they take the "Win now" prompt, with a long 10-round net so the chapter always ends.
-      when: { all: [ { any: [ { all: [ { flag: guides_skipped }, { after: { beat: crippled, rounds: 4 } } ] }, { after: { beat: crippled, rounds: 10 } } ] }, { alive: seed } ] }
+      # Only after "I'll do this myself": never auto-kill the Seed while a walk/fire guide is still up.
+      when: { all: [ { flag: guides_skipped }, { after: { beat: crippled, rounds: 4 } }, { alive: seed } ] }
       do:
         - damage: { ship: seed, seg: 0, hits: 3, cause: scripted }   # the core burns out
 

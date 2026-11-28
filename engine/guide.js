@@ -20,6 +20,17 @@ export function guideView(state, player) {
   if (!st) return null;
   const R = state.rules, g = geom(R), vis = visibleTo(state, player), pl = state.players[player];
   const liveTurn = current(state) === player;
+  const tgtName = st.fire_at || (typeof st.launch_at === 'string' && st.launch_at) || (st.move_to && st.move_to.near);
+  if (typeof tgtName === 'string' && !state.ships.some((x) => x.name === tgtName && !x.dead)) return null;
+  // select / press / teach steps are one beat at a time: no far-away glow
+  if (st.select || st.press || st.teach) {
+    return {
+      id: gd.id, ship: s.id, shipName: s.name, step: gd.i + 1, of: gd.steps.length,
+      label: st.label || '', live: liveTurn, dest: [], best: null, blockedFrom: [], route: [], turnEnd: null,
+      reticle: null, join: null, anchor: s.pos.slice(), ui: st.press || st.teach || null, aimShip: !!st.select,
+      blocksWin: true,
+    };
+  }
 
   // what this player knows about a named ship: real cells if in view, a ghost if seen before
   const known = (name) => {
@@ -109,9 +120,11 @@ export function guideView(state, player) {
       join = { with: other, cells: pair };
     }
   }
+  const closer = !!(st.move_to && turnEnd && best && key(turnEnd) !== key(best));
   return {
     id: gd.id, ship: s.id, shipName: s.name, step: gd.i + 1, of: gd.steps.length, label: st.label || '', live: liveTurn,
-    dest, best, blockedFrom, route, turnEnd, reticle, join, anchor: best || (reticle && reticle.at) || s.pos.slice(),
+    dest, best, blockedFrom, route, turnEnd, reticle, join, anchor: (turnEnd || best || (reticle && reticle.at) || s.pos.slice()),
+    ui: st.press || st.teach || null, aimShip: false, blocksWin: !!st.move_to, closer,
   };
 }
 

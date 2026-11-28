@@ -52,6 +52,7 @@ async function toggleFull() {      // full screen, and held sideways where the b
 let undoStack = [];               // states before undoable actions this turn
 let endArmed = false;             // End turn was pressed once with points still to spend: the next press ends it
 let endArmedAt = 0;               // ...when (a second press this soon is a double tap, not a decision)
+let skipShownAt = 0, skipKey = '';  // "I'll do this myself" is only shown briefly with each new guide step
 let curtain = null;               // pass and play: the player waiting behind the curtain
 let aiTimer = null, aiSteps = 0, aiLevel = 'normal';
 let report = null;                // last impact report shown on this screen
@@ -987,7 +988,7 @@ function describe(e) {
     case 'burnt_out': return e.ship + '\'s afterburner is burnt out. From now on it moves ' + plural(e.move, 'hex') + ' a turn.';
     case 'lured': return 'Your ' + nice(e.kind) + ' turned on a decoy emitter (' + e.to + ')' + (e.from ? ' and dropped its lock on ' + e.from : '') + '.';
     case 'mine_stir': return 'Something small moved near ' + e.near + '. A faint contact marks roughly where.';
-    case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': return null;
+    case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': case 'guide': case 'guide_clear': return null;
     case 'spawned': return e.ships.length ? 'New ships have arrived: ' + e.ships.join(', ') + '.' : null;
     case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
     case 'grafted': return e.name + ' and ' + e.other + ' are grafted into one ship.';
@@ -1005,7 +1006,7 @@ function describe(e) {
     case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
       : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : (threeP() ? 'The tick limit was reached: ' + (e.winner === 0 && seat === 'cpu' ? 'you win' : seat === 'cpu' ? cpuName(e.winner) + ' wins' : 'player ' + (e.winner + 1) + ' wins') + ' with the most of its fleet left.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.')) : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
   }
-  return e.t;
+  return null;
 }
 function forecastText(f, kind) {
   if (!f) return '';
@@ -1161,7 +1162,7 @@ function tap(c, v, opts, viaChip, t) {
     if (pending && pending.type === 'move' && pending.path.join('') === o.action.path.join('')) return act(pending);
     pending = o.action;
     const ship = v.ships.find((x) => x.id === sel), to = pending.path.reduce((c, d) => hex.step(c, d), ship.pos);
-    say('The dashed outline shows where ' + sel + ' will end up: ' + plural(pending.path.length, 'hex') + ' ' + compass(ship.pos, to) + '. Tap it again or press Move here.');
+    say('The dashed outline shows where ' + shipName(ship) + ' will end up: ' + plural(pending.path.length, 'hex') + ' ' + compass(ship.pos, to) + '. Tap it again or press Move here.');
     return render();
   }
   if (o && o.action && (o.action.type === 'fire' || o.action.type === 'detonate')) {      // things that cannot be taken back: first tap aims, second tap does it
@@ -1225,6 +1226,8 @@ function maybeWinNow() {
   if (!WIN_NOW_CHAPTERS[game.rules.campaign.id]) return;
   if (storyBusy() || storyWait > 0) return;
   if (document.getElementById('winnow') || document.getElementById('help') && !document.getElementById('help').hidden) return;
+  const gv = guideNow();
+  if (gv && gv.blocksWin) return;   // a walk / teach step is still up; Skip clears it
   if (!E.cannotLose(game, 0)) return;
   winNowShown = true;
   const close = () => { const m = document.getElementById('winnow'); if (m) m.remove(); };
@@ -1251,23 +1254,73 @@ function guideNow() {
   return E.guideView(game, typeof w === 'number' ? w : 0);
 }
 
+
+const isCh1 = () => !!(game && game.rules.campaign && game.rules.campaign.id === 'ch1');
+function storySoftEnd() {   // chapter 1: no unused-CP nudge, no "End turn?" pressure
+  return isCh1();
+}
+// If the player already did what the current teach step asks, tell the engine so it can advance.
+function syncGuideUi() {
+  if (!game || !game.script || game.phase !== 'play') return;
+  const gv = E.guideView(game, 0);
+  if (!gv) return;
+  const ship = sel && game.ships.find((s) => s.id === sel && !s.dead);
+  if (gv.aimShip && ship && ship.name === gv.shipName) E.noteGuideUi(game, { select: ship.name });
+  else if (gv.ui === 'move' && mode === 'move' && ship) E.noteGuideUi(game, { press: 'move' });
+  else if (gv.ui === 'fire' && mode === 'fire') E.noteGuideUi(game, { press: 'fire' });
+}
+function ch1HudCoach() {
+  if (!isCh1() || !game.script || game.script.flags.guides_skipped || game.phase !== 'play') return null;
+  const gv = guideNow();
+  if (gv && (gv.aimShip || (gv.ui && gv.ui !== 'fire'))) return null;
+  const f = game.script.flags || {};
+  if (turnOf() === 1 && !f['taught:order']) return { ui: 'order', flag: 'taught:order', text: 'These coloured bars are the order of this round \u2014 enemy, you, then missiles fly. They are not your ships. They swap around because who moves first changes every round.' };
+  if (myTurn() && game.round >= 2 && !f['taught:ring']) return { ui: 'ring', flag: 'taught:ring', text: 'The number is the round. The ring fills as the chapter\u2019s rounds go by (this chapter has ' + game.rules.turnLimit + ').' };
+  if (myTurn() && game.round >= 2 && f['taught:ring'] && !f['taught:plus']) return { ui: 'plus', flag: 'taught:plus', text: 'The + opens more detail about the turn, your ship, and the rules.' };
+  if (gv && /fire|finish/i.test(gv.label || '') && !f['taught:laser']) return { ui: 'fire', flag: 'taught:laser', text: 'The lightning button is your laser. The number is how many targets you can shoot; the little bars are how many shots it still has this turn.' };
+  return null;
+}
+function placeCoach(attr, text, flag) {
+  const el = document.querySelector('[data-teach="' + attr + '"]');
+  const old = document.getElementById('teachpop'); if (old) old.remove();
+  document.querySelectorAll('.teach-aim').forEach((n) => n.classList.remove('teach-aim'));
+  if (!el || !text) return;
+  el.classList.add('teach-aim');
+  const r = el.getBoundingClientRect();
+  const pop = h('div', { id: 'teachpop', class: 'teach-pop', role: 'status' }, text,
+    h('button', { type: 'button', onclick: () => {
+      if (flag) { game.script.flags[flag] = true; save(); }
+      else E.noteGuideUi(game, { teach: attr });
+      const p = document.getElementById('teachpop'); if (p) p.remove();
+      el.classList.remove('teach-aim');
+      render();
+    } }, 'Got it'));
+  document.body.appendChild(pop);
+  const pr = pop.getBoundingClientRect();
+  let left = Math.min(window.innerWidth - pr.width - 8, Math.max(8, r.left));
+  let top = r.bottom + 8;
+  if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 8);
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+}
+
 function guideTap(c, v, gv) {
   if (!gv || !myTurn()) return false;
   const gs = v.ships.find((x) => x.id === gv.ship);
   if (!gs) return false;
   if (gv.reticle && hex.same(c, gv.reticle.at)) {
     selectShip(gs.id, v);
-    if (gv.reticle.kind === 'fire') { mode = 'fire'; say('Fire mode for ' + gs.id + ': tap the red target to shoot.'); }
+    if (gv.reticle.kind === 'fire') { mode = 'fire'; say('Fire mode for ' + shipName(gs) + ': tap the red target to shoot.'); }
     else {
       const kind = [...E.missileKinds(game.rules, Object.fromEntries(Object.keys(game.rules.munitions).map((k) => [k, 1]))), 'seeker_drone'].find((k) => E.aimLaunch(game, gs.id, k, c));
       if (kind) { mode = kind; pending = E.aimLaunch(game, gs.id, kind, c); say('Aimed at the marked target. ' + forecastText(E.forecast(game, pending), pending.kind) + ' Press Launch to send it, or Cancel.'); }
     }
     render(); return true;
   }
-  if (gv.dest.some((d) => hex.same(d, c))) {
+  if (gv.dest.some((d) => hex.same(d, c)) || (gv.turnEnd && hex.same(c, gv.turnEnd))) {
     selectShip(gs.id, v);
     const r = E.reach(game, gs.id), go = r.find((x) => hex.same(x.at, c)) || (gv.turnEnd && r.find((x) => hex.same(x.at, gv.turnEnd)));
-    if (go) { pending = { type: 'move', ship: gs.id, path: go.path }; say('The dashed outline shows where ' + gs.id + ' will end up' + (hex.same(go.at, c) ? '' : ' this turn, on the way') + '. Tap it again or press Move here.'); }
+    if (go) { pending = { type: 'move', ship: gs.id, path: go.path }; say('The dashed outline shows where ' + shipName(gs) + ' will end up' + (hex.same(go.at, c) ? '' : ' this turn, on the way') + '. Tap it again or press Move here.'); }
     render(); return true;
   }
   return false;
@@ -1582,7 +1635,7 @@ const lbl = (text, cls) => h('span', { class: 'tl' + (cls ? ' ' + cls : '') }, t
 // round progress: a ring that fills as the rounds go by
 function roundRing(round, limit) {
   const c = 2 * Math.PI * 15, done = Math.min(round, limit) / limit;
-  return h('span', { class: 'ring', role: 'img', 'aria-label': 'Round ' + Math.min(round, limit) + ' of ' + limit, title: 'Round ' + Math.min(round, limit) + ' of ' + limit },
+  return h('span', { class: 'ring', 'data-teach': 'ring', role: 'img', 'aria-label': 'Round ' + Math.min(round, limit) + ' of ' + limit, title: 'Round ' + Math.min(round, limit) + ' of ' + limit },
     svgEl('svg', { width: 34, height: 34, viewBox: '0 0 36 36', 'aria-hidden': 'true' },
       svgEl('circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'var(--line)', 'stroke-width': 3 }),
       svgEl('circle', { cx: 18, cy: 18, r: 15, fill: 'none', stroke: 'var(--me,var(--accent))', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': (c * done).toFixed(1) + ' ' + c.toFixed(1), transform: 'rotate(-90 18 18)' })),
@@ -1593,7 +1646,7 @@ function cpPips(cp, perTurn, spendNext) {
   const out = [];
   for (let i = 0; i < Math.min(cp, 12); i++) out.push(h('i', { class: 'dia' + (spendNext && i === cp - 1 ? ' next' : '') }));
   for (let i = 0; i < Math.max(0, perTurn - cp); i++) out.push(h('i', { class: 'dia used' }));
-  return h('span', { class: 'meter cp', role: 'img', 'aria-label': plural(cp, 'command point'), title: plural(cp, 'command point') + ' (each order costs 1; unspent points carry over)' },
+  return h('span', { class: 'meter cp', 'data-teach': 'cp', role: 'img', 'aria-label': plural(cp, 'command point'), title: plural(cp, 'command point') + ' (each order costs 1; unspent points carry over)' },
     h('span', { class: 'pipsrow' }, out, cp > 12 ? h('b', null, '+' + (cp - 12)) : null), lbl(plural(cp, 'move')));
 }
 // hull: one block per segment, filled by what is left of that segment's parts (unknown for an unscanned enemy segment)
@@ -1623,8 +1676,8 @@ function shipStrip(x, v) {
   return out;
 }
 // an order button: an icon, its pips or badge, and a label underneath (hidden with labels off)
-function ibtn({ icon, label, sub, on, pressed, pips, pipCls, badge, lock, title, onclick, cls }) {
-  return h('button', { class: 'btn ib' + (cls ? ' ' + cls : ''), 'aria-pressed': pressed == null ? null : String(pressed), disabled: !on, title: title || null, 'aria-label': label + (sub ? ': ' + sub : ''), onclick },
+function ibtn({ icon, label, sub, on, pressed, pips, pipCls, badge, lock, title, onclick, cls, teach }) {
+  return h('button', { class: 'btn ib' + (cls ? ' ' + cls : ''), 'data-teach': teach || null, 'aria-pressed': pressed == null ? null : String(pressed), disabled: !on, title: title || null, 'aria-label': label + (sub ? ': ' + sub : ''), onclick },
     h('span', { class: 'ibic' }, ico(icon, 22), lock ? h('span', { class: 'lockb' }, ico('lock', 11)) : null, badge != null ? h('b', { class: 'cnt' }, badge) : null),
     pips ? h('span', { class: 'ibpips' + (pipCls ? ' ' + pipCls : '') }, pips.map((full) => h('i', { class: full ? 'on' : null }))) : null,
     lbl(label, 'name'), sub ? h('small', { class: 'tl' }, sub) : null);
@@ -1763,6 +1816,7 @@ export function render() {
   const v = E.view(game, who()), turn = turnOf(), mine = myTurn(), R = game.rules, hid = curtainUp();
   if (sel && !canCommand(v.ships.find((x) => x.id === sel), v)) sel = null;
   if (pending || (look && !v.ships.some((x) => x.id === look))) look = null;
+  syncGuideUi();
 
   // turn bar (top left): whose turn, where we are in the round, what is left to spend
   bar.className = 'who' + (game.phase === 'over' && v.winner !== 'draw' ? v.winner : turn);
@@ -1782,12 +1836,12 @@ export function render() {
       roundRing(v.round, R.turnLimit + (R.rapid && game.rapid ? game.rapid.openTicks || 0 : 0)),   // rapid: the opening's ticks don't count
       E.econOn(game) ? pursePill() : null,   // economy mode: your rekon (the enemy's is hidden)
       R.rapid ? h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps' }, rapidChips)) :
-      h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
+      h('span', { class: 'tbwho' }, h('span', { class: 'big' }, title), h('span', { class: 'steps', 'data-teach': 'order', title: 'This round: both turns, then every missile and drone moves. The first move swaps every round.' },
         stepNames.map((n, i) => [i ? h('i', { class: 'stepsep' }, '\u25B8') : null, h('span', { class: 'stepchip' + (game.phase === 'play' && i === game.turn ? ' now' : '') + (i === stepNames.length - 1 ? ' fly' : ' s' + game.order[i]), title: n }, n)]),
         game.phase === 'play' && v.round < R.turnLimit && R.firstPlayer !== 'fixed' ? [h('i', { class: 'stepsep' }, '\u25B8'), h('span', { class: 'stepchip next s' + nextFirst, title: seatName(nextFirst) + ' next' }, seatName(nextFirst) + (nextFirst === game.order[game.order.length - 1] ? ' again' : ' next'))] : null)),
       mine && !R.rapid ? h('span', { class: 'meters' }, cpPips(v.cp, R.cp.perTurn, !!pending)) : null,
       mine && v.cp === 1 && !R.rapid ? h('span', { class: 'lastpill' }, 'LAST ACTION') : null,
-      compact ? h('button', { class: 'infobtn' + (detailsOpen ? ' open' : ''), 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Close details' : 'More: the turn, your ship, the rules', title: detailsOpen ? 'Close' : 'More',
+      compact ? h('button', { class: 'infobtn' + (detailsOpen ? ' open' : ''), 'data-teach': 'plus', 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Close details' : 'More: the turn, your ship, the rules', title: detailsOpen ? 'Close' : 'More',
         onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'x' : 'plus', 20)) : null),
     v.objective ? h('div', { class: 'line' }, h('span', { title: 'Beacon: start your turn with a ship on it and no enemy ship on it to score 1' }, '\u2726 Beacon ', v.scores.map((sc, k) => h('b', { class: 'n' }, (k ? ' \u00b7 ' : '') + 'P' + (k + 1) + ' ' + sc)), v.objective.toWin ? ' (first to ' + v.objective.toWin + ')' : '')) : null,
     v.story && storyObjective() && !guideNow() ? h('div', { class: 'line objective' }, '\u{1F3AF} ', storyObjective()) : null,
@@ -1822,11 +1876,23 @@ export function render() {
   const incoming = game.phase === 'play' && !hid ? E.incoming(game, eyes) : null;
   wrap.appendChild(drawBoard({ guide, view: v, rules: R, looks, cam, sel, opts, plan, plans, ghost, seat, box: wrap, onTap: (c, viaChip, t) => tap(c, v, opts, viaChip, t), pending, hidden: hid, field, danger, incoming,
     halo, idle, style: shipStyle, modelBase: 'story/', offsets: shipOffset, nameOf: R.campaign ? (x) => (x.name ? shipName(x) : null) : null, onCam: () => render(), onView: miniView, lines: rapidLines(), formation: rapidFormation(), ground: E.econOn(game) && game.phase === 'play' ? E.newGround(game, 0) : null, earn: RT.earn, heat, heatLabels: labelsOn, tagsOn: isRapidGame() ? 'tap' : 'all', look }));
-  if (guide && !hid) wrap.appendChild(h('button', { id: 'guideskip', class: 'guideskip', type: 'button', title: 'Hide the pointing hand for the rest of this chapter', onclick: () => {
-    E.skipChapterGuides(game); say("I'll leave you to it. The pointing hand is off for the rest of this chapter."); save(); render(); maybeWinNow();
-  } }, "I'll do this myself"));
+  if (guide && !hid) {
+    const key = guide.id + ':' + guide.step;
+    if (key !== skipKey) { skipKey = key; skipShownAt = performance.now(); }
+    const brief = performance.now() - skipShownAt < 5000;
+    wrap.appendChild(h('button', { id: 'guideskip', class: 'guideskip' + (brief ? '' : ' fade'), type: 'button', title: 'Hide the pointing hand for the rest of this chapter', onclick: () => {
+      E.skipChapterGuides(game); say("I'll leave you to it. The pointing hand is off for the rest of this chapter."); save(); render(); maybeWinNow();
+    } }, 'Skip'));
+    if (brief) setTimeout(() => { const b = document.getElementById('guideskip'); if (b && skipKey === key) b.classList.add('fade'); }, Math.max(50, 5000 - (performance.now() - skipShownAt)));
+  }
   drawMini(v, guide, hid);
   maybeWinNow();
+  const yamlTeach = guide && (guide.ui === 'cp' || guide.ui === 'end' || guide.ui === 'move' || guide.ui === 'fire' || guide.ui === 'ring' || guide.ui === 'order' || guide.ui === 'plus') ? { ui: guide.ui, text: guide.label, flag: null } : null;
+  const coach = yamlTeach || ch1HudCoach();
+  if (coach && coach.ui === 'plus' && !document.querySelector('[data-teach="plus"]')) {
+    if (coach.flag) game.script.flags[coach.flag] = true;
+  } else if (coach) setTimeout(() => placeCoach(coach.ui, coach.text, coach.flag), 0);
+  else { const p = document.getElementById('teachpop'); if (p) p.remove(); document.querySelectorAll('.teach-aim').forEach((n) => n.classList.remove('teach-aim')); }
   if (moveAnims.length && !animRaf) animRaf = requestAnimationFrame(animTick);
   fill(camEl, [h('button', { class: 'zoom', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => { zoomBy(0.7); render(); } }, '+'), h('button', { class: 'zoom', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => { zoomBy(1.4); render(); } }, '\u2212'),
     compact && !(cam.max && cam.w < cam.max * 0.98) ? null : h('button', { 'aria-label': 'Whole map', title: 'Whole map', onclick: () => { const from = cam.w > 0 ? { x: cam.x, y: cam.y, w: cam.w } : null; wholeMap(); render(); camTween(from); } }, '\u26F6'),
@@ -1862,11 +1928,11 @@ export function render() {
       // free castle: only on your flagship, only before your first action (engine/castle.js)
       me.flagship && canCastle() ? ibtn({ icon: 'move', label: 'Castle', sub: 'free, secret', on: true, pressed: mode === 'castle', title: 'Once, before your first action: move your flagship to any marked spot in your home zone. The enemy is not told.',
         onclick: () => { mode = 'castle'; pending = null; say('Free castle: tap a marked spot to move your flagship\u2019s start there (\u21C4 swaps with the ship already there). Free and secret, once, before your first action.'); render(); } }) : null,
-      btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0),
+      btn('move', 'move', 'Move', st.moveLeft ? 'up to ' + plural(st.moveLeft, 'hex') : 'no moves left', st.moveLeft > 0, { teach: 'move' }),
       // the laser's damage close up and far away is the point: closer hits harder
       // always shown, so "why can't I fire?" has an answer: no laser left, out of reach, blocked, nothing seen
       st.beams ? btn('fire', 'laser', 'Laser', meStunned ? 'stunned' : !st.beamsReady ? 'already fired' : v.cp < R.cost.fire ? 'no moves' : targets ? plural(targets, 'target') : noShotWhy(sel), st.beamsReady && v.cp >= R.cost.fire && !meStunned,
-        { pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : noShotWhy(sel) })
+        { teach: 'fire', pips: Array.from({ length: st.beams }, (_, i) => i < st.beamsReady), badge: st.beamsReady && targets ? targets : null, title: targets ? plural(targets, 'target') + ' in reach' : noShotWhy(sel) })
         : btn('fire', 'laser', 'Laser', 'no laser left', false, { title: me.id + ' has no working laser: they were shot away' + (isRapidGame() && E.econOn(game) ? ' or left behind as turrets' : '') + '. It can still move.' }),
       // one button per missile kind the ship carries, weakest first (basic, advanced, Nuke)
       ...E.missileKinds(game.rules, Object.fromEntries(Object.keys(st.ammo).map((k) => [k, 1])), true).filter(has).map((k) => btn(k, 'missile', munName(k), launchWhy(k), !!lo && lo.kinds.includes(k), { pips: ammoPips(k), pipCls: 'amber' })),
@@ -1904,6 +1970,10 @@ export function render() {
   let railTools = null;
   const closeBtn = (fn) => h('button', { class: 'ctx-x', 'aria-label': 'Close', onclick: () => { fn(); render(); } }, '\u00D7');
   if (game.phase === 'over' && !hid) {
+    const outroBusy = !!(R.campaign && (storyBusy() || storyWait > 0 || document.querySelector('.story-stage')));
+    if (R.campaign && outroBusy) {
+      ctx.hidden = true;     // wait until closing scenes finish or are skipped
+    } else {
     ctx.hidden = false;
     if (R.campaign) {
       ctx.className = 'who' + (game.winner === 0 ? 0 : 1);
@@ -1919,6 +1989,7 @@ export function render() {
         h('p', { class: 'muted' }, 'Finished in round ' + Math.min(v.round, R.turnLimit) + '. Ships lost: ' + game.players.map((pl, k) => (threeP() && seat === 'cpu' ? (k === 0 ? 'You' : cpuName(k)) : 'Player ' + (k + 1)) + ' ' + lost(k)).join(', ') + '. The whole board is revealed.'),
         h('div', { class: 'row' }, h('button', { class: 'btn go', onclick: () => askSetup(newGame) }, 'Play again'), h('button', { class: 'btn', onclick: () => { postShown = null; render(); } }, 'Battle report'), logButtons())]);
     }
+    }
     showReport();
   } else if (shown) {
     const own = shown.id === sel && !look;
@@ -1928,7 +1999,7 @@ export function render() {
     const tab = h('button', { class: 'chamfer', 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Hide ship details' : 'Show all ship details', title: detailsOpen ? 'Hide details' : 'All details',
       onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'minus' : 'plus', 11));
     fill(ctx, [compact ? null : tab, h('div', { class: 'ctx-head' },
-        h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
+        h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name && !R.campaign ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
         closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } detailsOpen = false; say(''); })),
       shipStrip(shown, v),
       own && !compact ? tools : null,
@@ -1961,17 +2032,21 @@ export function render() {
     // more on the same button, and a second press within half a second counts as the same tap.
     (() => {
       const laserLeft = v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length);
-      const name = endArmed ? 'End turn?' : v.cp === 1 ? 'Last action' : 'End turn';
-      const sub = endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
-      return h('button', { class: 'btn go ib endb' + (v.cp === 1 || endArmed ? ' last' : '') + (endArmed ? ' armed' : ''), 'aria-label': name + (sub ? ': ' + sub : '') + (laserLeft ? '. A laser can still fire' : ''), onclick: () => {
+      const teachLaser = !isCh1() || !!(game.script && (game.script.flags['taught:laser'] || (guideNow() && /fire|finish/i.test((guideNow().label || '')))));
+      const showDot = laserLeft && teachLaser;
+      const soft = storySoftEnd();
+      const name = (!soft && endArmed) ? 'End turn?' : (!soft && v.cp === 1) ? 'Last action' : 'End turn';
+      const sub = soft ? '' : endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
+      return h('button', { class: 'btn go ib endb' + (!soft && (v.cp === 1 || endArmed) ? ' last' : '') + (!soft && endArmed ? ' armed' : ''), 'data-teach': 'end', 'aria-label': name + (sub ? ': ' + sub : '') + (showDot ? '. A laser can still fire' : ''), onclick: () => {
+          if (soft) return act({ type: 'end' });
           if (endArmed && performance.now() - endArmedAt < 500) return;
           if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
           if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
           else act({ type: 'end' });
         } },
-        h('span', { class: 'ibic' }, ico('end', 24), laserLeft ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
-        h('span', { class: 'tl name' + (endArmed || v.cp === 1 ? ' keep' : '') }, name), sub ? h('small', { class: 'tl' }, sub) : null,
-        laserLeft ? h('small', { class: 'tl warnnote' }, 'laser can fire') : null);
+        h('span', { class: 'ibic' }, ico('end', 24), showDot ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
+        h('span', { class: 'tl name' + (!soft && (endArmed || v.cp === 1) ? ' keep' : '') }, name), sub ? h('small', { class: 'tl' }, sub) : null,
+        showDot ? h('small', { class: 'tl warnnote' }, 'laser can fire') : null);
     })()]);
 
   hintEl.className = hintErr ? 'err' : '';
@@ -2002,6 +2077,7 @@ export function render() {
     h('p', { class: 'muted' }, 'A white rim round a ship\u2019s hexes marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
   if (v.feed.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, v.feed.slice(-12).reverse().map((e) => h('li', null, 'Round ' + e.r + ': ' + describe(e))))));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
+    game.rules.campaign && guideNow() ? h('button', { class: 'btn', onclick: () => { drawerOpen = false; E.skipChapterGuides(game); say("I'll leave you to it. The pointing hand is off for the rest of this chapter."); save(); render(); maybeWinNow(); } }, 'Hide the pointing hand') : null,
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; askSetup(newGame); render(); } } }, 'New game'),
     h('button', { class: 'btn', onclick: async () => { const c = await E.exportGame(game); panels.appendChild(codeBox('Game code: the whole game, to start or recover one', c, 'Copy game code')); } }, 'Show game code'),
     h('a', { class: 'btn', href: 'index.html', style: 'text-decoration:none;display:inline-flex;align-items:center' }, 'Home'),

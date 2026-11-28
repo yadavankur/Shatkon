@@ -187,7 +187,8 @@ chapter:
     # with a late net at round 19 so a stalled game still ends as a win.
     - id: finish_fallback
       fallback_for: win
-      when: { any: [ { all: [ { flag: guides_skipped }, { round: 17 } ] }, { round: 19 } ] }
+      # Only after Skip: never auto-kill the Seeds while a hold/close/fire guide is still up.
+      when: { all: [ { flag: guides_skipped }, { round: 17 } ] }
       do:
         - damage: { ship: seed_a, seg: 0, hits: 12, cause: scripted }
         - damage: { ship: seed_b, seg: 0, hits: 12, cause: scripted }
