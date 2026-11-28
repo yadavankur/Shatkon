@@ -447,6 +447,7 @@ switches:
   ship_codes: true        # ship codes (1a, 2b) shown next to names; false shows the names only (story ships are characters)
   end_turn_nag: true      # ending a turn with points left asks "End turn?" (and an empty turn asks in a pop-up)
   win_now: false          # when you can no longer lose, offer "Take the win" (story chapters)
+  hud_coach: false        # extra HUD captions that teach turn order and laser reach, and hold back leftover-laser nags until the lesson has
 
 # Kinds of game: skirmish (the ten boards: vs computer, same phone, two phones), rapid (Rapid Opus,
 # Frontier, three players), story (scripted chapters), tutorial (lessons: a chapter with mode: tutorial),

@@ -1047,7 +1047,7 @@ function confirmEmptyTurn(cp) {
   const box = h('div', { id: 'endask', class: 'modal', role: 'dialog', 'aria-modal': 'true', onclick: (e) => { if (e.target.id === 'endask') close(); } },
     h('div', { class: 'card modal-box endask' },
       h('h2', null, 'End your turn without doing anything?'),
-      h('p', null, 'You have ' + plural(cp, 'command point') + ' and at least one ship that can still move, fire or launch' + (isCh1() ? '' : ' or scan') + '. '
+      h('p', null, 'You have ' + plural(cp, 'command point') + ' and at least one ship that can still move, fire or launch' + (E.sw(game, 'scan_button') ? ' or scan' : '') + '. '
         + (bank ? 'Unspent points are kept for next turn, up to ' + bank + '.' : 'Unspent points are lost.')),
       h('div', { class: 'row' }, end, keep)));
   document.body.appendChild(box);
@@ -1220,7 +1220,6 @@ function tap(c, v, opts, viaChip, t) {
 // Chapters 1 and 2: when Rule B holds (every enemy flagship is a sitting duck, and nothing else
 // can hurt you), offer to take the win now or keep playing. Shown once, then once more if the late net sets offer_win. Never on a power gap alone.
 let winNowShown = false;   // false | true (first offer) | 'again' (late net)
-const WIN_NOW_CHAPTERS = { ch1: true, ch2: true };
 function maybeWinNow() {
   if (!game || game.phase !== 'play' || !game.rules.campaign) return;
   if (!E.sw(game, 'win_now')) return;   // switch win_now (engine/switches.js): a chapter turns it on
@@ -1258,10 +1257,6 @@ function guideNow() {
 }
 
 
-const isCh1 = () => !!(game && game.rules.campaign && game.rules.campaign.id === 'ch1');
-function storySoftEnd() {   // chapter 1: no unused-CP nudge, no "End turn?" pressure
-  return isCh1();
-}
 // If the player already did what the current teach step asks, tell the engine so it can advance.
 function syncGuideUi() {
   if (!game || !game.script || game.phase !== 'play') return;
@@ -1272,8 +1267,8 @@ function syncGuideUi() {
   else if (gv.ui === 'move' && mode === 'move' && ship) E.noteGuideUi(game, { press: 'move' });
   else if (gv.ui === 'fire' && mode === 'fire') E.noteGuideUi(game, { press: 'fire' });
 }
-function ch1HudCoach() {
-  if (!isCh1() || !game.script || game.script.flags.guides_skipped || game.phase !== 'play') return null;
+function hudCoach() {
+  if (!E.sw(game, 'hud_coach') || !game.script || game.script.flags.guides_skipped || game.phase !== 'play') return null;
   const gv = guideNow();
   if (gv && (gv.aimShip || (gv.ui && gv.ui !== 'fire'))) return null;
   const f = game.script.flags || {};
@@ -1822,7 +1817,7 @@ export function render() {
   if (sel && !canCommand(v.ships.find((x) => x.id === sel), v)) sel = null;
   if (pending || (look && !v.ships.some((x) => x.id === look))) look = null;
   syncGuideUi();
-  if (isCh1() && (mode === 'scan' || (pending && pending.type === 'scan'))) { mode = 'move'; pending = null; }
+  if (!E.sw(game, 'scan_button') && (mode === 'scan' || (pending && pending.type === 'scan'))) { mode = 'move'; pending = null; }
 
   // turn bar (top left): whose turn, where we are in the round, what is left to spend
   bar.className = 'who' + (game.phase === 'over' && v.winner !== 'draw' ? v.winner : turn);
@@ -1894,7 +1889,7 @@ export function render() {
   drawMini(v, guide, hid);
   maybeWinNow();
   const yamlTeach = guide && (guide.ui === 'cp' || guide.ui === 'end' || guide.ui === 'move' || guide.ui === 'fire' || guide.ui === 'ring' || guide.ui === 'order' || guide.ui === 'plus') ? { ui: guide.ui, text: guide.label, flag: null } : null;
-  const coach = yamlTeach || ch1HudCoach();
+  const coach = yamlTeach || hudCoach();
   if (coach && coach.ui === 'plus' && !document.querySelector('[data-teach="plus"]')) {
     if (coach.flag) game.script.flags[coach.flag] = true;
   } else if (coach) setTimeout(() => placeCoach(coach.ui, coach.text, coach.flag), 0);
@@ -2038,21 +2033,21 @@ export function render() {
     // more on the same button, and a second press within half a second counts as the same tap.
     (() => {
       const laserLeft = v.cp >= R.cost.fire && v.ships.some((z) => halo.has(z.id) && E.beamTargets(game, z.id).length);
-      const teachLaser = !isCh1() || !!(game.script && (game.script.flags['taught:laser'] || (guideNow() && /fire|finish/i.test((guideNow().label || '')))));
+      // hud_coach (ch1): hold back the leftover-laser mark until the lesson has taught the laser button.
+      const teachLaser = !E.sw(game, 'hud_coach') || !!(game.script && (game.script.flags['taught:laser'] || (guideNow() && /fire|finish/i.test((guideNow().label || '')))));
       const showDot = laserLeft && teachLaser;
-      const soft = storySoftEnd();
-      const name = (!soft && endArmed) ? 'End turn?' : (!soft && v.cp === 1) ? 'Last action' : 'End turn';
-      const sub = soft ? '' : endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
-      return h('button', { class: 'btn go ib endb' + (!soft && (v.cp === 1 || endArmed) ? ' last' : '') + (!soft && endArmed ? ' armed' : ''), 'data-teach': 'end', 'aria-label': name + (sub ? ': ' + sub : '') + (showDot ? '. A laser can still fire' : ''), onclick: () => {
-          if (soft) return act({ type: 'end' });
+      const nag = E.sw(game, 'end_turn_nag') !== false;   // switch end_turn_nag (engine/switches.js)
+      const name = (nag && endArmed) ? 'End turn?' : (nag && v.cp === 1) ? 'Last action' : 'End turn';
+      const sub = !nag ? '' : endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
+      return h('button', { class: 'btn go ib endb' + (nag && (v.cp === 1 || endArmed) ? ' last' : '') + (nag && endArmed ? ' armed' : ''), 'data-teach': 'end', 'aria-label': name + (sub ? ': ' + sub : '') + (showDot ? '. A laser can still fire' : ''), onclick: () => {
+          if (!nag) return act({ type: 'end' });
           if (endArmed && performance.now() - endArmedAt < 500) return;
-          const nag = E.sw(game, 'end_turn_nag') !== false;   // switch end_turn_nag (engine/switches.js)
-          if (nag && !game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
-          if (nag && !endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
+          if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
+          if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
           else act({ type: 'end' });
         } },
         h('span', { class: 'ibic' }, ico('end', 24), showDot ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
-        h('span', { class: 'tl name' + (!soft && (endArmed || v.cp === 1) ? ' keep' : '') }, name), sub ? h('small', { class: 'tl' }, sub) : null,
+        h('span', { class: 'tl name' + (nag && (endArmed || v.cp === 1) ? ' keep' : '') }, name), sub ? h('small', { class: 'tl' }, sub) : null,
         showDot ? h('small', { class: 'tl warnnote' }, 'laser can fire') : null);
     })()]);
 

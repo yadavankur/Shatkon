@@ -22,11 +22,12 @@ A switch has to be in the master list before anything can use it. A name that is
 |---|---|---|---|
 | `castle` | false | Free castle before your first action (`docs/design/castle.md`) | skirmish, rapid: true |
 | `turn_order` | alternate | Who moves first each round: `alternate` (back-to-back turns possible) or `fixed` | skirmish, story, tutorial: fixed |
-| `scan_button` | true | The player's Scan button is offered | (chapters that haven't taught scanning) |
+| `scan_button` | true | The player's Scan button is offered | ch1: false |
 | `start_labels` | true | "YOUR START / ENEMY START" on the home zones | story, tutorial: false |
 | `ship_codes` | true | Ship codes (1a, 2b) next to names on the ship card | story, tutorial: false |
-| `end_turn_nag` | true | "End turn?" with points left, and the empty-turn pop-up | tutorial: false |
-| `win_now` | false | Offer "Take the win" once you can't lose | tutorial: true; ch1: true |
+| `end_turn_nag` | true | "End turn?" with points left, and the empty-turn pop-up | tutorial: false; ch1: false |
+| `win_now` | false | Offer "Take the win" once you can't lose | tutorial: true; ch1, ch2: true |
+| `hud_coach` | false | Extra HUD captions that teach the turn order and laser reach, and hold back leftover-laser nags until the lesson has | ch1: true |
 
 Ankur, 28 Nov: back-to-back turns are confusing, so story and tutorial use fixed order, as the 1v1 games already did through the battle setting. The world file's old `turns.first_player` is replaced by `turn_order`.
 

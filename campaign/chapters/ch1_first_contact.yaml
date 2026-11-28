@@ -44,6 +44,9 @@ chapter:
   # switches (engine/switches.js; the list is in the world file): story mode's defaults, plus these
   switches:
     win_now: true                   # offer "Take the win" once the Seed can no longer hurt you
+    scan_button: false              # Scan is not taught in this chapter
+    end_turn_nag: false             # no "End turn?" or leftover-points pop-up
+    hud_coach: true                 # captions for the order bars, laser reach, and leftover-laser gate
   map: maps/ch1_corridor.yaml
 
   player:                           # seat 0, south

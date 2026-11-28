@@ -38,6 +38,8 @@ chapter:
     "munitions.mine.hits": 5             # a charge: 5 hits (world default 4)
     "munitions.mine.strikes": engines    # Combat v2: each charge hit lands on the nearest working engine
     "damage.beams_pass_mines": true      # lasers fly over the charges, so nobody shoots them by accident
+  switches:
+    win_now: true                   # offer "Take the win" once both Seeds can no longer hurt you
   map: maps/ch2_quiet_water.yaml
 
   player:
