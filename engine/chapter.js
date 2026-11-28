@@ -9,6 +9,7 @@
 // Files (see the campaign plan): campaign/campaign.yaml, campaign/ships.yaml,
 // campaign/chapters/<id>.yaml, campaign/maps/<id>.yaml.
 
+import { sw, switchProblems } from './switches.js';
 import { buildRules } from './rules.js';
 import { setPath } from './script.js';
 
@@ -91,11 +92,16 @@ export function buildChapter({ world, map, ships, chapter, campaign, progress })
   for (const [k, v] of Object.entries({ ...playerAi, ...enemyAi })) if (k !== 'default') ai[k] = v;
   const caps = new Set((progress && progress.capabilities) || []);
   built.rules.campaign = {
-    id: ch.id, title: ch.title, script: ch.script || [], win: ch.win || [], lose: ch.lose || [],
+    id: ch.id, title: ch.title, mode: ch.mode === 'tutorial' ? 'tutorial' : 'story', script: ch.script || [], win: ch.win || [], lose: ch.lose || [],
     groups: ch.groups || {}, aiProfiles: ch.ai_profiles || {}, ai, zones, scenes: ch.scenes || {},
     unlocked: { graft: caps.has('graft'), dock: caps.has('docking') || caps.has('dock') }, seams, helm,
     src: { world: w, map: m, fleets },
   };
+  // switches (engine/switches.js): this chapter's own, over its mode's (story or tutorial)
+  built.rules.switchBoard = { ...(built.rules.switchBoard || {}), ...(isObj(ch.switches) ? ch.switches : {}) };
+  problems.push(...switchProblems(built.rules.switchDefaults, ch.switches, 'chapter ' + ch.id));
+  if (ch.mode != null && ch.mode !== 'story' && ch.mode !== 'tutorial') problems.push(`chapter ${ch.id}: mode must be story or tutorial, not ${JSON.stringify(ch.mode)}`);
+  if ('turn_order' in (built.rules.switchDefaults || {})) built.rules.firstPlayer = sw(built.rules, 'turn_order') === 'fixed' ? 'fixed' : 'alternate';
   return { rules: built.rules, problems };
 }
 

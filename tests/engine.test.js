@@ -481,6 +481,7 @@ test('the beacon scores only after the other side has had a turn to contest it',
   const objective = { at: [0, 0], radius: 1, points_to_win: 2 };
   const { game, problems } = battle({ objective, p1: [scout('Holder', [0, 1])], p2: [scout('Far', [0, -8])] });
   assert.deepEqual(problems, []);
+  game.rules = { ...game.rules, firstPlayer: 'alternate' };   // this rule is about back-to-back turns
   const score = (g) => g.players.map((p) => p.score || 0);
   let g = ends(game, 2);                       // round 1 over; player 2 moves first in round 2
   assert.deepEqual(score(g), [0, 0], 'nobody scores at the start of the game');
@@ -501,6 +502,7 @@ test('the beacon scores only after the other side has had a turn to contest it',
 test('stepping onto an empty beacon at the end of a round does not score at the start of the next', () => {
   const objective = { at: [0, 0], radius: 1, points_to_win: 5 };
   const { game } = battle({ objective, p1: [scout('A', [0, 8])], p2: [scout('Runner', [0, -2])] });
+  game.rules = { ...game.rules, firstPlayer: 'alternate' };   // this rule is about back-to-back turns
   // round 1: player 1, then player 2 steps onto the beacon and ends
   let g = ends(game, 1);
   const runner = g.ships.find((s) => s.name === 'Runner');

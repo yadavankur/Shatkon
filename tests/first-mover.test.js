@@ -35,9 +35,14 @@ test('the first mover comes from the seed: the same seed, the same first mover, 
   assert.ok(p2 >= 10 && p2 <= 30, 'player 2 moved first in ' + p2 + ' of 40');
   const parity = firsts.filter((x, i) => x === (i + 1) % 2).length;   // not just odd and even seeds
   assert.ok(parity > 8 && parity < 32, 'follows the seed\'s parity in ' + parity + ' of 40');
-  // the order still swaps every round
+  // skirmish keeps the order every round (switch turn_order: fixed, engine/switches.js)
   let g = E.start(rules, firsts.indexOf(1) + 1);
   assert.deepEqual(g.order, [1, 0]);
+  g = E.apply(g, { type: 'end' }); g = E.apply(g, { type: 'end' });
+  assert.equal(g.round, 2); assert.deepEqual(g.order, [1, 0]);
+  // with turn_order alternate the order swaps every round
+  const alt = loadBoard('07_beacon_hill', { set: { 'modes.skirmish.turn_order': 'alternate' } }).rules;
+  g = E.start(alt, firsts.indexOf(1) + 1);
   g = E.apply(g, { type: 'end' }); g = E.apply(g, { type: 'end' });
   assert.equal(g.round, 2); assert.deepEqual(g.order, [0, 1]);
 });

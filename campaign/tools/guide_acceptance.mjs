@@ -106,11 +106,13 @@ const r1 = rulesFor('ch1');
     const clr = events(g7, 'guide_clear').filter((e) => e.id === 'crippled');
     check(7, 'ch1: guide clears on the kill; guideView null after', g7.phase === 'over' && clr.length === 1 && E.guideView(g7, 0) === null, `why: ${clr.map((e) => e.why).join(',')}`);
   }
-  // 8. blocked hex: aim the step at a hex a visible ship sits on (Finch at the start, so this
-  // does not depend on whether the Seed is still in view at `crippled`).
+  // 8. blocked hex: aim the step at a hex a visible ship sits on
   {
-    const g8 = E.start(r1, 1), blockedHex = ship(g8, 'finch').pos.slice();
-    g8.script.guides = [{ id: 'blocktest', ship: 'kestrel', owner: 0, steps: [{ label: 'Move here', move_to: blockedHex, done: 'reached' }], clear: null, i: 0, stepFrom: 1, fired: false, launched: false }];
+    const g8 = structuredClone(g), gd = g8.script.guides[0];
+    const sd8 = ship(g8, 'seed'), blockedHex = sd8.pos.slice();
+    // the premise: the player can see the ship on that hex (with fixed turn order it may be out of sight at this beat)
+    if (!E.visibleTo(g8, 0).has(sd8.id)) { const kk8 = ship(g8, 'kestrel'), sp = nearSet(g8, kk8, sd8, 2, 0); if (sp.length) kk8.pos = sp[0].slice(); }
+    gd.i = 0; gd.steps[0] = { label: 'Move here', move_to: blockedHex, done: 'reached' };
     const a = E.guideView(g8, 0), b = E.guideView(g8, 0);
     const ring = a && a.dest.length && a.dest.every((c) => H.dist(c, blockedHex) === Math.min(...a.dest.map((d) => H.dist(d, blockedHex))));
     check(8, 'blocked hex: nearest legal ring, blockedFrom, stable', !!a && keys(a.blockedFrom) === H.key(blockedHex) && ring && H.same(a.best, b.best) && JSON.stringify(a) === JSON.stringify(b), a ? `best ${a.best}, ring dist ${H.dist(a.best, blockedHex)}` : 'no view');
