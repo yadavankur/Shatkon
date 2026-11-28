@@ -688,6 +688,9 @@ function eventFx(r, viewer, delay) {
       ringFx(r.at, colOf(ownerOfId(r.ship)), 1.4, 700, delay, 4);
       textFx(r.at, ['point defence!'], colOf(ownerOfId(r.ship)), delay);
       break;
+    case 'destroyed':   // losing a ship of yours is flagged right on the board, after the hit banner has been read
+      if (viewer === 'all' || r.owner === viewer) setTimeout(() => toast((r.flagship ? 'Flagship lost' : (r.name ? pretty(r.name) : r.ship) + ' lost'), 'p1', 'destroyed'), (delay || 0) + 1500);
+      break;
     case 'obj_destroyed':
       boomFx(r.at, delay);
       break;

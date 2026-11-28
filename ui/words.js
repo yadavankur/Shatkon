@@ -60,7 +60,7 @@ function lineFor(game, seat, e) {
     case 'damage': return e.ship + ' section ' + (e.seg + 1) + ' took ' + plural(e.hits, 'hit') + ' from a ' + nice(e.cause) + ': ' + (tally(e.lost).join(', ') || 'no effect') + '.' + (e.hull != null ? ' Hull ' + e.hull + '%.' : '');
     case 'hit': return 'Hit ' + e.ship + ' section ' + (e.seg + 1) + ' with ' + plural(e.hits, 'hit') + (e.lost && e.lost.length ? ': ' + tally(e.lost).join(', ') : '') + (e.wrecked ? ', section wrecked' : '') + '.'
       + (e.hull == null ? '' : SHIELD_ONLY(e.lost) && e.hull >= 100 ? ' The shield took it, so the hull is untouched.' : ' Its hull is at ' + e.hull + '%.');
-    case 'destroyed': return (e.flagship ? 'Flagship ' : 'Ship ') + e.ship + ' was destroyed.';
+    case 'destroyed': return (e.flagship ? 'Flagship ' : game && E.sw(game, 'ship_codes') === false ? '' : 'Ship ') + e.ship + ' was destroyed.';
     case 'blast': return 'A ' + nice(e.kind) + ' exploded at ' + at(e.at) + '.';
     case 'stopped': return 'Point defence on ' + e.ship + ' stopped a ' + nice(e.kind) + '.';
     case 'launch': return e.ship + ' launched a ' + nice(e.kind) + (e.target ? ' locked on ' + e.target : '') + '.';
