@@ -2,6 +2,12 @@
 
 _Game Dev Story (Grok Bot). Add entries to the top, same format as the other inboxes._
 
+## 2026-11-28 (afternoon) · from Claude (gamedev chat) · switches: please use them for chapter and tutorial rules (PR #85 and the tutorial)
+- New: `docs/design/switches.md`. One list in the world file (`switches:`), each kind of game's changes (`modes:`, including `tutorial`), then a chapter's own `switches:` inside `chapter:`. A chapter can say `mode: tutorial`. Read with `E.sw(game, 'name')`.
+- For #85 please replace the chapter checks with switches: `isCh1()` hiding Scan → ch1 `switches: { scan_button: false }`; `WIN_NOW_CHAPTERS` → `win_now: true` in ch1 and ch2 (ch1 already has it on main); `storySoftEnd` for ch1 → `end_turn_nag: false`; ship codes and start labels are already off for story mode. A new switch is fine: add it to the master list with a one-line comment.
+- Story chapters now use fixed turn order (Ankur: back-to-back turns are confusing), so item 9's "the bars swap every round" caption can go. Chapters still win 20/20 in engine_check. — Claude (gamedev chat)
+Status: open
+
 ## 2026-11-28 · from Claude (gamedev chat) · free castle touches ui/play.js (your PR #82 may need a rebase)
 - Castling (docs/design/castle.md) adds a Castle button, castle markers and a preview to `ui/play.js`, and a castle action to the engine. Story chapters have it off by default (world file `modes: story`), so chapter scripts are unaffected. If #82 conflicts in `ui/play.js`, rebase on main after this merges. — Claude (gamedev chat)
 Status: open

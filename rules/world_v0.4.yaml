@@ -32,7 +32,8 @@ turns:
     - flight_phase            # missiles and drones all move together
   first: random               # who moves in round 1: random (from the game's seed), player_1 or player_2.
                               # Story chapters always start with the player. A board can pin it.
-  first_player: alternate     # swaps every round
+                              # Who moves first in later rounds (fixed or alternate) is now the switch
+                              # turn_order (switches: near the end of this file).
   flight_phase:
     ticks: 6                  # the flight phase is cut into 6 small steps.
                               # A speed-6 missile moves 1 hex every step.
@@ -430,17 +431,32 @@ terrain:
 # ------------------------------------------------------------
 #  These change how the computer plays, not what is allowed. Story chapters
 #  ignore them: their ships follow the chapter file's ai_profiles.
-# Master defaults for each kind of game. A board file can switch any of these for itself
-# (in its map: section, e.g.  castle: false). Kinds: skirmish (the ten boards, vs computer,
-# same phone, two phones), rapid (Rapid Opus, Frontier, three players), story (campaign
-# chapters), experiments (the Experiments boards).
+# ------------------------------------------------------------
+# Switches: the on/off (and pick-one) rules that differ between kinds of game (docs/design/switches.md).
+# Three levels, the last one that names a switch wins:
+#   1. switches: below      every switch and its default. A switch must be listed here before
+#                           any mode, board or chapter can use it (a typo is reported as a problem).
+#   2. modes: below          what each kind of game changes.
+#   3. a board file's        switches: { ... }  at the top level, or a chapter's (inside chapter:).
+# Rule numbers (damage, prices, ranges) are not switches: they stay in the sections above.
+switches:
+  castle: false           # once, before its first action, a side may secretly move its flagship anywhere legal in its home zone (engine/castle.js)
+  turn_order: alternate   # who moves first each round: alternate (swaps every round, so a side can get two turns in a row) or fixed (always the same order)
+  scan_button: true       # the player's Scan button is offered (false: hidden, for lessons that haven't taught scanning)
+  start_labels: true      # "YOUR START" / "ENEMY START" written on the home zones
+  ship_codes: true        # ship codes (1a, 2b) shown next to names; false shows the names only (story ships are characters)
+  end_turn_nag: true      # ending a turn with points left asks "End turn?" (and an empty turn asks in a pop-up)
+  win_now: false          # when you can no longer lose, offer "Take the win" (story chapters)
+
+# Kinds of game: skirmish (the ten boards: vs computer, same phone, two phones), rapid (Rapid Opus,
+# Frontier, three players), story (scripted chapters), tutorial (lessons: a chapter with mode: tutorial),
+# experiments (the Experiments boards). Only differences from the list above.
 modes:
-  # castle: once, before its first action, a side may secretly move its flagship to any legal
-  # spot in its home zone (a ship in the way swaps into the old spot). Free; the enemy isn't told.
-  skirmish:    { castle: true }
+  skirmish:    { castle: true, turn_order: fixed }
   rapid:       { castle: true }
-  story:       { castle: false }
-  experiments: { castle: false }
+  story:       { turn_order: fixed, start_labels: false, ship_codes: false }
+  tutorial:    { turn_order: fixed, start_labels: false, ship_codes: false, end_turn_nag: false, win_now: true }
+  experiments: {}
 
 ai:
   vs_computer: random         # who "Vs computer: normal" plays: a name below, or random (one picked per game)

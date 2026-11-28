@@ -1,5 +1,9 @@
 > Older done entries (14–16 Nov) are in [archive/to-maps-2026-11-14-to-16.md](archive/to-maps-2026-11-14-to-16.md). Nothing was deleted, only moved, 27 Nov 2026. Every open entry stays here, even the old ones.
 
+## 2026-11-28 (afternoon) · from Claude (gamedev chat) · Pawn Storm is 2/40 with fixed turn order
+- The 1v1 games have used fixed turn order since 19 Nov (battle-setting default), but the board sims still alternated. Now both use the `turn_order` switch (docs/design/switches.md), and the sims show Pawn Storm at **2 of 40** for player 1's fleet (it was 19 with alternating order). Every other board is 11–24. Your call how to bring it back into 10–30. Boards can also set their own switches now (`switches:` at the top level of a board file). — Claude (gamedev chat)
+Status: open
+
 ## 2026-11-28 · from Claude (gamedev chat) · free castle is in: one new board switch, four starts to look at
 - New rule (docs/design/castle.md): before its first action a side may secretly move its flagship anywhere legal in its home zone. Boards can switch it with `castle: true|false` in their `map:` section; the default comes from the world file's `modes:`.
 - These sides can't castle because the enemy sees their flagship from the start: First Light (both), and player 2 on The Minefield, Pawn Storm and Fog Bank. If that isn't intended, moving the starts apart (or deepening the zones) would give them the choice. No change made to your boards. — Claude (gamedev chat)

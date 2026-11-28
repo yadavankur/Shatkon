@@ -23,12 +23,12 @@ test('on by default for skirmish boards and rapid; off for story and experiments
   const { rules } = loadBoard('07_beacon_hill');
   assert.equal(E.modeOf(rules), 'skirmish');
   assert.equal(E.castleOn(rules), true);
-  assert.equal(E.castleOn({ ...rules, castleBoard: false }), false, 'map: castle: false wins');
+  assert.equal(E.castleOn({ ...rules, switchBoard: { castle: false } }), false, 'a board\'s switches: castle: false wins');
   assert.equal(E.castleOn({ ...rules, campaign: { id: 'ch1' } }), false, 'story');
-  assert.equal(E.castleOn({ ...rules, campaign: { id: 'ch1' }, castleBoard: true }), true, 'a chapter could still ask for it');
+  assert.equal(E.castleOn({ ...rules, campaign: { id: 'ch1' }, switchBoard: { castle: true } }), true, 'a chapter could still ask for it');
   assert.equal(E.castleOn(rapidBoard('rapid_opus')), true, 'rapid');
   assert.equal(E.castleOn(rapidBoard('lab_ram')), false, 'experiments');
-  assert.equal(E.castleOn({ ...rules, modes: {} }), false, 'a world file with no modes: off (older saves)');
+  assert.equal(E.castleOn({ ...rules, modes: {}, switchDefaults: {} }), false, 'a world file with no switches: off (older saves)');
 });
 
 test('the spots: inside the home zone, on the board, off rocks and mines, a ship in the way swaps', () => {
@@ -87,7 +87,7 @@ test('only once, only before the first action, only while the enemy has not seen
 
 test('off: refused, and the computer never castles', () => {
   const { rules } = loadBoard('07_beacon_hill');
-  const g = E.start({ ...rules, castleBoard: false }, 5), p = g.order[g.turn];
+  const g = E.start({ ...rules, switchBoard: { castle: false } }, 5), p = g.order[g.turn];
   assert.match(E.attempt(g, { type: 'castle', at: [-7, 9] }).why, /off on this board/);
   assert.equal(aiCastle(g, p), null);
   assert.notEqual((computerMove(g, p) || {}).type, 'castle');

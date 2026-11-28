@@ -8,6 +8,11 @@
 - **Move-marker polish** — the mint `#6dffc0` is off the palette, and the chips may need to be larger on a phone now the board is bigger.
 - **Handoff ownership table** — still no row for the controls work, and it still names old branches. Ankur to say how it should read (BACKLOG.md).
 
+## Latest (28 Nov, gamedev chat): switches, one list with three levels (build #86)
+- Master list in the world file (`switches:`), each kind of game's changes (`modes:` skirmish, rapid, story, tutorial, experiments), then a board's or chapter's own `switches:`. Read with `E.sw(game, name)`. Design: `docs/design/switches.md`.
+- Switches today: castle, turn_order, scan_button, start_labels, ship_codes, end_turn_nag, win_now. Story and tutorial now use fixed turn order (Ankur: back-to-back turns are confusing). `turns.first_player` is gone.
+- Board sims now use fixed order like real 1v1 play: Pawn Storm player 1 fleet 2/40 (to maps). — Claude (gamedev chat)
+
 ## Latest (28 Nov, gamedev chat): free castle (build #83)
 - Once, before its first action, a side may secretly move its flagship anywhere legal in its home zone (a ship in the way swaps). Free and secret. Refused once the enemy has seen the flagship. Turn-based: an action in round 1. Rapid: rides with the first tick. Design and balance table: `docs/design/castle.md`.
 - On/off: world file `modes:` master defaults (skirmish on, rapid on, story off, experiments off). A board can set `map: castle: true|false`.

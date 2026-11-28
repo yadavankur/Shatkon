@@ -4,8 +4,8 @@
 // Everything else stays where the board file puts it. Why: every board's start is fixed and public, so
 // the enemy flagship was easy to find. Evidence: docs/design/secret-starts-count.md.
 //
-// On or off: a board's `map: castle: true|false` wins; otherwise the world file's master default for
-// the kind of game (`modes:` skirmish, rapid, story, experiments). Off when neither says.
+// On or off: the `castle` switch (engine/switches.js): world file default, the kind of game's change
+// (`modes:`), then the board's `switches:` (or its older `map: castle:`).
 // When:
 //   turn-based games: in round 1, before the side's first action (it can't be undone)
 //   rapid games:      on the first tick, carried by that tick's action ({ ..., castle: [q, r] });
@@ -15,17 +15,10 @@
 import { key, add, inHexagon, EDGE } from './hex.js';
 import { no, emit, shipById } from './state.js';
 import { refreshSight } from './detect.js';
+import { sw } from './switches.js';
 
-export function modeOf(rules) {
-  if (rules.campaign) return 'story';
-  if (rules.rapid) return rules.rapid.experiments === 'on' || rules.rapid.experiments === true ? 'experiments' : 'rapid';
-  return 'skirmish';
-}
-export function castleOn(rules) {
-  if (typeof rules.castleBoard === 'boolean') return rules.castleBoard;
-  const m = (rules.modes || {})[modeOf(rules)] || {};
-  return m.castle === true;
-}
+export { modeOf } from './switches.js';
+export const castleOn = (rules) => sw(rules, 'castle') === true;
 
 const flagshipOf = (state, p) => state.ships.find((x) => x.owner === p && x.flagship && !x.dead);
 const zoneOf = (state, p) => {

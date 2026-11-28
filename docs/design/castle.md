@@ -16,8 +16,8 @@ Ankur, 28 Nov 2026: every board's start is fixed and public, so the enemy flagsh
 
 | Where | Default |
 |---|---|
-| World file `modes:` (master defaults) | skirmish **on**, rapid **on**, story off, experiments off |
-| A board file's `map:` section | `castle: true` or `castle: false` overrides the mode default for that board |
+| The `castle` switch (`docs/design/switches.md`) | off in the master list; skirmish and rapid turn it **on** |
+| A board's or chapter's `switches:` | `castle: true/false` (the older `map: castle:` still works) |
 
 The mode comes from the rules: a story chapter is `story`, an Experiments board is `experiments`, any other rapid board is `rapid`, and everything else is `skirmish`. Saved games keep the rules they started with, so a game saved before this change plays on with castling off.
 
