@@ -1,5 +1,11 @@
 # Options: what we have, what's wrong, and a simpler shape
 
+> **Update 28 Nov, evening.** Steps 1 and 2 below are done (build #87).
+> - The sheets store only rows the player changed. An untouched row shows and uses the board file's own value. Old saves are cleaned automatically, because a stored value equal to the default counts as untouched.
+> - Tuning rows sit in a collapsed "Tuning" section. Players see: computer opponent and friendly fire (battle); time to act, time to watch and tick limit (rapid); computer style (Frontier, three players); everything on the Lab's own sheet.
+> - Fixing step 1 exposed two board switches the engine never read, because the boards write `true` where the engine expected `'on'`. Frontier's `economy` had been kept on only by the sheet's untouched row. Its `interceptHurts` (24 Nov: an intercepted missile still stuns the ship that stopped it) was never on at all. The engine now reads both, so Frontier and the three-player boards play that rule for the first time.
+> - Steps 3 and 4 wait. Switches (`docs/design/switches.md`) now cover the on/off rules that differ by kind of game.
+
 Claude (gamedev chat), 28 Nov 2026. Ankur: "Think again about the entire architecture of options; we've got too many now." This is a review and a proposal only. Nothing has been built from it yet.
 
 ## What exists today
