@@ -559,7 +559,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
       gl.appendChild(s('circle', { cx: f1(cx), cy: f1(cy), r: f1(r), fill: 'none', stroke: gc, 'stroke-width': 1.3, 'stroke-dasharray': dash }));
       gl.appendChild(s('path', { d: `M${f1(cx - r * 1.3)},${f1(cy)}H${f1(cx - r * 0.45)}M${f1(cx + r * 0.45)},${f1(cy)}H${f1(cx + r * 1.3)}M${f1(cx)},${f1(cy - r * 1.3)}V${f1(cy - r * 0.45)}M${f1(cx)},${f1(cy + r * 0.45)}V${f1(cy + r * 1.3)}`, stroke: gc, 'stroke-width': 1.1 }));
     }
-    if (guide.label) {
+    if (guide.label && !guide.ui) {   // a teach or press step has its own popup by the control: no second caption on the board
       const shown = guide.closer ? 'Move closer, this way' : guide.label;
       const numbered = guide.of > 1 && !guide.closer && shown.length < 22;
       const txt = shown + (numbered ? '  ' + guide.step + '/' + guide.of : ''), fpx = 11 / px, w = (txt.length * 6.3 + 14) / px, hgt = 20 / px;

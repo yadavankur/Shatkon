@@ -8,6 +8,8 @@ import { setLabDocs, labApplyPlayRules, labRoute, labAPI } from './lab.js';
 import { battleSettings, settingsForm, injectSettingsCss, rapidOptions, econOptions, threeOptions, expOptions, labWho, labLine, seedExpFromBoard } from './settings.js';
 import { BUILD, buildLabel } from './version.js';
 import { postGameCards } from './postgame.js';
+import { pretty, at, nice, plural, whyText, describeEvent, shipNamer, logLines } from './words.js';
+export { plural };   // the Lab screen reads it from here
 import { initStory, openCampaign, openTest, resumeStory, storyEvents, storyBusy, storyObjective, storyOverText, retryChapter } from './campaign.js';
 const { hex } = E;
 
@@ -162,7 +164,6 @@ function canCommand(x, v) {
   if (!x || !x.mine || !myTurn() || curtainUp()) return false;
   return !(v.story && (v.story.locked.includes(x.name) || (v.story.auto || []).includes(x.name)));
 }
-const pretty = (n) => String(n || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 // what to call a ship: its name in a story chapter, its name or id otherwise
 const shipName = (x) => (x && x.name ? (game && game.rules.campaign ? pretty(x.name) : x.name) : x ? x.id : '');
 function curtainUp() {
@@ -861,7 +862,7 @@ function act(action, quiet, byAI) {
   if (!r.ok) { say('Not allowed: ' + r.why + '.', true); return render(); }
   game = r.state; pending = null;
   if (action.type === 'castle') { mode = 'move'; sel = null; }
-  const mine = game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost').map(describe);
+  const mine = logLines(game, seat, game.events.filter((e) => e.seenBy.includes(viewer) && e.t !== 'lost')).map((l) => l.text);
   // an action can be undone only if it told the player nothing new: no news for them and no change
   // to what they know (a sighting, a lost contact, a fuzzy contact, a ghost clearing, a hit...)
   if (!byAI && (action.type === 'move' || action.type === 'launch') && E.undoSafe(prev, game, p)) undoStack.push(prev);
@@ -929,85 +930,13 @@ const sameAction = (a, b) => JSON.stringify(bare(a)) === JSON.stringify(bare(b))
 const warnText = (w) => 'Careful: your own ' + nice(w.kind) + ' at ' + at(w.at) + ' is in the line of fire. This shot would hit it, not the target. Press \u201cFire anyway\u201d to shoot, or Cancel.';
 
 // ---------- words ----------
-const at = (c) => '[' + c[0] + ', ' + c[1] + ']';
-const nice = (k) => String(k).replace(/_/g, ' ');
+// (the wording itself lives in words.js)
+const describe = (e) => describeEvent(game, seat, e);
+const whyOf = (w) => whyText(w, game);
 // a munition's display name (its `label:` in the rules: the id "missile" reads "Nuke")
 const munName = (k) => (((game && game.rules.munitions) || {})[k] || {}).label || nice(k);
 // a launch order mode: any missile kind (basic, advanced, Nuke) or the seeker drone
 const isLaunchKind = (k) => k === 'seeker_drone' || (!!game && !!game.rules.munitions[k] && E.isMissile(game.rules, k));
-export const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : /x$/.test(w) ? 'es' : 's');
-function whyText(w) {
-  if (!w) return '';
-  if (w.lit) return 'It is lit up by an explosion or a collision, so everyone can see it for now.';
-  if (w.scanned) return 'Your scan revealed it.';
-  if (w.drone) return 'It gave itself away by spotting one of your ships.';
-  return 'Your ' + w.by + ' sees it from ' + plural(w.d, 'hex') + ' away: sensor ' + w.range + ' + its signature ' + w.sig + (w.flare ? ' (which includes ' + w.flare + ' of flare from firing)' : '') + ' reaches ' + (w.range + w.sig) + '.';
-}
-function describe(e) {
-  if (game && game.rules.campaign) {     // story chapters talk about ships by name
-    const N = (id) => { const z = typeof id === 'string' && game.ships.find((q) => q.id === id); return z && z.name ? pretty(z.name) : id; };
-    e = { ...e, ship: e.t === 'ram' || e.t === 'removed' ? e.ship : N(e.ship), into: Array.isArray(e.into) ? e.into.map(N) : N(e.into), id: e.t === 'sighted' || e.t === 'lost' ? N(e.id) : e.id,
-      target: e.t === 'launch' ? N(e.target) : e.target, ships: Array.isArray(e.ships) ? e.ships.map(N) : e.ships };
-  }
-  switch (e.t) {
-    case 'castle': return 'Castled: your flagship now starts at ' + at(e.to) + (e.swap ? ', and ' + e.swap + ' took its old spot' : '') + '. The enemy was not told.';
-    case 'move': return e.ship + ' moved ' + plural(e.steps, 'hex') + '.';
-    case 'sighted': return 'Spotted ' + (e.kind === 'ship' ? 'enemy ship ' + e.id : 'a ' + nice(e.kind)) + ' at ' + at(e.at) + '. ' + whyText(e.why);
-    case 'lost': return 'Lost sight of ' + e.id + (e.faded ? ': its flare faded.' : ': it is out of sensor range now.') + ' A "?" marks where it was last seen.';
-    case 'fire': return e.ship + ' fired' + (e.hits ? '.' : ' and did nothing.');
-    case 'damage': return e.ship + ' section ' + (e.seg + 1) + ' took ' + plural(e.hits, 'hit') + ' from a ' + nice(e.cause) + ': ' + (e.lost.join(', ') || 'no effect') + '.' + (e.hull != null ? ' Hull ' + e.hull + '%.' : '');
-    case 'hit': return 'Hit ' + e.ship + ' section ' + (e.seg + 1) + ' with ' + plural(e.hits, 'hit') + (e.lost && e.lost.length ? ': ' + e.lost.join(', ') : '') + (e.wrecked ? ', section wrecked' : '') + '.' + (e.hull != null ? ' Its hull is at ' + e.hull + '%.' : '');
-    case 'destroyed': return (e.flagship ? 'Flagship ' : 'Ship ') + e.ship + ' was destroyed.';
-    case 'blast': return 'A ' + nice(e.kind) + ' exploded at ' + at(e.at) + '.';
-    case 'stopped': return 'Point defence on ' + e.ship + ' stopped a ' + nice(e.kind) + '.';
-    case 'launch': return e.ship + ' launched a ' + nice(e.kind) + (e.target ? ' locked on ' + e.target : '') + '.';
-    case 'scan': return e.ship + ' scanned: ' + (e.found ? plural(e.found, 'thing') + ' fully revealed within ' + e.r1 + ' hexes' : 'nothing within ' + e.r1 + ' hexes') + (e.pinged ? ', ' + plural(e.pinged, 'faint contact') + ' out to ' + e.r2 : '') + '.';
-    case 'enemy_fire': return 'Enemy ' + e.ship + ' fired a laser' + (e.hits ? '.' : ' and missed.');
-    case 'bump': return e.ship + ' ran into ' + e.into + '. Both are revealed.';
-    case 'obj_lost': return 'Your ' + nice(e.kind) + ' ' + e.why + '.';
-    case 'obj_destroyed': return 'A ' + nice(e.kind) + ' was destroyed at ' + at(e.at) + '.';
-    case 'bought': return 'You bought ' + (E.BUY_WORDS[e.item] || e.item) + (e.item === 'turret' ? ': ' + e.ship + (e.laser ? ' left a laser behind' : ' put it') + ' at ' + at(e.at) : e.item === 'upgrade' ? ' for ' + e.ship + ' (' + E.UPGRADES[e.kind].label + ')' : e.item === 'resupply' ? ' for ' + e.ship + ' (+1 ' + nice(e.kind) + ')' : '') + ' for \u25c8 ' + e.cost + ' (\u25c8 ' + e.purse + ' left).';
-    case 'turret_fire': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' fired at ' + (/^o/.test(e.target || '') ? 'a missile or turret' : e.target) + ' (' + plural(e.hits, 'hit') + ').';
-    case 'turret_hit': return (e.owner === 0 ? 'Your turret' : 'An enemy turret') + ' took ' + plural(e.hits, 'hit') + ' (' + e.hp + ' left).';
-    case 'turret_lit': return 'A dark turret is working again.';
-    case 'turret_dark': return 'A turret went dark: not enough rekon for its upkeep.';
-    case 'upkeep': return 'Turret upkeep: \u25c8 ' + e.amount + '.';
-    case 'rammed': return (e.ship[0] === '1' ? 'Your ' : 'Enemy ') + e.ship + ' rammed ' + e.target + ': its segment is wrecked.';
-    case 'decoy': return 'Decoy placed at ' + at(e.at) + ' for 3 ticks.';
-    case 'decoy_hit': return 'A ' + nice(e.kind) + ' went for a decoy at ' + at(e.at) + '.';
-    case 'decoy_gone': return 'Your decoy faded.';
-    case 'woke': return e.ship + ' woke from hibernation (' + e.why + ').';
-    case 'mended': return e.ship + ' mended its ' + nice(e.part) + ' while hibernating.';
-    case 'stunned': return (e.ship[0] === '1' ? 'Your ' : 'Enemy ') + e.ship + ' stopped a ' + nice(e.kind) + ' but is stunned: it can\u2019t act next tick' + (e.kind === 'missile' ? ', and the Nuke still did 2 hits' : '') + '.';
-    case 'idle': return 'You passed: \u2212' + e.lost + ' \u25c8 and no rekon this tick' + (e.missed ? ' (you would have earned ' + e.missed + ')' : '') + '. Sitting still costs.';
-    case 'earned': return '+' + e.amount + ' rekon (' + [...new Set((e.items || []).map((i) => E.EARN_WORDS[i.why] || i.why))].join(', ') + (e.capped ? ', capped' : '') + '): \u25c8 ' + e.purse + '.';
-    case 'converted': return e.ship + ' went silent: it is now a ' + (e.into === 'mine' ? 'naval mine' : 'scanner buoy') + ' at ' + at(e.at) + '.';
-    case 'debris': return e.ship + ' shot a missile down close in: the debris hit it and lit it up for 3 ticks.';
-    case 'ammo_lost': return e.ship + ' lost ' + plural(e.count, 'stored munition') + '.';
-    case 'pass_reveal': return e.ship + ' flew past ' + e.found.join(', ') + ' under afterburner: lit up for everyone until the end of next round, and so is ' + e.ship + '.';
-    case 'burnt_out': return e.ship + '\'s afterburner is burnt out. From now on it moves ' + plural(e.move, 'hex') + ' a turn.';
-    case 'lured': return 'Your ' + nice(e.kind) + ' turned on a decoy emitter (' + e.to + ')' + (e.from ? ' and dropped its lock on ' + e.from : '') + '.';
-    case 'mine_stir': return 'Something small moved near ' + e.near + '. A faint contact marks roughly where.';
-    case 'scene': case 'bark': case 'beat': case 'objective': case 'unlocked': case 'script_unknown': case 'guide': case 'guide_clear': return null;
-    case 'spawned': return e.ships.length ? 'New ships have arrived: ' + e.ships.join(', ') + '.' : null;
-    case 'split': return 'The enemy ship ' + e.ship + ' split apart into ' + e.into.join(' and ') + '!';
-    case 'grafted': return e.name + ' and ' + e.other + ' are grafted into one ship.';
-    case 'docked': return e.name + ' and ' + e.other + ' are clamped together.';
-    case 'removed': return pretty(e.name || e.ship) + (e.as === 'dark' ? ' went dark and drifted away.' : ' withdrew.');
-    case 'locked': return (e.ship ? pretty(e.ship) : 'Your ships') + ' stopped answering the helm.';
-    case 'forced': return null;
-    case 'ram': return pretty(e.name || e.ship) + ' hurled itself into ' + pretty(e.targetName || e.target) + ': ' + e.hits + ' hits.';
-    case 'disabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' went offline.';
-    case 'enabled': return e.ship + ': ' + e.parts.map(nice).join(', ') + ' back online.';
-    case 'rule_changed': return /link_range/.test(e.path) ? 'Comms are jammed: your ships share less of what they see.' : null;
-    case 'script_failed': return null;
-    case 'objective_scored': return 'Player ' + (e.player + 1) + ' held the beacon and scored (' + e.score + (e.toWin ? ' of ' + e.toWin : '') + '). Holding it lights a ship up.';
-    case 'objective_contested': return 'Both sides are on the beacon: nobody scores.';
-    case 'game_over': return e.by === 'objective' ? 'Player ' + (e.winner + 1) + ' wins by holding the beacon.'
-      : e.by === 'turn_limit' ? (e.winner === 'draw' ? 'The round limit was reached, so the game is a draw.' : (threeP() ? 'The tick limit was reached: ' + (e.winner === 0 && seat === 'cpu' ? 'you win' : seat === 'cpu' ? cpuName(e.winner) + ' wins' : 'player ' + (e.winner + 1) + ' wins') + ' with the most of its fleet left.' : 'The round limit was reached: player ' + (e.winner + 1) + ' wins on beacon score.')) : e.winner === 'draw' ? 'The game is a draw.' : 'Player ' + (e.winner + 1) + ' wins.';
-  }
-  return null;
-}
 function forecastText(f, kind) {
   if (!f) return '';
   const when = f.rounds <= 1 ? 'at the end of this round, when missiles fly' : 'in ' + f.rounds + ' rounds';
@@ -1207,7 +1136,7 @@ function tap(c, v, opts, viaChip, t) {
     say(auto ? shipName(ship) + ' is flying itself: its crew follow their own orders, so there is nothing for you to command. Ships with a white rim are yours to command.'
       : held ? shipName(ship) + ' is not answering the helm.' : !myTurn() ? 'Your ship ' + shipName(ship) + '. It is not your turn.' : 'Your ship ' + shipName(ship) + '.');
   }
-  else if (ship) { look = ship.id; say('Enemy ship ' + shipName(ship) + '. ' + (ship.seen ? whyText(ship.why) : 'The player to move cannot see it.')); }
+  else if (ship) { look = ship.id; say('Enemy ship ' + shipName(ship) + '. ' + (ship.seen ? whyOf(ship.why) : 'The player to move cannot see it.')); }
   else {
     const obj = v.objs.find((x) => hex.same(x.pos, c)), gh = v.ghosts.find((x) => x.cells.some((y) => hex.same(y, c)));
     say(at(c) + (obj ? ': ' + (obj.mine ? 'your ' : 'enemy ') + nice(obj.kind) + (obj.fuel != null ? ', ' + plural(obj.fuel, 'round') + ' of fuel left' : '') + '.'
@@ -1510,6 +1439,12 @@ function ledger(l) {
   det.addEventListener('toggle', () => (ledgerOpen = det.open));
   return det;
 }
+// The parts key: parts that share a letter (core, steel core, carbon core all read C) share one entry.
+function partKey() {
+  const by = new Map();
+  for (const [name, l] of Object.entries(looks)) { const e = by.get(l.letter) || { l, names: [] }; e.names.push(nice(name)); by.set(l.letter, e); }
+  return [...by.values()];
+}
 function reportCard() {
   if (!report || !report.length) return null;
   return h(
@@ -1518,7 +1453,8 @@ function reportCard() {
     h('h2', null, 'Impact report'),
     report.map((r) => {
       let mine = r.t === 'damage',
-        sh = game.ships.find((z) => z.id === r.ship);
+        sh = game.ships.find((z) => z.id === r.ship),
+        named = shipNamer(game)(r.ship);   // a character name when the ship_codes switch is off (story), else the code
       return h(
         'div',
         { class: 'rep ' + (mine ? 'mine' : 'theirs') },
@@ -1526,8 +1462,7 @@ function reportCard() {
           'div',
           { class: 'rephead' },
           (mine ? 'Your ' : 'Enemy ') +
-            r.ship +
-            (sh && sh.name && (mine || seat === 'all') ? ' "' + sh.name + '"' : '') +
+            (named !== r.ship ? named : r.ship + (sh && sh.name && (mine || seat === 'all') ? ' "' + sh.name + '"' : '')) +
             ', section ' +
             (r.seg + 1) +
             ': ' +
@@ -1539,14 +1474,15 @@ function reportCard() {
           'div',
           { class: 'parts' },
           (r.lost || []).length
-            ? r.lost.map((s) => {
+            ? [...new Set(r.lost)].map((s) => {
                 let nm0 = s.replace(/ (damaged|down|destroyed)$/, ''),
-                  lk = looks[nm0];
+                  lk = looks[nm0],
+                  n = r.lost.filter((x) => x === s).length;   // the same loss twice reads once, with \u00d72
                 return h(
                   'span',
                   { class: 'chip ' + (/destroyed|wrecked/.test(s) ? 'dead' : 'hurt') },
                   lk ? h('i', { style: 'background:' + lk.color }) : null,
-                  s
+                  n > 1 ? s + ' \u00d7' + n : s
                 );
               })
             : h('span', { class: 'muted' }, r.wrecked ? 'section wrecked' : 'the hits did not get through')
@@ -1596,8 +1532,8 @@ function shipCard(x, v) {
       .concat(sb.motion < 0 ? ['\u2212' + -sb.motion + ' sitting still'] : sb.motion > 0 ? ['+' + sb.motion + ' engine wake'] : []);
     lines.push('Signature ' + x.signature + (terms.length ? ' = ' + terms.join(', ') : '') + '. An enemy with sensor ' + v.shownSensor + ' spots it from ' + plural(Math.max(0, v.shownSensor + x.signature), 'hex') + '.'
       + (x.signature < 0 ? ' Below zero means it can slip inside their sensor range unseen.' : ''));
-    if (!x.mine) lines.push(x.seen ? whyText(x.why) : 'The player to move cannot see this ship.');
-  } else lines.push(whyText(x.why));
+    if (!x.mine) lines.push(x.seen ? whyOf(x.why) : 'The player to move cannot see this ship.');
+  } else lines.push(whyOf(x.why));
   if (!x.mine && seat !== 'all') {     // how much this player knows about an enemy ship
     let hp = 0, max = 0;
     for (const sg of x.segs.filter((sg) => sg.parts)) for (const p of sg.parts) if (!game.rules.parts[p.t].recharges) { hp += sg.wrecked ? 0 : Math.max(0, p.hp); max += p.max; }
@@ -2057,8 +1993,12 @@ export function render() {
   // the drawer (\u2630): impact report, what happened, display settings, the key, game codes
   const rc = reportCard();
   if (rc) panels.appendChild(rc);
-  if (game.phase === 'play' && mine && v.news.length)
-    panels.appendChild(h('div', { class: 'card news' }, h('h2', null, v.round === 1 ? 'What you know so far' : 'Since your last turn'), h('ul', { class: 'feed' }, v.news.slice(-10).map((e) => h('li', null, describe(e))))));
+  // "Since your last turn" and "Earlier" are two halves of one log: nothing is listed twice, both read oldest first,
+  // and events with nothing to say (script beats, cutscenes) are left out.
+  const newsLog = logLines(game, seat, v.news), inNews = new Set(v.news.map((e) => e.n));
+  const earlierLog = logLines(game, seat, v.feed.filter((e) => !inNews.has(e.n)));
+  if (game.phase === 'play' && mine && newsLog.length)
+    panels.appendChild(h('div', { class: 'card news' }, h('h2', null, v.round === 1 ? 'What you know so far' : 'Since your last turn'), h('ul', { class: 'feed' }, newsLog.slice(-10).map((l) => h('li', null, l.text)))));
   if (game.phase === 'play' && isCodes() && !mine)
     panels.appendChild(pasteBox('Paste player ' + (turn + 1) + '\'s turn code:', 'Play their turn', (text) => {
       try { game = E.applyTurnCode(game, text); code = ''; report = makeReport(game.events, seat); playFx(game.events, seat, game.flight); drawerOpen = false; say('Their turn has been played. Yours now.'); save(); }
@@ -2075,9 +2015,9 @@ export function render() {
     h('p', { class: 'muted' }, 'Schematic shows every part in its slot. Models draws a ship\u2019s art where it has some and the schematic where it does not'
       + (haveModels ? ' (' + artCount + ' of ' + plural(v.ships.length, 'ship') + ' on this board have art).' : ' (no art pack was found).') + ' A ship\u2019s parts are always listed in its panel.')));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Key'),
-    h('div', { class: 'parts' }, Object.entries(looks).map(([name, l]) => h('span', { class: 'chip' }, h('i', { style: 'background:' + l.color }), l.letter + ' ' + nice(name)))),
-    h('p', { class: 'muted' }, 'A white rim round a ship\u2019s hexes marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range. With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.')));
-  if (v.feed.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, v.feed.slice(-12).reverse().map((e) => h('li', null, 'Round ' + e.r + ': ' + describe(e))))));
+    h('div', { class: 'parts' }, partKey().map(({ l, names }) => h('span', { class: 'chip' }, h('i', { style: 'background:' + l.color }), l.letter + ' ' + names.join(' / ')))),
+    h('p', { class: 'muted' }, 'A white rim round a ship\u2019s hexes marks a ship you can give orders to; a ship with a grey dashed name tag is busy or flying itself. Detection tiers: a red fuzzy circle with "?" means something is roughly there (tier 1); \u25C6 after a ship\u2019s name means you know exactly where it is (tier 2); \u25A3 means a fresh scan shows every part (tier 3). Zoom in to see the parts inside each segment: three inner hexagons (bays) and three corner diamonds (mounts). Dark slots are destroyed. The darker area of the board is outside your sensor range.' + (game.rules.campaign ? '' : ' With "Both players" chosen, faded enemy pieces are ones the player to move cannot see.'))));
+  if (earlierLog.length) panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Earlier'), h('ul', { class: 'feed' }, earlierLog.slice(-12).map((l) => h('li', null, 'Round ' + l.e.r + ': ' + l.text)))));
   panels.appendChild(h('div', { class: 'card' }, h('h2', null, 'Game'), h('div', { class: 'row' },
     game.rules.campaign && guideNow() ? h('button', { class: 'btn', onclick: () => { drawerOpen = false; E.skipChapterGuides(game); say("I'll leave you to it. The pointing hand is off for the rest of this chapter."); save(); render(); maybeWinNow(); } }, 'Hide the pointing hand') : null,
     h('button', { class: 'btn', onclick: () => { if (!game || game.phase === 'over' || confirm('Start a new game? The current one will be replaced.')) { drawerOpen = false; askSetup(newGame); render(); } } }, 'New game'),
