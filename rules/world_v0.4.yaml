@@ -456,7 +456,7 @@ modes:
   skirmish:    { castle: true, turn_order: fixed }
   rapid:       { castle: true }
   story:       { turn_order: fixed, start_labels: false, ship_codes: false }
-  tutorial:    { turn_order: fixed, start_labels: false, ship_codes: false, end_turn_nag: false, win_now: true }
+  tutorial:    { turn_order: fixed, start_labels: false, ship_codes: false, end_turn_nag: false, win_now: true, hud_coach: true }
   experiments: {}
 
 ai:
