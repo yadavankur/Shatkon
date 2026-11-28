@@ -6,6 +6,7 @@ import { current, footprint, workingParts, hullPct } from './state.js';
 import { sensorOf, signatureOf, linkRange, flareOf, whySeen, eyes, sigBreak, netMoved, motionSig, contactsFor } from './detect.js';
 import { scanInfo, scanRadii } from './scan.js';
 import { cellsOf } from './state.js';
+import { allSwitches } from './switches.js';
 import { thrustIncome, moveCap, bankCap, shipWeight, hasOwnDrive } from './actions.js';
 
 // What player p knows about the other side, as one comparable string: the enemy ships and
@@ -83,6 +84,7 @@ export function view(state, who) {
     round: state.round, phase: state.phase, winner: state.winner, toMove: current(state), me: all ? 'all' : p,
     players: state.players.map((x) => x.name),
     board: { radius: rules.board.radius }, terrain: rules.terrain, zones: rules.zones,
+    switches: allSwitches(rules),   // engine/switches.js, for the screen
     cp: pl.cp, income: thrustIncome(state, p),   // thrust is per ship now: see each ship's thrustNow
     ships, objs, ghosts, feed: pl.feed.slice(),
     contacts: all ? [] : contactsFor(state, p, vis).filter((c) => !state.objs.some((o) => o.id === c.id && o.kind === 'decoy')).concat(state.objs.filter((o) => o.kind === 'decoy' && o.owner !== p).map((o) => ({ id: o.id, at: o.pos.slice(), r: 1, kind: 'ship', src: 'sensor' }))),   // fuzzy contacts: "something is roughly here" (decoys look like one)

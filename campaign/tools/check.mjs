@@ -347,7 +347,7 @@ for (const node of campaign.nodes) {
   for (const sd of ['player', 'enemy']) for (const [kk, p] of Object.entries(ch[sd].ai || {})) if (!profiles.includes(p)) fail(`${sd}.ai.${kk} uses unknown profile ${p}`);
   for (const id of allIds) if (!SHIP_IDS.includes(id)) log(`  note: extra ship id ${id}`);
   for (const w of [...(ch.win || []), ...(ch.lose || [])]) walk(w, `${ch.id}/win-lose`);
-  for (const k of Object.keys(ch)) if (!['id', 'title', 'world', 'world_overrides', 'map', 'player', 'enemy', 'groups', 'ai_profiles', 'script', 'win', 'lose', 'scenes', 'rewards'].includes(k)) fail(`chapter field ${k} is not read by the chapter loader`);
+  for (const k of Object.keys(ch)) if (!['id', 'title', 'world', 'world_overrides', 'map', 'player', 'enemy', 'groups', 'ai_profiles', 'script', 'win', 'lose', 'scenes', 'rewards', 'switches', 'mode'].includes(k)) fail(`chapter field ${k} is not read by the chapter loader`);
   for (const k of Object.keys(ch.rewards || {})) if (!['capabilities', 'roster_add', 'roster_remove', 'flags'].includes(k)) fail(`rewards.${k} is not read by applyResult`);
   for (const k of ['roster_add', 'roster_remove']) if (ch.rewards && ch.rewards[k] && !Array.isArray(ch.rewards[k])) fail(`rewards.${k} must be a list`);
   const beats = ch.script.filter((e) => !e.flavor && !e.outcome).map((e) => e.id);

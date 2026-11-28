@@ -3,6 +3,7 @@
 // unknown parts, overfull segments, missing couplings, budget, bad placements.
 
 import { key, add, dist, disc, inHexagon, EDGE, connected, symmetry, rotate } from './hex.js';
+import { sw, switchProblems } from './switches.js';
 
 const num = (v, d) => (typeof v === 'number' ? v : d);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -83,9 +84,10 @@ export function buildRules(world, mapFile, fleetsFile) {
     objective: readObjective(m.objective),
     budget: num(f.budget, Infinity),
     ai: isObj(w.ai) ? w.ai : {},
-    // master defaults per kind of game (world file `modes:`), and this board's own switches (engine/castle.js)
+    // switches (engine/switches.js): the master list, each kind of game's changes, this board's own
+    switchDefaults: isObj(w.switches) ? w.switches : {},
     modes: isObj(w.modes) ? w.modes : {},
-    castleBoard: typeof m.castle === 'boolean' ? m.castle : null,   // computer-opponent personalities (plain numbers the AI reads)
+    switchBoard: { ...(typeof m.castle === 'boolean' ? { castle: m.castle } : {}), ...(mapFile && isObj(mapFile.switches) ? mapFile.switches : {}) },   // computer-opponent personalities (plain numbers the AI reads)
     fleets: [],
   };
   for (const a of ['move', 'fire', 'launch', 'scan', 'detonate']) rules.cost[a] = num((act[a] || {}).cost, 1);
@@ -202,6 +204,10 @@ export function buildRules(world, mapFile, fleetsFile) {
     if (fleet.cost > rules.budget) problems.push(`${name}: fleet costs ${fleet.cost}; the budget is ${rules.budget}.`);
     rules.fleets.push(fleet);
   }
+  // switches: typos and wrong kinds are problems; turn order comes from the switch when the world file has it
+  for (const [mode, block] of Object.entries(rules.modes)) problems.push(...switchProblems(rules.switchDefaults, block, 'world file modes.' + mode));
+  problems.push(...switchProblems(rules.switchDefaults, rules.switchBoard, 'board switches'));
+  if ('turn_order' in rules.switchDefaults) rules.firstPlayer = sw(rules, 'turn_order') === 'fixed' ? 'fixed' : 'alternate';
   return { rules, problems };
 }
 

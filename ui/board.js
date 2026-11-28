@@ -156,7 +156,7 @@ export function drawBoard({ view: v, rules, looks, cam, sel, opts, plan, plans, 
     svg.appendChild(s('path', { d: cells.map((c) => cellPath(c)).join(''), fill: col(owner), 'fill-opacity': 0.07 }));
     const mid = cells.reduce((a, c) => [a[0] + X(c) / cells.length, a[1] + Y(c) / cells.length], [0, 0]);
     if (cells.length && !home[owner]) home[owner] = mid;
-    if (cam.w >= W * (2 * R + 1) * 0.8) svg.appendChild(s('text', { x: f1(mid[0]), y: f1(mid[1] + (hex.EDGE[z.edge]([0, R], R) === 0 ? 1 : -1) * FL * S * 1.5 * (z.depth / 2 + 0.2)), 'font-size': fs(10), fill: col(owner), 'fill-opacity': 0.55, 'letter-spacing': f1(1.5 / px) },
+    if (cam.w >= W * (2 * R + 1) * 0.8 && (v.switches || {}).start_labels !== false) svg.appendChild(s('text', { x: f1(mid[0]), y: f1(mid[1] + (hex.EDGE[z.edge]([0, R], R) === 0 ? 1 : -1) * FL * S * 1.5 * (z.depth / 2 + 0.2)), 'font-size': fs(10), fill: col(owner), 'fill-opacity': 0.55, 'letter-spacing': f1(1.5 / px) },
       me === null ? 'PLAYER ' + (owner + 1) + ' START' : owner === me ? 'YOUR START' : 'ENEMY START'));
   }
 

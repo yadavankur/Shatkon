@@ -20,13 +20,13 @@ test('every variant names the rule it changes and builds', () => {
   }
 });
 
-test('the switches are off at baseline: a fleet may end its turn without moving, and first player alternates', () => {
+test('baseline: a fleet may end its turn without moving, and the first player stays first (turn_order fixed for skirmish)', () => {
   let g = game('baseline');
   assert.deepEqual(g.order, [0, 1]);
   g = endTurn(g); assert.ok(g.ok);
   g = endTurn(g.state); assert.ok(g.ok);
   assert.equal(g.state.round, 2);
-  assert.deepEqual(g.state.order, [1, 0]);
+  assert.deepEqual(g.state.order, [0, 1]);
 });
 
 test('movement.min_move: the turn cannot end until the fleet has moved', () => {
@@ -40,7 +40,7 @@ test('movement.min_move: the turn cannot end until the fleet has moved', () => {
   assert.ok(endTurn(moved.state).ok);
 });
 
-test('turns.first_player: fixed keeps the same player first every round', () => {
+test('switches.turn_order: fixed keeps the same player first every round', () => {
   let g = endTurn(game('first_fixed'));
   g = endTurn(g.state);
   assert.equal(g.state.round, 2);

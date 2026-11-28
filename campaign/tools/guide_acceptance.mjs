@@ -110,6 +110,8 @@ const r1 = rulesFor('ch1');
   {
     const g8 = structuredClone(g), gd = g8.script.guides[0];
     const sd8 = ship(g8, 'seed'), blockedHex = sd8.pos.slice();
+    // the premise: the player can see the ship on that hex (with fixed turn order it may be out of sight at this beat)
+    if (!E.visibleTo(g8, 0).has(sd8.id)) { const kk8 = ship(g8, 'kestrel'), sp = nearSet(g8, kk8, sd8, 2, 0); if (sp.length) kk8.pos = sp[0].slice(); }
     gd.i = 0; gd.steps[0] = { label: 'Move here', move_to: blockedHex, done: 'reached' };
     const a = E.guideView(g8, 0), b = E.guideView(g8, 0);
     const ring = a && a.dest.length && a.dest.every((c) => H.dist(c, blockedHex) === Math.min(...a.dest.map((d) => H.dist(d, blockedHex))));

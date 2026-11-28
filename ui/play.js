@@ -1221,7 +1221,7 @@ function tap(c, v, opts, viaChip, t) {
 let winNowShown = false;
 function maybeWinNow() {
   if (winNowShown || !game || game.phase !== 'play' || !game.rules.campaign) return;
-  if (game.rules.campaign.id !== 'ch1') return;   // this slice is chapter 1 only
+  if (!E.sw(game, 'win_now')) return;   // switch win_now (engine/switches.js): chapter 1 turns it on
   if (storyBusy() || storyWait > 0) return;
   if (document.getElementById('winnow') || document.getElementById('help') && !document.getElementById('help').hidden) return;
   if (!E.cannotLose(game, 0)) return;
@@ -1871,7 +1871,7 @@ export function render() {
       ...E.missileKinds(game.rules, Object.fromEntries(Object.keys(st.ammo).map((k) => [k, 1])), true).filter(has).map((k) => btn(k, 'missile', munName(k), launchWhy(k), !!lo && lo.kinds.includes(k), { pips: ammoPips(k), pipCls: 'amber' })),
       has('seeker_drone') ? btn('seeker_drone', 'drone', 'Drone', launchWhy('seeker_drone'), !!lo && lo.kinds.includes('seeker_drone'), { pips: ammoPips('seeker_drone'), pipCls: 'amber' }) : null,
       // a scan pings everything around the ship; it needs the ship to have moved this turn
-      ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
+      !E.sw(game, 'scan_button') ? null : ibtn({ icon: 'scan', label: 'Scan', on: st.scanReady && !barred('scan'), lock: scanLocked, pressed: mode === 'scan',
         sub: st.scanReady ? 'radius ' + me.scanR[0] + ' / ' + me.scanR[1] : me.used && me.used.scan ? 'already scanned' : !v.cp ? 'no points' : R.rapid ? (R.rapid.scan === 'past_line' ? 'past the line only' : 'after crossing') : st.scanMoved < 1 ? 'move first' : 'not now',
         title: scanLocked && v.cp ? 'Move this ship first, then scan ' + me.scan.r[0] + ' / ' + me.scan.r[1] : null, onclick: () => {
         mode = 'scan'; pending = { type: 'scan', ship: sel };
@@ -1927,7 +1927,7 @@ export function render() {
     const tab = h('button', { class: 'chamfer', 'aria-expanded': String(detailsOpen), 'aria-label': detailsOpen ? 'Hide ship details' : 'Show all ship details', title: detailsOpen ? 'Hide details' : 'All details',
       onclick: () => { detailsOpen = !detailsOpen; render(); } }, ico(detailsOpen ? 'minus' : 'plus', 11));
     fill(ctx, [compact ? null : tab, h('div', { class: 'ctx-head' },
-        h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
+        h('h2', null, (shown.flagship ? '\u2605 ' : '') + shipName(shown), ' ', h('span', { class: 'sub' }, (shown.name && E.sw(game, 'ship_codes') !== false ? shown.id + ' \u00b7 ' : '') + (shown.mine ? plural(shown.segs.length, 'segment') : 'enemy'))),
         closeBtn(() => { if (look) look = null; else { sel = null; mode = 'move'; pending = null; } detailsOpen = false; say(''); })),
       shipStrip(shown, v),
       own && !compact ? tools : null,
@@ -1964,8 +1964,9 @@ export function render() {
       const sub = endArmed ? 'press again to end' : v.cp === 1 ? 'ends after it \u00B7 tap to end now' : v.cp ? 'banks ' + plural(Math.min(v.cp, R.cp.bankCap), 'point') : '';
       return h('button', { class: 'btn go ib endb' + (v.cp === 1 || endArmed ? ' last' : '') + (endArmed ? ' armed' : ''), 'aria-label': name + (sub ? ': ' + sub : '') + (laserLeft ? '. A laser can still fire' : ''), onclick: () => {
           if (endArmed && performance.now() - endArmedAt < 500) return;
-          if (!game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
-          if (!endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
+          const nag = E.sw(game, 'end_turn_nag') !== false;   // switch end_turn_nag (engine/switches.js)
+          if (nag && !game.pending.length && v.cp > 0 && anyAction()) return confirmEmptyTurn(v.cp);
+          if (nag && !endArmed && v.cp > 0 && anyAction()) { endArmed = true; endArmedAt = performance.now(); say('You still have ' + plural(v.cp, 'command point') + ' and a ship that can act. Press End turn again to end anyway' + (R.cp.bankCap ? ' (up to ' + R.cp.bankCap + ' unspent points are kept for next turn).' : '.')); render(); }
           else act({ type: 'end' });
         } },
         h('span', { class: 'ibic' }, ico('end', 24), laserLeft ? h('b', { class: 'cnt warnb', title: 'A laser can still fire' }, ico('laser', 11)) : null),
