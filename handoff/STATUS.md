@@ -8,6 +8,10 @@
 - **Move-marker polish** — the mint `#6dffc0` is off the palette, and the chips may need to be larger on a phone now the board is bigger.
 - **Handoff ownership table** — still no row for the controls work, and it still names old branches. Ankur to say how it should read (BACKLOG.md).
 
+## Latest (28 Nov evening, gamedev chat): settings sheets fixed and slimmed (build #87)
+- Sheets store only rows the player changed, so untouched rows no longer override board files, and they show the board's own values. Tuning rows are folded into a collapsed "Tuning" section: players see 2 to 4 rows.
+- Found while fixing: the engine never read `interceptHurts: true` from Frontier and three-player boards (it wanted 'on'), so the 24 Nov "intercepted missile still stuns" rule was never live. It is now. `economy: true` is read too. — Claude (gamedev chat)
+
 ## Latest (28 Nov, gamedev chat): switches, one list with three levels (build #86)
 - Master list in the world file (`switches:`), each kind of game's changes (`modes:` skirmish, rapid, story, tutorial, experiments), then a board's or chapter's own `switches:`. Read with `E.sw(game, name)`. Design: `docs/design/switches.md`.
 - Switches today: castle, turn_order, scan_button, start_labels, ship_codes, end_turn_nag, win_now. Story and tutorial now use fixed turn order (Ankur: back-to-back turns are confusing). `turns.first_player` is gone.

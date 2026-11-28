@@ -78,24 +78,47 @@ const THREE_SETTINGS = [
 const STORE = 'shatkon.battle', RSTORE = 'shatkon.rapid', ESTORE = 'shatkon.econ', XSTORE = 'shatkon.exp', TSTORE = 'shatkon.three';
 const defOf = (d) => (d.def !== undefined ? d.def : d.options[0][0]);
 const okVal = (d, v) => (d.range ? Number.isFinite(Number(v)) && Number(v) >= d.range[0] && Number(v) <= d.range[1] : d.options.some((o) => o[0] === v));
-function readSet(store, list) {
+// What a store holds: ONLY the rows the player changed (28 Nov 2026). An untouched row no longer overrides
+// the board: the board file's own value is used, else the row's default. Older saves stored every row;
+// a stored value equal to the row's default counts as untouched, which clears those out.
+function changedSet(store, list) {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(store) || '{}') || {}; } catch (e) {}
   const out = {};
-  for (const d of list) out[d.key] = okVal(d, s[d.key]) ? (d.range ? Number(s[d.key]) : s[d.key]) : defOf(d);
+  for (const d of list) if (okVal(d, s[d.key]) && String(s[d.key]) !== String(defOf(d))) out[d.key] = d.range ? Number(s[d.key]) : s[d.key];
   return out;
 }
-function writeSet(store, list, k, v) {
-  const s = readSet(store, list); s[k] = v;
+// The board file's value for a row, as the row's option id (board: the board's rapid: section).
+const ECON_BOARD = { econCap: 'cap', econHeatmap: 'heatmap', econTurret: 'turret', econTurretRange: 'turretRange', econUpkeepEvery: 'turretEvery', econIdle: 'idle', econUpgrade: 'upgrade' };
+function boardDef(d, board) {
+  if (!board) return undefined;
+  let v = ECON_BOARD[d.key] ? (board.econ || {})[ECON_BOARD[d.key]] : board[d.key];
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === 'boolean') v = d.options && d.options.some((o) => o[0] === 'on') ? (v ? 'on' : 'off') : (v ? 'yes' : 'no');
+  if (d.range) return Number.isFinite(Number(v)) ? Number(v) : undefined;
+  return okVal(d, String(v)) ? String(v) : undefined;
+}
+const effDef = (d, board) => { const b = boardDef(d, board); return b !== undefined ? b : defOf(d); };
+function readSet(store, list, board) {
+  const ch = changedSet(store, list), out = {};
+  for (const d of list) out[d.key] = d.key in ch ? ch[d.key] : effDef(d, board);
+  return out;
+}
+function writeSet(store, list, k, v, board) {
+  const s = changedSet(store, list), d = list.find((x) => x.key === k);
+  if (d && String(v) === String(effDef(d, board))) delete s[k]; else s[k] = v;   // picking the default (or the board's value) un-changes the row
   try { localStorage.setItem(store, JSON.stringify(s)); } catch (e) {}
 }
+// Only changed rows, numbers where the engine wants numbers, so the engine keeps board and default values.
+const NUMS = new Set(['timer', 'openTimer', 'watch', 'line', 'cap', 'shootRange', 'forwardEyes', 'econCap', 'econHeatmap', 'econTurret', 'econUpgrade', 'econTurretRange', 'econUpkeepEvery', 'econIdle', 'ring', 'bounty']);
+const asOpts = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, NUMS.has(k) ? Number(v) : v]));
 export const battleSettings = () => readSet(STORE, SETTINGS);
 export const setBattleSetting = (k, v) => writeSet(STORE, SETTINGS, k, v);
 export const rapidSettings = () => readSet(RSTORE, RAPID_SETTINGS);
 // The rapid settings as engine options (numbers where the engine wants numbers).
+// Only the rows the player changed: the board's own values and the engine's defaults fill the rest.
 export function rapidOptions() {
-  const r = rapidSettings();
-  return { ...r, timer: Number(r.timer), openTimer: Number(r.openTimer), watch: Number(r.watch), line: Number(r.line), cap: Number(r.cap), shootRange: Number(r.shootRange), forwardEyes: Number(r.forwardEyes) };
+  return asOpts(changedSet(RSTORE, RAPID_SETTINGS));
 }
 
 export const econSettings = () => readSet(ESTORE, ECON_SETTINGS);
@@ -140,6 +163,16 @@ async function yamlParse(text) {
   });
   return globalThis.YAML.parse(text);
 }
+// Landing-page sheet: the board file's rapid: section, so untouched rows show the board's own values.
+export async function boardRapidOf(boardName) {
+  if (!boardName || !/^(rapid_|lab_|three_)/.test(boardName)) return null;
+  try {
+    const r = await fetch('rules/rapid/' + boardName + '.yaml?t=' + Date.now());
+    if (!r.ok) return null;
+    const b = await yamlParse(await r.text());
+    return (b && b.rapid) || null;
+  } catch (e) { return null; }
+}
 // Landing-page sheet: fetch the board file and seed before the form is drawn.
 export async function seedExpBoard(boardName) {
   if (!boardName || !/^(rapid_|lab_)/.test(boardName)) return;
@@ -151,30 +184,50 @@ export async function seedExpBoard(boardName) {
   } catch (e) {}
 }
 export function threeOptions() {
-  const r = readSet(TSTORE, THREE_SETTINGS);
-  return { ring: Number(r.ring), bounty: Number(r.bounty), cpuStyle2: r.cpuStyle2 };
+  return asOpts(changedSet(TSTORE, THREE_SETTINGS));
 }
 export function econOptions() {
-  const r = econSettings();
-  return { economy: r.economy, econCap: Number(r.econCap), econOwnHalf: r.econOwnHalf, econHeatmap: Number(r.econHeatmap), econTurret: Number(r.econTurret), econUpgrade: Number(r.econUpgrade), econTurretRange: Number(r.econTurretRange), econUpkeepEvery: Number(r.econUpkeepEvery), econIdle: Number(r.econIdle), econTurretLaser: r.econTurretLaser, cpuStyle: r.cpuStyle };
+  return asOpts(changedSet(ESTORE, ECON_SETTINGS));
 }
 
 // The form: one row of choices per setting, the chosen one's sentence under it. Plain DOM, so both the
 // landing page and the play screen can use it.
 // rapid: false (battle settings), true (rapid mode) or 'econ' (rapid mode with the economy rows first).
-export function settingsForm(onChange, rapid = false, cpu = true) {
+// Who sees a row (docs/design/options-architecture.md): players see a few rows; balance numbers sit in
+// a collapsed Tuning section (still one tap away, for testing). The Lab's own rows are all for the player.
+const PLAYER_ROWS = new Set(['opponent', 'ff', 'timer', 'watch', 'cap', 'cpuStyle', 'cpuStyle2']);
+const isPlayerRow = (d) => PLAYER_ROWS.has(d.key) || LAB_PLAY.includes(d) || EXP_SETTINGS.includes(d);
+// board: the board file's rapid: section, so untouched rows show (and use) the board's own values.
+export function settingsForm(onChange, rapid = false, cpu = true, board = null) {
   // cpu false (same phone, open board): no computer, so no 'Computer opponent' row
   const box = document.createElement('div');
   box.className = 'bs-form';
   // the Lab has its own line and no clock
   const groups = rapid === 'lab' ? [[LAB_PLAY.concat(EXP_SETTINGS), XSTORE], [ECON_SETTINGS, ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'timer', 'openTimer'].includes(d.key)), RSTORE]] : rapid === 'econ' ? [[ECON_SETTINGS, ESTORE], [RAPID_SETTINGS, RSTORE]] : rapid === 'three' ? [[THREE_SETTINGS, TSTORE], [ECON_SETTINGS.filter((d) => d.key !== 'economy'), ESTORE], [RAPID_SETTINGS.filter((d) => !['line', 'unlock'].includes(d.key)), RSTORE]] : [[rapid ? RAPID_SETTINGS : SETTINGS.filter((d) => cpu || d.key !== 'opponent'), rapid ? RSTORE : STORE]];
+  let tuneOpen = null;   // the Tuning section starts open only if one of its rows was changed
   const draw = () => {
     box.textContent = '';
-    for (const [list, store] of groups) drawGroup(list, store);
+    const tune = document.createElement('div'); tune.className = 'bs-form';
+    let nTune = 0, nChanged = 0;
+    for (const [list, store] of groups) {
+      const ch = changedSet(store, list);
+      const player = list.filter(isPlayerRow), tuning = list.filter((d) => !isPlayerRow(d));
+      drawGroup(player, list, store, box);
+      drawGroup(tuning, list, store, tune);
+      nTune += tuning.length; nChanged += tuning.filter((d) => d.key in ch).length;
+    }
+    if (!nTune) return;
+    if (tuneOpen === null) tuneOpen = nChanged > 0;
+    const det = document.createElement('details'); det.className = 'bs-tune'; det.open = tuneOpen;
+    det.addEventListener('toggle', () => { tuneOpen = det.open; });
+    const sum = document.createElement('summary');
+    sum.textContent = 'Tuning \u00b7 ' + nTune + ' balance settings' + (nChanged ? ' (' + nChanged + ' changed)' : '');
+    det.append(sum, tune);
+    box.append(det);
   };
-  const drawGroup = (list, store) => {
-    const cur = readSet(store, list);
-    for (const d of list) {
+  const drawGroup = (rows, list, store, into) => {
+    const cur = readSet(store, list, board), box = into;
+    for (const d of rows) {
       const row = document.createElement('div'); row.className = 'bs-row';
       const lab = document.createElement('div'); lab.className = 'bs-label'; lab.textContent = d.label;
       if (d.range) {   // a slider, with its value in the sentence under it
@@ -183,18 +236,18 @@ export function settingsForm(onChange, rapid = false, cpu = true) {
         Object.assign(sl, { type: 'range', min: d.range[0], max: d.range[1], step: d.range[2], value: cur[d.key] });
         sl.className = 'bs-range'; sl.setAttribute('aria-label', d.label);
         sl.addEventListener('input', () => { why.textContent = d.why(Number(sl.value)); });
-        sl.addEventListener('change', () => { writeSet(store, list, d.key, Number(sl.value)); if (onChange) onChange(readSet(store, list)); });
+        sl.addEventListener('change', () => { writeSet(store, list, d.key, Number(sl.value), board); draw(); if (onChange) onChange(readSet(store, list, board)); });
         row.append(lab, sl, why); box.append(row); continue;
       }
       const seg = document.createElement('div'); seg.className = 'bs-seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', d.label);
       for (const [v, name] of d.options) {
         const b = document.createElement('button');
         b.type = 'button'; b.textContent = name; b.setAttribute('aria-pressed', String(cur[d.key] === v));
-        if (v === defOf(d)) { b.classList.add('bs-def'); b.title = 'the default'; }   // a small dot marks the default
-        b.addEventListener('click', () => { writeSet(store, list, d.key, v); draw(); if (onChange) onChange(readSet(store, list)); });
+        if (v === effDef(d, board)) { b.classList.add('bs-def'); b.title = boardDef(d, board) !== undefined ? 'this board\u2019s value' : 'the default'; }   // a small dot marks the default
+        b.addEventListener('click', () => { writeSet(store, list, d.key, v, board); draw(); if (onChange) onChange(readSet(store, list, board)); });
         seg.append(b);
       }
-      if (cur[d.key] !== defOf(d)) { lab.classList.add('bs-changed'); lab.title = 'changed from the default'; }
+      if (String(cur[d.key]) !== String(effDef(d, board))) { lab.classList.add('bs-changed'); lab.title = 'changed from the default'; }
       const why = document.createElement('div'); why.className = 'bs-why';
       why.textContent = (d.options.find((o) => o[0] === cur[d.key]) || d.options[0])[2];
       row.append(lab, seg, why);
@@ -203,7 +256,7 @@ export function settingsForm(onChange, rapid = false, cpu = true) {
   };
   // every setting is remembered on this device until changed; this puts them all back
   const drawAll = draw;
-  const reset = () => { for (const [list, store] of groups) { try { localStorage.removeItem(store); } catch (e) {} if (onChange) onChange(readSet(store, list)); } drawAll(); };
+  const reset = () => { for (const [list, store] of groups) { try { localStorage.removeItem(store); } catch (e) {} if (onChange) onChange(readSet(store, list, board)); } drawAll(); };
   const wrap = document.createElement('div');
   const foot = document.createElement('div'); foot.className = 'bs-foot';
   const note = document.createElement('span'); note.textContent = 'Kept on this device. \u2022 marks each default; a changed setting has a gold dot by its name.';
@@ -226,9 +279,13 @@ export const SETTINGS_CSS = `
 .bs-seg button[aria-pressed="true"]{background:#7fd8f0;color:#04101c;font-weight:700}
 .bs-range{grid-area:s;width:100%;max-width:260px;accent-color:#7fd8f0}
 .bs-why{grid-area:w;font-size:12.5px;color:#8f9cba;line-height:1.35}
+.bs-tune{border-top:1px solid rgba(127,216,240,.18);padding-top:10px}.bs-tune>summary{cursor:pointer;color:#a7b3cc;font-size:13.5px;min-height:36px;display:flex;align-items:center;list-style:none}.bs-tune>summary::-webkit-details-marker{display:none}.bs-tune>summary::before{content:'\\25B8';margin-right:8px;color:#7fd8f0}.bs-tune[open]>summary::before{content:'\\25BE'}.bs-tune>.bs-form{margin-top:10px}
 @media (max-width:520px){.bs-row{grid-template-columns:1fr;grid-template-areas:"l" "s" "w"}}
 `;
 export function injectSettingsCss() {
   if (document.getElementById('bs-css')) return;
   const st = document.createElement('style'); st.id = 'bs-css'; st.textContent = SETTINGS_CSS; document.head.append(st);
 }
+
+// for tests/settings.test.js
+export const _settingsTest = { readSet, writeSet, changedSet, boardDef, effDef, isPlayerRow, RAPID_SETTINGS, ECON_SETTINGS, THREE_SETTINGS, SETTINGS, RSTORE, ESTORE, TSTORE };
